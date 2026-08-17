@@ -1,0 +1,12 @@
+{
+  "name": "sim-game",
+  "version": "0.1.0",
+  "private": true,
+  "description": "效用AI 驱动的生活模拟游戏（模拟人生 × 行会3 内核）",
+  "scripts": {
+    "dev": "npx --yes serve . -l 5173",
+    "sprites": "python3 tools/character_gen.py",
+    "check": "node tools/smoke-test.js"
+  },
+  "license": "SEE LICENSE IN LICENSE"
+}

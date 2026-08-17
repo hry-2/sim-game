@@ -1,0 +1,55 @@
+# ---- 构建产物 ----
+dist/
+build/
+out/
+*.log
+
+# ---- 依赖 ----
+node_modules/
+.pnp.*
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ---- 引擎中间文件 ----
+.godot/
+.import/
+Library/
+Temp/
+Obj/
+Logs/
+*.unitypackage
+
+# ---- 密钥与凭证（最重要，一旦提交极难彻底清除）----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.keystore
+*.p12
+*.mobileprovision
+signing/
+secrets/
+
+# ---- 平台与商店凭证 ----
+butler-creds*
+steam_appid.txt
+*.itch-credentials
+
+# ---- 大文件源工程（建议走 Git LFS 或独立网盘）----
+*.psd
+*.clip
+*.aseprite.bak
+*.blend1
+raw_audio/
+*.wav.orig
+
+# ---- 系统 ----
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
