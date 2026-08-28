@@ -1,0 +1,4092 @@
+b64 = open('/home/claude/rig/sim_b64_atlas.txt').read().strip()  # 96x126 一帧 × 16 行
+
+HTML = r'''<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>市井 · 效用AI 生活模拟</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{min-height:100%;background:#12100e;color:#d6cab0;
+  font:12px/1.5 ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+#app{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;
+  gap:10px;padding:10px}
+#left{display:flex;flex-direction:column;gap:8px;max-width:100%}
+#feedbox{background:#1b1815;border:2px solid #2b2521;max-width:100%}
+#feedhd{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid #2b2521}
+#feedhd b{font-size:11px;color:#c9a86a;letter-spacing:.08em;margin-right:auto}
+#feedhd button{padding:2px 8px;font-size:10px}
+#feed{height:150px;overflow-y:auto;padding:5px 8px;font-size:11.5px;line-height:1.75}
+#feed .l{display:flex;gap:8px;padding:1px 0;cursor:pointer;border-radius:2px}
+#feed .l:hover{background:#241f1a}
+#feed .t{color:#6f6659;flex:0 0 76px;font-variant-numeric:tabular-nums}
+#feed .c{color:#e0917f}
+#feed .s{color:#a9c48a}
+#feed .m{color:#c9b48c}
+#feed .y{color:#ffd97a}
+canvas{image-rendering:pixelated;background:#0e0c0a;box-shadow:0 0 0 2px #2b2521;
+  max-width:100%;display:block;touch-action:none}
+#stage{position:relative;align-self:center}
+#panel{width:308px;flex:1 1 308px;max-width:100%;background:#1b1815;
+  border:2px solid #2b2521;padding:10px}
+/* ---- 触屏控件：只在指针粗（手指）时出现 ---- */
+#tc{display:none;position:absolute;inset:0;pointer-events:none;touch-action:none}
+#tc .pad{position:absolute;left:8px;bottom:8px;width:104px;height:104px;border-radius:50%;
+  background:rgba(28,23,19,.24);border:2px solid rgba(201,168,106,.28);pointer-events:auto}
+#tc .nub{position:absolute;left:32px;top:32px;width:40px;height:40px;border-radius:50%;
+  background:rgba(201,168,106,.5);pointer-events:none}
+#tc .btns{position:absolute;right:10px;bottom:14px;display:flex;flex-direction:column;gap:9px;
+  pointer-events:auto}
+#tc .btns button{width:60px;height:60px;border-radius:50%;font-size:13px;
+  background:rgba(28,23,19,.5);border:2px solid rgba(201,168,106,.45);color:#e8c169}
+#tc .btns button.sm{width:44px;height:44px;font-size:11px;align-self:flex-end}
+body.touch #tc{display:block}
+body.touch #feed{height:104px}
+@media (max-width:1000px){
+  #app{padding:6px;gap:6px}
+  #panel{width:100%;flex:1 1 100%;padding:8px}
+  #feed{height:112px}
+  #feedhd b{font-size:10px}
+}
+#err{display:none;position:fixed;left:0;right:0;top:0;z-index:9;background:#7a2b26;
+  color:#fff;padding:8px 12px;font-size:12px;white-space:pre-wrap}
+#boot{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);color:#8a7f6d}
+h2{font-size:12px;color:#c9a86a;letter-spacing:.1em;margin:10px 0 5px;
+   border-bottom:1px solid #332c25;padding-bottom:3px}
+h2:first-child{margin-top:0}
+.row{display:flex;justify-content:space-between;gap:6px;font-size:11px;padding:1px 0}
+.dim{color:#7d7263}
+.bar{height:7px;background:#2a251f;position:relative;margin:2px 0 5px;overflow:hidden}
+.bar i{display:block;height:100%;transition:width .25s}
+.cand{font-size:11px;margin:3px 0}
+.cand .t{display:flex;justify-content:space-between}
+.cand .b{height:4px;background:#2a251f;margin-top:1px}
+.cand .b i{display:block;height:100%;background:#6f8f5a}
+.cand.win .t{color:#e8c169}
+.cand.win .b i{background:#c9a86a}
+#ctl{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+button{background:#2a251f;color:#d6cab0;border:1px solid #3d352c;padding:4px 9px;
+  font:11px ui-monospace,monospace;cursor:pointer}
+button.on{background:#c9a86a;color:#1b1815;border-color:#c9a86a}
+button:hover{border-color:#c9a86a}
+.who{display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap}
+.who b{padding:3px 7px;background:#2a251f;border:1px solid #3d352c;cursor:pointer;font-weight:400}
+.who b.on{border-color:#c9a86a;color:#e8c169}
+.tag{display:inline-block;background:#33402c;color:#a9c48a;padding:0 5px;font-size:10px}
+</style></head><body>
+<div id="err"></div><div id="boot">载入中…</div><div id="app">
+<div id="left">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="tc">
+      <div class="pad" id="tcpad"><div class="nub" id="tcnub"></div></div>
+      <div class="btns">
+        <button id="tcalt" class="sm">✕</button>
+        <button id="tcbuild" class="sm">造</button>
+        <button id="tcact">互动</button>
+      </div>
+    </div>
+  </div>
+  <div id="feedbox">
+    <div id="feedhd"><b>事件流</b>
+      <button data-f="all" class="on">全部</button>
+      <button data-f="me">与我有关</button>
+      <button data-f="conflict">只看冲突</button>
+    </div>
+    <div id="feed"></div>
+  </div>
+</div>
+<div id="panel"></div></div>
+<script>
+// ==========================================================================
+//  效用 AI (Utility AI) + 智能物件 (Smart Objects) 生活模拟
+//  ─ 模拟人生的需求驱动 × 行会3的生产链经济，共用一套打分内核
+// ==========================================================================
+// ==========================================================================
+//  T36 · 扩图到 68×52 —— 加的是【地方】，不是格子
+//  46×34 时全图只有一片野外（镇东 3 棵树 3 处采集），而 T32/T33 之后
+//  木料是全局瓶颈（义仓 30 根 = 十五趟山），院子 14×11 也塞不下几样建造。
+//  所以这次扩的是三样具体的东西：北山（新的野外带 + 采石场）、
+//  更大的院子（18×13）、更大的广场（24×9，凉亭和义仓不再抢位置）。
+//
+//  纵向分带（每一带之间留一行街）：
+//    0        边界
+//    1..9     北山：溪谷 / 采石场 / 林地 / 山货
+//    10       街（x=20 / x=41 是两条南北向的巷子，把北山接到镇上）
+//    11..23   上排三户（HW=18, HH=13）
+//    24       街
+//    25..36   镇中心
+//    37       街
+//    38..50   下排三户
+//    51       边界
+// ==========================================================================
+const T=24, GW=62, GH=52, VW=GW*T, VH=GH*T;
+// 距离折扣系数：按地图对角线等比。46×34 时是 0.035，放大之后不跟着放松，
+// 远处的东西在 NPC 眼里会直接消失（公田 66 格 → 折到 0.30）。
+const DIST_K=0.024;
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d',{alpha:false});
+
+// ---------- 摄像机 ----------
+// 扩图到 31×24 之后整张图是 744×576，手机竖屏根本放不下。
+// 所以视口按屏幕算格数，镜头跟着主角走 —— 这也正是星露谷那类地图的结构。
+// 代价是看不见全图（这个游戏的价值有一半是"看戏"），用右上角的小地图补回来。
+const CAM={x:0,y:0};
+// ==========================================================================
+//  T31 · 渲染倍率 RS —— 人物换成 64×84 的精灵
+//  以前整条链是 1:1：世界按 24 像素一格画进画布，再用 CSS 整数放大 PXS 倍。
+//  人物只有 32×42 个像素，放大三倍之后每个像素是 3×3 的大方块 ——
+//  脸糊成一团、腿是一坨黑、走路动画几乎看不出来。
+//
+//  现在把【画布后备存储】放大 RS 倍，绘制时统一 setTransform(RS,...)，
+//  所有世界坐标一行不用改；人物则用 64×84 的原图直接 1:1 画进去。
+//  于是人物的像素密度翻倍，占屏面积不变。
+//
+//  RS 取 3，正好等于桌面原来的 CSS 放大倍率 —— 于是屏幕上的一切尺寸不变
+//  （一格仍是 72 个 CSS 像素，视口仍是 15×11），只是人物从 32×42 变成
+//  96×126 个像素、文字也真正按 3 倍分辨率渲染。
+//  【不是把人画大，是把同样大的人画细。】
+// ==========================================================================
+const RS=3;
+let VIEWW=GW, VIEWH=GH, PXS=2, VPW=GW*T, VPH=GH*T;
+const isTouch = matchMedia('(pointer:coarse)').matches;
+if(isTouch) document.body.classList.add('touch');
+
+// 视口上限：即使屏幕放得下整张地图也不让它铺满 ——
+// 一是保证任何设备上的构图一致，二是"镜头跟着走"本身就是这类地图的观感。
+// 没有上限时平板会算出 9×23 这种又窄又高的畸形视口。
+const VMAXW=18, VMAXH=13, VMINW=9, VMINH=7;
+function fit(){
+  // 断点要和 CSS 的 @media 一致：面板在窄屏是【堆在下面】的，
+  // 那就不该再给它预留横向空间。820px 的平板曾因此被算成"桌面"，
+  // 800 的可用宽被砍成 468，视口缩到 9 格宽。
+  const mob = innerWidth<=1000;
+  const availW = Math.max(200, mob ? innerWidth-20 : innerWidth-352);
+  const availH = Math.max(160, mob ? innerHeight*0.56 : innerHeight-64);
+  // 先定缩放再算格数：手机上像素要够大才看得清人物
+  let best=null;
+  // CSS 放大倍率 = PXS/RS。【放大】必须是整数，否则像素大小忽 1 忽 2，一眼就脏；
+  // 【缩小】没关系，那是超采样，在高 DPI 屏上反而正好 1:1。
+  // 所以 RS=3 时可选 1、2、3、6，4 档要被剔除。
+  for(const sc of [3,2,1]){
+    const w=Math.min(GW, VMAXW, Math.floor(availW/(T*sc)));
+    const h=Math.min(GH, VMAXH, Math.floor(availH/(T*sc)));
+    if(w<VMINW||h<VMINH) continue;
+    const score=w*h*sc;                                  // 兼顾"看得清"和"看得到"
+    if(!best||score>best.score) best={sc,w,h,score};
+  }
+  best = best || {sc:1, w:Math.min(GW,VMINW), h:Math.min(GH,VMINH)};
+  PXS=best.sc; VIEWW=best.w; VIEWH=best.h;
+  VPW=VIEWW*T; VPH=VIEWH*T;                       // 视口的【世界像素】尺寸，逻辑一律用它
+  cv.width=VPW*RS; cv.height=VPH*RS;              // 画布后备存储放大 RS 倍
+  cv.style.width=VPW*PXS+'px'; cv.style.height=VPH*PXS+'px';
+  ctx.imageSmoothingEnabled=false; cv.dataset.s=PXS;
+}
+addEventListener('resize',fit); addEventListener('orientationchange',()=>setTimeout(fit,120)); fit();
+
+// 镜头跟随：直接对齐会抖（模拟是固定步长的），所以用插值追
+function camUpdate(){
+  const tx=(PC.rx==null?PC.px:PC.rx)-VPW/2, ty=(PC.ry==null?PC.py:PC.ry)-VPH/2;
+  const gx=Math.max(0,Math.min(GW*T-VPW,  tx));
+  const gy=Math.max(0,Math.min(GH*T-VPH, ty));
+  if(CAM.init){ CAM.x+=(gx-CAM.x)*0.18; CAM.y+=(gy-CAM.y)*0.18; }
+  else { CAM.x=gx; CAM.y=gy; CAM.init=1; }
+}
+
+const EB=document.getElementById('err');
+function fail(m){ EB.style.display='block'; EB.textContent='运行出错：'+m; }
+onerror=(m,src,l,c,e)=>{ fail((e&&e.stack)||m+' @'+l+':'+c); };
+
+const CW=32, CH=42;         // 人物在【世界坐标】里占的格子，保持不变
+const SW=CW*RS, SH=CH*RS;   // 精灵图里一帧的真实像素：64×84，正好 1:1 画进放大后的画布
+const cast=new Image();
+let spriteOK=false;
+cast.onerror=()=>{ fail('精灵图载入失败，已降级为色块显示（不影响 AI 逻辑）'); boot(); };
+cast.onload =()=>{ spriteOK=true; boot(); };
+cast.src='data:image/png;base64,__B64__';
+setTimeout(()=>{ if(!started) { fail('资源载入超时，已强制启动'); boot(); } }, 3000);
+
+// ---------- 需求定义：衰减速率 (每模拟分钟) ----------
+const NEEDS={
+  hunger :{n:'饥饱',dec:0.10,c:'#c9803a',pow:2},
+  energy :{n:'精神',dec:0.075,c:'#5f7fc0',pow:2},
+  bladder:{n:'内急',dec:0.17,c:'#c0b04a',pow:2.4},
+  hygiene:{n:'洁净',dec:0.07,c:'#4aa0a8',pow:2},
+  fun    :{n:'闲趣',dec:0.08,c:'#a86fc0',pow:2},
+  social :{n:'交游',dec:0.10,c:'#c05f7f',pow:2},
+  // 家计：不自然衰减，由家庭存粮/存款推导 —— 行会3的经济驱动挂在这里
+  provision:{n:'家计',dec:0,c:'#8fa85a',pow:1.1},
+};
+const NK=Object.keys(NEEDS);
+
+// ==========================================================================
+//  T8 · 私有财产与共享市场
+//  之前 home 是全局共享的 —— 所有 NPC 在给同一个家庭打工，根本没有竞争。
+//  改成每人独立钱包和库存，市场共享：卖的人多价格就跌，这才是真的抢生意。
+// ==========================================================================
+const MKT={
+  furniture:{p:48, base:48, lo:0.62, hi:1.6},   // 木器售价
+  food     :{p:24, base:24, lo:0.6,  hi:1.55},  // 米价
+  fish     :{p:16, base:16, lo:0.55, hi:1.6},   // 鱼价
+  pickle   :{p:40, base:40, lo:0.6,  hi:1.5},   // 腌货：山货加工过一道，才值这个价
+  egg      :{p:22, base:22, lo:0.6,  hi:1.5},   // 蛋：日产，量大所以单价压得住
+  stone    :{p:14, base:14, lo:0.65, hi:1.4},   // 石料：主要是建材，卖不上价
+};
+// 做一件木器。手艺到了会出精品（多得一件）—— 用确定性门槛而不是随机数，
+// 整个项目都不用 Math.random，行为才可复现、测试才对得上。
+function craft(s){
+  s.inv.wood-=2; s.inv.goods++;
+  s._made=(s._made||0)+1;
+  if(skillBonus(s)){ s.inv.goods++; return {type:'craft.fine'}; }
+  return null;
+}
+function mktSellEgg(s){                           // 售一枚蛋
+  const v=Math.round(MKT.egg.p*(boonOn('市面')?1.12:1));
+  s.money+=v; s.inv.egg--;
+  MKT.egg.p=Math.max(MKT.egg.base*MKT.egg.lo, MKT.egg.p*0.95);
+  return v;
+}
+function mktSellPickle(s){                        // 售一坛腌货
+  const v=Math.round(MKT.pickle.p*(boonOn('市面')?1.12:1));
+  s.money+=v; s.inv.pickle--;
+  MKT.pickle.p=Math.max(MKT.pickle.base*MKT.pickle.lo, MKT.pickle.p*0.94);
+  return v;
+}
+function mktSellFish(s){                          // 售一尾鱼（鱼多了也会跌价）
+  const v=Math.round(MKT.fish.p*(boonOn('市面')?1.12:1));
+  s.money+=v; s.inv.fish--;
+  MKT.fish.p=Math.max(MKT.fish.base*MKT.fish.lo, MKT.fish.p*0.95);
+  return v;
+}
+function mktSell(s){                              // 售一件木器
+  // 「市面」：春供的恩泽，镇上有了口碑，木器卖得上价
+  const v=Math.round(MKT.furniture.p*skillPrice(s)*(boonOn('市面')?1.12:1));
+  s.money+=v; s.inv.goods--;
+  MKT.furniture.p=Math.max(MKT.furniture.base*MKT.furniture.lo, MKT.furniture.p*0.955);
+  return v;
+}
+function mktBuy(s){                               // 籴三份米
+  const v=Math.round(MKT.food.p);
+  s.money-=v; s.inv.food+=3;
+  MKT.food.p=Math.min(MKT.food.base*MKT.food.hi, MKT.food.p*1.045);
+  return v;
+}
+function mktDrift(dm){                             // 价格缓慢回归基准
+  for(const k in MKT){ const m=MKT[k]; m.p += (m.base-m.p)*0.0014*dm; }
+}
+
+// ==========================================================================
+//  T19 · 种地
+//  这是第一个【跨日】的机制 —— 之前所有动作都在几十分钟内结算完，
+//  所以第 3 天和第 8 天感觉不出区别。庄稼要等，等出来的才是"累积"。
+//
+//  四个阶段：荒 → 耕 → 苗 → 穗 →（收割）→ 耕
+//  生长只在【浇过水】的那天推进，所以浇水是一份每天都得还的债 —— 时间由此变稀缺。
+//
+//  田【无主】，但记下是谁播的种。别人抢收会写进苦主的记忆里（conflict.harvest），
+//  于是种地不只是经济，也是社会关系的火种。
+// ==========================================================================
+const GROW_WET=34, GROW_DRY=4;      // 浇过水一天涨 34（约三天熟），没浇几乎不长
+// 广播值要让种地成为"慢、但不花钱"的另一条路，而不是被贸易严格压制。
+// 对比一轮：伐木90+木作120+市摊45 = 255 分钟 → 约 44 文（≈4 斗米）；
+// 开荒之后的一轮 播种35+浇水×3 75+收割60 = 170 分钟 → 4 斗米，且一文不花。
+// 开垦是一次性投入，此后田一直是熟的 —— 先苦后甜，这个梯度本身就是玩法。
+const FIELD={
+  荒:{n:'荒田', note:'开垦',        dur:70, adv:{provision:40}, cost:{energy:20,hygiene:14}},
+  耕:{n:'熟田', note:'播种（耗米1）', dur:35, adv:{provision:52}},
+  苗:{n:'秧苗', note:'浇水',        dur:25, adv:{provision:44}},
+  穗:{n:'待割', note:'收割',        dur:60, adv:{provision:80}, cost:{energy:18}},
+};
+// 名称和提示要带上种的是什么、这一季长不长 —— 玩家扫一眼就得知道该不该管它
+function fieldLabel(f){
+  const st=fieldStage(f);
+  if(st==='荒'||st==='耕') return FIELD[st].n;
+  return (f.crop||'稻')+(st==='苗'?'苗':'穗');
+}
+function fieldNote(f){
+  const st=fieldStage(f);
+  if(st==='穗') return '收割（得'+((CROP[f.crop]||CROP.稻).yield+(f.owner?0:2))+'斗）';
+  if(st==='苗') return cropRate(f)<=0 ? (f.crop+'·当季停长') : '浇水';
+  return FIELD[st].note;
+}
+function fieldStage(f){
+  if(f.st!=='苗') return f.st;
+  return f.grow>=100 ? '穗' : '苗';
+}
+// 田的当前"该干什么" —— 物件的 adv/dur/note 都由它推导，
+// 所以效用 AI 不需要认识"种地"这回事，照常打分就行。
+function fieldDef(f){ return FIELD[fieldStage(f)]; }
+
+function fieldPre(f, s){
+  const st=fieldStage(f);
+  if(st==='耕') return s.inv.food>=1;              // 得有米当种子
+  if(st==='苗') return !f.wet;                     // 今天浇过就别浇了
+  return true;
+}
+function fieldEff(f, s){
+  const st=fieldStage(f);
+  if(st==='荒'){ f.st='耕'; return {type:'farm.tilled'}; }
+  if(st==='耕'){ s.inv.food--; f.st='苗'; f.grow=0; f.wet=false; f.sower=s.name;
+                 // 玩家在菜单里选了什么就种什么；NPC 用当季最划算的
+                 f.crop=(s.act && s.act.crop) || bestCrop();
+                 return {type:'farm.sown', why:f.crop}; }
+  if(st==='苗'){ f.wet=true; return {type:'farm.watered'}; }
+  // 收割：抢收别人种的会结仇
+  const thief = f.sower && f.sower!==s.name ? f.sower : null;
+  // 公田肥，比自家院里那块多收两斗 —— 但它没有围墙。
+  // 远、且可能被人抢先，换更高的收成：这才是值得跑那 30 格的理由，
+  // 也让"抢收"在年景不好时自然回来，而不是靠硬凑。
+  s.inv.food+=(CROP[f.crop]||CROP.稻).yield + (f.owner?0:2);
+  f.st='耕'; f.grow=0; f.wet=false; f.sower=null; f.crop=null;
+  return {type: thief?'conflict.harvest':'farm.reaped', whom:thief};
+}
+// 跨日：只有浇过水的田才长。这一句就是"每天都得回来一趟"的全部来源。
+const DITCH=new Set();                 // 水渠占的格子（建造出来的）
+const MILL=new Set();                  // 水车：把水渠的浇灌半径从 1 扩到 2
+function millOn(){ return MILL.size>0; }
+function ditchNear(f){
+  const r = millOn() ? 2 : 1;          // 有水车就够得着更远的田
+  for(const k of DITCH){
+    const dx=Math.abs((k%GW)-f.x), dy=Math.abs((k/GW|0)-f.y);
+    if(dx+dy<=r && dx+dy>0) return true;
+  }
+  return false;
+}
+function farmDayTick(){
+  // 水渠先放水，再算长势 —— 顺序反了就要白等一天
+  if(DITCH.size){ let n=0;
+    for(const f of FIELDS) if(f.st==='苗' && !f.wet && ditchNear(f)){ f.wet=true; n++; }
+    if(n) emit('build.water',{who:'水渠', val:n, tags:['build']});
+  }
+  for(const f of FIELDS){
+    if(f.st!=='苗') continue;
+    // 时令决定长得快慢，倍率为 0 就整季停在那儿 —— 这就是"硬窗口"
+    // 取整：时令倍率是小数，不取整会攒出 39.099999999999994 这种噪声，
+    // 存档和界面上都难看
+    f.grow=Math.min(100, Math.round(f.grow + (f.wet?GROW_WET:GROW_DRY)*cropRate(f)));
+    f.wet=false;
+  }
+}
+
+// ==========================================================================
+//  地图：一座小镇
+//  上一版是"三条横带"——一排卧室、一片公共区、一片工地，本质还是宿舍。
+//  这版改成【六户宅院围着一个镇中心】：
+//    · 每户 = 一间屋（榻、米缸、灶台，都只有主人能用）+ 一个带篱笆的院子（一块私田）
+//    · 镇中心 = 公共设施：井、茅厕、浴堂、书塾、茶棚、木作坊、集市、米铺
+//    · 镇东 = 林地和两块【公田】
+//
+//  为什么私田之外还要留公田：
+//  上一版六块田全是无主的，"抢收"才成立（T19 那条最有分量的故事线）。
+//  一旦每家都有围墙，抢收就随围墙一起消失了。
+//  所以保留两块公田 —— 自家院里的安稳，镇东的公田才是会起争执的地方。
+// ==========================================================================
+const solid=Array.from({length:GH},()=>Array(GW).fill(0));
+for(let x=0;x<GW;x++){solid[0][x]=1;solid[GH-1][x]=1;}
+for(let y=0;y<GH;y++){solid[y][0]=1;solid[y][GW-1]=1;}
+
+// 六户的左上角：上排三户 / 下排三户，中间夹着镇中心，最上面是北山
+const HOME=[{x:1,y:11},{x:22,y:11},{x:43,y:11},
+            {x:1,y:38},{x:22,y:38},{x:43,y:38}];
+const HW=18, HH=13;                       // 每户占的地块（14×11 塞不下建造）
+const FENCE=new Set();                    // 篱笆：挡路，但不是夯土墙（渲染要分开）
+
+for(const h of HOME){
+  // 屋：左上角一间 7×6 的房，南墙留门
+  for(let x=0;x<=6;x++){ solid[h.y][h.x+x]=1; solid[h.y+5][h.x+x]=1; }
+  for(let y=0;y<=5;y++){ solid[h.y+y][h.x]=1;  solid[h.y+y][h.x+6]=1; }
+  solid[h.y+5][h.x+3]=0;                  // 屋门
+  // 院墙：篱笆围出剩下的地，朝镇中心那侧留院门
+  for(let x=0;x<HW;x++){
+    for(const yy of [h.y-1, h.y+HH]) if(yy>0&&yy<GH-1){
+      if(x===9) continue;                 // 院门（上下各一个，通向街）
+      solid[yy][h.x+x]=1; FENCE.add(yy*GW+h.x+x);
+    }
+  }
+  for(let y=0;y<HH;y++){
+    for(const xx of [h.x-1, h.x+HW]) if(xx>0&&xx<GW-1){
+      solid[h.y+y][xx]=1; FENCE.add((h.y+y)*GW+xx);
+    }
+  }
+}
+// 两条横街（镇中心上下）不能被篱笆封死 —— 上面已在 x===9 处留了门
+
+// ---------- 智能物件：每个物件"广播"自己能满足什么 ----------
+//  adv  = advertisement，广播的需求满足量
+//  pre  = 前置条件（生产链靠它自然串起来）
+//  eff  = 完成时对世界的影响
+// 物产/采集/料理/祠堂也提前到这里：下面的物件表里直接调用 mkForage()，
+// 而 FORAGE_SPOT 是 const —— 写在后面不是"晚一点生效"，是直接抛 ReferenceError。
+// （这已经是这个项目第三次踩暂时性死区了：T4 的 REL_BASE、T25 的 NAMES、这次的 FORAGE_SPOT。）
+// ==========================================================================
+//  T26 · 物产、采集与料理
+//  之前全镇只有三样东西：米、木料、木器。所有的季节、天气、手艺，
+//  都只是绕着这三样打转 —— 星露谷的"丰富"本质上是
+//  【更多产出物 → 更多用途 → 一份清单把它们串起来】。
+//
+//  这一步补前两环：山里能采到当季的东西，灶上能用它们做出比白饭更好的饭。
+//  于是"今天进山"第一次有了理由，采集物也第一次有了去处。
+// ==========================================================================
+const FORAGE={
+  野菜:{ key:'veg',   se:'春', n:'野菜', col:'#6f9a4e' },
+  野果:{ key:'fruit', se:'夏', n:'野果', col:'#c0524e' },
+  菌子:{ key:'mush',  se:'秋', n:'菌子', col:'#a87a52' },
+  药草:{ key:'herb',  se:'冬', n:'药草', col:'#7e9a86' },
+};
+const FORAGE_BY_SEASON={}; for(const k in FORAGE) FORAGE_BY_SEASON[FORAGE[k].se]=FORAGE[k];
+function seasonForage(d){ return FORAGE_BY_SEASON[seasonOf(d==null?day:d)]; }
+
+// 采集点每天只长这么多 —— 没有这条，山就是个无限的水龙头：
+// 实测 16 天全镇采了 207 份，有人囤了 30 野菜 43 野果，采集比种地还划算。
+// 星露谷的山货也是每天重生、采完即止，稀缺才让"今天进山"成为一个机会而不是习惯。
+const FORAGE_PER_DAY=2;
+// 每天重置的产出点（采石场、鸡棚、药圃）——和采集丛同一套思路。
+// 必须声明在物件表之前：mkQuarry() 在建表时就往里 push。
+const DAILY=[];
+function dailyTick(){ for(const d of DAILY) d.left=d.cap; }
+
+const FORAGE_SPOT=[];
+function forageDayTick(){ for(const sp of FORAGE_SPOT) sp.left=FORAGE_PER_DAY; }
+// 林地：伐木。铁斧把 2 根抬到 3 根、工时打八折（只对玩家）
+function mkTree(id,x,y){
+  return { id, zone:'work', n:'林地', art:'tree', tree:1,
+    x, y, w:1, h:1, use:[[x,y+1]],
+    col:['#3d4a2c','#2b351f','#4a3628'],
+    adv:{provision:26}, dur:90, cost:{energy:16,hygiene:12},
+    eff:s=>{ s.inv.wood += hasTool('斧',s)?3:2; },
+    get note(){ return '伐木 +'+(TOOLS['斧']?3:2); } };
+}
+// 采石场：T36 的新资源。石料不开新的加工链，只做【更大更贵的建造】的料。
+function mkQuarry(id,x,y,seat){
+  const sp={cap:3, left:3}; DAILY.push(sp);
+  return { id, zone:'work', n:'采石场', art:'quarry', quarry:1, daily:sp,
+    x, y, w:1, h:1, use:[seat],
+    col:['#8f8c84','#5f5c56','#b3b0a6'],
+    adv:{provision:24}, dur:120, cost:{energy:20,hygiene:10},
+    pre:()=>sp.left>0, why:'今日这处已采尽，明日再来',
+    get note(){ return sp.left>0
+      ? '采石 +'+(TOOLS['镐']?2:1)+'（今日还剩 '+sp.left+' 回）' : '今日已采尽'; },
+    eff:s=>{ s.inv.stone += hasTool('镐',s)?2:1; sp.left--;
+             return {type:'stone.got'}; } };
+}
+function mkForage(id,x,y,seat){
+  const sp={ id, left:FORAGE_PER_DAY }; FORAGE_SPOT.push(sp);
+  return {
+    id, zone:'work', forage:sp, x, y, w:1, h:1, use:[seat],
+    col:['#4d6e3d','#33502f','#8fae6a'],
+    get n(){ return sp.left>0 ? seasonForage().n+'丛' : '采尽的丛子'; },
+    get note(){ return sp.left>0 ? '采'+seasonForage().n+' +2（今日还剩 '+sp.left+' 回）' : '今日已采尽'; },
+    adv:{provision:22, fun:9}, dur:45, cost:{energy:8},
+    pre: ()=>sp.left>0, why:'今日已采尽，明日再来',
+    eff: s=>{ const f=seasonForage(); s.inv[f.key]+=hasTool('筐',s)?3:2; sp.left--;
+              return {type:'forage.got', why:f.n}; },
+  };
+}
+
+// 料理：用采集物换更好的一餐，而且【省米】——
+// 白饭要两斗，配上山货只要一斗。这就是进山的经济动机。
+const RECIPE=[
+  { n:'家常饭', need:{food:2},            adv:{hunger:72},            note:'米×2' },
+  { n:'菜饭',   need:{food:1, veg:1},     adv:{hunger:80, fun:10},    note:'米×1 野菜×1' },
+  { n:'果饼',   need:{food:1, fruit:1},   adv:{hunger:70, fun:24},    note:'米×1 野果×1' },
+  { n:'菌汤',   need:{food:1, mush:1},    adv:{hunger:78, energy:18}, note:'米×1 菌子×1' },
+  { n:'药膳',   need:{food:1, herb:1},    adv:{hunger:74, energy:12, hygiene:10}, note:'米×1 药草×1' },
+  // 烤鱼【不用米】—— 这是断粮时的后路，也是钓鱼存在的第一个理由
+  { n:'烤鱼',   need:{fish:1},            adv:{hunger:66, fun:12},    note:'鱼×1（不费米）' },
+  { n:'鱼羹',   need:{food:1, fish:1},    adv:{hunger:84, energy:14}, note:'米×1 鱼×1' },
+  // 蛋来自鸡棚 —— 唯一"睡一觉就有"的产出，所以蛋菜不许太强
+  { n:'蛋羹',   need:{egg:1},             adv:{hunger:62, energy:10}, note:'蛋×1（不费米）' },
+  { n:'蛋炒饭', need:{food:1, egg:1},     adv:{hunger:86, fun:10},    note:'米×1 蛋×1' },
+];
+const canMake=(s,r)=>Object.keys(r.need).every(k=>(s.inv[k]||0)>=r.need[k]);
+function bestRecipe(s){
+  // 挑此刻最划算的：满足量按当前的紧迫度加权，不能做的直接跳过。
+  // NPC 不需要认识"菜谱"这个概念，照常按广播打分就行。
+  let best=null, bv=-1;
+  for(const r of RECIPE){
+    if(!canMake(s,r)) continue;
+    let v=0; for(const k in r.adv) v += r.adv[k]*urgency(s.need[k], NEEDS[k].pow);
+    if(v>bv){ bv=v; best=r; }
+  }
+  return best;
+}
+function cook(s, forced){
+  const r = forced || bestRecipe(s);
+  if(!r) return null;
+  for(const k in r.need) s.inv[k]-=r.need[k];
+  for(const k in r.adv) if(k!=='hunger') s.need[k]=Math.min(100, s.need[k]+r.adv[k]*0.5);
+  return r.n==='家常饭' ? null : {type:'cook.made', why:r.n};
+}
+
+
+
+// ==========================================================================
+//  T28 · 钓鱼
+//  钓鱼在这里担两个角色：
+//    ① 一条【不用米】的口粮 —— 断粮又没钱时的后路（烤鱼只要一条鱼）
+//    ② 让【雨天】第一次变成好事 —— 之前下雨只是"田不用浇了"加"露天活难干"，
+//       现在雨天鱼口好。于是"今天下雨"从"少干点活"变成"改去钓鱼"，
+//       这才是星露谷里天气真正的用法：不是惩罚，是改道。
+//
+//  没有随机数：用（天、时辰、钓点、手艺）做确定性哈希决定收成，
+//  所以同一局重放结果一致，测试也对得上。
+// ==========================================================================
+const FISH={
+  鲫:{ n:'鲫鱼', w:1, se:null },            // 四季都有，垫底的那条
+  鲤:{ n:'鲤鱼', w:2, se:['春','夏'] },
+  鳜:{ n:'鳜鱼', w:3, se:['秋','冬'] },
+};
+function fishPool(){
+  const se=seasonOf(day);
+  return Object.values(FISH).filter(f=>!f.se || f.se.includes(se));
+}
+// 一竿下去钓上什么：手艺越好、雨天越好，空手的机会越小
+function fishRoll(spotId, s){
+  const h=hash01(day*977 + Math.floor(clock/30)*31 + spotId*7);
+  const lv=skillLv(s), rain = wx.id==='雨';
+  // 空手率：生手晴天四成，宗师雨天不到一成
+  const miss = Math.max(0.05, 0.40 - lv*0.05 - (rain?0.12:0) - (hasTool('篓',s)?0.08:0));
+  if(h < miss) return null;
+  // 好鱼的门槛：雨天和手艺都往下压
+  const rare = 0.80 - lv*0.04 - (rain?0.10:0);
+  const pool=fishPool();
+  const big = pool.length>1 && h > rare ? pool[pool.length-1] : pool[0];
+  return big;
+}
+// 下竿。空手也要有回音 —— 否则玩家分不清"今天钓砸了"和"这东西坏了"，
+// 而"有时候白坐一个时辰"正是钓鱼这件事的味道。
+function angle(s, spotId){
+  const f=fishRoll(spotId, s);
+  if(!f){ return {type:'fish.miss'}; }
+  // 鱼篓：偶尔一竿两尾。仍然走确定性哈希，重放结果一致
+  const extra = hasTool('篓',s) &&
+    hash01(day*613 + Math.floor(clock/30)*17 + spotId*5) > 0.68 ? 1 : 0;
+  s.inv.fish += f.w + extra;
+  return {type:'fish.got', why:f.n, val:f.w+extra};
+}
+
+// ==========================================================================
+//  T27 · 祠堂（目标结构）
+//  这是「对标星露谷」里最后一条空白。社区中心捆绑包是星露谷最被低估的设计：
+//  一份跨四季的清单，把"今天干什么"和"这一年干什么"连了起来。
+//  没有它，无终局沙盒就只是"每天都差不多"。
+//
+//  四季各一份供奉，每份要当季的山货 + 存粮 + 木器 —— 也就是说
+//  【逼你在对的季节做对的事】：春天不采野菜，春供这一年就补不上了。
+//  每完成一份，全镇得一个永久的好处；四份齐了，祠堂修成。
+// ==========================================================================
+const SHRINE={ done:{}, year:1 };
+const OFFER={
+  春:{ need:{veg:2,  food:3, goods:1}, boon:'市面',
+       tip:'木器售价 +12%',   note:'镇上有了口碑' },
+  夏:{ need:{fruit:2,food:4, goods:1}, boon:'风调',
+       tip:'庄稼长势 +15%',   note:'雨水应时' },
+  秋:{ need:{mush:2, food:4, goods:2}, boon:'匠心',
+       tip:'手艺长进 +35%',   note:'老匠人肯指点了' },
+  冬:{ need:{herb:2, food:5, goods:2}, boon:'安泰',
+       tip:'诸事消耗 -8%',    note:'镇上安稳下来' },
+};
+const boonOn=(b)=>Object.keys(SHRINE.done).some(se=>OFFER[se].boon===b);
+function offerReady(s, se){
+  const o=OFFER[se]; if(!o || SHRINE.done[se]) return false;
+  return Object.keys(o.need).every(k=>(s.inv[k]||0)>=o.need[k]);
+}
+function offerGive(s, se){
+  const o=OFFER[se]; if(!offerReady(s,se)) return null;
+  for(const k in o.need) s.inv[k]-=o.need[k];
+  SHRINE.done[se]=true;
+  emit('shrine.offer',{who:s.name, why:se, obj:o.boon, tags:['shrine']});
+  if(Object.keys(SHRINE.done).length>=4) emit('shrine.done',{who:s.name, tags:['shrine']});
+  return o;
+}
+// 供品清单的完成度 —— 面板和祠堂菜单都要
+function offerProgress(s, se){
+  const o=OFFER[se]; if(!o) return [];
+  return Object.keys(o.need).map(k=>{
+    const nm = k==='food'?'米' : k==='goods'?'木器'
+             : (Object.values(FORAGE).find(f=>f.key===k)||{}).n || k;
+    return { k, nm, have:Math.min(s.inv[k]||0, o.need[k]), need:o.need[k],
+             ok:(s.inv[k]||0)>=o.need[k] };
+  });
+}
+
+// 名字与性格提前到这里：下面按名字给六户建私产，const 的暂时性死区
+// 意味着写在后面不是"晚一点生效"，而是直接抛 ReferenceError。
+const TRAITS={
+  勤勉:{provision:1.7, fun:0.6, energy:0.9},
+  耽乐:{fun:1.8, social:1.2, provision:0.6},
+  善交:{social:1.9, fun:1.1, provision:0.8},
+  端方:{hygiene:2.0, bladder:1.3, provision:1.0},
+};
+const NAMES=['小满','阿沅','老莫','芜青','阿柳','梨娘'];   // 顺序 = 精灵表行序
+const TN=['勤勉','善交','端方','耽乐','端方','善交'];
+// 手工分配而非随机：保证阵容里一定存在冲突，测试也可复现。
+// 小满(洁癖+急性子) ↔ 芜青(邋遢+慢性子) 是双重对立，天生死对头。
+const TT=[['洁癖','急性子'], ['话痨','慷慨'], ['洁癖','吝啬'], ['邋遢','慢性子'],
+          ['孤僻','慢性子'], ['话痨','吝啬']];
+
+// ==========================================================================
+//  T35 · MBTI —— 第三层人格，管的是【怎么做决定】
+//
+//  这个项目已经有两层人格了，所以第一个要回答的问题是"别再加一层废的"：
+//    · 性格（勤勉/耽乐/善交/端方）→ 需求权重，管【你想要什么】
+//    · 特质（洁癖/话痨/吝啬…）    → 局部修正，管【你的怪脾气】
+//  再挂 16 个标签而不接任何机制，就是 T22 之前那个"只涨不用"的 skill：
+//  面板上好看，玩到第 10 天和第 1 天一模一样。
+//
+//  所以 MBTI 在这里【不是标签，是四个旋钮】，而且每个旋钮都拧在
+//  一条已经存在、已经被测试盯着的机制上：
+//
+//    E/I  社交电量 → 交游的【衰减速度】和社交回报（E 掉得快、回得多）
+//    S/N  眼光远近 → 【距离折扣】和【家计】权重（S 看眼前，N 看收成和清单）
+//    T/F  情面轻重 → 【记忆分量】和【八卦轻信度】（F 记仇也记恩，T 淡）
+//    J/P  定性与否 → 【承诺规则】和【锚点日程】（J 认死理，P 想一出是一出）
+//
+//  也就是说：性格决定你要什么，MBTI 决定你怎么去拿。两层不重叠。
+// ==========================================================================
+const MB={
+  E:{ socDec:1.30, socGain:1.15 },  I:{ socDec:0.80, socGain:0.90 },
+  S:{ dist:1.5,    prov:0.85 },     N:{ dist:0.6,    prov:1.20 },
+  T:{ mem:0.80,    trust:0.85 },    F:{ mem:1.30,    trust:1.15 },
+  // 锚点是全镇制造碰面的唯一机制，而碰面是八卦和结怨的原料。
+  // 第一版 J/P 拧到 1.25/0.75，人就聚不到一块了：三天里 NPC 社交 15 次掉到 8 次、
+  // 对立的人一次没碰上，摩擦直接归零。所以这一栏的摆幅必须压到最小。
+  J:{ patience:1.4, anchor:1.10 },  P:{ patience:0.6, anchor:0.92 },
+};
+// 手工分配：四个轴各三比三，而且要和已有的特质对得上
+//（阿沅话痨慷慨 → ENFP；老莫端方洁癖吝啬 → ISTJ；梨娘话痨吝啬 → ENTP 爱说不落地）
+const TM=['ESTJ','ENFP','ISTJ','ISFP','INFJ','ENTP'];
+const MBNAME={ ESTJ:'总管型', ENFP:'快活人', ISTJ:'老成型',
+               ISFP:'随性子', INFJ:'心细型', ENTP:'点子多' };
+function mb(sim, key){                       // 取某个旋钮的值，缺省 1
+  let v=1;
+  for(const c of (sim.mbti||'')) if(MB[c] && MB[c][key]!=null) v*=MB[c][key];
+  return v;
+}
+
+const OBJ=[
+ // ================= 镇中心：公共设施 =================
+ // 谁都能用，所以争抢也集中在这儿 —— 早上的浴堂和茅厕是全镇最挤的地方
+ {id:'wc1', zone:'home', n:'茅厕',x:4, y:27,w:1,h:1, use:[[4,28]],  col:['#c2c8cc','#8f979d','#e2e7ea'],
+  adv:{bladder:98}, dur:8},
+ {id:'wc2', zone:'home', n:'茅厕',x:6, y:27,w:1,h:1, use:[[6,28]],  col:['#c2c8cc','#8f979d','#e2e7ea'],
+  adv:{bladder:98}, dur:8},
+ {id:'bath1', zone:'home', n:'浴堂',x:9, y:27,w:1,h:1, use:[[9,28]], col:['#7fa6ad','#547278','#b6d2d6'],
+  adv:{hygiene:88}, dur:28},
+ {id:'bath2', zone:'home', n:'浴堂',x:11,y:27,w:1,h:1, use:[[11,28]],col:['#7fa6ad','#547278','#b6d2d6'],
+  adv:{hygiene:88}, dur:28},
+ {id:'well', zone:'commons', n:'水井', art:'well', x:26,y:26,w:1,h:1, use:[[26,27],[25,26]],
+  col:['#83807a','#5f5c56','#3f5a62'],
+  adv:{hygiene:38, social:8}, dur:22, note:'打水盥洗'},
+ {id:'shelf', zone:'commons', n:'书塾',x:15,y:27,w:1,h:1, use:[[15,28]], col:['#5c4530','#3d2e20','#a8703a'],
+  adv:{fun:30}, dur:110, skill:true},
+ {id:'table', zone:'commons', n:'茶棚',x:29,y:28,w:2,h:2, use:[[28,29],[31,29]], col:['#7a5a3c','#54402c','#8d6b48'],
+  adv:{social:42,fun:24,hunger:14}, dur:60, social:true, note:'吃茶闲话'},
+ {id:'sofa', zone:'commons', n:'竹榻',x:35,y:28,w:2,h:1, use:[[35,29],[36,29]], col:['#6a5578','#4a3a55','#8a7398'],
+  adv:{fun:46,energy:12,social:12}, dur:90, social:true},
+ {id:'bench', zone:'work', n:'木作坊',x:4, y:31,w:2,h:1, use:[[4,32],[5,32]], col:['#8a6a42','#5e482c','#b89a5e'],
+  adv:{provision:44}, dur:120, pre:s=>s.inv.wood>=2, eff:s=>craft(s), craft:1,
+  why:s=>'要木料×2（现有 '+s.inv.wood+'，去镇东伐木）',
+  cost:{energy:22}, skill:true, note:'木器 / 打工具'},
+ {id:'bench2', zone:'work', n:'木作坊',x:8, y:31,w:2,h:1, use:[[8,32],[9,32]], col:['#8a6a42','#5e482c','#b89a5e'],
+  adv:{provision:44}, dur:120, pre:s=>s.inv.wood>=2, eff:s=>craft(s), craft:1,
+  why:s=>'要木料×2（现有 '+s.inv.wood+'，去镇东伐木）',
+  cost:{energy:22}, skill:true, note:'木器 / 打工具'},
+ {id:'stall', zone:'work', n:'集市',x:15,y:31,w:2,h:1, use:[[15,32],[16,32]], col:['#9a4a3a','#6e3328','#d8b45e'],
+  adv:{provision:52}, dur:45,
+  pre:s=>s.inv.goods>=1 || s.inv.pickle>=1 || s.inv.egg>=1 || s.inv.fish>=1,
+  why:'手里没什么可卖的',
+  // 按单价排：腌货 > 木器 > 蛋 > 鱼。鱼本来是口粮，逼急了才换钱
+  eff:s=> s.inv.pickle>=1 ? {type:'econ.soldpickle', val:mktSellPickle(s)}
+        : s.inv.goods>=1  ? {type:'econ.sold',       val:mktSell(s)}
+        : s.inv.egg>=1    ? {type:'econ.soldegg',    val:mktSellEgg(s)}
+                          : {type:'econ.soldfish',   val:mktSellFish(s)},
+  note:'售腌货/木器/蛋/鲜鱼（随行就市）'},
+ {id:'shop', zone:'work', n:'米铺',x:20,y:31,w:1,h:1, use:[[20,32]], col:['#7a6a4a','#54492f','#c9a86a'],
+  adv:{provision:60}, dur:30, pre:s=>s.money>=MKT.food.p, eff:s=>({type:'econ.bought', val:mktBuy(s)}),
+  why:s=>'差 '+Math.ceil(MKT.food.p-s.money)+' 文',
+  note:'籴米（随行就市）'},
+ // 祠堂：四季各一份供奉。它不满足任何需求，纯粹是那份清单的入口 ——
+ // 所以 adv 只给一点点"心安"，NPC 不会来，这是玩家的事。
+ {id:'shrine', zone:'commons', n:'祠堂', x:24,y:31,w:2,h:1, use:[[24,32],[25,32]],
+  col:['#7a5a3c','#4a3628','#c9a86a'],
+  adv:{fun:8}, dur:40,
+  get note(){ return SHRINE.done[seasonOf(day)] ? seasonOf(day)+'供已毕' : '供奉'+seasonOf(day)+'物'; } },
+ // ================= 镇东：塘、钓点 =================
+ {id:'fishA', zone:'work', fish:1, art:'fish', x:48,y:28,w:1,h:1, use:[[48,29]],
+  col:['#5e6f7a','#3a4a56','#8fb0c0'],
+  get n(){ return wx.id==='雨' ? '钓点·鱼口好' : '钓点'; },
+  get note(){ return '垂钓'+(wx.id==='雨'?'（雨天易得好鱼）':''); },
+  adv:{provision:30, fun:32}, dur:60, cost:{energy:8}, skill:true,
+  eff:s=>angle(s,1)},
+ {id:'fishB', zone:'work', fish:1, art:'fish', x:51,y:28,w:1,h:1, use:[[51,29]],
+  col:['#5e6f7a','#3a4a56','#8fb0c0'],
+  get n(){ return wx.id==='雨' ? '钓点·鱼口好' : '钓点'; },
+  get note(){ return '垂钓'+(wx.id==='雨'?'（雨天易得好鱼）':''); },
+  adv:{provision:30, fun:32}, dur:60, cost:{energy:8}, skill:true,
+  eff:s=>angle(s,2)},
+
+ // ================= 北山：溪谷 / 采石场 / 林地 / 山货 =================
+ // 木料是全局瓶颈（义仓 30 根 = 十五趟山），所以林地从 3 处扩到 6 处；
+ // 采石场是这一版的新资源，石料只用在"更大更贵的建造"上。
+ {id:'fishC', zone:'work', fish:1, art:'fish', x:3,y:6,w:1,h:1, use:[[3,7]],
+  col:['#5e6f7a','#3a4a56','#8fb0c0'],
+  get n(){ return wx.id==='雨' ? '溪口·鱼口好' : '溪口'; },
+  get note(){ return '垂钓'+(wx.id==='雨'?'（雨天易得好鱼）':''); },
+  adv:{provision:30, fun:32}, dur:60, cost:{energy:8}, skill:true,
+  eff:s=>angle(s,3)},
+ mkQuarry('quarry1', 12, 4, [12,5]),
+ mkQuarry('quarry2', 15, 4, [15,5]),
+ mkTree('tree1', 22, 3), mkTree('tree2', 25, 3), mkTree('tree3', 28, 3),
+ mkTree('tree4', 22, 7), mkTree('tree5', 25, 7), mkTree('tree6', 28, 7),
+ mkForage('forage1', 34, 4, [34,5]),
+ mkForage('forage2', 37, 4, [37,5]),
+ mkForage('forage3', 40, 4, [40,5]),
+ mkForage('forage4', 43, 7, [43,8]),
+ mkForage('forage5', 46, 7, [46,8]),
+ // 镇边上留两棵树和一处采集：近的稀、远的密。
+ // 不留的话，扩图等于把开局的柴火成本翻一倍。
+ mkTree('tree7', 55, 26), mkTree('tree8', 58, 26),
+ mkForage('forage6', 55, 30, [55,31]),
+
+];
+
+
+// ---------- 六户私产 ----------
+// 屋里的东西挂 owner，别人的 score() 直接返回 null —— 所以"我家"是真的我家。
+// 这也让作息锚点自然成立：回 home 就是回自己那间屋，不是回一片公共卧室。
+const BED='#5e4530',BED2='#c9ae7c';
+NAMES.forEach((nm,i)=>{
+  const h=HOME[i];
+  OBJ.push({ id:'bed'+(i+1), zone:'home', homeIdx:i, priv:1, get owner(){ return HOMEOWNER[i]; },
+    get n(){ return (HOMEOWNER[i]||'空宅')+'的榻'; },
+    x:h.x+1, y:h.y+1, w:2,h:1, use:[[h.x+1,h.y+2]], art:'bed',
+    col:[BED,'#4a3628',BED2], adv:{energy:78}, dur:240 });
+  OBJ.push({ id:'jar'+(i+1), zone:'home', homeIdx:i, get owner(){ return HOMEOWNER[i]; }, n:'米缸',
+    x:h.x+5, y:h.y+1, w:1,h:1, use:[[h.x+5,h.y+2]],
+    col:['#8a9099','#5f666e','#aeb6bd'], adv:{hunger:38}, dur:15,
+    pre:s=>s.inv.food>=1, why:'缸里没米了', eff:s=>{s.inv.food--;}, note:'取些冷食' });
+  OBJ.push({ id:'stove'+(i+1), zone:'home', homeIdx:i, get owner(){ return HOMEOWNER[i]; }, n:'灶台',
+    x:h.x+5, y:h.y+3, w:1,h:1, use:[[h.x+5,h.y+4]],
+    col:['#5a5048','#3a332d','#b8442f'], adv:{hunger:78, fun:8}, dur:50,
+    pre:s=>!!bestRecipe(s), eff:s=>cook(s), note:'生火做饭',
+    why:s=>s.inv.food>=1?'配料不够，只够干嚼':'没米下锅' });
+});
+
+// ---------- 田：六块私田（各在自家院里）+ 两块公田（镇东）----------
+// adv / dur / note / pre / eff 全做成 getter，随阶段自己变，效用 AI 一行不用改。
+const FIELDS=[];
+function addField(id, fx, fy, seat, owner, homeIdx){
+  // 私田的主人跟着【宅子】走：人没了、新人搬进来，只要改 HOMEOWNER 一处
+  const f={ st:'荒', grow:0, wet:false, sower:null, crop:null, x:fx, y:fy, w:1, h:1,
+            get owner(){ return homeIdx==null ? null : HOMEOWNER[homeIdx]; } };
+  FIELDS.push(f);
+  OBJ.push({
+    id, zone:'work', field:f, art:'field', homeIdx,
+    get owner(){ return homeIdx==null ? null : HOMEOWNER[homeIdx]; },
+    x:fx, y:fy, w:1, h:1, use:[seat],
+    col:['#6b5334','#4a3a24','#8a7048'],
+    get n(){ return (homeIdx==null?'公·':'')+fieldLabel(f); },
+    get note(){ return fieldNote(f); },
+    get dur(){ return fieldDef(f).dur; },
+    get adv(){ return fieldDef(f).adv; },
+    get cost(){ return fieldDef(f).cost||{}; },
+    pre: s=>fieldPre(f,s),
+    get why(){ return fieldStage(f)==='耕' ? '播种要一斗米作种' : '今日已浇过' ; },
+    eff: s=>fieldEff(f,s),
+  });
+}
+NAMES.forEach((nm,i)=>{                       // 自家院里那块，安稳
+  const h=HOME[i];
+  addField('field'+(i+1), h.x+9, h.y+2, [h.x+9, h.y+3], nm, i);
+});
+addField('common1', 48, 32, [48,33], null);   // 镇东公田：会起争执的地方
+addField('common2', 51, 32, [51,33], null);
+
+OBJ.forEach(o=>{ for(let y=o.y;y<o.y+o.h;y++) for(let x=o.x;x<o.x+o.w;x++) solid[y][x]=1; });
+
+// 家计水平：存粮和存款越少越焦虑（行会3的经济压力）
+// 家计 = 存粮 + 存款 + 【地里的庄稼】。
+// 最后一项是让种地在效用 AI 里成立的关键：
+// 打分函数只看当下，而开垦的回报在三天后 —— 实测六块田十天全是荒的，没人种。
+// 把"地里长着的东西"算进家底，播种就真的提高了家境，AI 才有动机动手。
+//
+// 更要紧的是那个负项：今天没浇的田要扣分。
+// 于是"没浇水"本身会把家计推低、制造紧迫感 —— 这是纯效用 AI 里
+// 让【日常维护型动作】成立的唯一办法，否则种下去就没人管了。
+function cropValue(s){
+  let v=0;
+  for(const f of FIELDS){
+    // 只算【还在长】的，熟了的不算。
+    // 一开始把熟田也算进家底，结果六块田全熟在地里没人收 ——
+    // "家里有粮"的踏实感恰好压住了去收割的动机。
+    // 长着的庄稼是指望，割回来的才是粮：熟的那一刻家计反而该掉下来，逼人下地。
+    if(f.sower!==s.name || fieldStage(f)!=='苗') continue;
+    v += 7 + f.grow*0.11;              // 越接近成熟，越是家底
+    if(!f.wet) v -= 9;                 // 今天还没浇，心里不踏实
+  }
+  return v;
+}
+// 成家之后两个人的家底是一本账 —— 这是"家庭"在效用 AI 里唯一说得通的表达
+function household(s){
+  const sp=spouseOf(s.name);
+  const p=sp&&sims.find(x=>x.name===sp);
+  return p ? {food:(s.inv.food|0)+(p.inv.food|0), money:s.money+p.money}
+           : {food:s.inv.food|0, money:s.money};
+}
+function provision(s){ const H=household(s); return Math.max(0, Math.min(100,
+  Math.min(s===PC&&BARN.n>0?90:60, H.food*7)         // 谷仓：米囤得住了
+  + Math.min(26,H.money*0.22) + Math.min(34,cropValue(s))
+  + Math.min(18,(s.inv.fish||0)*5))); }
+
+
+// ==========================================================================
+//  T22 · 手艺（让技能真的有用）
+//  在此之前 skill 是个【只涨不用】的浮点数 —— 翻遍代码它唯一的作用是
+//  `s.skill>0.5` 才会想到馈赠。砍得不会更快、做得不会更好、卖得不会更贵，
+//  所以玩到第 10 天和第 1 天，能力一模一样，成长曲线是零。
+//
+//  现在它管三件事，每一件都能被玩家直接感觉到：
+//    ① 干活更快（工时打折）
+//    ② 木器更好（卖价加成）
+//    ③ 偶尔出精品（额外产出）
+//  等级用对数：前几级涨得快（马上有反馈），后面越来越慢（不会失控）。
+// ==========================================================================
+const SKILL_MAX=6;
+function skillLv(s){ return Math.min(SKILL_MAX, Math.floor(Math.log2(1+(s.skill||0)*1.6))); }
+function skillName(lv){ return ['生手','学徒','匠人','好手','巧匠','大匠','宗师'][lv]||'生手'; }
+// 工时折扣：每级快 7%，封顶约三成
+function skillSpeed(s){ return 1 - Math.min(0.34, skillLv(s)*0.07); }
+// 木器加价：每级 +9%
+function skillPrice(s){ return 1 + skillLv(s)*0.09; }
+// 出精品的概率：每级 6%。不用随机数 —— 拿技能和产量做个确定性的门槛，
+// 这样行为可复现（整个项目都不用 Math.random，测试才能对得上）
+function skillBonus(s){ return skillLv(s)>=2 && ((s._made||0) % Math.max(2, 8-skillLv(s)))===0; }
+
+// ==========================================================================
+//  T34 · 工具
+//  查下来，这个游戏最耗时的那件事恰恰是【唯一永远不会变快的事】：
+//  伐木 90 分钟得 2 根，`tree` 的 eff 就是 s.inv.wood+=2，而且没挂 skill，
+//  所以从第 1 天到第 30 天一模一样。T32/T33 之后木料是全局瓶颈
+//  （义仓 30 根 = 十五趟山），这条平线就特别扎眼。
+//
+//  工具补的正是这里。四样都是【一次性、永久、只归玩家】——
+//  NPC 不吃工具，否则好不容易调平的经济会被整体抬一档。
+// ==========================================================================
+const TOOL={
+  斧:{ n:'铁斧', wood:4, money:60, dur:150, tip:'伐木 2→3 根，工时省两成' },
+  锄:{ n:'锄',   wood:3, money:40, dur:120, tip:'田里的活省三成工时' },
+  篓:{ n:'鱼篓', wood:3, money:30, dur:110, tip:'空竿更少，偶尔一竿两尾' },
+  筐:{ n:'背篓', wood:2, money:35, dur:100, tip:'采集 2→3 样' },
+  镐:{ n:'铁镐', wood:3, money:70, dur:160, tip:'采石 1→2 块，工时省两成' },
+};
+let TOOLS={};                                   // 玩家已有的工具
+function hasTool(k, s){ return (s===undefined||s===PC) && !!TOOLS[k]; }
+function toolNames(){ return Object.keys(TOOLS).map(k=>TOOL[k].n); }
+// 工时折扣：只作用在玩家身上（NPC 走的是另一条结算路径）
+function toolSpeed(o){
+  if(o.tree   && TOOLS['斧']) return 0.78;
+  if(o.quarry && TOOLS['镐']) return 0.80;
+  if(o.field && TOOLS['锄']) return 0.70;
+  return 1;
+}
+// 玩家做一件事要多久：手艺 + 工具。
+// 【以前只有弹菜单的物件吃到了手艺折扣】—— tryInteract 那条路径压根没乘 skillSpeed，
+// 于是钓点(skill:true)对 NPC 有折扣、对玩家没有。一并修了。
+function playerDur(o, base){
+  let d = base==null ? o.dur : base;
+  if(o.skill) d*=skillSpeed(PC);
+  d*=toolSpeed(o);
+  if(PC.ill) d*=1.25;                      // 病着干活慢
+  return Math.max(4, Math.round(d));
+}
+function makeTool(s, k){
+  const t=TOOL[k];
+  if(!t || TOOLS[k] || s.inv.wood<t.wood || s.money<t.money) return null;
+  s.inv.wood-=t.wood; s.money-=t.money; TOOLS[k]=1;
+  return {type:'tool.made', why:t.n};
+}
+
+// ---------- 角色 ----------
+// ==========================================================================
+//  T2 · 性格特质
+//  和「性格」(勤勉/耽乐/…) 分两层：
+//    性格 = 需求权重，决定这个人平时想干嘛
+//    特质 = 互斥对，决定这个人和谁天生合不来
+//  特质必须同时影响【行为】和【关系】——只改关系值的话，玩家看不出谁是谁。
+// ==========================================================================
+const TRAIT={
+  '洁癖'  :{opp:'邋遢',  tip:'受不了脏乱',   mod:{hygiene:1.9}},
+  '邋遢'  :{opp:'洁癖',  tip:'不拘小节',     mod:{hygiene:0.45}},
+  '话痨'  :{opp:'孤僻',  tip:'闲不住嘴',     mod:{social:1.8}},
+  '孤僻'  :{opp:'话痨',  tip:'只想清静',     mod:{social:0.4}},
+  '吝啬'  :{opp:'慷慨',  tip:'一分钱掰两半', mod:{provision:1.6}},
+  '慷慨'  :{opp:'吝啬',  tip:'钱财身外物',   mod:{provision:0.65, social:1.25}},
+  '急性子':{opp:'慢性子',tip:'等不了',       patience:0.55},
+  '慢性子':{opp:'急性子',tip:'不着急',       patience:1.7},
+};
+// 对立特质的对数：0 = 相安无事，1~2 = 越处越烦
+function friction(a,b){
+  let n=0;
+  for(const t of a.tt) for(const u of b.tt) if(TRAIT[t] && TRAIT[t].opp===u) n++;
+  return n;
+}
+// 性格权重 × 特质修正
+function weightOf(sim,k){
+  let w=sim.w[k]||1;
+  for(const t of sim.tt){ const m=TRAIT[t]&&TRAIT[t].mod; if(m&&m[k]) w*=m[k]; }
+  return w;
+}
+// 特质影响耐心 → 影响承诺规则的松紧
+function patienceOf(sim){
+  let p=mb(sim,'patience');   // J 认死理，开工了就做完；P 想一出是一出
+  for(const t of sim.tt){ const v=TRAIT[t]&&TRAIT[t].patience; if(v) p*=v; }
+  return p;
+}
+
+// ==========================================================================
+//  T9 · 锚点日程
+//  纯效用 AI 的 NPC 去哪只取决于此刻谁最饿 —— 玩家想馈赠却找不到人，
+//  社交循环直接断裂（决策 3）。
+//  折中：给一天划出几个"锚点时段"，锚点期间该分区的物件加权、其他区降权；
+//  锚点之间完全自由。玩家因此能计划"晚饭后去公共区能碰到人"，
+//  而具体谁在干嘛、心情如何仍然由效用 AI 决定。
+// ==========================================================================
+const SCHEDULE=[                      // [起, 止, 分区]
+  [ 6,  9, 'home'   ],                // 起床梳洗
+  [ 9, 18, 'work'   ],                // 干活
+  [19, 23, 'commons'],                // 晚上聚在公共区
+  [23, 30, 'home'   ],                // 睡觉（跨午夜）
+];
+const ANCHOR_IN=1.9, ANCHOR_OUT=0.32;
+function anchorZone(sim){
+  const h=clock/60 + (sim.shift||0);   // 每人错开一点，别像上下班打卡
+  for(const [a,b,z] of SCHEDULE){
+    const hh = h<a-12 ? h+24 : h;      // 处理跨午夜段
+    if(hh>=a && hh<b) return z;
+  }
+  return null;
+}
+// 有需求真告急时，锚点让位 —— 否则会出现"上班时间憋着不上厕所"
+function anchorFree(sim){
+  for(const k of NK) if(NEEDS[k].dec && sim.need[k]<22) return true;
+  return false;
+}
+
+// ==========================================================================
+//  T4 · 记忆与积怨
+//  关系不再是一个孤立数字，而是【记忆条目的加权和】。
+//  这是"行为"变成"故事"的分水岭：玩家能问出"为什么他俩关系这么差"。
+//
+//  设计要点：
+//   · 每条记忆有半衰期 —— 恩情记得久，小摩擦忘得快
+//   · rel[name] 字段保留不变，只是改由记忆推导，现有代码无需改动
+//   · 衰减是连续的，所以不能只在记忆变动时重算，要定期刷新
+// ==========================================================================
+const MEM={                                    // 权重 / 半衰期(天) / 文案
+  'conflict.blocked' :{w:-7,  hl:1.5, t:'抢了我想用的东西'},
+  'conflict.friction':{w:-9,  hl:3,   t:'处不来'},
+  'social.攀谈'      :{w:+4,  hl:6,   t:'跟我聊天'},
+  'social.称许'      :{w:+7,  hl:8,   t:'称许过我'},
+  'social.说笑'    :{w:+6,  hl:6,   t:'跟我说笑'},
+  'social.深谈'      :{w:+15, hl:14,  t:'跟我深谈过'},
+  'social.馈赠'      :{w:+22, hl:22,  t:'送过我礼物'},
+  'social.争执'      :{w:-14, hl:12,  t:'和我大吵过一架'},
+  'conflict.harvest' :{w:-26, hl:20,  t:'割了我种的稻子'},   // 比吵一架还伤
+  'social.相好'      :{w:+30, hl:60,  t:'和我相好'},         // 半衰期最长的一条
+  'conflict.吃醋'    :{w:-11, hl:9,   t:'和别人走得太近'},
+};
+const REL_BASE=35, MEM_CAP=30;
+
+function remember(sim, otherName, type, why){
+  const d=MEM[type]; if(!d || !otherName || otherName===sim.name) return;
+  sim.mem=sim.mem||{}; const list=sim.mem[otherName]=sim.mem[otherName]||[];
+  // 同类递减：近两天内同类型的记忆越多，这一条的分量越小。
+  // 否则重复摩擦会线性累加把关系压到 0，变成单向棘轮。
+  const recent=list.filter(e=>e.type===type && (day-e.day)+((clock-e.clock)/1440) < 2).length;
+  const w=d.w*Math.pow(0.62, recent);
+
+  // 递减到微不足道时，不再新增条目，而是【续上】最近的同类记忆：
+  //   语义上"他又抢了我一次"该是让旧怨不消退，而不是加一条注定归零的记录；
+  //   实现上也避免记忆表被零分量垃圾撑爆。
+  if(Math.abs(w) < Math.abs(d.w)*0.25){
+    for(let i=list.length-1;i>=0;i--) if(list[i].type===type){
+      list[i].day=day; list[i].clock=Math.round(clock);      // 刷新时间戳 = 重新计时
+      list[i].n=(list[i].n||1)+1;
+      list[i].why=(why||d.t)+`（第 ${list[i].n} 次）`;
+      sim._relDirty=true; return;
+    }
+  }
+  list.push({type, day, clock:Math.round(clock), w:+w.toFixed(2), hl:d.hl, why:why||d.t});
+  trimMem(list);
+  sim._relDirty=true;
+}
+
+// 超上限：把最旧的合并成一条"累计印象"，保留分量但不无限膨胀。
+// 必须独立成函数 —— 八卦是第二条写入路径，14 天长跑里实测把单对记忆顶到 33 条，
+// 因为它直接 push 进列表，绕开了原先内联在 remember() 里的这段。
+function trimMem(list){
+  if(list.length<=MEM_CAP) return;
+  const old=list.splice(0, list.length-MEM_CAP+1);
+  const sum=old.reduce((a,e)=>a+e.w,0);
+  list.unshift({type:'summary', day:old[0].day, clock:0, w:sum, hl:10,
+    why:`早先的 ${old.length} 件事`, n:old.length});
+}
+
+// 单条记忆此刻还剩多少分量（半衰期指数衰减）
+function memWeight(e){
+  const age=(day-e.day)+((clock-e.clock)/1440);
+  return e.w*Math.pow(0.5, Math.max(0,age)/e.hl);
+}
+// 记忆总量 → 关系值。
+// 曾经是 clamp(35 + Σ, 0, 100)，14 天长跑暴露了它的结构缺陷：
+// 记忆是累加的，clamp 只是把溢出砍掉，于是到第 14 天所有关系都被钉死在 0 或 100，
+// 关系表不再携带任何信息 —— 馈赠也不会更亲，吵架也不会更僵，社会系统失去分辨率。
+// 三天的冒烟窗口完全看不到（那时还没攒够量），是"无限沙盒"这个设计目标下的真 bug。
+// 改成 logistic 软饱和：常用区间几乎还是线性（保住所有已调好的阈值），
+// 两端只逼近不触达，所以再深的恩怨也留得下继续变化的余地。
+const REL_S=22.75, REL_C=-14.1;      // 解出来的：Σ=0 时恰为 35，且此处斜率≈1
+function relFromMemory(sim, otherName){
+  const list=(sim.mem&&sim.mem[otherName])||[];
+  let v=0;
+  // 情面轻重：F 型把恩怨记得更重，T 型看得淡。
+  // 乘在【汇总】而不是单条上 —— 单条要原样存进存档，否则读档时会被乘第二次。
+  const f=mb(sim,'mem');
+  for(const e of list) v+=memWeight(e)*f;
+  return 100/(1+Math.exp(-(v+REL_C)/REL_S));
+}
+// 衰减是连续的 → 定期整表刷新，而不是只在写入时算
+function refreshRel(){
+  for(const a of sims){
+    if(a.mem) for(const n in a.mem){
+      // 衰减到 0.3 以下的条目已经不影响任何东西，清掉，别让档案变成流水账
+      const L=a.mem[n]; for(let i=L.length-1;i>=0;i--) if(Math.abs(memWeight(L[i]))<0.3) L.splice(i,1);
+    }
+    for(const b of sims) if(a!==b) a.rel[b.name]=relFromMemory(a,b.name);
+  }
+}
+
+// ==========================================================================
+//  T13 八卦传播
+//  之前玩家的行为只影响当事人：跟老莫吵一架，阿沅毫不知情。
+//  这里让记忆在人与人之间流动 —— A 和 B 好好聊天时，A 会把自己对第三人 C
+//  最想说的那件事讲给 B，B 因此对 C 产生【二手记忆】。
+//  这是个正反馈系统，会自己失控成"全村互恨"，所以四道闸门缺一不可：
+//   ① 二手不再转述（hand===2 不可传）—— 否则一条消息会在人群里无限放大
+//   ② 折扣按听者对讲述者的信任 —— 你不信的人说的坏话，你听听就算
+//   ③ 听者自己认识当事人时再打折 —— 亲眼所见胜过道听途说
+//   ④ 同一件事只听一次（sid 去重）+ 二手半衰期更短 —— 传闻忘得快
+// ==========================================================================
+const GOSSIP_K=0.55,      // 二手权重基准折扣
+      GOSSIP_HL=0.6,      // 二手半衰期折扣（传闻忘得快）
+      GOSSIP_MIN=3,       // 源记忆当前分量低于此，不值得开口
+      GOSSIP_KNOWN=0.65,  // 听者已有一手认知时的额外折扣
+      GOSSIP_NEG=1.5;     // 坏话更容易被讲出口（见 pickGossip）
+// 信任曲线：中立熟人(35)≈0.61，密友(80)≈1.10，讨厌的人(10)≈0.33。
+// 原本直接用 rel/100，等于说"中立的人只信 35%"——在一个四个人的村子里太苛刻，
+// 实测一条争执传出去只掉 2 分，玩家根本感觉不到涟漪，等于这套系统白做。
+const trustIn=(r)=> 0.22 + (r==null?REL_BASE:r)/100*1.1;
+
+function memId(owner, about, e){ return owner+'|'+about+'|'+e.type+'|'+e.day+'|'+e.clock; }
+
+// A 想跟 listener 说点什么 —— 挑关于第三人的、亲历的、还够分量的那条
+function pickGossip(a, listener){
+  let best=null, bw=0;
+  for(const about in (a.mem||{})){
+    if(about===listener.name || about===a.name) continue;
+    for(const e of a.mem[about]){
+      if(e.hand===2 || e.type==='summary') continue;   // 闸门①：二手不转述
+      const w=memWeight(e), aw=Math.abs(w);
+      if(aw<GOSSIP_MIN) continue;
+      // 负面消息更容易被讲出口 —— 这不是"坏话更重要"，而是人就这样传话。
+      // 少了这条会出事：正面记忆本来就更多，八卦渠道被好话灌满，
+      // 全村关系一路走高，最后谁也不跟谁吵架，经济差距也被抹平（社交挤掉了干活时间）。
+      const tell=aw*(w<0?GOSSIP_NEG:1);
+      if(tell<=bw) continue;
+      const sid=memId(a.name, about, e);
+      const L=(listener.mem&&listener.mem[about])||[];
+      if(L.some(x=>x.sid===sid)) continue;             // 闸门④：这件事他已经听过
+      best={about, e, w, sid}; bw=tell;
+    }
+  }
+  return best;
+}
+
+function tellGossip(teller, listener){
+  const g=pickGossip(teller, listener); if(!g) return null;
+  const trust=trustIn(listener.rel[teller.name])*mb(listener,'trust');
+  const L=(listener.mem&&listener.mem[g.about])||[];
+  const known=L.some(x=>x.hand!==2) ? GOSSIP_KNOWN : 1;    // 闸门③
+  const w=g.w*GOSSIP_K*trust*known;                        // 闸门②
+  if(Math.abs(w)<0.8) return null;                         // 传了等于没传
+  const said=g.e.why||(MEM[g.e.type]||{}).t||'那些事';
+  listener.mem=listener.mem||{};
+  const L2=(listener.mem[g.about]=listener.mem[g.about]||[]);
+  L2.push({
+    type:g.e.type, day, clock:Math.round(clock), w:+w.toFixed(2),
+    hl:(g.e.hl||6)*GOSSIP_HL, hand:2, src:teller.name, sid:g.sid,
+    why:'听'+teller.name+'说：'+said,
+  });
+  trimMem(L2);
+  listener._relDirty=true;
+  return {about:g.about, w:+w.toFixed(1), said};
+}
+
+// 一次友好交谈里互相说一句 —— 返回发出的事件数，便于测量
+function gossipExchange(a, b){
+  let k=0;
+  for(const [x,y] of [[a,b],[b,a]]){
+    const g=tellGossip(x,y); if(!g) continue;
+    emit('social.gossip',{who:x.name, whom:y.name, obj:g.about,
+      val:g.w, why:g.said, tags:['social','gossip']});
+    k++;
+  }
+  return k;
+}
+
+// ==========================================================================
+//  T39 · 生老病死（上）：年岁、体质、疾病
+//
+//  「饿死」这个词在诊断里挂了几十天，其实只是
+//  `sims.filter(s=>s.need.hunger<5).length` —— 一个计数，掉到 0 也不会死。
+//  这一版把它变成真的。
+//
+//  但【不做生日簿】：一年 28 天，活到七十就是一千九百多天，
+//  那种"寿终"玩家一辈子看不到。所以：
+//    · 年岁是【初始条件】——老莫 61 岁体质封顶只有 71，芜青 19 岁封顶 100
+//    · 真正的死因是【照顾不周】：长期饿着、长期熬着、病了不治
+//  也就是说，死亡挂在已经存在的需求系统上，而不是另开一根寿命条。
+//
+//  顺带让两样一直没什么用的东西有了用处：【洁净】（脏容易病）和【药草】（治病）。
+// ==========================================================================
+// SEASON_LEN 声明在几千行之后（跟着季节那一块走），这里引用就是暂时性死区。
+// 这个项目已经踩到第六次了，根因是【常量散落在各自的功能块里】。
+// 权宜之计：写死，并把来源写清楚。
+const YEAR = 28;                                 // = SEASON_LEN(7) × 四季
+const HOMEOWNER = NAMES.slice();                 // 每座宅子现在归谁 —— 死了/迁入就改这里
+// 一座宅子住得下几个成年人。T40 时是隐含的 1，于是"孩子能不能留在村里"
+// 完全取决于有没有人过世 —— 玩家看到的就是【孩子长大了就消失】。
+// 改成 2：户主 + 一个成年子女（睡厢屋的铺盖）。村子上限 12，仍然不会无限膨胀。
+const HOMECAP = 2;
+function residents(hi){ return sims.filter(s=>s.home===hi); }
+// 真正的空宅：没主人，而且里头也没住着人（继承之后 HOMEOWNER 会补上）
+function vacantHome(){
+  for(let i=0;i<HOMEOWNER.length;i++)
+    if(!HOMEOWNER[i] && residents(i).length===0) return i;
+  return -1;
+}
+// 同住一宅算自家人：米缸、灶台、私田共用；但榻和铺盖各归各的（挂 priv）
+function houseShare(o, s){ return o.homeIdx!=null && o.homeIdx===s.home && !o.priv; }
+const AGE0 = [22, 26, 61, 19, 31, 44];
+const ATLAS_ROWS = 16;                           // 精灵图集有多少行长相
+const NAMEPOOL = ['阿桑','阿禾','石头','三娘','阿蓼','木郎','阿荇','四姑',
+                  '竹生','阿茭','六郎','秋娘'];
+let simSeq = 0;
+
+function vigorCap(s){ return Math.max(28, 100 - Math.max(0, s.age-40)*1.4); }
+
+function mkSim(nm, i, o){
+  o = o||{};
+  const tn = o.trait || TN[i%TN.length];
+  return {
+    name:nm, row: o.row==null? i : o.row, trait:tn, w:TRAITS[tn],
+    tt: (o.tt || TT[i%TT.length]).slice(),
+    home:i,
+    gx:HOME[i].x+2, gy:HOME[i].y+3, px:(HOME[i].x+2.5)*T, py:(HOME[i].y+3.5)*T, face:1, anim:0,
+    need:{hunger:62+i*7, energy:70-i*5, bladder:78, hygiene:66+i*4, fun:54, social:48+i*6, provision:0},
+    skill:0, path:[], act:null, t:0, cands:[], rel:{},
+    isPlayer: !!o.isPlayer,
+    money:60, inv:{food:4, wood:0, goods:0, veg:0, fruit:0, mush:0, herb:0, fish:0, pickle:0, egg:0, stone:0},
+    mbti: o.mbti || TM[i%TM.length],
+    age: o.age==null ? AGE0[i%AGE0.length] : o.age,
+    vigor: 100, ill: 0,
+    shift:[-0.6,0.4,-0.3,0.8,-0.9,0.2][i%6],          // 作息错开，别像上下班打卡
+  };
+}
+const sims = NAMES.map((nm,i)=>{
+  const s = mkSim(nm, i, {trait:TN[i], tt:TT[i], mbti:TM[i], row:i,
+                          age:AGE0[i], isPlayer:i===0});
+  s.vigor = vigorCap(s);
+  return s;
+});
+const GONE = [];                                  // 已故的人：记忆和八卦里还会提到
+let PC=sims[0];
+let autoPilot=false;              // 主角托管给 AI
+sims.forEach(a=>{ a.mem={}; sims.forEach(b=>{ if(a!==b) a.rel[b.name]=REL_BASE; }); });
+let _relTick=0;
+let sel=sims[0];
+let selKid=null;                     // 花名册里选中的"摇篮里的孩子"
+
+// ==========================================================================
+//  T1 · 事件总线
+//  所有系统只管 emit，订阅方各取所需。
+//  记忆(T4)、事件流(T5)、气泡(T6)、档案(T7) 本质是同一批事件的四种呈现，
+//  所以先做总线，后面那几个几乎是免费的。
+// ==========================================================================
+const EVENTS=[]; const EV_MAX=400; const EV_SUBS=[]; let evSeq=0;
+
+function emit(type, d){
+  const e={ id:++evSeq, type, day, clock:Math.round(clock),
+            who:d.who||null,      // 主语：谁做的
+            objId:d.objId||null,
+            whom:d.whom||null,    // 宾语：对谁
+            obj:d.obj||null,      // 涉及的物件
+            why:d.why||null,      // 原因，人话短语
+            val:d.val==null?null:d.val,
+            tags:d.tags||[] };
+  EVENTS.push(e); if(EVENTS.length>EV_MAX) EVENTS.shift();
+  for(const fn of EV_SUBS){ try{ fn(e); }catch(err){} }
+  return e;
+}
+function onEvent(fn){ EV_SUBS.push(fn); }
+
+// 调试用：按类型汇总。控制台里敲 evSummary() 就能看事件分布
+function evSummary(){
+  const m={}; for(const e of EVENTS) m[e.type]=(m[e.type]||0)+1;
+  return {总数:EVENTS.length, 分布:m, 最近:EVENTS.slice(-5).map(evText)};
+}
+// ==========================================================================
+//  T5 · 事件 → 人话
+//  原则：写因果句，不写状态播报。
+//    ✅「工作台被芜青占着，老莫转头去了林地」
+//    ❌「芜青开始使用工作台」
+//  玩家自己一律用「你」，代入感差别很大。
+// ==========================================================================
+const NEED_CRY={饥饱:'饿得前胸贴后背', 精神:'困得睁不开眼', 内急:'实在憋不住了',
+                洁净:'一身尘土难受',   闲趣:'闷得发慌',     交游:'憋得想寻人说话'};
+// 特质摩擦的具体说法，带方向 —— 谁嫌弃谁
+const FRICTION_SAY={
+  '洁癖 × 邋遢':    (a,b)=>`${a}嫌${b}邋里邋遢`,
+  '邋遢 × 洁癖':    (a,b)=>`${a}被${b}挑剔得不耐烦`,
+  '话痨 × 孤僻':    (a,b)=>`${a}说个不停，${b}只想清静`,
+  '孤僻 × 话痨':    (a,b)=>`${a}被${b}念叨得心烦`,
+  '吝啬 × 慷慨':    (a,b)=>`${a}看不惯${b}乱花钱`,
+  '慷慨 × 吝啬':    (a,b)=>`${a}嫌${b}太抠门`,
+  '急性子 × 慢性子':(a,b)=>`${a}等不及${b}磨蹭`,
+  '慢性子 × 急性子':(a,b)=>`${a}被${b}催得心烦`,
+};
+// 摩擦记在心里时的说法。事件流里的摩擦走 FRICTION_SAY（第三人称叙述），
+// 但【记忆】会被八卦原样引述出来，所以必须是人话 ——
+// 否则事件流里会冒出「芜青跟阿沅提起老莫——「洁癖 × 邋遢」」这种调试输出。
+// 两边视角不同：嫌弃的人和被嫌弃的人记住的不是同一件事。
+const FRICTION_MEM={
+  '洁癖 × 邋遢':    '邋里邋遢，受不了',
+  '邋遢 × 洁癖':    '嫌我不讲究，处处挑剔',
+  '话痨 × 孤僻':    '爱答不理的',
+  '孤僻 × 话痨':    '念叨起来没完',
+  '吝啬 × 慷慨':    '花钱大手大脚',
+  '慷慨 × 吝啬':    '抠门得很',
+  '急性子 × 慢性子':'做事太磨蹭',
+  '慢性子 × 急性子':'总在后头催',
+};
+const revPair=(k)=>{ const p=k.split(' × '); return p[1]+' × '+p[0]; };
+const SOCIAL_SAY={
+  '攀谈':(a,b)=>`${a}和${b}聊了会儿天`,
+  '称许':(a,b)=>`${a}称许了${b}`,
+  '说笑':(a,b)=>`${a}拿${b}开了个玩笑`,
+  '深谈':(a,b)=>`${a}和${b}聊了很久，交了心`,
+  '馈赠':(a,b)=>`${a}送了${b}一份礼物`,
+  '争执':(a,b)=>`${a}和${b}吵了起来`,
+};
+// 值得进事件流的完成动作（睡觉洗澡这种没人关心）
+const DONE_SAY={
+  tree1:'伐回一捆木料', tree2:'伐回一捆木料', tree3:'伐回一捆木料',
+  bench:'做成一件木器', shelf:'读罢一卷书',
+};
+const nm=(n)=> n===PC.name ? '你' : n;
+
+function evText(e){
+  const w=nm(e.who), t=e.whom?nm(e.whom):null, o=e.obj;
+  switch(e.type){
+    case 'conflict.blocked':
+      return (e.why && e.why!==o) ? `${o}被${t}占着，${w}只好转去${e.why}`
+                                   : `${w}想用${o}，${t}先占了`;
+    case 'conflict.friction': {
+      const f=FRICTION_SAY[e.val];
+      return f ? f(w,t) : `${w}和${t}处不来`;
+    }
+    case 'need.critical':   return `${w}${NEED_CRY[e.why]||('的'+e.why+'见底了')}`;
+    case 'econ.sold':       return `${w}售出一件木器，进账 ${e.val} 文`;
+    case 'econ.failed':
+      return e.objId==='stall' ? `${w}赶到摊位，木器已被人抢先售罄`
+           : e.objId==='shop'  ? `${w}到了米铺，钱不够，空手而回`
+           : e.objId==='bench' ? `${w}到了木作案，木料已被人用尽`
+           : e.objId==='stove' ? `${w}要生火，米缸已经见底`
+           : `${w}白跑一趟${o}`;
+    case 'econ.bought':     return `${w}籴了些米，花去 ${e.val} 文`;
+    case 'act.done': {
+      const key=(e.objId||''); const say=DONE_SAY[key];
+      return say ? `${w}${say}` : `${w}忙完了${o}`;
+    }
+    case 'act.interrupted': return `${w}丢下${o}，${e.why||'走开了'}`;
+    case 'conflict.escalated':
+      return `${t}今天第三回抢在${w}前头，这次是${o}`;
+    case 'wx.rain':         return `下起雨来，${e.val} 块田不必浇了`;
+    case 'wx.turn':         return e.why==='阴' ? '天阴了下来' : '天放晴了';
+    case 'craft.fine':      return `${w}做出一件上等木器`;
+    case 'forage.got':      return `${w}在山里采到些${e.why}`;
+    case 'fish.got':        return `${w}钓上一尾${e.why}`;
+    case 'fish.miss':       return `${w}在塘边坐了半晌，空竿`;
+    case 'econ.soldfish':   return `${w}把鲜鱼卖了 ${e.val} 文`;
+    case 'econ.soldpickle': return `${w}卖了一坛腌货，得 ${e.val} 文`;
+    case 'pickle.made':     return `${w}腌了一坛${e.why}`;
+    case 'build.done':      return `${w}在自家院里起了一座${e.why}`;
+    case 'tool.made':       return `${w}打了一把${e.why}`;
+    case 'stone.got':       return `${w}在北山凿了些石料`;
+    case 'love.begin':      return `${w}和${t}好上了`;
+    case 'love.wed':        return `${w}与${t}结发成亲`;
+    case 'love.jealous':    return `${w}听说${t}又和${e.why}凑在一处`;
+    case 'family.child':    return `${w}和${t}有了孩子，取名${e.why}`;
+    case 'family.grown':    return `${w}长大了，成了${t}家的当家人（${e.why}）`;
+    case 'family.leave':    return `${w}长大了，村里没有铺位，出外谋生去了`;
+    case 'family.stay':     return `${w}长大了，住进${t}家的厢屋（${e.why}）`;
+    case 'family.soon':     return `${w}再过三日就成年了 —— ${e.why}`;
+    case 'life.heir':       return `${t}的宅子由${w}接手`;
+    case 'family.neglect':  return `${w}和${t}顾不上孩子，一夜没睡好`;
+    case 'family.care':     return `${w}把孩子哄睡了`;
+    case 'life.ill':        return `${w}病倒了`;
+    case 'life.heal':       return `${w}的病好了（${e.why||'将养过来'}）`;
+    case 'life.death':      return `${w}没了，享年 ${e.val}（${e.why}）`;
+    case 'life.widow':      return `${w}没了${t}`;
+    case 'life.movein':     return `${w}搬进了空下来的宅子，${e.val} 岁`;
+    case 'life.birthday':   return `${w}又长了一岁，${e.val}`;
+    case 'build.water':     return `水渠放了水，${e.val} 块田不用挑水了`;
+    case 'econ.soldegg':    return `${w}卖了些蛋，得 ${e.val} 文`;
+    case 'coop.egg':        return `${w}从鸡棚里拾了 ${e.val} 枚蛋`;
+    case 'herb.pick':       return `${w}在药圃里采了些药草`;
+    case 'dole.give':       return `义仓开了粥棚，${e.whom}讨到一口热的`;
+    case 'dole.add':        return `${w}往义仓捐了 ${e.val} 斗米`;
+    case 'mill.on':         return `水车转起来了，浇灌够得着更远的田`;
+    case 'shrine.offer':    return `${w}备齐了${e.why}供，祠堂应了一桩「${e.obj}」`;
+    case 'shrine.done':     return `四时供奉齐备，祠堂修成了`;
+    case 'cook.made':       return `${w}做了一顿${e.why}`;
+    case 'farm.tilled':     return `${w}开出一块熟田`;
+    case 'farm.sown':       return `${w}种下一茬${e.why||'稻'}`;
+    case 'season.turn':     return `入${e.why}了`;
+    case 'farm.watered':    return `${w}给田里浇了水`;      // isStory 里过滤掉，太频繁
+    case 'farm.reaped':     return `${w}收了自家的稻子，进项四斗米`;
+    case 'conflict.harvest':return `${w}把${t}种的稻子割走了`;
+    case 'farm.withered':   return `${e.why}没人浇水，田荒着`;
+    case 'social.missed':   return `${w}想找${t}说话，人已经走开了`;
+    case 'social.gossip':
+      return `${w}跟${t}提起${nm(e.obj)}——「${e.why}」`;
+    case 'act.start':       return `${w}去了${o}`;
+    default: {
+      const k=e.type.startsWith('social.')?e.type.slice(7):null;
+      if(k && SOCIAL_SAY[k]) return SOCIAL_SAY[k](w,t)+
+        (e.val!=null?`（关系 ${e.val>0?'+':''}${e.val}）`:'');
+      return `${w} ${e.type}`;
+    }
+  }
+}
+
+// 事件流是【叙事层】，不是日志层。总线照旧记录一切（记忆、积怨、诊断全靠它），
+// 这里只挑读起来像故事的。
+//
+// 第 8 天实测的构成暴露了问题：抢家具 35%、例行采买 11%、砍木料 ~8%，
+// 而全部社交事件加起来才 24%。三分之一的篇幅在讲家具调度 ——
+// 玩家读完只会记得"他们一直在抢沙发"，涌现叙事这个赌注就输在信噪比上。
+//
+// 关键区分：单次被抢只是调度结果，反复被同一个人抢才是恩怨。
+// 前者留在总线（记忆照记、积怨照攒），后者由 conflict.escalated 讲一次。
+const QUIET_DONE={tree1:1, tree2:1};   // 砍木料太频繁，成品和卖出才是故事
+function isStory(e){
+  // 'quiet' 由 emit 方在当场判定（同一天同一对的重复）。
+  // 注意 isStory 必须保持纯函数：renderFeed 每次都重新过一遍整个环形缓冲，
+  // 在这里用计数器会随渲染次数漂移。
+  if(e.tags && e.tags.indexOf('quiet')>=0) return false;
+  if(e.type==='act.start') return false;
+  if(e.type==='act.done')  return !!DONE_SAY[e.objId||''] && !QUIET_DONE[e.objId];
+  if(e.type==='act.interrupted') return false;      // 太碎，噪音大于信息
+  if(e.type==='conflict.blocked') return false;     // 降级为背景，见 conflict.escalated
+  if(e.type==='farm.watered') return false;         // 每天六块田都要浇，进事件流就是刷屏
+  // 例行采买是流水账；米价涨上来了还得买，才有压力感
+  if(e.type==='econ.bought') return e.val >= MKT.food.base*1.2;
+  return true;
+}
+
+// ================= 社交动作 =================
+// eff 返回一段反馈文字；rel 是关系变化量（可为函数，随当前关系而变）
+// 恋爱的门槛常量：SOCIAL 表里 `cost:WED_COST` 在建表时就求值，
+// 所以这几个数必须声明在表【之前】—— 本项目第五次暂时性死区。
+const LOVE_REL=72, LOVE_INT=32, WED_REL=82, WED_DAYS=5, WED_COST=25;
+const SOCIAL=[
+ {n:'攀谈',   dur:25, rel:()=>3,  soc:32, need:null,
+  desc:'安全牌，谁都能聊'},
+ {n:'称许',   dur:20, rel:()=>6,  soc:28, need:null,
+  desc:'关系涨得快一点'},
+ {n:'说笑', dur:25, soc:38, desc:'关系好时很有效，生疏时会冷场',
+  rel:(r)=>r<30? 1 : 9},
+ {n:'深谈',   dur:70, rel:()=>14, soc:58, req:(r)=>r>=40,
+  desc:'需要关系 ≥ 40'},
+ {n:'馈赠',   dur:15, rel:()=>20, soc:24, cost:15, weekly:2,
+  desc:'花 15 文，每周限 2 次'},
+ {n:'争执',   dur:30, rel:()=>-16, soc:8, hostile:true,
+  desc:'自己出口气，对方掉需求'},
+ // 恋爱：门槛是【双向】的 —— 一厢情愿点不动，这才叫"关系有分量"
+ {n:'示好',   dur:40, rel:()=>18, soc:52, love:'woo',
+  desc:'双方关系 ≥ '+LOVE_REL+' 且交心 ≥ '+LOVE_INT},
+ {n:'求亲',   dur:60, rel:()=>24, soc:44, love:'wed', cost:WED_COST,
+  desc:'相恋满 '+WED_DAYS+' 日、双方 ≥ '+WED_REL+'，聘礼 '+WED_COST+' 文'},
+];
+// T14 馈赠额度（抄星露谷）：每周 2 次。上限本身就是玩法 ——
+// 它把"馈赠"从刷数值变成"这周我要经营谁"的选择题。
+function giftLeft(s){
+  const w=Math.floor((day-1)/7);
+  if(!s._gift || s._gift.w!==w) s._gift={w, n:0};
+  return 2 - s._gift.n;
+}
+function useGift(s){ giftLeft(s); s._gift.n++; }
+
+// 部分物件有第二种做法 —— 有多个动作时才弹菜单
+const EXTRA={
+  bed1:[{n:'小憩',dur:70,scale:0.35}],
+  bed2:[{n:'小憩',dur:70,scale:0.35}],
+  bed3:[{n:'小憩',dur:70,scale:0.35}],
+  bed4:[{n:'小憩',dur:70,scale:0.35}],
+  bed5:[{n:'小憩',dur:70,scale:0.35}],
+  bed6:[{n:'小憩',dur:70,scale:0.35}],
+  shelf:[{n:'钻研',dur:200,scale:1.0,skillMul:2.4}],
+  sofa:[{n:'发呆',dur:40,scale:0.45}],
+};
+
+// ---------- 浮动反馈 ----------
+const floats=[];
+function fx(x,y,text,col){ floats.push({x,y,text,col,t:0}); }
+
+// ---------- 交互菜单 ----------
+let menu=null;      // {kind:'npc'|'obj', target, items, idx}
+
+function openNpcMenu(npc){
+  const r=PC.rel[npc.name]||0, gl=giftLeft(PC);
+  menu={kind:'npc', target:npc, idx:0, items:SOCIAL.filter(a=>{
+    // 已经是自己人的，不再显示"示好/求亲"里已经过期的那一项
+    if(a.love==='woo') return !pairOf(PC.name) && !pairOf(npc.name);
+    if(a.love==='wed'){ const p=PAIR[pkey(PC.name,npc.name)];
+                        return !!p && p.st==='相恋'; }
+    return true;
+  }).map(a=>({
+    a, ok: (!a.req || a.req(r)) && (!a.cost || PC.money>=a.cost)
+           && (!a.weekly || gl>0)
+           && (a.love!=='woo' || canWoo(PC,npc))
+           && (a.love!=='wed' || canWed(PC,npc)),
+    label: a.weekly ? a.n+'（本周 '+gl+'/'+a.weekly+'）' : a.n,
+    sub: a.love==='woo' && !canWoo(PC,npc)
+           ? '还差些：关系 '+Math.round(r)+'/'+LOVE_REL+'　交心 '
+             +Math.round(intimacy(PC,npc.name))+'/'+LOVE_INT
+       : a.love==='wed' && !canWed(PC,npc)
+           ? (()=>{ const p=PAIR[pkey(PC.name,npc.name)];
+                    return p ? '相恋 '+(day-p.since)+'/'+WED_DAYS+' 日　关系 '
+                               +Math.round(r)+'/'+WED_REL+'　聘礼 '+WED_COST+' 文' : a.desc; })()
+       : a.desc,
+  }))};
+  menu.title='与 '+npc.name+' 互动　'+bondOf(PC,npc.name)
+             +' '+Math.round(PC.rel[npc.name]||0);
+}
+// 一个物件有哪些做法。hasMenu() 和 openObjMenu() 都从这里取，
+// 两处各写一份判断迟早会对不上 —— T26/T27 的菜谱和供奉就是这么丢的。
+function menuList(o){
+  let list=[{n:o.n, dur:o.dur, scale:1.0}].concat(EXTRA[o.id]||[]);
+  // 自家的榻上多一项「将养」—— 这是药草第一次真的有用（以前只是一味菜料）
+  if(artOf(o)==='bed' && PC.ill &&
+     (o.owner===PC.name || o.owner===spouseOf(PC.name))){
+    list=list.concat([{ n:'将养', dur:180, scale:0.6, heal:1,
+      ok: PC.inv.herb>=1, sub: PC.inv.herb>=1 ? '用药草×1，病即愈' : '要一味药草' }]);
+  }
+  if(o.id==='shrine'){
+    const se=seasonOf(day), of=OFFER[se];
+    if(SHRINE.done[se]){
+      const left=SEASONS.filter(x=>!SHRINE.done[x]);
+      return [{n:'看看', dur:20, scale:1.0, shrine:null,
+               sub: left.length ? '还差 '+left.join('、')+'供' : '四时供奉齐备'}];
+    }
+    const pr=offerProgress(PC, se);
+    return [{n:'供奉'+se+'物', dur:o.dur, scale:1.0, shrine:se,
+             ok: offerReady(PC,se),
+             sub: pr.map(x=>x.nm+x.have+'/'+x.need).join('　')+'　→ '+of.tip}];
+  }
+  if(o.id && o.id.indexOf('stove')===0)
+    return RECIPE.map(r=>({ n:r.n, dur:o.dur, scale:1.0, recipe:r,
+      ok:canMake(PC,r), sub:r.note }));
+  if(o.field && fieldStage(o.field)==='耕'){
+    const se=seasonOf(day);
+    return CROPS.map(c=>({ n:'种'+c, dur:o.dur, scale:1.0, crop:c,
+      rate:CROP[c].grow[se], yield:CROP[c].yield }));
+  }
+  if(o.craft){          // 木作坊 / 工棚：木器 + 还没打的工具
+    return [{n:'做木器', dur:o.dur, scale:1.0, sub:'木料×2 → 木器×1'}].concat(
+      Object.keys(TOOL).filter(k=>!TOOLS[k]).map(k=>{ const t=TOOL[k];
+        return { n:'打'+t.n, dur:t.dur, scale:1.0, tool:k,
+                 ok: PC.inv.wood>=t.wood && PC.money>=t.money,
+                 sub:'木'+t.wood+'·'+t.money+'文　'+t.tip }; }));
+  }
+  return list;
+}
+// 只有一种做法就别弹菜单，直接开做。祠堂例外：那一行本身就是清单。
+function hasMenu(o){ return o.id==='shrine' || menuList(o).length>1; }
+
+function openObjMenu(o,u){
+  let list=menuList(o);
+  menu={kind:'obj', target:o, seat:u, idx:0, items:list.map(v=>({
+    a:v, ok: v.ok!=null ? v.ok : (v.crop ? v.rate>0 : true),
+    label: (v.crop||v.recipe||v.shrine!==undefined) ? v.n : (v.n===o.n?(o.note||'使用'):v.n),
+    sub: v.sub != null ? v.sub
+      : v.crop
+        ? (v.rate>0 ? `${seasonOf(day)}季长势 ${Math.round(v.rate*100)}% · 收 ${v.yield} 斗`
+                    : `${seasonOf(day)}季不长`)
+        : `约 ${v.dur} 分钟`,
+  }))};
+}
+function closeMenu(){ menu=null; }
+
+function runMenu(){
+  if(!menu) return;
+  const it=menu.items[menu.idx]; if(!it.ok) return;
+  if(menu.kind==='build'){ const k=it.a.key; closeMenu(); startBuild(k); return; }
+  if(menu.kind==='npc'){
+    const a=it.a, npc=menu.target, r=PC.rel[npc.name]||0;
+    const wooOK = a.love==='woo' && canWoo(PC,npc);      // 同上：先判资格再扣钱
+    const wedOK = a.love==='wed' && canWed(PC,npc);
+    if(a.cost) PC.money-=a.cost;
+    const d=a.rel(r);
+    remember(PC,  npc.name, 'social.'+a.n);          // 双方各记一笔
+    remember(npc, PC.name,  'social.'+a.n);
+    refreshRel();
+    PC.need.social=Math.min(100,PC.need.social+a.soc*mb(PC,'socGain'));
+    if(a.hostile){ npc.need.fun=Math.max(0,npc.need.fun-12); vent(PC,npc.name); vent(npc,PC.name); }
+    else npc.need.social=Math.min(100,npc.need.social+a.soc*0.7*mb(npc,'socGain'));
+    emit('social.'+a.n, {who:PC.name, whom:npc.name, val:d,
+      why:a.hostile?'争执':null, tags:a.hostile?['conflict']:['social']});
+    // 友好交谈时互相说说别人 —— 玩家的所作所为由此扩散出去，也从这里听到村里的事。
+    // 排在交谈事件之后，事件流的因果顺序才对。
+    if(!a.hostile && a.dur>=20) gossipExchange(PC, npc);
+    refreshRel();
+    fx(PC.rx||PC.px, (PC.ry||PC.py)-CH, (d>=0?'+':'')+d+' 关系', d>=0?'#8fd08a':'#d07a72');
+    if(a.cost) fx(PC.rx||PC.px, (PC.ry||PC.py)-CH+10, '-'+a.cost+' 文', '#d0b070');
+    if(a.weekly) useGift(PC);
+    if(wooOK) makeLovers(PC,npc);
+    else if(wedOK) makeWed(PC,npc);
+    else if(!a.hostile && a.dur>=20) jealousy(PC, npc.name);
+    PC.act={o:{n:a.n+'·'+npc.name, dur:a.dur, adv:{}}, seat:'social', phase:'do', left:a.dur};
+  } else {
+    const v=it.a, o=menu.target;
+    PC.px=(menu.seat[0]+.5)*T; PC.py=(menu.seat[1]+.5)*T;
+    PC.gx=menu.seat[0]; PC.gy=menu.seat[1];
+    PC.ppx=PC.px; PC.ppy=PC.py;                      // 瞬移：清掉插值起点
+    const vdur = playerDur(o, v.dur);
+    PC.act={o, seat:menu.seat.join(), st:menu.seat, phase:'do',
+            left:vdur, scale:v.scale||1, skillMul:v.skillMul||1, variantDur:vdur,
+            crop:v.crop||null, recipe:v.recipe||null, shrine:v.shrine||null,
+            tool:v.tool||null, kid:v.kid||null, heal:v.heal||null};
+    emit('act.start',{who:PC.name, obj:o.n+(v.n!==o.n?'·'+v.n:''), tags:['act']});
+  }
+  closeMenu();
+}
+
+// ---------- 输入 ----------
+const keys={};
+addEventListener('keydown',e=>{
+  if(['Space','KeyE','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  if(ending){ wipeSave(); location.reload(); return; }   // 终局：重开一局
+  if(daily){ closeDaily(); return; }               // 结算屏：任意键继续
+  if(menu){                                          // 菜单打开时接管全部按键
+    if(e.code==='ArrowUp')   menu.idx=(menu.idx-1+menu.items.length)%menu.items.length;
+    if(e.code==='ArrowDown') menu.idx=(menu.idx+1)%menu.items.length;
+    if(e.code==='Enter'||e.code==='KeyE'||e.code==='Space') runMenu();
+    if(e.code==='Escape'||e.code==='KeyB') closeMenu();
+    const n=parseInt(e.code.replace('Digit',''),10);
+    if(e.code.startsWith('Digit')&&n>=1&&n<=menu.items.length){ menu.idx=n-1; runMenu(); }
+    return;
+  }
+  if(bmode){                                       // 建造模式接管方向键
+    if(e.code==='KeyA'||e.code==='ArrowLeft')  moveBuild(-1,0);
+    if(e.code==='KeyD'||e.code==='ArrowRight') moveBuild(1,0);
+    if(e.code==='KeyW'||e.code==='ArrowUp')    moveBuild(0,-1);
+    if(e.code==='KeyS'||e.code==='ArrowDown')  moveBuild(0,1);
+    if(e.code==='KeyE'||e.code==='Space'||e.code==='Enter') confirmBuild();
+    if(e.code==='Escape'||e.code==='KeyB') bmode=null;
+    return;
+  }
+  keys[e.code]=1;
+  if(e.code==='KeyE'||e.code==='Space') tryInteract();
+  if(e.code==='KeyB') openBuildMenu();
+  if(e.code==='KeyT'){ autoPilot=!autoPilot; PC.act=null; panel(); }
+  if(e.code==='Escape' && PC.act){ PC.act=null; }
+});
+addEventListener('keyup',e=>{ keys[e.code]=0; });
+
+// ---------- 触屏 ----------
+// 手机上没有键盘，也没有"走到旁边自动提示"的悬停感 ——
+// 左手摇杆走路，右手一个互动键；菜单直接点行选。
+const TOUCH={x:0,y:0,l:0};
+(function(){
+  const pad=document.getElementById('tcpad'), nub=document.getElementById('tcnub');
+  const R=32;                                    // 摇杆半径（px）
+  let id=null;
+  const set=(dx,dy)=>{
+    const d=Math.hypot(dx,dy), k=d>R?R/d:1;
+    nub.style.left=(32+dx*k)+'px'; nub.style.top=(32+dy*k)+'px';
+    const dead=8;
+    if(d<dead){ TOUCH.x=TOUCH.y=TOUCH.l=0; return; }
+    TOUCH.x=dx/d; TOUCH.y=dy/d; TOUCH.l=Math.min(1,d/R);
+  };
+  const reset=()=>{ id=null; TOUCH.x=TOUCH.y=TOUCH.l=0;
+                    nub.style.left='32px'; nub.style.top='32px'; };
+  pad.addEventListener('pointerdown',e=>{ id=e.pointerId; pad.setPointerCapture(id);
+    const r=pad.getBoundingClientRect(); set(e.clientX-r.left-52, e.clientY-r.top-52); });
+  pad.addEventListener('pointermove',e=>{ if(e.pointerId!==id) return;
+    const r=pad.getBoundingClientRect(); set(e.clientX-r.left-52, e.clientY-r.top-52); });
+  for(const ev of ['pointerup','pointercancel','pointerleave'])
+    pad.addEventListener(ev,e=>{ if(e.pointerId===id) reset(); });
+
+  document.getElementById('tcact').addEventListener('click',()=>{
+    if(daily) closeDaily(); else if(menu) runMenu();
+    else if(bmode) confirmBuild(); else tryInteract();
+  });
+  document.getElementById('tcalt').addEventListener('click',()=>{
+    if(menu) closeMenu(); else if(bmode) bmode=null; else if(PC.act) PC.act=null;
+  });
+  document.getElementById('tcbuild').addEventListener('click',()=>{
+    if(bmode) bmode=null; else openBuildMenu();
+  });
+})();
+
+// ==========================================================================
+//  T30 · 卡住了要能自己出来
+//  分轴判定（贴墙滑动）有个没写出来的前提：【人当前那一格必须是通的】。
+//  一旦人物中心落进实心格，free(nx,s.py) 和 free(s.px,ny) 会同时为假 ——
+//  四个方向全堵死，站在那里再也动不了，而且什么都不报。
+//  实测这张图上有 319 个这样的格子（所有墙体和物件的内部）。
+//
+//  进得去的路不止一条：被瞬移到一个被挡的座位、读了一个地图已经变过的旧档、
+//  或者哪天新加的物件正好盖住他站的地方。堵住其中一条不算修好 ——
+//  真正的修法是【无论怎么进去的，都能出来】。
+// ==========================================================================
+function unstick(s){
+  const gx=(s.px/T)|0, gy=(s.py/T)|0;
+  if(gx>=0&&gy>=0&&gx<GW&&gy<GH&&!solid[gy][gx]) return false;
+  let best=null;
+  for(let r=1;r<=8&&!best;r++)
+    for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){
+      if(Math.max(Math.abs(dx),Math.abs(dy))!==r) continue;
+      const x=gx+dx, y=gy+dy;
+      if(x<1||y<1||x>=GW-1||y>=GH-1||solid[y][x]) continue;
+      const d=dx*dx+dy*dy; if(!best||d<best.d) best={x,y,d};
+    }
+  if(!best) return false;
+  s.px=(best.x+.5)*T; s.py=(best.y+.5)*T; s.gx=best.x; s.gy=best.y;
+  s.ppx=s.px; s.ppy=s.py; s.act=null;
+  return true;
+}
+
+function moveVec(){
+  let x=0,y=0;
+  if(keys.KeyA||keys.ArrowLeft) x--;
+  if(keys.KeyD||keys.ArrowRight)x++;
+  if(keys.KeyW||keys.ArrowUp)   y--;
+  if(keys.KeyS||keys.ArrowDown) y++;
+  if(!x&&!y&&TOUCH.l>0) return {x:TOUCH.x, y:TOUCH.y, l:TOUCH.l};
+  const l=Math.hypot(x,y);
+  return l>1?{x:x/l,y:y/l,l:1}:{x,y,l};
+}
+
+// ==========================================================================
+//  T29 · 用不了也要说一声
+//  之前 nearby() 的第一行是 `if(o.pre && !o.pre(PC)) continue;` ——
+//  条件不满足，这个物件就【整个从世界里消失】：走到集市门口一片空白，
+//  座位被别人占了也一片空白，别人家的东西更是一声不吭。
+//  玩家看到的是"这些公共设施没做交互"，其实是做了、只是没说话。
+//
+//  星露谷从来不藏：东西照样能点，只是告诉你"需要 5 个铜锭"。
+//  所以这里改成【永远给提示，附一句为什么】，三种原因各有各的说法。
+// ==========================================================================
+function blockReason(o, u, s){
+  // 座位被别的东西压住了：以前照样瞬移过去，人就永久卡死在那一格。
+  // T27 的井正好压着茶棚的座位，按一下 E 就再也走不了 —— 就是这么来的。
+  if(solid[u[1]][u[0]]) return '过不去';
+  if(o.homeIdx!=null && !HOMEOWNER[o.homeIdx]) return '这宅子空着';
+  if(o.owner && o.owner!==s.name && o.owner!==spouseOf(s.name) && !houseShare(o, s))
+    // 同住一宅只有铺位是各归各的，别的都共用 —— 说法要分开，不然"这是他家的"很怪
+    return (o.priv && o.homeIdx===s.home) ? '这是'+o.owner+'的铺位' : '这是'+o.owner+'家的';
+  if(sims.some(x=>x!==s && x.act && x.act.seat===u.join())) return '有人正用着';
+  if(o.pre && !o.pre(s)) return (typeof o.why==='function' ? o.why(s) : o.why) || '现在还用不了';
+  return null;
+}
+// 玩家附近的物件：能用的优先，其次取近的
+function nearby(){
+  let best=null;
+  for(const o of OBJ) for(const u of o.use){
+    const d=Math.hypot((u[0]+.5)*T-PC.px,(u[1]+.5)*T-PC.py);
+    if(d>=T*1.6) continue;
+    const why=blockReason(o,u,PC);
+    const c={o,u,d,ok:!why,why};
+    if(!best || (c.ok!==best.ok ? c.ok : d<best.d)) best=c;
+  }
+  return best;
+}
+// 附近的 NPC（优先于物件）
+function nearbyNpc(){
+  let best=null;
+  for(const s of sims){
+    if(s===PC) continue;
+    const d=Math.hypot(s.px-PC.px, s.py-PC.py);
+    if(d<T*1.8 && (!best||d<best.d)) best={s,d};
+  }
+  return best;
+}
+function tryInteract(){
+  if(PC.act||menu) return;
+  const np=nearbyNpc();
+  if(np){ openNpcMenu(np.s); return; }               // 人优先于物
+  const n=nearby(); if(!n) return;
+  if(!n.ok){ fx(PC.rx||PC.px, (PC.ry||PC.py)-CH, n.why, '#d8a06a'); return; }
+  if(hasMenu(n.o)){ openObjMenu(n.o,n.u); return; } // 有多种做法才弹菜单
+  PC.px=(n.u[0]+.5)*T; PC.py=(n.u[1]+.5)*T; PC.gx=n.u[0]; PC.gy=n.u[1];
+  PC.ppx=PC.px; PC.ppy=PC.py;                        // 瞬移：清掉插值起点
+  PC.act={o:n.o, seat:n.u.join(), st:n.u, phase:'do',
+          left:playerDur(n.o), scale:1};
+  emit('act.start',{who:PC.name, obj:n.o.n, tags:['act']});
+}
+
+// ---------- BFS 寻路（格子小，无需 A*）----------
+function path(sx,sy,tx,ty){
+  if(sx===tx&&sy===ty) return [];
+  const prev=new Map(), q=[[sx,sy]], key=(x,y)=>y*GW+x;
+  const seen=new Set([key(sx,sy)]);
+  while(q.length){
+    const [x,y]=q.shift();
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx, ny=y+dy;
+      if(nx<0||ny<0||nx>=GW||ny>=GH||solid[ny][nx]) continue;
+      const k=key(nx,ny); if(seen.has(k)) continue;
+      seen.add(k); prev.set(k,[x,y]);
+      if(nx===tx&&ny===ty){
+        const out=[[nx,ny]]; let c=[x,y];
+        while(!(c[0]===sx&&c[1]===sy)){ out.push(c); c=prev.get(key(c[0],c[1])); }
+        return out.reverse();
+      }
+      q.push([nx,ny]);
+    }
+  }
+  return null;
+}
+
+// ==========================================================================
+//  效用打分 —— 整个 Demo 的核心，一共就这十几行
+// ==========================================================================
+// 紧迫度曲线：p 越大越"临阵磨枪"，越小越"未雨绸缪"
+function urgency(v,p){ const d=(100-Math.max(0,Math.min(100,v)))/100; return Math.pow(d,p||2); }
+
+// 打分可能是负的（代价大于广播时，比如精疲力尽还去砍树）。
+// 这时候直接 s *= 0.3 会把 -10 抬成 -3 —— 惩罚变成了奖励，排序整个翻掉。
+// 所有倍率都得走这里：正分乘、负分除，两边都保持"系数小 = 更不想干"。
+const scale=(v,m)=> v>=0 ? v*m : v/Math.max(m,1e-6);
+
+function score(sim, o, noAnchor){
+  if(!o.use) return null;              // 社交动作是伪物件，没有座位，不参与打分
+  // 空着的宅子不是无主之物：主人没了，owner 变成 null，
+  // 而 owner 闸门只挡"有主且不是我的"，于是全村都能进去睡 —— 得单独挡一道。
+  if(o.homeIdx!=null && !HOMEOWNER[o.homeIdx]) return null;
+  // 别人的床想都别想 —— 除非那是自家人（成家之后私产互通）
+  if(o.owner && o.owner!==sim.name && o.owner!==spouseOf(sim.name)
+     && !houseShare(o, sim)) return null;
+  if(o.pre && !o.pre(sim)) return null;                       // 前置条件不满足 → 不进候选
+  let s=0;
+  for(const k in o.adv){
+    const cur = k==='provision' ? provision(sim) : sim.need[k];
+    let adv=o.adv[k];
+    // 社交场所独自待着 ≠ 社交。之前无条件给 social，导致"坐沙发"永远比"找人说话"划算，
+    // NPC 因此从不主动社交。
+    if(k==='social' && o.social && !sims.some(x=>x!==sim&&x.act&&x.act.o===o&&x.act.phase==='do'))
+      adv*=0.2;
+    // 家计是【延迟回报】的那一项（庄稼、存粮、清单）—— S/N 拧的就是它
+    s += adv * urgency(cur, NEEDS[k].pow) * weightOf(sim,k)
+             * (k==='provision' ? mb(sim,'prov') : 1);
+  }
+  // 代价惩罚：该需求本身越紧张，消耗它就越贵（体力见底时不会还去砍树）
+  for(const k in (o.cost||{}))
+    s -= o.cost[k]*0.9*urgency(sim.need[k]-o.cost[k], NEEDS[k].pow);
+  if(o.field && !o.field.owner) s *= 1.35;                 // 公田更肥，值得多跑几步
+  // 病人格外想躺着 —— 不给 NPC 开特例，只是把"歇着"这件事在他眼里放大
+  if(sim.ill && o.adv && o.adv.energy) s = scale(s, 1.6);
+  s = scale(s, weatherMul(o));                             // 雨天露天活计不好干
+  const u=o.use[0];
+  const d=Math.abs(u[0]-sim.gx)+Math.abs(u[1]-sim.gy);
+  // 距离折扣：S 型只看眼前那几步，N 型愿意为远处的收成多走
+  s = scale(s, 1/(1+d*DIST_K*mb(sim,'dist')));
+  // 锚点：作息把人聚到同一片区域。
+  // 但它只塑造"选什么"，不参与"要不要放弃手上的事"—— 否则时段切换时分数摆动 6 倍，
+  // 迟滞判断形同虚设，中断率会从 25% 飙到 48%。
+  if(o.zone && !noAnchor && !anchorFree(sim)){
+    const z=anchorZone(sim);
+    // 锚点日程对 J 型更有约束力，P 型经常不按点走
+    const am=mb(sim,'anchor');
+    if(z) s = scale(s, o.zone===z ? 1+(ANCHOR_IN-1)*am : 1-(1-ANCHOR_OUT)*am);
+  }
+  // 别人种的稻子：除非真到了走投无路，否则不去动。
+  // 无主田 + 纯效用打分的直接后果是 83% 的收割都是抢收（15/18），村子变成人人互偷 ——
+  // 效用函数里根本没有"这不是我的"这个概念，谁近谁饿谁就割。
+  // 压到 0.06 等于让它平时不可见；饿了或断粮时放到 0.75，抢收才重新成为选项。
+  // 于是抢收变成【走投无路的人才干的事】—— 那才是有分量的故事，而不是背景噪音。
+  if(o.field && o.field.sower && o.field.sower!==sim.name && fieldStage(o.field)==='穗'){
+    const desperate = sim.need.hunger<25 || sim.inv.food<=0;
+    s = scale(s, desperate ? 0.75 : 0.06);
+  }
+  if(o.social){
+    // 社交物件的吸引力取决于"在场的是谁" —— 记忆在这里直接改变行为
+    let best=null;
+    for(const x of sims) if(x!==sim && x.act && x.act.o===o){
+      const r=sim.rel[x.name]==null?REL_BASE:sim.rel[x.name];
+      if(best==null || r>best) best=r;
+    }
+    if(best!=null) s = scale(s, best>=REL_BASE ? 1+(best-REL_BASE)/100*1.6  // 喜欢的人在 → 更想去
+                                               : 0.35+best/REL_BASE*0.65); // 讨厌的人在 → 躲着走
+  }
+  return s;
+}
+
+// ==========================================================================
+//  T37 · 恋爱与成家
+//
+//  第一条原则和 MBTI 那次一样：【不加新数值】。
+//  这个项目的关系是从记忆推出来的（relFromMemory），再挂一根"好感度进度条"
+//  就等于把已有的那套架空。所以：
+//    · 陌生/相识/交好  —— 由 rel 直接推导，是连续量的一个读数
+//    · 相恋/结发       —— 是【事件】，双方都要点头，存在 PAIR 里
+//  「走得近就自动结婚」是不行的：那样关系就没有分量了。
+//
+//  第二条：成家必须有【机制后果】，否则又是一枚标签。
+//    · 私产互通  —— 直接接进 T29 那道 owner 闸门
+//    · 家计合并  —— 直接改效用 AI 的 provision
+//    · 吃醋      —— 直接写进记忆，八卦会把它传出去
+//    · 孩子      —— 每天要哄，不哄双亲掉需求
+//
+//  第三条，也是这个项目真正的差异化：【NPC 自己会谈恋爱】。
+//  星露谷里 Abigail 和 Sebastian 之间永远不会发生任何事。
+// ==========================================================================
+const PAIR={};                                  // 'A|B' → {st:'相恋'|'结发', since:day}
+const KIDS=[];                                  // [{key, born, fed}]
+const pkey=(a,b)=> [a,b].sort().join('|');
+function pairOf(name){                          // 这个人的对象是谁
+  for(const k in PAIR){ const [x,y]=k.split('|');
+    if(x===name) return {other:y, ...PAIR[k], key:k};
+    if(y===name) return {other:x, ...PAIR[k], key:k}; }
+  return null;
+}
+function spouseOf(name){ const p=pairOf(name); return p&&p.st==='结发'?p.other:null; }
+function isMarried(a,b){ const p=PAIR[pkey(a,b)]; return !!p&&p.st==='结发'; }
+
+// 亲密度：只数【交心那几类】记忆的分量。和 rel 分开算 ——
+// 攀谈一百次也不是感情，深谈和馈赠才是。
+const INTIMATE={'social.深谈':1, 'social.馈赠':1, 'social.相好':1, 'social.说笑':0.4};
+function intimacy(a, bName){
+  const L=(a.mem&&a.mem[bName])||[]; let v=0;
+  for(const e of L){ const k=INTIMATE[e.type]; if(k&&e.hand!==2) v+=memWeight(e)*k; }
+  return Math.max(0,v);
+}
+// 关系到了哪一步。相恋/结发是 PAIR 说了算，其余由 rel 读出来。
+function bondOf(a, bName){
+  const p=PAIR[pkey(a.name,bName)];
+  if(p) return p.st;
+  const r=a.rel[bName]==null?REL_BASE:a.rel[bName];
+  return r>=55 ? '交好' : r>=28 ? '相识' : '陌生';
+}
+// 能不能开口。门槛要【双向】：一厢情愿不算数，这是"关系有分量"的全部意思。
+function canWoo(a,b){
+  if(pairOf(a.name)||pairOf(b.name)) return false;          // 已有对象
+  if(typeof kin==='function' && kin(a,b)) return false;     // 血亲不通婚
+  const ra=a.rel[b.name]||0, rb=b.rel[a.name]||0;
+  return ra>=LOVE_REL && rb>=LOVE_REL
+      && intimacy(a,b.name)>=LOVE_INT && intimacy(b,a.name)>=LOVE_INT;
+}
+function canWed(a,b){
+  const p=PAIR[pkey(a.name,b.name)];
+  if(!p||p.st!=='相恋') return false;
+  if(day-p.since < WED_DAYS) return false;
+  return (a.rel[b.name]||0)>=WED_REL && (b.rel[a.name]||0)>=WED_REL && a.money>=WED_COST;
+}
+function makeLovers(a,b){
+  PAIR[pkey(a.name,b.name)]={st:'相恋', since:day};
+  remember(a,b.name,'social.相好'); remember(b,a.name,'social.相好'); refreshRel();
+  emit('love.begin',{who:a.name, whom:b.name, tags:['love','social']});
+}
+function makeWed(a,b){
+  const k=pkey(a.name,b.name);
+  PAIR[k]={st:'结发', since:day};      // 聘礼由社交动作的 a.cost 统一扣，这里不再扣第二遍
+  remember(a,b.name,'social.相好'); remember(b,a.name,'social.相好'); refreshRel();
+  emit('love.wed',{who:a.name, whom:b.name, tags:['love','social']});
+}
+// 吃醋：已成家的人和别人交心，配偶要记一笔。
+// 不另做系统 —— 写进记忆就行，八卦那套自然会把它传到配偶耳朵里。
+function jealousy(actor, targetName){
+  const sp=spouseOf(actor.name);
+  if(!sp || sp===targetName) return;
+  const s=sims.find(x=>x.name===sp); if(!s) return;
+  remember(s, actor.name, 'conflict.吃醋', targetName);
+  refreshRel();
+  emit('love.jealous',{who:sp, whom:actor.name, why:targetName, tags:['love','conflict']});
+}
+// ==========================================================================
+//  生老病死的日结
+// ==========================================================================
+function illRisk(s){
+  // 病从三处来：体质弱、身上脏、天时不好。都是已经存在的量，不新开变量。
+  let r = 0.02;
+  r += Math.max(0, (55 - s.vigor)) * 0.004;
+  r += Math.max(0, (45 - s.need.hygiene)) * 0.003;
+  if(seasonOf(day)==='冬') r += 0.05;
+  if(wx.id==='雨') r += 0.03;
+  return Math.min(0.35, r);
+}
+function lifeTick(){
+  if(day % YEAR === 0) for(const s of sims){ s.age++;
+    emit('life.birthday',{who:s.name, val:s.age, tags:['life','quiet']}); }
+
+  for(const s of sims.slice()){
+    const cap = vigorCap(s);
+    // ① 生病：确定性哈希，同一局重放一致（这个项目不用 Math.random）
+    if(!s.ill && hash01(day*751 + s.row*89 + s.age) < illRisk(s)){
+      s.ill = 1;
+      emit('life.ill',{who:s.name, tags:['life']});
+    }
+    // ② 体质：饿着熬着病着往下掉，吃饱睡好慢慢回，但回不过年岁定的封顶
+    let d = 0;
+    if(s.need.hunger < 15) d -= 8;
+    if(s.need.energy < 15) d -= 5;
+    if(s.ill)              d -= 6;
+    if(d === 0 && s.need.hunger > 50 && s.need.energy > 50) d = +4;
+    s.vigor = Math.min(cap, s.vigor + d);
+    // ③ 病久了会自己好，但拖着掉体质 —— 药草能立刻治（见榻上的「将养」）
+    if(s.ill && hash01(day*997 + s.row*13) < 0.18){ s.ill = 0;
+      emit('life.heal',{who:s.name, why:'自己扛过去了', tags:['life']}); }
+    if(s.vigor <= 0) die(s, s.ill ? '病' : '亏了身子');
+  }
+  // ④ 有空宅就会有人迁入 —— 不然死一个少一个，村子会慢慢空掉
+  moveInTick();
+}
+
+// 亡故：不是一个标记，是真的从村子里消失
+function die(s, why){
+  const i = sims.indexOf(s); if(i < 0) return;
+  sims.splice(i, 1);
+  GONE.push({name:s.name, day, age:s.age, why});
+  emit('life.death',{who:s.name, why, val:s.age, tags:['life','conflict']});
+  // 后事一：姻缘断了，配偶守寡；孩子跟着没了摇篮
+  const p = pairOf(s.name);
+  const kidN = p ? KIDS.filter(k=>k.key===p.key).length : 0;   // 先记下来再拆
+  if(p){
+    delete PAIR[p.key];
+    for(let k=KIDS.length-1;k>=0;k--) if(KIDS[k].key===p.key) KIDS.splice(k,1);
+    syncCribs();
+    emit('life.widow',{who:p.other, whom:s.name, tags:['life']});
+  }
+  // 后事二：宅子和田。有配偶就归配偶，没有就空着等人迁入
+  // 有配偶归配偶；否则宅里还住着人（成年的孩子）就由他接手；再没有才空着等迁入
+  const hi = HOMEOWNER.indexOf(s.name);
+  if(hi >= 0){
+    const heir = (p && p.st==='结发') ? p.other : (residents(hi)[0]||{}).name || null;
+    HOMEOWNER[hi] = heir;
+    if(heir && !(p && p.st==='结发'))
+      emit('life.heir',{who:heir, whom:s.name, tags:['life']});
+  }
+  syncBunks();                       // 户主换人 → 谁睡铺盖也跟着换
+  if(sel === s) sel = sims[0] || null;
+  if(s.isPlayer){ running=false;
+    ending={name:s.name, age:s.age, why, day, spouse:p&&p.other, kids:kidN};
+    wipeSave();                       // 一局结束就是结束，别把死后的村子留成存档
+  }
+  refreshRel(); panel();
+}
+
+// ==========================================================================
+//  T40 · 孩子成人
+//  地基三样在 T39 就位了：mkSim() 工厂、16 行图集、花名册进存档。
+//  剩下的是"长大"这条规则本身，和一个设计上的取舍：【遗传什么】。
+//
+//  脸遗传不了 —— 图集是离线烘焙的，运行时混不出一张"像爹又像娘"的脸，
+//  除非把调色板导出来在 canvas 上重映射，那是另一天的工程。
+//  但【脾气可以混】，而且在这个游戏里脾气才是真正看得见的东西：
+//    · MBTI 四个字母，每个字母随机取自父母中的一方
+//    · 性格取自一方，特质父母各出一样
+//  于是 ESTJ 的爹 + ENFP 的娘，可能生出一个 ESFJ 的孩子 —— 这是真的在遗传。
+//
+//  住处：成年要有自己的宅子。有空宅就住进去（比外人优先），
+//  没有就【离村谋生】。于是"你家孩子能不能留下"取决于村里有没有空出来的宅子 ——
+//  老人过世和孩子成年在同一条线上，这才是"延续"。
+// ==========================================================================
+const GROW_UP = 16;                    // 出生多少天后成年
+const KIDNAMES = ['阿囝','小蛮','阿蒲','小穗','阿箬','小茨','阿芩','小茗'];
+
+function inherit(a, b, seed){
+  const pick=(i,x,y)=> hash01(seed*13+i) < 0.5 ? x : y;
+  return {
+    mbti: [0,1,2,3].map(i=>pick(i, a.mbti[i], b.mbti[i])).join(''),
+    trait: pick(4, a.trait, b.trait),
+    tt: [ a.tt[Math.floor(hash01(seed*7+1)*a.tt.length)],
+          b.tt[Math.floor(hash01(seed*7+2)*b.tt.length)] ]
+        .filter((v,i,arr)=>arr.indexOf(v)===i),
+  };
+}
+// 这孩子成年之后住哪 —— 面板和预告事件用同一份判断，免得两处说法不一样
+function kidFate(kid){
+  if(vacantHome()>=0) return '接手村里空下来的宅子';
+  for(const nm of kid.key.split('|')){
+    const p=sims.find(s=>s.name===nm);
+    if(p && p.home!=null && residents(p.home).length<HOMECAP)
+      return '住'+(p.isPlayer?'你':nm)+'家的厢屋';
+  }
+  return '村里没有铺位，要出外谋生';
+}
+function growTick(){
+  for(let i=KIDS.length-1;i>=0;i--){
+    const kid=KIDS[i];
+    const [an,bn]=kid.key.split('|');
+    // 快成年了先打个招呼：玩家有三天时间去张罗（腾宅子、或者认了让他出外）。
+    // 用标记而不是 ===：跨日可能一次跳好几天，等号那天未必踩得到。
+    if(!kid.soon && day - kid.born >= GROW_UP - 3){
+      kid.soon = 1;
+      emit('family.soon',{who:kid.name, whom:an, why:kidFate(kid), tags:['life']});
+    }
+    if(day - kid.born < GROW_UP) continue;
+    const a=sims.find(s=>s.name===an), b=sims.find(s=>s.name===bn);
+    if(!a||!b) continue;                       // 双亲缺一，这孩子的事另说
+    // 归宿三选一：空宅 → 爹娘家还有铺位 → 出外谋生
+    let hi=vacantHome(), stay=false;
+    // 爹娘各有各的宅子（成家不搬家），所以两边都要问一遍
+    if(hi<0) for(const par of [a,b])
+      if(par.home!=null && residents(par.home).length<HOMECAP){ hi=par.home; stay=true; break; }
+    KIDS.splice(i,1); syncCribs();
+    if(hi<0){                                  // 空宅没有，家里也住不下 —— 出外谋生
+      emit('family.leave',{who:kid.name, whom:an, tags:['life']});
+      continue;
+    }
+    const seed=kid.born*97 + hi;
+    const g=inherit(a,b,seed);
+    const used=new Set(sims.map(x=>x.row));
+    let row=6; while(row<ATLAS_ROWS && used.has(row)) row++;
+    if(row>=ATLAS_ROWS) row=6;
+    const s=mkSim(kid.name, hi, {row, trait:g.trait, tt:g.tt, mbti:g.mbti, age:16});
+    s.vigor=vigorCap(s); s.parents=[an,bn];
+    sims.push(s);
+    if(!stay) HOMEOWNER[hi]=kid.name;         // 住爹娘家的不是户主，睡厢屋的铺盖
+    syncBunks(); refreshRel(); panel();
+    emit(stay?'family.stay':'family.grown',{who:kid.name, whom:an, why:g.mbti, tags:['life']});
+  }
+}
+// 血亲不通婚：父母、子女、兄弟姐妹都排除
+function kin(a,b){
+  const pa=a.parents||[], pb=b.parents||[];
+  if(pa.includes(b.name) || pb.includes(a.name)) return true;
+  return pa.length>0 && pb.length>0 && pa.some(n=>pb.includes(n));
+}
+
+// 迁入：空宅子挂出去，过几天有人来。长相从图集里挑一行没人用过的。
+let moveInAt = 0;
+function moveInTick(){
+  const hi = vacantHome();
+  if(hi < 0){ moveInAt = 0; return; }
+  // 自家孩子优先：有孩子三天内就要成年，这座宅子先给他留着
+  if(KIDS.some(k=>day - k.born >= GROW_UP - 3)) return;
+  if(!moveInAt){ moveInAt = day + 3; return; }
+  if(day < moveInAt) return;
+  moveInAt = 0;
+  const used = new Set(sims.map(x=>x.row));
+  let row = 6; while(row < ATLAS_ROWS && used.has(row)) row++;
+  if(row >= ATLAS_ROWS) row = 6;
+  const taken = new Set(sims.map(x=>x.name).concat(GONE.map(x=>x.name)));
+  const nm = NAMEPOOL.find(n=>!taken.has(n)) || ('客'+(++simSeq));
+  const sd = day*31 + row;
+  const s = mkSim(nm, hi, { row,
+    trait: TN[Math.floor(hash01(sd+1)*TN.length)],
+    tt:    TT[Math.floor(hash01(sd+2)*TT.length)],
+    mbti:  TM[Math.floor(hash01(sd+3)*TM.length)],
+    age:   18 + Math.floor(hash01(sd+4)*34) });
+  s.vigor = vigorCap(s);
+  sims.push(s); HOMEOWNER[hi] = nm;
+  syncBunks(); refreshRel(); panel();
+  emit('life.movein',{who:nm, val:s.age, tags:['life']});
+}
+
+// 孩子：成家满 WED_DAYS 之后自然有；每天要哄，不哄双亲掉需求。
+const KID_AFTER=5;
+function kidTick(){
+  for(const k in PAIR){
+    const p=PAIR[k];
+    if(p.st!=='结发' || day-p.since<KID_AFTER) continue;
+    if(KIDS.some(x=>x.key===k)) continue;
+    const [a,b]=k.split('|');
+    // 出生就起名：事件流、摇篮、面板在他长大之前就得叫得出这个名字
+    const taken=new Set(sims.map(x=>x.name).concat(GONE.map(x=>x.name), KIDS.map(x=>x.name)));
+    const nm=KIDNAMES.find(n=>!taken.has(n)) || ('小'+(++simSeq));
+    const kid={key:k, born:day, fed:day, name:nm};
+    KIDS.push(kid); makeCrib(kid);
+    emit('family.child',{who:a, whom:b, why:nm, tags:['love']});
+  }
+  for(const kid of KIDS){
+    if(day-kid.fed<=1) continue;                 // 昨天哄过就行
+    const [a,b]=kid.key.split('|');
+    for(const nm of [a,b]){ const s=sims.find(x=>x.name===nm); if(!s) continue;
+      s.need.fun=Math.max(0,s.need.fun-12); s.need.energy=Math.max(0,s.need.energy-8); }
+    emit('family.neglect',{who:a, whom:b, tags:['love']});
+  }
+}
+function kidOf(name){ const p=pairOf(name);
+  return p ? KIDS.find(k=>k.key===p.key) : null; }
+
+// 在某人院子里找一块空地（摇篮要摆在看得见的地方）
+function freeYardCell(name){
+  const s=sims.find(x=>x.name===name);
+  const i = s ? s.home : HOMEOWNER.indexOf(name);   // 新人不在 NAMES 里，按宅子找
+  if(i==null||i<0) return null;
+  const h=HOME[i];
+  const cx=h.x+HW/2, cy=h.y+HH/2+1;
+  let best=null;
+  for(let y=h.y;y<h.y+HH;y++) for(let x=h.x;x<h.x+HW;x++){
+    if(inHouse(x,y)) continue;
+    if(solid[y][x]||OBJCELL.has(y*GW+x)) continue;
+    const sy=y+1;                                  // 门前得留一格站人
+    if(sy>=h.y+HH||solid[sy][x]||OBJCELL.has(sy*GW+x)) continue;
+    // 从院子中间往外找：贴着院墙那一排的摇篮，人一站就被挡没了
+    const d=(x-cx)*(x-cx)+(y-cy)*(y-cy);
+    if(!best||d<best.d) best={x,y,d};
+  }
+  return best ? [best.x,best.y] : null;
+}
+function makeCrib(kid){
+  const [a,b]=kid.key.split('|');
+  const spot = freeYardCell(a) || freeYardCell(b);
+  if(!spot) return null;
+  const o={ id:'crib_'+kid.key, art:'crib', crib:kid, zone:'home',
+    owner:a, get n(){ return (kid.name||'')+'的摇篮'; },
+    x:spot[0], y:spot[1], w:1, h:1, use:[[spot[0],spot[1]+1]],
+    col:['#8a6a42','#5e4530','#e8ddc4'],
+    adv:{fun:26, social:14}, dur:50, cost:{energy:4},
+    pre:()=>kid.fed<day, why:'今日已经哄过了',
+    get note(){ return kid.fed<day ? '孩子要哄了' : '睡着了'; },
+    eff:s=>{ kid.fed=day; return {type:'family.care'}; } };
+  kid.x=spot[0]; kid.y=spot[1];
+  OBJ.push(o); solid[o.y][o.x]=1; OBJCELL.add(o.y*GW+o.x);
+  return o;
+}
+// 摇篮完全由 KIDS 推导出来，所以读档时先拆干净再照着重建 ——
+// 和 wipeBuilt 同一套思路：派生物件不进存档，只进 replay。
+function wipeCribs(){
+  for(let i=OBJ.length-1;i>=0;i--){ const o=OBJ[i];
+    if(!o.crib) continue;
+    solid[o.y][o.x]=0; OBJCELL.delete(o.y*GW+o.x);
+    OBJ.splice(i,1);
+  }
+}
+function syncCribs(){ wipeCribs(); for(const kid of KIDS) makeCrib(kid); }
+
+// 铺盖：住在自家宅里但不是户主的人（成年留家的孩子）睡的地方。
+// 和摇篮一样【完全由住户推导】——不进存档，人一变就重建。
+// 它比户主的榻差（78 → 60）：同住一宅不是白住，出去当家才睡得好。
+function wipeBunks(){
+  for(let i=OBJ.length-1;i>=0;i--){ const o=OBJ[i];
+    if(!o.bunk) continue;
+    solid[o.y][o.x]=0; OBJCELL.delete(o.y*GW+o.x);
+    OBJ.splice(i,1);
+  }
+}
+function syncBunks(){
+  wipeBunks();
+  for(const s of sims){
+    const hi=s.home;
+    if(hi==null || !HOME[hi] || HOMEOWNER[hi]===s.name) continue;
+    const h=HOME[hi], x=h.x+1, y=h.y+3;
+    if(solid[y][x] || OBJCELL.has(y*GW+x)) continue;
+    const nm=s.name;
+    OBJ.push({ id:'bunk'+hi, art:'bunk', bunk:1, priv:1, zone:'home', homeIdx:hi,
+      owner:nm, n:nm+'的铺盖', x, y, w:1, h:1, use:[[x,y+1]],
+      col:['#4f3a29','#3d2c1f','#a8916a'], adv:{energy:60}, dur:240 });
+    solid[y][x]=1; OBJCELL.add(y*GW+x);
+  }
+}
+
+// ==========================================================================
+//  NPC 主动社交
+//  之前 decide() 的候选里只有【物】没有【人】——NPC 的社交需求靠"坐沙发"满足，
+//  所以他们永远不会主动找人说话，NPC 之间也就没有故事。
+//  这里把"人"也做成候选，和物件一起进效用打分。
+// ==========================================================================
+// 积怨强度：记忆里负面分量的总和
+// own=true 时只算亲身经历的恩怨 —— 道听途说不足以让人跟你翻脸吵架，
+// 但足以让人对你冷淡（rel 照算二手记忆）
+function grudgeOf(sim, name, own){
+  const L=(sim.mem&&sim.mem[name])||[]; let g=0;
+  for(const e of L){ if(own && e.hand===2) continue;
+    const v=memWeight(e); if(v<0) g-=v; }
+  return g;
+}
+function vent(a, bName){
+  const L=(a.mem&&a.mem[bName])||[];
+  for(const e of L) if(e.w<0 && e.type!=='social.争执') e.w*=0.4;   // 小怨气发泄掉
+}
+// 按关系、积怨、性格挑一个动作 —— 不用随机数，行为可预测也可复现
+function pickSocial(sim, t){
+  const r=sim.rel[t.name], g=grudgeOf(sim,t.name,true), soc=sim.need.social;
+  const by=n=>SOCIAL.find(a=>a.n===n);
+  // 积怨够深 → 找茬。但要防住正反馈失控：
+  //   摩擦→积怨→争执→争执又加深积怨→更想吵……第二天就变成两人互吵到饿死。
+  if(g>22 && r<18 && soc>50){
+    // ① 吵过要冷却 8 小时（宣泄完暂时消气）
+    const last=sim._vent&&sim._vent[t.name];
+    const cooled = last==null || (clock-last+1440)%1440 > 840;
+    // ② 任何需求告急时不找茬 —— 先顾活着
+    let ok=cooled;
+    if(ok) for(const k of NK) if(NEEDS[k].dec && sim.need[k]<35){ ok=false; break; }
+    if(ok) return by('争执');
+  }
+  // NPC 自主恋爱：门槛和玩家完全一样，不给 AI 开后门
+  if(canWed(sim,t)) return by('求亲');
+  if(canWoo(sim,t)) return by('示好');
+  if(r>=45 && sim.money>=15 && sim.skill>0.5 && soc<40 && giftLeft(sim)>0) return by('馈赠');
+  if(r>=40 && soc<55) return by('深谈');
+  if(r>=30) return soc<35 ? by('说笑') : by('称许');
+  return by('攀谈');
+}
+function socialScore(sim, t, a){
+  const r=sim.rel[t.name], g=grudgeOf(sim,t.name,true);
+  let v;
+  if(a.love){
+    // 表白/求亲不是"我社交需求低"驱动的，是人生大事 —— 和吵架同理，
+    // 给它一条独立的驱动力。闸门在 canWoo/canWed，做完这个动作就消失了。
+    v = a.love==='wed' ? 22 : 16;
+  } else if(a.hostile){
+    // 找茬的驱动力要和正常交往同一个量级。之前 g*1.2 上限 26，
+    // 而攀谈只有 4~6 分，结果 63% 的社交都是吵架，村子戾气过重。
+    v = Math.min(13, g*0.5);
+  } else {
+    v = a.soc * urgency(sim.need.social, NEEDS.social.pow) * weightOf(sim,'social');
+    v *= 0.45 + r/100*1.3;                       // 越亲近越愿意主动接近
+  }
+  const d=Math.abs(t.gx-sim.gx)+Math.abs(t.gy-sim.gy);
+  return v/(1+d*0.05);
+}
+function socialCandidates(sim){
+  const out=[];
+  for(const t of sims){
+    if(t===sim) continue;
+    if(t.act && t.act.phase==='go') continue;    // 对方在赶路，不好搭话
+    if(t.act && t.act.social) continue;          // 对方正在跟别人聊
+    const a=pickSocial(sim,t); if(!a) continue;
+    if(a.cost && sim.money<a.cost) continue;
+    out.push({ s:socialScore(sim,t,a), by:null, social:{t,a},
+      o:{ n:a.n+'·'+t.name, dur:a.dur, adv:{social:a.soc} } });   // 伪物件，无 use
+  }
+  return out;
+}
+
+// eff 的产出统一在这里落地。
+// 必须抽成函数：玩家和 NPC 走的是两条不同的完成路径，
+// 两份拷贝早晚会不一致 —— T13 的 MEM_CAP 就是这么漏掉的。
+function settleEff(s, o, out){
+  if(!out) return;
+  if(out.type==='conflict.harvest' && out.whom){
+    const victim=sims.find(x=>x.name===out.whom);
+    if(victim){ remember(victim, s.name, 'conflict.harvest'); refreshRel(); }
+    emit('conflict.harvest',{who:s.name, whom:out.whom, obj:o.n, objId:o.id,
+      tags:['conflict','farm']});
+    return;
+  }
+  // why 必须透传：播种事件靠它带出种的是稻还是麦，
+  // 漏掉的话事件流里麦子也会写成"种下一茬稻"
+  emit(out.type,{who:s.name, obj:o.n, objId:o.id, val:out.val, why:out.why||null,
+    tags: out.type.indexOf('farm.')===0 ? ['farm'] : ['econ']});
+}
+
+// 谁占着这个物件的座位（全占满才算被占）
+function occupiedBy(o, self){
+  const takers=o.use.map(u=>sims.find(x=>x!==self && x.act && x.act.seat===u.join()));
+  return takers.every(Boolean) ? takers[0] : null;
+}
+
+function decide(sim){
+  const all=[];
+  for(const o of OBJ){
+    const v=score(sim,o); if(v==null) continue;
+    all.push({o, s:v, by:occupiedBy(o,sim)});
+  }
+  for(const c of socialCandidates(sim)) all.push(c);      // 人和物一起排队
+  all.sort((a,b)=>b.s-a.s);
+  // 只有"最想要的那个"被占才算冲突 —— 否则每次决策都会为所有被占物件刷屏
+  const top=all[0];
+  if(top && top.by){
+    const key=top.o.id+'@'+top.by.name;
+    if(sim._blockKey!==key || (clock-sim._blockAt+1440)%1440 > 60){
+      sim._blockKey=key; sim._blockAt=clock;
+      remember(sim, top.by.name, 'conflict.blocked', '抢了我想用的'+top.o.n);
+      // 退而求其次去了哪 —— 有这个才能写成因果句，而不是状态播报
+      const alt=all.find(c=>!c.by);
+      emit('conflict.blocked', {who:sim.name, whom:top.by.name, obj:top.o.n,
+        why:alt?alt.o.n:null, val:Math.round(top.s), tags:['conflict']});
+      // 一天里被同一个人抢到第三次 —— 这才值得讲一句，且每天每对最多一次
+      const bk=top.by.name;
+      sim._blockN=sim._blockN||{};
+      if(!sim._blockN[bk] || sim._blockN[bk].day!==day) sim._blockN[bk]={day, n:0};
+      if(++sim._blockN[bk].n===3)
+        emit('conflict.escalated',{who:sim.name, whom:bk, obj:top.o.n,
+          val:3, tags:['conflict']});
+    }
+  }
+  const list=all.filter(c=>!c.by);
+  sim.cands=list.slice(0,5);
+  for(const c of list){
+    if(c.social){                                         // 目标是人：走到他身边
+      const t=c.social.t;
+      const p=path(sim.gx,sim.gy,t.gx,t.gy);
+      if(p){ sim.path=p;
+        sim.act={o:c.o, seat:'social:'+t.name, phase:'go', left:c.o.dur, social:c.social};
+        return; }
+      continue;
+    }
+    const seat=c.o.use.find(u=>!sims.some(x=>x!==sim&&x.act&&x.act.seat===u.join()))||c.o.use[0];
+    const p=path(sim.gx,sim.gy,seat[0],seat[1]);
+    if(p){ sim.path=p;
+      // 手艺活干得更快 —— 成长第一次变成"同样一天能做更多事"
+      const dur=Math.round((c.o.skill ? c.o.dur*skillSpeed(sim) : c.o.dur)*(sim.ill?1.25:1));
+      sim.act={o:c.o, seat:seat.join(), st:seat, phase:'go', left:dur, variantDur:dur}; return; }
+  }
+  sim.act=null;
+}
+
+// ---------- 模拟步进（每模拟分钟）----------
+let clock=7*60, day=1, speed=1, running=true;
+const SIM_DT=0.25;                                   // 每步 0.25 模拟分钟
+function step(dm){
+  for(const s of sims){ s.ppx=s.px; s.ppy=s.py; }     // 记录上一步位置，供渲染插值
+  // 「安泰」：冬供的恩泽，镇上安稳，诸事都不那么熬人
+  const wear = boonOn('安泰') ? 0.92 : 1;
+  for(const k in NEEDS) if(NEEDS[k].dec)
+    sims.forEach(s=>{
+      // 交游掉得多快因人而异：外向的人闲一会儿就发慌，内向的人扛得住
+      const per = (k==='social' ? mb(s,'socDec') : 1) * (s.ill ? 1.3 : 1);
+      s.need[k]=Math.max(0,s.need[k]-NEEDS[k].dec*dm*wear*per);
+      s._crit=s._crit||{};
+      // 边沿触发：跌破 15 报一次，回到 30 以上才解除，否则会在阈值上反复刷
+      if(!s._crit[k] && s.need[k]<15){ s._crit[k]=1;
+        emit('need.critical',{who:s.name, why:NEEDS[k].n, val:Math.round(s.need[k]), tags:['need']}); }
+      else if(s._crit[k] && s.need[k]>30) s._crit[k]=0;
+    });
+  sims.forEach(s=>s.need.provision=provision(s));
+
+  // ===== 玩家：自由移动 + 手动交互，不走 AI（托管时并入下面的 AI 循环）=====
+  for(const s of sims) if(unstick(s) && s===PC) fx(s.px, s.py-CH, '挪出来了', '#8fd0e8');
+  if(!autoPilot){
+    const s=PC, mv=moveVec();
+    if(s.act && s.act.phase==='do'){
+      if(mv.l>0.1){
+        emit('act.interrupted',{who:s.name, obj:s.act.o.n, why:'走开了', tags:['act']});
+        s.act=null; if(menu) closeMenu();                   // 一动就中断当前行动
+      }
+      else {
+        const o=s.act.o, r=Math.min(dm,s.act.left);
+        const sc=s.act.scale==null?1:s.act.scale;      // 小憩/发呆只回一部分
+        const dur=s.act.variantDur||o.dur;
+        for(const k in (o.adv||{})) if(k!=='provision')
+          s.need[k]=Math.min(100,s.need[k]+o.adv[k]*sc*r/dur);
+        for(const k in (o.cost||{}))
+          s.need[k]=Math.max(0,s.need[k]-o.cost[k]*r/dur);
+        // 「匠心」：秋供的恩泽，老匠人肯指点
+        if(o.skill) s.skill+=r*0.004*(s.act.skillMul||1)*(boonOn('匠心')?1.35:1);
+        if(o.social) for(const x of sims)
+          if(x!==s && x.act && x.act.o===o && x.act.phase==='do'){
+            s._co=s._co||{}; s._co[x.name]=(s._co[x.name]||0)+r;
+            if(s._co[x.name]>=45){ s._co[x.name]=0;
+              remember(s, x.name, 'social.攀谈', '一起待在'+o.n); }
+            s.need.social=Math.min(100,s.need.social+o.adv.social*r/o.dur*0.5*mb(s,'socGain'));
+          }
+        s.act.left-=r;
+        if(s.act.left<=0){
+          const full=(s.act.scale==null||s.act.scale===1);
+          if(full && o.pre && !o.pre(s)){
+            emit('econ.failed',{who:s.name, obj:o.n, objId:o.id, tags:['econ','conflict']});
+          } else {
+            // 玩家在菜单里选了什么就做什么：指定的菜谱、指定的那份供奉
+            let out=null;
+            if(s.act.heal && s.inv.herb>=1){ s.inv.herb--; s.ill=0;
+                           out={type:'life.heal', why:'一剂药草'}; }
+            else if(s.act.kid){ const kd=kidOf(s.name);
+                           if(kd){ kd.fed=day; out={type:'family.care'}; } }
+            else if(s.act.tool)   out=makeTool(s, s.act.tool);
+            else if(s.act.shrine) out=offerGive(s, s.act.shrine) ? null : null;
+            else if(s.act.recipe) out=canMake(s,s.act.recipe) ? cook(s, s.act.recipe) : null;
+            else if(o.eff && full) out=o.eff(s);
+            settleEff(s, o, out);
+            emit('act.done',{who:s.name, obj:o.n, objId:o.id, tags:['act']});
+          }
+          s.act=null;
+        }
+      }
+    }
+    if(!s.act && mv.l>0.05){
+      if(menu) closeMenu();                            // 一动就关菜单
+      const spd=1.5*dm*T;
+      const nx=s.px+mv.x*spd, ny=s.py+mv.y*spd;
+      const free=(x,y)=>{ const gx=(x/T)|0, gy=(y/T)|0;
+        return gx>=0&&gy>=0&&gx<GW&&gy<GH&&!solid[gy][gx]; };
+      if(free(nx,s.py)) s.px=nx;                      // 分轴判定，贴墙时能滑动
+      if(free(s.px,ny)) s.py=ny;
+      s.gx=(s.px/T)|0; s.gy=(s.py/T)|0;
+      if(Math.abs(mv.x)>.1) s.face=mv.x>0?1:-1;
+      s.anim+=dm*5.2; s.moving=true;                  // 步长变小了，动画速率要补回来
+    } else if(!s.act) s.moving=false;
+    // 打分照算，但只当建议显示，不自动执行
+    const list=[];
+    for(const o of OBJ){ const v=score(s,o); if(v!=null) list.push({o,s:v}); }
+    list.sort((a,b)=>b.s-a.s); s.cands=list.slice(0,5);
+  }
+
+  for(const s of sims){
+    if(s.isPlayer && !autoPilot) continue;            // 手动模式下玩家已单独处理
+    // 迟滞切换：每 10 分钟重估一次，只有明显更优才改主意。
+    // （直接"需求见底就打断"会导致两个需求同时告急时来回横跳，谁也没做成 —— 必须加迟滞）
+    // ---- 承诺规则 ----
+    // score() 衡量的是"现在从头开始做这件事值多少"。行动进行中，被满足的需求在回升，
+    // 当前行动的分数会一路下跌，而别的选项看起来越来越好 —— 比较天然不公平
+    // （实测切换时分数比高达 11 倍，远超 1.15 的阈值，调参数没用）。
+    // 所以改成：开工后只有两种情况允许改主意。
+    if(s.act && s.act.phase==='do' && !s.act.o.eff && s.act.o.use){
+      const prog=1-s.act.left/(s.act.variantDur||s.act.o.dur);
+      // 找出最告急的那个需求（不是"有没有"，是"哪一个"）—— 见下面的紧急通道
+      let urgentK=null, urgentV=30;
+      for(const k of NK) if(NEEDS[k].dec && s.need[k]<urgentV){ urgentK=k; urgentV=s.need[k]; }
+      const maySwitch = urgentK         // ① 有需求真告急 —— 保留"放下手上事去抢灶台"这类合理中断
+                     || prog<0.1*patienceOf(s);  // ② 进度还浅 —— 沉没成本低（急性子的窗口更窄）
+      s.act.since=(s.act.since||0)+dm;
+      if(maySwitch && s.act.since>=10){
+        s.act.since=0;
+        // 决策和重估必须用同一套标准。曾经让重估跳过锚点，结果刚选完一个区内动作
+        // （被放大 1.9 倍）重估就看到没放大的数字，立刻反悔 —— 47 次"刚开始就换"。
+        const cur=score(s,s.act.o)*1.35;              // 已在进行中 → 惯性加成
+        let best=null;
+        for(const o of OBJ){ const v=score(s,o); if(v!=null&&(!best||v>best.s)) best={o,s:v}; }
+        // 紧急通道必须【定向】：只对真能解决那个告急需求的候选开放。
+        // 之前它是个布尔量 —— 只要有任一需求 <30 就允许换去【任何】更高分的东西。
+        // 小地图上无所谓，扩图后走路变多、需求长期偏低，这个闸门几乎常开，
+        // 中断率从 30% 涨到 37%：饿着的人会被"书架"从床上拽起来。
+        const early = prog < 0.1*patienceOf(s);
+        const solves = o => urgentK && o.adv && o.adv[urgentK] > 0;
+        if(best && best.o!==s.act.o && best.s>cur*1.15 && (early || solves(best.o))){
+          // 诊断字段：ratio=新旧分数比, prog=已完成进度, urg=新目标对应的最急需求值
+          let urg=100; for(const k in (best.o.adv||{})) if(k!=='provision') urg=Math.min(urg,s.need[k]);
+          emit('act.interrupted',{who:s.name, obj:s.act.o.n, why:'改去 '+best.o.n, tags:['act'],
+            val:+(best.s/Math.max(.01,cur)).toFixed(2)});
+          EVENTS[EVENTS.length-1].diag={ratio:+(best.s/Math.max(.01,cur)).toFixed(2),
+            prog:+(1-s.act.left/(s.act.variantDur||s.act.o.dur)).toFixed(2),
+            urg:Math.round(urg), to:best.o.n};
+          s.act=null;
+        }
+      }
+    }
+    if(!s.act){ decide(s); continue; }
+    if(s.act.phase==='go'){
+      const spd=1.6*dm;                                   // 格/分钟（与玩家一致）
+      let mv=spd;
+      while(mv>0 && s.path.length){
+        const [tx,ty]=s.path[0];
+        const dx=(tx+.5)*T-s.px, dy=(ty+.5)*T-s.py, d=Math.hypot(dx,dy);
+        if(d<mv*T){ s.px=(tx+.5)*T; s.py=(ty+.5)*T; s.gx=tx; s.gy=ty; s.path.shift(); mv-=d/T; }
+        else { s.px+=dx/d*mv*T; s.py+=dy/d*mv*T; if(Math.abs(dx)>.5) s.face=dx>0?1:-1; mv=0; }
+      }
+      s.anim+=dm*4.6;
+      if(!s.path.length){
+        if(s.act.social){
+          const t=s.act.social.t;
+          if(Math.hypot(t.px-s.px, t.py-s.py) > T*3 || (t.act && t.act.phase==='go')){
+            emit('social.missed',{who:s.name, whom:t.name, tags:['social']});   // 扑空也是故事
+            s.act=null;
+          } else { s.act.phase='do';
+            emit('act.start',{who:s.name, obj:s.act.o.n, tags:['act']}); }
+        } else { s.act.phase='do';
+          emit('act.start',{who:s.name, obj:s.act.o.n, tags:['act']}); }
+      }
+    } else {
+      const o=s.act.o, r=Math.min(dm, s.act.left);
+      for(const k in o.adv) if(k!=='provision')
+        s.need[k]=Math.min(100, s.need[k]+o.adv[k]*r/o.dur);
+      for(const k in (o.cost||{}))
+        s.need[k]=Math.max(0, s.need[k]-o.cost[k]*r/o.dur);
+      if(o.skill) s.skill+=r*0.004*(boonOn('匠心')?1.35:1);
+      if(o.social) for(const x of sims)
+        if(x!==s && x.act && x.act.o===o && x.act.phase==='do'){
+          s._co=s._co||{}; s._co[x.name]=(s._co[x.name]||0)+r;
+          if(s._co[x.name]>=45){ s._co[x.name]=0;
+            remember(s, x.name, 'social.攀谈', '一起待在'+o.n); }
+          s.need.social=Math.min(100,s.need.social+o.adv.social*r/o.dur*0.5*mb(s,'socGain'));
+        }
+      s.act.left-=r;
+      if(s.act.left<=0 && s.act.social){
+        const {t,a}=s.act.social, r=s.rel[t.name];
+        // 资格必须在扣钱之前判：聘礼一扣，canWed() 里的"钱够不够"就自己把自己否了
+        const wooOK = a.love==='woo' && canWoo(s,t);
+        const wedOK = a.love==='wed' && canWed(s,t);
+        if(a.cost) s.money-=a.cost;
+        const d=a.rel(r);
+        remember(s, t.name, 'social.'+a.n);
+        remember(t, s.name, 'social.'+a.n);
+        s.need.social=Math.min(100,s.need.social+a.soc*mb(s,'socGain'));
+        if(a.hostile){ t.need.fun=Math.max(0,t.need.fun-12);
+          vent(s,t.name); vent(t,s.name);                     // 吵完出了气，怨气释放大半
+          s._vent=s._vent||{}; s._vent[t.name]=clock;
+          t._vent=t._vent||{}; t._vent[s.name]=clock; }
+        else t.need.social=Math.min(100,t.need.social+a.soc*0.7*mb(t,'socGain'));
+        if(a.weekly) useGift(s);
+        refreshRel();
+        emit('social.'+a.n,{who:s.name, whom:t.name, val:d,
+          tags:a.hostile?['conflict','social']:['social']});
+        // 必须排在交谈事件之后：先"聊了很久"，才有"他跟我提起谁"
+        if(wooOK) makeLovers(s,t);
+        else if(wedOK) makeWed(s,t);
+        else if(!a.hostile && a.dur>=20) jealousy(s, t.name);
+        if(!a.hostile && a.dur>=20) gossipExchange(s, t);
+        s.act=null;
+      }
+      else if(s.act.left<=0){
+        // 前置条件在"决策时"查过，产出在几十分钟后才结算 —— 中间可能被别人抢先，
+        // 不复查就会出现负数库存。扑空本身也是好故事材料，别静默吞掉。
+        if(o.pre && !o.pre(s)){
+          emit('econ.failed',{who:s.name, obj:o.n, objId:o.id, tags:['econ','conflict']});
+        } else {
+          const out=o.eff && o.eff(s);                 // eff 可以返回一条经济事件
+          settleEff(s, o, out);
+          emit('act.done',{who:s.name, obj:o.n, objId:o.id, tags:['act']});
+        }
+        s.act=null;
+      }
+    }
+  }
+  // 关系不再需要显式"向基线回归"—— 记忆按半衰期衰减，rel 自然回落到 REL_BASE。
+  // 「不维护就退」（决策 8）由衰减本身实现。
+  mktDrift(dm);
+  _relTick=(_relTick||0)+dm;
+  if(_relTick>=5){ _relTick=0; refreshRel(); }     // 每 5 模拟分钟整表刷新一次
+
+  // ---- 共处摩擦 ----
+  // 对立特质的两个人待在一起，光是共处就会互相消耗。
+  // 这是除"抢资源"之外的第二种冲突源，而且不需要任何触发条件。
+  for(let i=0;i<sims.length;i++) for(let j=i+1;j<sims.length;j++){
+    const a=sims[i], b=sims[j];
+    const f=friction(a,b); if(!f) continue;
+    if(Math.hypot(a.px-b.px, a.py-b.py) > T*2.2) continue;
+    // 摩擦不再直接改 rel，而是攒够了写一条记忆 —— 关系由记忆推导
+    a._fr=a._fr||{}; a._fr[b.name]=(a._fr[b.name]||0)+f*dm;
+    a._frT=a._frT||{};
+    if(a._fr[b.name]>=120 && (clock-(a._frT[b.name]||-999)+1440)%1440>180){
+      a._fr[b.name]=0; a._frT[b.name]=clock;
+      const pair=[];
+      for(const t of a.tt) for(const u of b.tt) if(TRAIT[t]&&TRAIT[t].opp===u) pair.push(t+' × '+u);
+      const why=pair.join('、');
+      const say=(ps)=>ps.map(k=>FRICTION_MEM[k]||'处不来').join('、');
+      remember(a, b.name, 'conflict.friction', say(pair));
+      remember(b, a.name, 'conflict.friction', say(pair.map(revPair)));
+      // 摩擦冷却是 3 小时，一天能触发好几次；对积怨有用，但事件流里
+      // 连着三行"你嫌芜青邋里邋遢"就只是复读。记忆照记，叙事一天一次。
+      a._frDay=a._frDay||{};
+      const fresh = a._frDay[b.name]!==day;  a._frDay[b.name]=day;
+      emit('conflict.friction',{who:a.name, whom:b.name, why,
+        val:pair[0], tags:fresh?['conflict','trait']:['conflict','trait','quiet']});
+    }
+  }
+  for(let i=floats.length-1;i>=0;i--){ floats[i].t+=dm*0.9; floats[i].y-=dm*0.5;
+    if(floats[i].t>9) floats.splice(i,1); }
+  clock+=dm;
+  if(clock>=1440){ const wasSeason=seasonOf(day);
+    clock-=1440; day++; farmDayTick(); forageDayTick(); dailyTick(); doleTick(); kidTick(); growTick(); lifeTick(); applyWeather();
+    if(seasonOf(day)!==wasSeason) emit('season.turn',{who:'天', why:seasonOf(day), tags:['wx']});
+    saveGame();
+    if(!autoPilot) openDaily();      // 托管看戏时不打断
+    else markDayStart(); }
+}
+
+// ---------- 渲染 ----------
+function bake(w,h,fn){const c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d');x.imageSmoothingEnabled=false;fn(x);
+  const d=x.getImageData(0,0,w,h),p=d.data;
+  for(let i=0;i<p.length;i+=4) p[i+3]=p[i+3]<128?0:255;    // 去抗锯齿毛边
+  x.putImageData(d,0,0);return c;}
+const TR=T*RS;                                  // 地砖的真实分辨率
+function noiseTile(base,spec,n){return bake(TR,TR,x=>{
+  x.fillStyle=base; x.fillRect(0,0,TR,TR); x.fillStyle=spec;
+  for(let i=0;i<n;i++)                              // 粗颗粒：地面的手感全靠它，保持原样
+    x.fillRect(((Math.random()*T)|0)*RS, ((Math.random()*T)|0)*RS, RS, RS);
+  for(let i=0;i<n*RS;i++)                           // 细颗粒：把多出来的分辨率用起来
+    x.fillRect((Math.random()*TR)|0, (Math.random()*TR)|0, 1, 1);
+});}
+const floorWood =noiseTile('#9c8058','#ab8f68',30),   // 屋内：木地板
+      floorGrass=noiseTile('#748c4e','#84a05c',36),   // 村中：草地
+      floorStone=noiseTile('#82857e','#91948c',26),   // 晒谷场：青石板
+      floorDirt =noiseTile('#8a7048','#997f58',34),   // 作坊：黄土
+      floorPath =noiseTile('#9c8a66','#aa9874',30),   // 夯土路
+      floorWater=noiseTile('#3f5a6e','#4a6a80',22),   // 塘
+      // 夯土墙：一层一层夯出来的，所以画成横向压层而不是砖缝
+      wallTile=bake(TR,TR,x=>{x.scale(RS,RS);       // 结构仍按 24 单位写，放大是精确的
+        x.fillStyle='#6b5a44';x.fillRect(0,0,T,T);
+        for(let i=0;i<3;i++){ x.fillStyle=['#7d6a50','#75624a','#6f5c46'][i];
+          x.fillRect(0,i*6+1,T,5); x.fillStyle='#5c4c39'; x.fillRect(0,i*6+6,T,1); }
+        x.fillStyle='#8a7458';x.fillRect(1,1,T-2,2);
+        x.fillStyle='#3d3128';x.fillRect(0,T-4,T,4);
+        x.fillStyle='#4a3d2e';x.fillRect(0,T-5,T,1);
+        x.setTransform(1,0,0,1,0,0);                 // 沙粒按真实分辨率撒，才不会变成大方块
+        for(let i=0;i<26*RS*RS;i++){ x.fillStyle=i%3?'#7a6850':'#5f5040';
+          x.fillRect((Math.random()*TR)|0,(Math.random()*TR)|0,1,1); } });
+
+// ==========================================================================
+//  T32 · 建造
+//  在这之前，玩家能改变的只有【自己的库存】——地图是只读的。
+//  建造是第一个让玩家真正改动世界的系统，也是第一个由玩家自己定的目标：
+//  木料只能从镇东伐木来（90 分钟 +2），一条水渠就是八趟山。
+//
+//  四样东西都【接在已有的循环上】，没有一样是新发明的：
+//    水渠 —— 解掉"每天回来浇水"这道苦役（唯一真正的成长回报）
+//    腌坛 —— 山货×2 → 腌货×1，把采集接进经济
+//    工棚 —— 自家的木作坊，省掉往返镇上
+//    新田 —— 院里再开一块地
+//
+//  【最要紧的一件事】：地图从这一刻起是动态的。
+//  以前"座位不被挡""每户出得了院子"是启动时校验一次的静态断言，
+//  现在玩家能亲手把老莫封死在他自己院里。所以落子之前必须先跑一遍
+//  同样的连通性检查 —— 检查写在游戏里，测试只是去驱动它。
+// ==========================================================================
+const BUILT=[];                       // 存档要replay的建造记录 {key,x,y}
+
+function forageHave(s){               // 手里一共有几样山货
+  return (s.inv.veg|0)+(s.inv.fruit|0)+(s.inv.mush|0)+(s.inv.herb|0);
+}
+function takeForage(s,n){             // 从最多的那样开始扣
+  const ks=['veg','fruit','mush','herb'];
+  let got=0, nm='';
+  while(got<n){
+    ks.sort((a,b)=>(s.inv[b]|0)-(s.inv[a]|0));
+    if((s.inv[ks[0]]|0)<=0) break;
+    s.inv[ks[0]]--; got++;
+    nm = (Object.values(FORAGE).find(f=>f.key===ks[0])||{}).n || nm;
+  }
+  return {got, nm};
+}
+
+const BUILD={
+  // ================= 自家院里 =================
+  水渠:{ n:'水渠', wood:16, money:30, w:1, h:1, noSeat:1, art:'ditch',
+    tip:'挨着的田每天自动浇灌',
+    make(x,y,id){ DITCH.add(y*GW+x);
+      return {id, art:'ditch', built:1, owner:PC.name, zone:'home',
+              n:'水渠', x, y, w:1, h:1, use:[], note:'放水' }; } },
+
+  腌坛:{ n:'腌坛', wood:8, money:20, w:1, h:1, art:'crock',
+    tip:'山货×2 → 腌货×1（卖得比生货贵得多）',
+    make(x,y,id){
+      return {id, art:'crock', built:1, owner:PC.name, zone:'home',
+              n:'腌坛', x, y, w:1, h:1, use:[[x,y+1]],
+              adv:{provision:40}, dur:60, cost:{energy:6},
+              pre:s=>forageHave(s)>=2, why:s=>'要两样山货（现有 '+forageHave(s)+'）',
+              note:'腌一坛（山货×2）',
+              eff:s=>{ const r=takeForage(s,2); s.inv.pickle++;
+                       return {type:'pickle.made', why:r.nm||'山货'}; } }; } },
+
+  工棚:{ n:'工棚', wood:12, money:40, w:1, h:1, art:'bench',
+    tip:'自家的木作坊，不用再跑镇上',
+    make(x,y,id){
+      return {id, art:'bench', built:1, owner:PC.name, zone:'home',
+              n:'工棚', x, y, w:1, h:1, use:[[x,y+1]],
+              adv:{provision:44}, dur:120, cost:{energy:22}, skill:true, craft:1,
+              pre:s=>s.inv.wood>=2, why:s=>'要木料×2（现有 '+s.inv.wood+'）',
+              note:'木器 / 打工具', eff:s=>craft(s) }; } },
+
+  新田:{ n:'新田', wood:6, money:25, w:1, h:1, art:'field',
+    tip:'院里再开一块地',
+    make(x,y,id){ addField(id, x, y, [x,y+1], PC.name, PC.home);
+      const o=OBJ[OBJ.length-1]; o.built=1; return o; } },
+
+  // 药圃：药草本来只有冬天采得到（FORAGE 是按季轮的），
+  // 这是第一件【解开季节锁】的建造 —— 拿钱把"等一年"换成"今天就有"。
+  药圃:{ n:'药圃', wood:10, money:30, w:1, h:1, art:'herbbed',
+    tip:'四季都采得到药草（野外只有冬天有）',
+    make(x,y,id){ const sp={cap:1, left:1, built:1}; DAILY.push(sp);
+      return {id, art:'herbbed', built:1, owner:PC.name, zone:'home', daily:sp,
+              n:'药圃', x, y, w:1, h:1, use:[[x,y+1]],
+              adv:{provision:20, fun:8}, dur:40, cost:{energy:6},
+              pre:()=>sp.left>0, why:'今日已采过，明日再来',
+              get note(){ return sp.left>0 ? '采药草 +1' : '今日已采尽'; },
+              eff:s=>{ s.inv.herb++; sp.left--; return {type:'herb.pick'}; } }; } },
+
+  // 鸡棚：第一个【两格】的建筑，也是第一份"睡一觉就有"的产出。
+  // 所以蛋的单价压得比腌货低得多 —— 不花力气的东西不该最赚钱。
+  鸡棚:{ n:'鸡棚', wood:14, money:50, w:2, h:1, art:'coop',
+    tip:'每天拾两枚蛋（蛋羹不费米）',
+    make(x,y,id){ const sp={cap:2, left:2, built:1}; DAILY.push(sp);
+      return {id, art:'coop', built:1, owner:PC.name, zone:'home', daily:sp,
+              n:'鸡棚', x, y, w:2, h:1, use:[[x,y+1],[x+1,y+1]],
+              adv:{provision:26, fun:10}, dur:25, cost:{energy:4},
+              pre:()=>sp.left>0, why:'今日的蛋拾完了',
+              get note(){ return sp.left>0 ? '拾蛋（今日还剩 '+sp.left+' 枚）' : '今日已拾尽'; },
+              eff:s=>{ s.inv.egg++; sp.left--; return {type:'coop.egg', val:1}; } }; } },
+
+  // 水车：第一个【要挨着别的建筑】的建造。
+  // 它自己什么也不产，只是把水渠的浇灌半径从 1 格扩到 2 格 ——
+  // "升级已有的东西"和"再加一样东西"是两种不同的成长感。
+  水车:{ n:'水车', wood:24, money:80, w:2, h:2, art:'mill',
+    tip:'浇灌够得着更远的田（必须挨着水渠）',
+    need:(x,y)=>{ for(const k of DITCH){
+        const dx=Math.abs((k%GW)-x), dy=Math.abs((k/GW|0)-y);
+        if(dx<=2 && dy<=2) return true; } return false; },
+    needWhy:'水车得挨着水渠',
+    make(x,y,id){ MILL.add(y*GW+x);
+      return {id, art:'mill', built:1, owner:PC.name, zone:'home',
+              n:'水车', x, y, w:2, h:2, use:[],
+              note:'转着' }; } },
+
+  // 谷仓：石砌的仓，米囤得住。
+  // 解的是一个老问题：家计里存粮的封顶是 60（米 9 斗就到顶），
+  // 再多的米对"家底"毫无意义，于是丰收之后囤粮变成纯粹的浪费。
+  谷仓:{ n:'谷仓', wood:10, stone:10, money:70, w:2, h:2, art:'barn',
+    tip:'存粮算得进家底的上限 60→90（米囤得住了）',
+    make(x,y,id){ BARN.n++;
+      return {id, art:'barn', built:1, owner:PC.name, zone:'home',
+              n:'谷仓', x, y, w:2, h:2, use:[[x,y+2],[x+1,y+2]],
+              adv:{provision:18}, dur:20, note:'查点存粮' }; } },
+
+  // ================= 镇中心（公家的） =================
+  // 到这里为止玩家改的都是自家的日子。下面两样是第一次【改变别人的生活】：
+  // 不挂 owner，所以 NPC 的 score() 看得见、真的会来用。
+  凉亭:{ n:'凉亭', wood:12, stone:6, money:60, w:2, h:1, art:'pavilion', town:1,
+    tip:'镇上·多一处说话的地方（NPC 会来）',
+    make(x,y,id){
+      return {id, art:'pavilion', built:1, zone:'commons',
+              n:'凉亭', x, y, w:2, h:1, use:[[x,y+1],[x+1,y+1]],
+              adv:{social:40, fun:28, energy:10}, dur:65, social:true,
+              note:'乘凉闲话' }; } },
+
+  // 义仓：第一件【利他】的建造。它不给玩家任何东西，
+  // 只是每天把镇上最饿的那个人喂一口。效果只在事件流里看得见 ——
+  // 但这正是这个项目的差异化：这里的 NPC 是真的会饿死的。
+  义仓:{ n:'义仓', wood:20, stone:15, money:100, w:2, h:2, art:'granary', town:1,
+    tip:'镇上·每天施粥给最饿的人（对你没好处）',
+    make(x,y,id){ DOLE.n++;
+      return {id, art:'granary', built:1, zone:'commons',
+              n:'义仓', x, y, w:2, h:2, use:[[x,y+2],[x+1,y+2]],
+              adv:{provision:30}, dur:35,
+              pre:s=>s.inv.food>=2, why:'捐粮要两斗',
+              note:'捐两斗（施与最饿的人）',
+              eff:s=>{ s.inv.food-=2; DOLE.stock+=2; return {type:'dole.add', val:2}; } }; } },
+};
+const BARN={ n:0 };                      // 谷仓：抬高存粮在家计里的封顶
+// 义仓每天开粥棚：喂镇上最饿的那个
+const DOLE={ n:0, stock:0 };
+function doleTick(){
+  if(!DOLE.n || DOLE.stock<=0) return;
+  const hungry=sims.filter(s=>s.need.hunger<35 && (s.inv.food|0)===0)
+                   .sort((a,b)=>a.need.hunger-b.need.hunger)[0];
+  if(!hungry) return;
+  DOLE.stock--; hungry.inv.food++;
+  emit('dole.give',{who:'义仓', whom:hungry.name, tags:['econ']});
+}
+
+// ---- 连通性：这套检查以前只活在测试里，现在游戏自己也要用 ----
+function floodFrom(sx,sy,blocked){
+  const seen=new Set([sy*GW+sx]), q=[[sx,sy]];
+  while(q.length){ const [x,y]=q.pop();
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx, ny=y+dy;
+      if(nx<0||ny<0||nx>=GW||ny>=GH) continue;
+      const k=ny*GW+nx;
+      if(seen.has(k)||solid[ny][nx]||(blocked&&blocked.has(k))) continue;
+      seen.add(k); q.push([nx,ny]);
+    }
+  }
+  return seen;
+}
+// 假设 cells 这几格被堵上，村子还走得通吗
+function connectivityOK(cells){
+  const start=OBJ.find(o=>o.id==='shrine').use[0];
+  if(cells.has(start[1]*GW+start[0])) return false;
+  const seen=floodFrom(start[0],start[1],cells);
+  for(const o of OBJ) for(const u of (o.use||[]))
+    if(!seen.has(u[1]*GW+u[0])) return false;         // 有座位到不了
+  for(const s of sims){
+    const k=(s.py/T|0)*GW+(s.px/T|0);
+    if(!seen.has(k)) return false;                    // 有人被关在外面
+  }
+  return true;
+}
+
+// ---- 落子校验：能不能建在这儿，不能的话为什么 ----
+const PCHOME=HOME[0];
+const inMyYard=(a,b)=> a>=PCHOME.x && a<PCHOME.x+HW && b>=PCHOME.y && b<PCHOME.y+HH;
+const inPlaza =(a,b)=> a>=PLAZA.x0 && a<=PLAZA.x1 && b>=PLAZA.y0 && b<=PLAZA.y1;
+// 一件建筑占哪几格 / 门前的座位在哪几格（都在正下方那一排）
+function buildCells(d,x,y){ const c=[];
+  for(let dy=0;dy<(d.h||1);dy++) for(let dx=0;dx<(d.w||1);dx++) c.push([x+dx,y+dy]);
+  return c; }
+function buildSeats(d,x,y){ if(d.noSeat) return [];
+  const s=[]; for(let dx=0;dx<(d.w||1);dx++) s.push([x+dx, y+(d.h||1)]);
+  return s; }
+
+function buildCheck(key, x, y){
+  const d=BUILD[key]; if(!d) return '没有这样东西';
+  if(PC.inv.wood  < d.wood)          return '差 '+(d.wood-PC.inv.wood)+' 根木料';
+  if(PC.inv.stone < (d.stone||0))    return '差 '+(d.stone-PC.inv.stone)+' 块石料';
+  if(PC.money     < d.money)         return '差 '+Math.ceil(d.money-PC.money)+' 文';
+  const zoneOK = d.town ? inPlaza : inMyYard;
+  const zoneWhy= d.town ? '只能建在镇中心广场' : '只能建在自家院里';
+  for(const [a,b] of buildCells(d,x,y)){
+    if(a<1||b<1||a>=GW-1||b>=GH-1)         return '出界了';
+    if(!zoneOK(a,b))                        return zoneWhy;
+    if(inHouse(a,b))                        return '屋里放不下';
+    if(solid[b][a]||OBJCELL.has(b*GW+a))    return '这儿已经有东西了';
+  }
+  for(const [a,b] of buildSeats(d,x,y)){
+    if(a<1||b<1||a>=GW-1||b>=GH-1)          return '门前得留一格站人';
+    if(!d.town && !inMyYard(a,b))           return '门前得留一格站人';
+    if(solid[b][a]||OBJCELL.has(b*GW+a))    return '门前那格被占了';
+  }
+  if(d.need && !d.need(x,y)) return d.needWhy;
+  // 最后一道：堵上之后村子还得走得通（玩家能把自己砌死在院里）
+  if(!connectivityOK(new Set(buildCells(d,x,y).map(([a,b])=>b*GW+a))))
+    return '这么一堵就把路封死了';
+  return null;
+}
+
+let buildSeq=0;
+function placeBuild(key, x, y, replay){
+  const d=BUILD[key]; if(!d) return false;
+  const o=d.make(x, y, 'bd'+(++buildSeq));
+  if(!OBJ.includes(o)) OBJ.push(o);
+  for(let yy=o.y;yy<o.y+o.h;yy++) for(let xx=o.x;xx<o.x+o.w;xx++){
+    solid[yy][xx]=1; OBJCELL.add(yy*GW+xx);
+  }
+  if(!replay){
+    PC.inv.wood-=d.wood; PC.inv.stone-=(d.stone||0); PC.money-=d.money;
+    BUILT.push({key, x, y});
+    emit('build.done',{who:PC.name, why:d.n, tags:['build','econ']});
+    fx(PC.rx||PC.px,(PC.ry||PC.py)-CH,
+       '－'+d.wood+' 木料'+(d.stone?' －'+d.stone+' 石料':''), '#c9a86a');
+  } else BUILT.push({key, x, y});
+  return true;
+}
+// 读档前把上一局造的东西拆干净：它们落子时那几格一定是空的，所以还原是安全的
+function wipeBuilt(){
+  for(let i=OBJ.length-1;i>=0;i--){ const o=OBJ[i];
+    if(!o.built) continue;
+    for(let yy=o.y;yy<o.y+o.h;yy++) for(let xx=o.x;xx<o.x+o.w;xx++){
+      solid[yy][xx]=0; OBJCELL.delete(yy*GW+xx); DITCH.delete(yy*GW+xx);
+    }
+    if(o.field){ const j=FIELDS.indexOf(o.field); if(j>=0) FIELDS.splice(j,1); }
+    OBJ.splice(i,1);
+  }
+  // 每加一张随建造增长的表，就要在这里加一行 —— 漏一张，读两次档就翻倍
+  MILL.clear(); DOLE.n=0; DOLE.stock=0; BARN.n=0;
+  // DAILY 里既有建造出来的（鸡棚/药圃），也有开局就在的（采石场）——
+  // 整表清空会把采石场的每日上限一起抹掉，只能挑建造的那些删。
+  for(let i=DAILY.length-1;i>=0;i--) if(DAILY[i].built) DAILY.splice(i,1);
+  BUILT.length=0; buildSeq=0;
+}
+
+// ---- 建造模式：先选东西，再挪光标落子 ----
+let bmode=null;                       // {key, x, y}
+function openBuildMenu(){
+  if(PC.act) PC.act=null;
+  const keys=Object.keys(BUILD).sort((a,b)=>(BUILD[a].town?1:0)-(BUILD[b].town?1:0));
+  menu={kind:'build', target:{n:'兴造'}, idx:0, items:keys.map(k=>{
+    const d=BUILD[k], sz=(d.w||1)>1||(d.h||1)>1 ? ' '+(d.w||1)+'×'+(d.h||1) : '';
+    const price='木'+d.wood+(d.stone?'·石'+d.stone:'')+'·'+d.money+'文';
+    return { a:{key:k}, ok: PC.inv.wood>=d.wood && PC.inv.stone>=(d.stone||0)
+                            && PC.money>=d.money,
+             label:(d.town?'镇·':'')+d.n+sz+'（'+price+'）', sub:d.tip };
+  })};
+}
+function startBuild(key){
+  bmode={key, x:Math.max(1,Math.min(GW-2, PC.gx)), y:Math.max(1,Math.min(GH-2, PC.gy))};
+  bmode.why=buildCheck(key, bmode.x, bmode.y);
+}
+function moveBuild(dx,dy){
+  if(!bmode) return;
+  bmode.x=Math.max(1,Math.min(GW-2, bmode.x+dx));
+  bmode.y=Math.max(1,Math.min(GH-2, bmode.y+dy));
+  bmode.why=buildCheck(bmode.key, bmode.x, bmode.y);
+}
+function confirmBuild(){
+  if(!bmode) return;
+  const why=buildCheck(bmode.key, bmode.x, bmode.y);
+  if(why){ fx(PC.rx||PC.px,(PC.ry||PC.py)-CH, why, '#d8a06a'); return; }
+  placeBuild(bmode.key, bmode.x, bmode.y);
+  bmode=null; panel();
+}
+// 地面分区：屋里、院子、镇中心广场、街、镇东的地各不相同。
+// 靠地面把"这是谁家""这是镇上"分开，比靠记住家具便宜得多。
+const inHouse=(x,y)=>HOME.some(h=>x>=h.x&&x<=h.x+6&&y>=h.y&&y<=h.y+5);
+const inYard =(x,y)=>HOME.some(h=>x>=h.x&&x<h.x+HW&&y>=h.y&&y<h.y+HH);
+const PLAZA={x0:24,x1:44,y0:26,y1:34};          // 镇中心广场（21×9，公共建造摆得开）
+const POND ={x0:47,x1:52,y0:26,y1:27};          // 镇东的塘
+const CREEK={x0:2, x1:7, y0:3, y1:5};           // 北山的溪谷 —— 第二处水域
+const inPond =(x,y)=> x>=POND.x0&&x<=POND.x1&&y>=POND.y0&&y<=POND.y1;
+const inCreek=(x,y)=> x>=CREEK.x0&&x<=CREEK.x1&&y>=CREEK.y0&&y<=CREEK.y1;
+const inHill =(x,y)=> y>=1&&y<=9;                // 北山那一带
+const FLOOR=Array.from({length:GH},(_,y)=>Array.from({length:GW},(_,x)=>{
+  if(inPond(x,y)||inCreek(x,y)) return floorWater;
+  if(inHouse(x,y)) return floorWood;             // 屋里：木地板
+  if(inYard(x,y))  return floorGrass;            // 院子：草地
+  if(y===10||y===24||y===37) return floorPath;   // 三条横街
+  if(inHill(x,y)) return x>=10&&x<=19 ? floorStone : floorDirt;  // 采石场是石地
+  if(x>=46) return floorDirt;                    // 镇东：塘边与公田
+  if(x>=PLAZA.x0&&x<=PLAZA.x1&&y>=PLAZA.y0&&y<=PLAZA.y1) return floorStone;
+  return floorPath;                              // 镇中心其余：夯土地面
+}));
+
+
+// ---------- 装饰层 ----------
+// 大地图最怕空。这些东西没有玩法作用，纯粹让"这是谁家""这是镇上"一眼分得开。
+// 用坐标做种子的确定性伪随机，每次刷新长得一模一样 —— 可复现，也好截图对比。
+//
+// 【DECOSOLID】：挡路但不是墙。渲染时必须把它从"画成夯土"的分支里排除，
+// 否则篱笆和水井会显示成一块土墙。
+const DECO=[];
+const DECOSOLID=new Set();
+// 井已经收编成物件（见 OBJ 里的 well），这里不再当装饰画 ——
+// 装饰是点不动的，而它长得最像公共设施，玩家第一个去戳的就是它。
+(function(){
+  for(const k of FENCE){ DECOSOLID.add(k); DECO.push({x:k%GW, y:(k/GW)|0, t:'fence'}); }
+  // 塘：不可走，但也不是墙 —— 同样得走 DECOSOLID，否则整片水会渲染成夯土
+  for(const W of [POND, CREEK])
+    for(let y=W.y0;y<=W.y1;y++) for(let x=W.x0;x<=W.x1;x++){
+      solid[y][x]=1; DECOSOLID.add(y*GW+x);
+    }
+
+  const rnd=(x,y,k)=>{ const v=Math.sin(x*127.1+y*311.7+k*74.7)*43758.5453; return v-Math.floor(v); };
+  const free=(x,y)=>!solid[y][x] && !OBJ.some(o=>x>=o.x-1&&x<o.x+o.w&&y>=o.y&&y<=o.y+o.h)
+                    && !OBJ.some(o=>o.use.some(u=>u[0]===x&&u[1]===y));
+  for(let y=1;y<GH-1;y++) for(let x=1;x<GW-1;x++){
+    if(!free(x,y)) continue;
+    const f=FLOOR[y][x], r=rnd(x,y,1);
+    if(f===floorGrass){                    // 院子里：草丛野花
+      if(r<0.10) DECO.push({x,y,t:'bush'});
+      else if(r<0.19) DECO.push({x,y,t:'flower',c:['#d86f7a','#e8c169','#c39ad8','#eae0c0'][(x*3+y*7)%4]});
+      else if(r<0.235) DECO.push({x,y,t:'grass'});
+    } else if(f===floorDirt){              // 镇东：石头树桩
+      if(r<0.055) DECO.push({x,y,t:'stump'});
+      else if(r<0.10) DECO.push({x,y,t:'rock'});
+      else if(r<0.17) DECO.push({x,y,t:'grass'});
+    } else if(f===floorStone){             // 镇中心广场：花盆
+      if(r<0.06) DECO.push({x,y,t:'pot'});
+    }
+  }
+})();
+const DECOF={
+  bush(x,y){ r(x+4,y+9,16,12,'#33502f'); r(x+6,y+7,12,12,'#3f6238'); r(x+8,y+9,8,7,'#4d7442');
+             r(x+9,y+10,3,3,'#5d8850'); },
+  grass(x,y){ for(const [a,b,h] of [[5,20,6],[10,21,8],[15,20,5],[19,21,6]])
+                r(x+a,y+b-h,2,h,'#5f7d42'); },
+  flower(x,y,d){ r(x+11,y+15,2,6,'#4f6b3a'); r(x+9,y+12,6,4,d.c); r(x+11,y+13,2,2,'#f6efd6'); },
+  rock(x,y){ r(x+6,y+13,12,8,'#5c5750'); r(x+7,y+11,9,7,'#75706a'); r(x+9,y+12,4,3,'#8d8880'); },
+  stump(x,y){ r(x+5,y+11,14,10,'#4a3628'); r(x+6,y+9,12,6,'#6b4f38'); r(x+8,y+10,8,3,'#8a6a4a'); },
+  pot(x,y){ r(x+7,y+13,10,8,'#8a5a42'); r(x+6,y+11,12,3,'#a06e50');
+            r(x+9,y+7,5,5,'#4d7442'); r(x+10,y+6,3,3,'#d86f7a'); },
+  // 篱笆：两道横木 + 立柱
+  fence(x,y){ r(x+2,y+8,20,2,'#6a5030'); r(x+2,y+14,20,2,'#6a5030');
+              r(x+3,y+8,18,1,'#8a6a42'); r(x+3,y+14,18,1,'#8a6a42');
+              r(x+4,y+4,3,17,'#5e4530'); r(x+17,y+4,3,17,'#5e4530');
+              r(x+5,y+5,1,15,'#7d5f3c'); r(x+18,y+5,1,15,'#7d5f3c'); },
+  // 井：石圈 + 井水 + 木架辘轳
+  well(x,y){ r(x+2,y+8,20,14,'#6e6a62'); r(x+3,y+9,18,12,'#83807a');
+             r(x+5,y+11,14,8,'#2e3a3e'); r(x+6,y+12,12,6,'#3f5a62');
+             r(x+8,y+13,5,2,'#5f8a94');
+             r(x+3,y+6,3,10,'#6a5030'); r(x+18,y+6,3,10,'#6a5030');
+             r(x+2,y+4,20,3,'#7d5f3c'); r(x+10,y+7,4,4,'#8a6a42'); },
+};
+function drawDeco(d){ const f=DECOF[d.t]; if(f) f(d.x*T, d.y*T, d); }
+
+// 物件占了哪些格：渲染时要靠它区分"墙"和"家具"。
+// 原来每格现算 OBJ.some(...)，40 个物件 × 每帧 234 个可见格 ≈ 近万次判断，
+// 而这套占地一辈子不变 —— 建一次表就够。
+const OBJCELL=new Set();
+for(const o of OBJ) for(let y=o.y;y<o.y+o.h;y++) for(let x=o.x;x<o.x+o.w;x++) OBJCELL.add(y*GW+x);
+
+
+// ---------- 小地图 ----------
+// 镜头跟随之后看不见全图，而"同时看见所有人在干嘛"本来是这个游戏一半的价值。
+// 右上角这块 2px/格 的小图把它补回来：地形、六个人、玩家、当前镜头框。
+// 地形是死的，烘到离屏画布上一次就够 —— 每帧重画 GW*GH 个方块会把帧率砍半。
+const MINI_S=2;
+const miniBg=(()=>{
+  const c=document.createElement('canvas');
+  c.width=GW*MINI_S; c.height=GH*MINI_S;
+  const g=c.getContext('2d');
+  for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){
+    const f=FLOOR[y][x], k=y*GW+x;
+    g.fillStyle = DECOSOLID.has(k) ? '#7d5f3c'          // 篱笆/井
+      : solid[y][x] ? '#4a3d33'
+      : f===floorWood ? '#8f7757' : f===floorStone ? '#83807a'
+      : f===floorDirt ? '#75613f' : f===floorPath ? '#8a7a5a' : '#5f7845';
+    g.fillRect(x*MINI_S, y*MINI_S, MINI_S, MINI_S);
+  }
+  return c;
+})();
+function drawMini(cx,cy){
+  const w=GW*MINI_S, h=GH*MINI_S, ox=VPW-w-6, oy=6;
+  ctx.globalAlpha=.82; ctx.fillStyle='#12100e'; ctx.fillRect(ox-2,oy-2,w+4,h+4);
+  ctx.globalAlpha=1;
+  ctx.drawImage(miniBg, ox, oy);
+  ctx.strokeStyle='#c9a86a'; ctx.lineWidth=1;
+  ctx.strokeRect(ox+cx/T*MINI_S+.5, oy+cy/T*MINI_S+.5,
+                 VPW/T*MINI_S-1, VPH/T*MINI_S-1);
+  for(const s of sims){
+    ctx.fillStyle = s.isPlayer ? '#ffd155' : '#e0917f';
+    const px=ox+(s.rx==null?s.px:s.rx)/T*MINI_S, py=oy+(s.ry==null?s.py:s.ry)/T*MINI_S;
+    ctx.fillRect(px-1.5, py-1.5, 3, 3);
+  }
+  ctx.strokeStyle='#3d352c'; ctx.strokeRect(ox-2.5,oy-2.5,w+5,h+5);
+}
+
+const INK='#2a221c';
+// 开机自查见 artOf() 上方的注释 —— 放在 FURN 定义之后执行
+setTimeout(()=>{ const miss=OBJ.filter(o=>!FURN[artOf(o)]).map(o=>o.id);
+  if(miss.length) fail('这些物件没有对应的画法，会画成床：'+miss.join(', ')); }, 0);
+// 每种家具一个专属画法 —— 剪影可辨识比渐变色块重要得多
+const FURN={
+ // 榻：木框 + 草席 + 布衾，枕头换成瓷枕
+ bed(x,y,w,h){ r(x,y,w,h,'#5e4530'); r(x+1,y+1,w-2,h-2,'#c9ae7c');      // 草席
+   for(let i=1;i<h-2;i+=3) r(x+1,y+i,w-2,1,'#b89c68');                  // 席纹
+   r(x+2,y+3,6,h-7,'#8fa3ad'); r(x+3,y+4,4,h-9,'#aec3cc');              // 瓷枕
+   r(x+10,y+2,w-11,h-4,'#8a4e46'); r(x+11,y+3,w-13,2,'#a86258');        // 衾
+   r(x+13,y+6,w-17,2,'#c98a72'); },
+ // 铺盖：地上一卷草席加个布枕。一眼要看得出"这不是榻"——
+ // 同住一宅的次序差别，就靠这一格说清楚。
+ bunk(x,y,w,h){ r(x+1,y+h-11,w-2,10,'#6b5a3e');                          // 席子
+   r(x+2,y+h-10,w-4,8,'#b09a6e');
+   for(let i=0;i<8;i+=2) r(x+2,y+h-10+i,w-4,1,'#9c8760');                // 席纹
+   r(x+3,y+h-9,7,5,'#8a4e46'); r(x+4,y+h-8,5,2,'#a86258'); },            // 枕
+ // 米缸：陶缸 + 木盖 + 竹提梁（画法名必须和物件 id 前缀对得上）
+ jar(x,y,w,h){ r(x+2,y+5,w-4,h-6,INK); r(x+3,y+6,w-6,h-8,'#6e5340');
+   r(x+4,y+8,w-8,h-11,'#8a6a4e'); r(x+5,y+10,3,h-15,'#a08260');         // 高光
+   r(x+1,y+3,w-2,4,'#4a3a2c'); r(x+2,y+4,w-4,2,'#7a6248');              // 缸盖
+   r(x+w/2-2,y+1,4,3,'#5e4a38'); },
+ // 灶台：土坯灶 + 铁锅 + 灶膛火光
+ stove(x,y,w,h){ r(x,y,w,h,INK); r(x+1,y+1,w-2,h-2,'#8a7256');          // 土坯
+   r(x+1,y+1,w-2,2,'#a68a68');
+   r(x+3,y+2,w-6,6,'#3a352f'); r(x+4,y+3,w-8,4,'#55504a');              // 铁锅
+   r(x+6,y+1,w-12,2,'#c9bda4');                                        // 蒸汽
+   r(x+4,y+12,w-8,7,'#2e2620');                                        // 灶膛
+   r(x+6,y+14,w-12,4,'#c05a2a'); r(x+8,y+15,w-16,2,'#e8b45a'); },
+ // 八仙桌：方桌 + 粗腿 + 碗碟
+ table(x,y,w,h){ r(x+2,y+h-9,4,9,'#5e4530'); r(x+w-6,y+h-9,4,9,'#5e4530');
+   r(x,y,w,h-7,INK); r(x+1,y+1,w-2,h-9,'#9a6f45'); r(x+2,y+2,w-4,3,'#bb8c58');
+   r(x+1,y+h-9,w-2,2,'#4e3a26');                                        // 桌沿
+   r(x+6,y+5,7,5,'#e8ddc4'); r(x+7,y+6,5,3,'#cfc0a0');                  // 碗
+   r(x+w-12,y+6,5,4,'#dcd0b2');
+   r(x+w-9,y+11,1,5,'#8a7452'); r(x+w-7,y+11,1,5,'#8a7452'); },         // 筷
+ // 竹榻：竹条编面 + 矮围栏
+ sofa(x,y,w,h){ r(x,y,w,h,INK); r(x+1,y+1,w-2,5,'#7d8a4e');             // 靠背
+   r(x+1,y+6,w-2,h-7,'#a8b06a');
+   for(let i=x+2;i<x+w-2;i+=3) r(i,y+7,1,h-9,'#8e9758');                // 竹条
+   r(x+1,y+6,3,h-7,'#6f7a44'); r(x+w-4,y+6,3,h-7,'#6f7a44');            // 扶手
+   r(x+6,y+2,w-12,2,'#c2c98a'); },
+ // 书案：案几 + 竹简卷轴 + 砚台
+ shelf(x,y,w,h){ r(x+2,y+h-7,3,7,'#5e4530'); r(x+w-5,y+h-7,3,7,'#5e4530');
+   r(x,y+4,w,h-9,INK); r(x+1,y+5,w-2,h-11,'#8a6a48'); r(x+2,y+6,w-4,2,'#a88a60');
+   for(let i=0;i<3;i++){ const xx=x+3+i*6;                              // 竹简
+     r(xx,y,4,7,'#c9b07a'); r(xx,y+1,4,1,'#a8905e'); r(xx,y+4,4,1,'#a8905e'); }
+   r(x+w-7,y+1,5,5,'#3a3a40'); r(x+w-6,y+2,3,3,'#22222a'); },           // 砚
+ // 净桶：木桶 + 铁箍 + 屏风
+ wc(x,y,w,h){ r(x+1,y,w-2,7,'#6a5a48'); r(x+2,y+1,w-4,5,'#8a7a62');     // 屏风
+   for(let i=x+3;i<x+w-3;i+=4) r(i,y+1,1,5,'#6a5a48');
+   r(x+4,y+8,w-8,h-9,INK); r(x+5,y+9,w-10,h-11,'#7d5f42');
+   r(x+5,y+11,w-10,1,'#4a3a2c'); r(x+5,y+h-5,w-10,1,'#4a3a2c');         // 铁箍
+   r(x+6,y+10,2,h-13,'#96774f'); },
+ // 浴桶：大木桶 + 水面 + 热气
+ bath(x,y,w,h){ for(let i=0;i<3;i++) r(x+5+i*5,y+((i%2)*2),2,4,'#b9cdd2'); // 热气
+   r(x+2,y+5,w-4,h-6,INK); r(x+3,y+6,w-6,h-8,'#7d5f42');
+   r(x+4,y+7,w-8,4,'#6f97a0'); r(x+5,y+8,w-10,2,'#8db6bd');            // 水
+   r(x+3,y+11,w-6,1,'#4a3a2c'); r(x+3,y+h-5,w-6,1,'#4a3a2c');          // 铁箍
+   r(x+4,y+12,2,h-16,'#96774f'); },
+ tree(x,y,w,h){ r(x+9,y+13,6,10,INK); r(x+10,y+14,4,9,'#5a4028');
+   for(let i=0;i<3;i++){ const hw=11-i*3, yy=y+1+i*5;
+     tri(x+12,yy,hw+1,7,INK); tri(x+12,yy+1,hw,6, i%2?'#3f5c33':'#4d6e3d'); } },
+ // 木作案：案面 + 锯、凿、墨斗
+ bench(x,y,w,h){ r(x,y,w,h,INK); r(x+1,y+1,w-2,h-2,'#8a6a42');
+   r(x+1,y+1,w-2,3,'#ab8a5e');
+   r(x+3,y+7,10,2,'#b8bcc2'); for(let i=0;i<9;i++) r(x+3+i,y+9,1,1,'#8f959c'); // 锯
+   r(x+16,y+6,2,7,'#6a5030'); r(x+15,y+5,4,2,'#c0c6cc');                // 凿
+   r(x+22,y+8,6,5,'#5e4530'); r(x+23,y+9,4,3,'#2e2620');                // 墨斗
+   r(x+3,y+13,w-6,2,'#6a5030'); },
+ // 市摊：布幡 + 摊板 + 陈列的木器
+ stall(x,y,w,h){ r(x,y,w,h,INK);
+   r(x+1,y+1,w-2,5,'#b8503c');                                          // 幌子
+   for(let i=0;i<Math.ceil(w/7);i++) r(x+3+i*7,y+2,3,3,'#e8dcc0');
+   for(let i=x+2;i<x+w-2;i+=4) r(i,y+6,2,2,'#8e3e2e');                  // 幡边穗
+   r(x+1,y+8,w-2,h-9,'#9a7a52'); r(x+1,y+8,w-2,2,'#b3915f');
+   r(x+4,y+11,5,5,'#c9a86a'); r(x+12,y+12,6,4,'#a8624e');
+   r(x+21,y+11,5,5,'#b8925e'); },
+ // 田：四个阶段一眼可辨 —— 玩家得能扫一眼就知道哪块该浇、哪块能收
+ field(x,y,w,h,o){
+   const f=o.field, st=fieldStage(f);
+   r(x,y,w,h,'#5e4a30');                                     // 田埂
+   r(x+1,y+1,w-2,h-2, f.wet?'#4e3f2a':'#7a6240');            // 浇过水的土色深
+   if(st==='荒'){                                            // 荒田：杂草
+     for(const [a,b] of [[4,6],[12,10],[18,5],[8,15],[16,17]])
+       r(x+a,y+b,2,4,'#6f7a44');
+     return;
+   }
+   for(let i=1;i<4;i++) r(x+1,y+i*5,w-2,1,"#5e4a30");        // 垄
+   if(st==='耕') return;
+   const ripe = st==='穗', C=CROP[f.crop]||CROP.稻;
+   const gh = ripe ? 11 : Math.max(3, 3+Math.round(f.grow/100*6));
+   for(let c=0;c<4;c++){
+     const cxp = x+3+c*5, base = y+h-3;
+     r(cxp, base-gh, 2, gh, ripe?C.ear:C.stalk);             // 秆
+     if(ripe){                                               // 穗子垂头
+       r(cxp-1, base-gh-3, 4, 4, C.ear); r(cxp, base-gh-2, 2, 2, C.hi);
+     } else {
+       r(cxp-2, base-gh-1, 2, 3, C.stalk); r(cxp+2, base-gh, 2, 3, C.stalk);
+     }
+   }
+   if(ripe) r(x+1,y+1,w-2,1,C.ear);                          // 熟了，田边泛黄
+ },
+ // 祠堂：石阶 + 木构小庙 + 供桌上的香
+ shrine(x,y,w,h){ r(x+2,y+h-5,w-4,5,'#7d7a72'); r(x+3,y+h-4,w-6,3,'#8f8c84');   // 石阶
+   r(x+4,y+4,w-8,h-8,'#4a3628'); r(x+5,y+5,w-10,h-10,'#7a5a3c');                // 庙身
+   r(x+6,y+7,w-12,h-13,'#3a2e22');                                              // 龛
+   r(x+w/2-3,y+9,6,5,'#c9a86a'); r(x+w/2-1,y+10,2,3,'#e8c169');                 // 神位
+   for(const dx of [-6,0,6]) r(x+w/2+dx,y+h-9,1,4,'#d8d4c8');                    // 香
+   for(const dx of [-6,0,6]) r(x+w/2+dx,y+h-10,1,1,'#e8945a');                   // 香头
+   r(x+2,y+2,w-4,3,'#5e4530'); r(x+1,y+1,w-2,2,'#8a6a42'); },                    // 檐
+ // 采集丛：随季节换颜色的一丛山货
+ forage(x,y,w,h,o){ const sp=o.forage, done=sp&&sp.left<=0;
+   const c=done?'#6a6a58':(FORAGE[Object.keys(FORAGE).find(k=>FORAGE[k].se===seasonOf(day))]||{}).col||'#6f9a4e';
+   r(x+3,y+10,18,11,done?'#3a4034':'#33502f'); r(x+5,y+7,14,12,done?'#454c40':'#3f6238');
+   r(x+7,y+9,10,8,done?'#4e564a':'#4d7442');
+   if(!done){ for(const [a,b2] of [[8,11],[14,10],[11,15],[16,14]]) r(x+a,y+b2,3,3,c); }
+   r(x+10,y+19,4,3,'#4a3628'); },
+ // 摇篮：竹编篮身 + 摇脚 + 小被子（醒着会露出一颗小脑袋）
+ crib(x,y,w,h,o){ const asleep=o&&o.crib&&o.crib.fed>=day;
+   r(x+2,y+h-6,w-4,4,'#5e4530'); r(x+1,y+h-3,3,3,'#4a3628'); r(x+w-4,y+h-3,3,3,'#4a3628');
+   r(x+2,y+7,w-4,h-12,INK); r(x+3,y+8,w-6,h-14,'#a98a5e');       // 篮身
+   for(let i=x+5;i<x+w-4;i+=4) r(i,y+9,1,h-16,'#8a6a42');        // 竹编纹
+   r(x+3,y+6,w-6,3,'#c0a878');
+   r(x+4,y+12,w-8,h-19,'#c9a3a8'); r(x+5,y+13,w-10,2,'#e0bcc0'); // 被子
+   if(!asleep){ r(x+w/2-3,y+9,6,5,'#f0d8bc'); r(x+w/2-2,y+10,1,1,INK);
+                r(x+w/2+1,y+10,1,1,INK); r(x+w/2-1,y+12,2,1,'#c07a72'); }
+   else { r(x+w/2-3,y+10,6,3,'#f0d8bc'); r(x+w/2-2,y+11,2,1,INK);
+          r(x+w/2+1,y+11,2,1,INK); } },
+ // 谷仓：石基 + 木仓身 + 高高的双坡顶（和义仓区分开：这是自家的，小一号）
+ barn(x,y,w,h){ r(x+1,y+h-8,w-2,8,'#7a776e'); r(x+2,y+h-7,w-4,6,'#96938c');  // 石基
+   r(x+2,y+7,w-4,h-14,INK); r(x+3,y+8,w-6,h-16,'#8a6a42');
+   for(let i=x+5;i<x+w-4;i+=6) r(i,y+9,2,h-18,'#6e5340');                     // 板缝
+   r(x+1,y+3,w-2,5,'#5e4530'); r(x+2,y+4,w-4,3,'#7d6a50');                    // 顶
+   r(x+w/2-4,y,8,4,'#4a3d2e');
+   r(x+w/2-5,y+h-13,10,9,'#4a3a2c'); r(x+w/2-4,y+h-12,8,7,'#6e5340');         // 仓门
+   r(x+w/2-1,y+h-12,2,7,'#4a3a2c'); },
+ // 采石场：凿开的岩壁 + 几块料石 + 錾子（采尽了就只剩碎渣）
+ quarry(x,y,w,h,o){ const done=o&&o.daily&&o.daily.left<=0;
+   r(x+1,y+3,w-2,h-5,'#6b6154'); r(x+2,y+4,w-4,h-7,'#8f8c84');
+   r(x+3,y+5,w-6,4,'#a8a49a'); r(x+4,y+11,w-9,3,'#5f5c56');
+   if(!done){ r(x+3,y+h-7,6,5,'#b3b0a6'); r(x+4,y+h-6,4,3,'#c9c6bc');
+              r(x+w-9,y+h-6,5,4,'#a8a49a');
+              r(x+w-6,y+5,2,8,'#8a6a42'); r(x+w-7,y+4,4,2,'#6b6154'); }
+   else { for(const [a,b2] of [[5,16],[10,18],[15,17]]) r(x+a,y+b2,2,2,'#7a776e'); } },
+ // 药圃：翻好的畦 + 几株药苗
+ herbbed(x,y,w,h,o){ const dry=o&&o.daily&&o.daily.left<=0;
+   r(x+1,y+8,w-2,h-10,'#6b5334'); r(x+2,y+9,w-4,h-12,'#8a7048');
+   for(let i=0;i<3;i++) r(x+3,y+11+i*4,w-6,1,'#6b5334');
+   if(!dry) for(const [a,b2] of [[5,7],[11,5],[16,8]]){
+     r(x+a,y+b2,2,7,'#4d6e3d'); r(x+a-2,y+b2,6,3,'#7e9a86'); } },
+ // 鸡棚：木栏 + 斜顶 + 两只鸡（拾完了就空着）
+ coop(x,y,w,h,o){ const empty=o&&o.daily&&o.daily.left<=0;
+   r(x+1,y+9,w-2,h-10,INK); r(x+2,y+10,w-4,h-12,'#8a6a42');
+   for(let i=x+4;i<x+w-3;i+=5) r(i,y+12,2,h-16,'#5e4530');       // 栏杆
+   r(x,y+4,w,6,'#6e5340'); r(x+1,y+5,w-2,3,'#8a7256');            // 斜顶
+   r(x+2,y+2,w-4,3,'#5e4530');
+   if(!empty){ r(x+6,y+14,5,5,'#e8ddc4'); r(x+7,y+13,3,2,'#c05a2a');
+               r(x+w-11,y+15,5,4,'#dcd0b2'); r(x+w-10,y+14,3,2,'#c05a2a'); } },
+ // 水车：轮子 + 支架 + 溅起的水
+ mill(x,y,w,h){ r(x+3,y+h-9,w-6,8,'#5e4530'); r(x+4,y+h-8,w-8,6,'#8a7256');  // 木架
+   const cx=x+w/2, cy=y+h/2-4, R=Math.min(w,h)/2-5;
+   // 轮辋：沿圆周铺一圈小方块，这才看得出是个轮子
+   for(let i=0;i<20;i++){ const a=i*Math.PI/10;
+     r(cx+Math.cos(a)*R-2, cy+Math.sin(a)*R-2, 4,4,'#6e5340'); }
+   for(let i=0;i<20;i++){ const a=i*Math.PI/10;
+     r(cx+Math.cos(a)*(R-3)-1, cy+Math.sin(a)*(R-3)-1, 3,3,'#8a6a42'); }
+   for(let i=0;i<3;i++){ const a=i*Math.PI/3;                              // 辐条
+     r(cx+Math.cos(a)*-R, cy+Math.sin(a)*-R, 1,1,'#5e4530');
+     for(let t=-R;t<=R;t+=2) r(cx+Math.cos(a)*t-1, cy+Math.sin(a)*t-1, 2,2,'#5e4530'); }
+   r(cx-3,cy-3,6,6,'#4a3628'); r(cx-2,cy-2,4,4,'#96805f');                 // 轴
+   r(x+1,y+h-4,w-2,4,'#41607a'); r(x+2,y+h-3,w-4,1,'#5f8a94');             // 水
+   r(x+4,y+h-5,3,2,'#5f8a94'); r(x+w-9,y+h-6,3,2,'#5f8a94'); },
+ // 凉亭：四柱 + 翘檐 + 石凳
+ pavilion(x,y,w,h){ r(x+2,y+h-10,3,10,'#6e5340'); r(x+w-5,y+h-10,3,10,'#6e5340');
+   r(x+w/2-2,y+h-8,4,8,'#5e4530');
+   r(x,y+4,w,7,'#7a4a3a'); r(x+1,y+5,w-2,4,'#9a5a44');            // 檐
+   r(x-1,y+9,w+2,2,'#5e3428'); r(x+3,y+1,w-6,4,'#6e3f32');
+   r(x+w/2-4,y-1,8,3,'#c9a86a');
+   r(x+4,y+h-5,w-8,4,'#83807a'); r(x+5,y+h-4,w-10,2,'#96938c'); },
+ // 义仓：夯土墙 + 大门 + 匾 + 米袋
+ granary(x,y,w,h){ r(x,y+5,w,h-5,INK); r(x+1,y+6,w-2,h-7,'#8a7256');
+   r(x+1,y+6,w-2,3,'#a68a68');
+   r(x,y+2,w,5,'#6e5340'); r(x+1,y+3,w-2,2,'#8a7256');            // 檐
+   r(x+w/2-6,y+h-14,12,14,'#4a3a2c'); r(x+w/2-5,y+h-13,10,12,'#6e5340');
+   r(x+w/2-1,y+h-13,2,12,'#4a3a2c');                              // 门缝
+   r(x+w/2-5,y+7,10,4,'#3a2e22'); r(x+w/2-4,y+8,8,2,'#c9a86a');   // 匾
+   r(x+3,y+h-9,6,8,'#cbb68e'); r(x+4,y+h-8,4,2,'#a89268');
+   r(x+w-9,y+h-8,6,7,'#bda887'); },
+ // 水渠：石砌沟槽 + 流水
+ ditch(x,y,w,h){ r(x,y+4,w,h-8,'#6e6a62'); r(x+1,y+5,w-2,h-10,'#4a5f6e');
+   r(x+2,y+7,w-4,h-14,'#3f5a6e'); r(x+3,y+9,w-6,2,'#5f8a94');
+   r(x+w-8,y+13,4,2,'#5f8a94');
+   r(x,y+3,w,2,'#83807a'); r(x,y+h-5,w,2,'#83807a'); },
+ // 腌坛：陶坛 + 封泥 + 竹箍
+ crock(x,y,w,h){ r(x+3,y+6,w-6,h-7,INK); r(x+4,y+7,w-8,h-9,'#5a4a3a');
+   r(x+5,y+9,w-10,h-13,'#7a6248'); r(x+6,y+11,3,h-18,'#96805f');
+   r(x+4,y+4,w-8,4,'#8a7256'); r(x+5,y+5,w-10,2,'#a68a68');       // 封泥
+   r(x+6,y+13,w-12,2,'#4a3a2c'); r(x+6,y+18,w-12,2,'#4a3a2c'); }, // 竹箍
+ // 水井：石圈 + 井水 + 辘轳架
+ well(x,y){ r(x+2,y+8,20,14,'#6e6a62'); r(x+3,y+9,18,12,'#83807a');
+   r(x+5,y+11,14,8,'#2e3a3e'); r(x+6,y+12,12,6,'#3f5a62');
+   r(x+8,y+13,5,2,'#5f8a94');
+   r(x+3,y+6,3,10,'#6a5030'); r(x+18,y+6,3,10,'#6a5030');
+   r(x+2,y+4,20,3,'#7d5f3c'); r(x+10,y+7,4,4,'#8a6a42'); },
+ // 钓点：岸石 + 探出水面的竿 + 浮子（雨天加雨丝，一眼能看出今天该来）
+ fish(x,y,w,h){ r(x,y,w,11,'#41607a'); r(x+1,y+3,w-2,2,'#557a94');        // 水面（接着上一格的塘）
+   r(x+2,y+6,4,2,'#557a94'); r(x+13,y+8,5,2,'#557a94');                    // 涟漪
+   r(x,y+11,w,h-11,'#7a6a52'); r(x+1,y+12,w-2,3,'#8f7d61');                // 岸
+   r(x+3,y+15,7,5,'#6b6154'); r(x+4,y+16,5,3,'#867a68');                   // 岸石
+   r(x+16,y+17,5,4,'#6b6154');
+   for(let i=0;i<10;i++) r(x+8+i,y+16-i,2,2,'#8a6a42');                    // 竿
+   r(x+18,y+5,2,10,'#c9bda4');                                            // 线
+   r(x+17,y+5,3,3,'#c0503a'); r(x+18,y+6,1,1,'#e8b45a');                   // 浮子
+   if(typeof wx!=='undefined' && wx.id==='雨')
+     for(const [a,b2] of [[2,1],[7,3],[12,0],[20,2]]) r(x+a,y+b2,1,4,'#9fb6c4'); },
+ // 米铺：门板 + 米袋 + 斗
+ shop(x,y,w,h){ r(x,y,w,h,INK); r(x+1,y+1,w-2,h-2,'#7a6448');
+   r(x+2,y+1,w-4,5,'#3a2e22'); r(x+4,y+2,w-8,3,'#c9a86a');              // 匾
+   r(x+2,y+8,7,10,'#cbb68e'); r(x+3,y+9,5,2,'#a89268');                 // 米袋
+   r(x+11,y+10,7,8,'#bda887'); r(x+12,y+11,5,2,'#9c8a6c');
+   r(x+3,y+12,3,3,'#efe6d0'); },                                        // 洒出的米
+};
+function r(x,y,w,h,c){ ctx.fillStyle=c; ctx.fillRect(x|0,y|0,Math.max(1,w|0),Math.max(1,h|0)); }
+function tri(cx,y,hw,h,c){ ctx.fillStyle=c; ctx.beginPath();
+  ctx.moveTo(cx|0,y|0); ctx.lineTo((cx+hw)|0,(y+h)|0); ctx.lineTo((cx-hw)|0,(y+h)|0); ctx.fill(); }
+
+// 物件用哪套画法：优先显式的 art，其次按 id 去掉尾部序号。
+// id 前缀和画法名对不上时会【静默】掉进 bed 兜底 —— 逻辑全对，屏幕上却是一排床。
+// 这个坑踩过三次：T18 的净桶/浴桶（wc1/bath1）、T26 的米缸（jar）和公田（common）。
+// 所以下面加了开机自查，让它当场喊出来，而不是等人截图才发现。
+function artOf(o){ return o.art || (o.tree ? 'tree' : o.id.replace(/\d+$/,'')); }
+
+function drawObj(o){
+  const X=o.x*T, Y=o.y*T, W=o.w*T, H=o.h*T;
+  (FURN[artOf(o)]||FURN.bed)(X,Y,W,H,o);      // 田要读自己的状态，所以把物件也传进去
+}
+function label(o){
+  const tx=o.x*T+o.w*T/2, ty=o.y*T-2;
+  ctx.font='8px monospace'; ctx.textAlign='center';
+  ctx.fillStyle='#12100e'; ctx.fillText(o.n,tx+1,ty+1);
+  ctx.fillStyle=o.pre||o.eff?'#e0b866':'#b9ad96'; ctx.fillText(o.n,tx,ty);
+}
+function bar(x,y,w,v,col){ ctx.fillStyle='#1a1614';ctx.fillRect(x-1,y-1,w+2,5);
+  ctx.fillStyle='#3a332b';ctx.fillRect(x,y,w,3);ctx.fillStyle=col;ctx.fillRect(x,y,w*v|0,3); }
+
+
+// ---------- 交互菜单绘制 ----------
+function drawMenu(cx,cy){
+  const items=menu.items;
+  const title = menu.kind==='npc'
+    ? (menu.title || '与 '+menu.target.name+' 互动')
+    : menu.kind==='build'
+      ? '兴造　木料 '+PC.inv.wood+' · '+Math.round(PC.money)+' 文'
+      : menu.target.n;
+  ctx.font='9px monospace'; ctx.textAlign='left';
+  let w=ctx.measureText(title).width;
+  items.forEach((it,i)=>{ w=Math.max(w, ctx.measureText(`${i+1}. ${it.label}`).width+14+
+                                        ctx.measureText(it.sub).width); });
+  w=Math.min(VPW-16, Math.max(150, w+26)); menu._w=w;
+  const rowH=isTouch?22:17, h=22+items.length*rowH+14;
+  // 屏幕坐标：夹在当前视口里，而不是整张地图里
+  const x=Math.round(Math.max(6,Math.min(VPW -w-6, PC.rx-cx-w/2)));
+  const y=Math.round(Math.max(6,Math.min(VPH-h-6, PC.ry-cy-CH-h-2)));
+  menu._x=x; menu._y=y; menu._h=h; menu._rowH=rowH;
+
+  ctx.fillStyle='rgba(16,13,11,.96)'; ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle='#c9a86a'; ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,w-1,h-1);
+  ctx.fillStyle='#e8c169'; ctx.fillText(title, x+8, y+14);
+  ctx.fillStyle='#3d352c'; ctx.fillRect(x+6,y+18,w-12,1);
+
+  items.forEach((it,i)=>{
+    const ry=y+22+i*rowH;
+    if(i===menu.idx){ ctx.fillStyle='rgba(201,168,106,.22)'; ctx.fillRect(x+4,ry-1,w-8,rowH-2); }
+    ctx.textAlign='left';
+    ctx.fillStyle = !it.ok ? '#5f574c' : (i===menu.idx?'#ffd97a':'#d6cab0');
+    ctx.fillText(`${i+1}. ${it.label}`, x+9, ry+11);
+    ctx.textAlign='right';
+    ctx.fillStyle = !it.ok ? '#4a443c' : '#877c6b';
+    ctx.fillText(it.sub, x+w-9, ry+11);
+  });
+  ctx.textAlign='left'; ctx.fillStyle='#6f6659';
+  ctx.fillText('↑↓ 选择　Enter 确认　Esc 取消', x+8, y+h-5);
+}
+
+function render(){
+  // 模拟是固定步长的（16 步/秒 @1x），渲染是 60fps。
+  // 不插值的话每步位移会一次性跳完 —— 看起来就是"一格一格闪现"。
+  const alpha=Math.max(0,Math.min(1, accSim/SIM_DT));
+  for(const s of sims){
+    s.rx = s.ppx==null ? s.px : s.ppx+(s.px-s.ppx)*alpha;
+    s.ry = s.ppy==null ? s.py : s.ppy+(s.py-s.ppy)*alpha;
+  }
+  camUpdate();
+  // 每帧重置变换：往下所有绘制都用【世界像素】，由 RS 统一放大到后备存储
+  ctx.setTransform(RS,0,0,RS,0,0);
+  ctx.imageSmoothingEnabled=false;
+  const cx=Math.round(CAM.x), cy=Math.round(CAM.y);
+  ctx.save(); ctx.translate(-cx,-cy);
+  // 只画可见范围 —— 扩图后整图 744×576，全画是纯浪费
+  const x0=Math.max(0,(cx/T|0)), x1=Math.min(GW-1, ((cx+VPW)/T|0)+1);
+  const y0=Math.max(0,(cy/T|0)), y1=Math.min(GH-1, ((cy+VPH)/T|0)+1);
+  for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++)
+    ctx.drawImage(solid[y][x] && !DECOSOLID.has(y*GW+x) && !OBJCELL.has(y*GW+x)
+      ? wallTile : FLOOR[y][x], x*T, y*T, T, T);
+  for(const d of DECO) if(d.x>=x0-1&&d.x<=x1+1&&d.y>=y0-1&&d.y<=y1+1) drawDeco(d);
+  // 使用位标记
+  ctx.globalAlpha=.15; ctx.fillStyle='#e8c169';
+  OBJ.forEach(o=>o.use.forEach(u=>ctx.fillRect(u[0]*T+8,u[1]*T+8,T-16,T-16)));
+  ctx.globalAlpha=1;
+  // 玩家附近的 NPC：高亮圈（人优先于物）
+  const NP=(PC.act||menu)?null:nearbyNpc();
+  if(NP){
+    ctx.globalAlpha=.55+Math.sin(clock*0.7)*0.2; ctx.strokeStyle='#8fd0e8'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.ellipse(NP.s.rx, NP.s.ry+2, 12, 5, 0,0,7); ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+  // 玩家脚下可交互的位置：高亮
+  const NB=(PC.act||menu||NP)?null:nearby();
+  if(NB){
+    ctx.globalAlpha=.5+Math.sin(clock*0.6)*0.18; ctx.fillStyle='#ffd97a';
+    ctx.fillRect(NB.u[0]*T+3,NB.u[1]*T+3,T-6,T-6);
+    ctx.globalAlpha=1; ctx.strokeStyle='#fff1c4'; ctx.lineWidth=1;
+    ctx.strokeRect(NB.o.x*T+.5,NB.o.y*T+.5,NB.o.w*T-1,NB.o.h*T-1);
+  }
+
+  const ents=[...OBJ.map(o=>({y:(o.y+o.h)*T,o})), ...sims.map(s=>({y:s.ry==null?s.py:s.ry,s}))]
+    .sort((a,b)=>a.y-b.y);
+  for(const e of ents){
+    if(e.o){ drawObj(e.o); label(e.o); continue; }
+    const s=e.s, dx=Math.round(s.rx-CW/2), dy=Math.round(s.ry-CH+6);
+    ctx.globalAlpha=.25;ctx.fillStyle='#000';
+    ctx.beginPath();ctx.ellipse(s.rx,s.ry+3,8,3,0,0,7);ctx.fill();ctx.globalAlpha=1;
+    const fr=((s.act&&s.act.phase==='go')||s.moving)?(s.anim|0)%4:0;
+    if(spriteOK){
+      ctx.save();
+      if(s.face<0){ctx.translate(dx+CW,dy);ctx.scale(-1,1);ctx.drawImage(cast,fr*SW,s.row*SH,SW,SH,0,0,CW,CH);}
+      else ctx.drawImage(cast,fr*SW,s.row*SH,SW,SH,dx,dy,CW,CH);
+      ctx.restore();
+    } else {                                   // 降级：图挂了也能看 AI 跑
+      ctx.fillStyle=['#8a6a42','#a8563c','#5f6a8c','#b09a4a'][s.row];
+      ctx.fillRect(dx+8,dy+14,16,30);
+      ctx.fillStyle='#e8dcc0'; ctx.fillRect(dx+10,dy+4,12,10);
+    }
+    if(feedHi && feedHi.includes(s.name)){           // 事件流点选 → 高亮当事人
+      ctx.strokeStyle='#ffd97a'; ctx.lineWidth=1;
+      ctx.globalAlpha=0.35+0.45*Math.abs(Math.sin(feedHiT*0.12));
+      ctx.strokeRect(dx-3.5,dy-3.5,CW+7,CH+7);
+      ctx.globalAlpha=1;
+    }
+    // 亲缘：相恋一点红，结发一个同心结 —— 地图上一眼看得出谁跟谁
+    const pr=pairOf(s.name);
+    if(pr){
+      const mx=Math.round(s.rx)+11, my=dy+3;
+      if(pr.st==='结发'){
+        ctx.fillStyle='#1a1614'; ctx.fillRect(mx-4,my-1,8,6);
+        ctx.fillStyle='#c0503a'; ctx.fillRect(mx-3,my,6,4);
+        ctx.fillStyle='#e8b45a'; ctx.fillRect(mx-1,my+1,2,2);
+      } else {
+        ctx.fillStyle='#1a1614'; ctx.fillRect(mx-3,my,6,4);
+        ctx.fillStyle='#e39ab0'; ctx.fillRect(mx-2,my+1,4,2);
+      }
+    }
+    if(s.isPlayer){                                  // 主角：头顶三角指示
+      const ty=dy-13+Math.sin(clock*0.5)*1.5;
+      ctx.fillStyle='#1a1614';
+      ctx.beginPath();ctx.moveTo(s.rx-5,ty-1);ctx.lineTo(s.rx+5,ty-1);ctx.lineTo(s.rx,ty+6);ctx.fill();
+      ctx.fillStyle='#ffd155';
+      ctx.beginPath();ctx.moveTo(s.rx-4,ty);ctx.lineTo(s.rx+4,ty);ctx.lineTo(s.rx,ty+5);ctx.fill();
+    } else if(s===sel){ ctx.strokeStyle='#e8c169';ctx.lineWidth=1;
+      ctx.strokeRect(dx-1.5,dy-1.5,CW+3,CH+3); }
+    if(s.act&&s.act.phase==='do')
+      bar(s.rx-11,dy-6,22,1-s.act.left/(s.act.variantDur||s.act.o.dur),'#c9a86a');
+    // 最急需求的色点（一眼看出它在忙什么）
+    let worst='hunger',wv=999;
+    for(const k of NK) if(NEEDS[k].dec&&s.need[k]<wv){wv=s.need[k];worst=k;}
+    ctx.fillStyle=NEEDS[worst].c;ctx.fillRect(dx+CW-3,dy-4,4,4);
+    ctx.fillStyle='#1a1614';ctx.font='8px monospace';ctx.textAlign='center';
+    ctx.fillText(s.name,s.rx,dy-9);
+    ctx.fillStyle='#e8dcc0';ctx.fillText(s.name,s.rx,dy-10);
+  }
+  // ---------- 浮动反馈 ----------
+  for(const f of floats){
+    ctx.font='9px monospace'; ctx.textAlign='center';
+    ctx.globalAlpha=Math.max(0,1-f.t/9);
+    ctx.fillStyle='#12100e'; ctx.fillText(f.text, f.x+1, f.y+1);
+    ctx.fillStyle=f.col;     ctx.fillText(f.text, f.x, f.y);
+    ctx.globalAlpha=1;
+  }
+
+  ctx.restore();                                   // ← 以下全部是屏幕坐标
+  drawMini(cx,cy);
+
+  const stint=SEASON_TINT[seasonOf(day)];
+  if(stint){ ctx.fillStyle=stint; ctx.fillRect(0,0,VPW,VPH); }
+  if(wx.tint){ ctx.fillStyle=wx.tint; ctx.fillRect(0,0,VPW,VPH); }
+  if(wx.id==='雨'){                                // 雨幕：斜线，随时钟走
+    ctx.strokeStyle='rgba(176,198,222,.34)'; ctx.lineWidth=1; ctx.beginPath();
+    for(let i=0;i<64;i++){
+      const sx=(i*137 + (clock*46)%VPW) % VPW;
+      const sy=(i*89  + (clock*118)%VPH) % VPH;
+      ctx.moveTo(sx,sy); ctx.lineTo(sx-2,sy+7);
+    }
+    ctx.stroke();
+  }
+  if(bmode){                                      // 建造光标（世界坐标，画在镜头里）
+    ctx.save(); ctx.translate(-cx,-cy);
+    const d=BUILD[bmode.key], ok=!bmode.why;
+    const X=bmode.x*T, Y=bmode.y*T, W=(d.w||1)*T, H=(d.h||1)*T;
+    ctx.globalAlpha=.55;
+    (FURN[d.art]||FURN.bed)(X,Y,W,H,{field:{st:'耕',grow:0}, daily:{left:1}});
+    ctx.globalAlpha=1;
+    ctx.strokeStyle=ok?'#7ad07a':'#d07a72'; ctx.lineWidth=1;
+    ctx.strokeRect(X+.5,Y+.5,W-1,H-1);
+    for(const [sx,sy] of buildSeats(d,bmode.x,bmode.y)){   // 门前那排也标出来
+      ctx.globalAlpha=.3; ctx.fillStyle=ok?'#7ad07a':'#d07a72';
+      ctx.fillRect(sx*T+4,sy*T+4,T-8,T-8); ctx.globalAlpha=1;
+    }
+    ctx.restore();
+    ctx.font='9px monospace'; ctx.textAlign='center';
+    const t=ok ? '['+(isTouch?'互动':'E')+'] 建 '+d.n : bmode.why;
+    const tw=ctx.measureText(t).width+12, bx=Math.round(VPW/2-tw/2);
+    ctx.fillStyle='rgba(18,15,13,.9)'; ctx.fillRect(bx,6,tw,13);
+    ctx.strokeStyle=ok?'#7ad07a':'#8a6a5a'; ctx.strokeRect(bx+.5,6.5,tw-1,12);
+    ctx.fillStyle=ok?'#b8e8b8':'#d8a06a'; ctx.fillText(t, VPW/2, 15);
+  }
+  if(ending){ drawEnding(); return; }             // 终局罩住一切
+  if(daily){ drawDaily(); return; }               // 结算屏罩住一切
+
+  // ---------- 交互菜单 / 提示 ----------
+  if(menu){ drawMenu(cx,cy); }
+  else if(NP){
+    ctx.font='9px monospace';
+    const t=(isTouch?'':'[E] ')+'与 '+NP.s.name+' 互动', tw=ctx.measureText(t).width+12;
+    const bx=Math.round(PC.rx-cx-tw/2), by=Math.round(PC.ry-cy-CH-4);
+    ctx.fillStyle='rgba(18,15,13,.9)'; ctx.fillRect(bx,by,tw,13);
+    ctx.strokeStyle='#8fd0e8'; ctx.lineWidth=1; ctx.strokeRect(bx+.5,by+.5,tw-1,12);
+    ctx.fillStyle='#bfe4f2'; ctx.textAlign='center'; ctx.fillText(t, PC.rx-cx, by+9);
+  }
+  else if(NB){
+    ctx.font='9px monospace';
+    const multi=NB.ok && hasMenu(NB.o);
+    const t = NB.ok
+      ? (isTouch?'':'[E] ')+(NB.o.note? NB.o.n+' · '+NB.o.note : NB.o.n)+(multi?' ▾':'')
+      : NB.o.n+' · '+NB.why;                       // 用不了也要说一声，别让人以为没做
+    const tw=ctx.measureText(t).width+12;
+    const bx=Math.round(PC.rx-cx-tw/2), by=Math.round(PC.ry-cy-CH-4);
+    ctx.fillStyle='rgba(18,15,13,.88)'; ctx.fillRect(bx,by,tw,13);
+    ctx.strokeStyle=NB.ok?'#c9a86a':'#6a6156'; ctx.lineWidth=1; ctx.strokeRect(bx+.5,by+.5,tw-1,12);
+    ctx.fillStyle=NB.ok?'#ffd97a':'#9a9084'; ctx.textAlign='center'; ctx.fillText(t, PC.rx-cx, by+9);
+  }
+  else if(PC.act && PC.act.phase==='do'){
+    ctx.font='9px monospace'; ctx.textAlign='center'; ctx.fillStyle='#c9bda4';
+    ctx.fillText(isTouch?'移动或 ✕ 中断':'移动或 ESC 中断', PC.rx-cx, PC.ry-cy-CH-6);
+  }
+
+}
+
+// ---------- 面板 ----------
+const P=document.getElementById('panel');
+const pct=v=>Math.round(v);
+function hue(v){ return v<20?'#b8443f':v<45?'#c9803a':'#6f8f5a'; }
+function panel(){
+  if(selKid && !KIDS.includes(selKid)) selKid=null;   // 长大了/夭折了，选中的那个已经不在
+  if(!sims.includes(sel)) sel=PC||sims[0];
+  const hh=String((clock/60|0)).padStart(2,'0'), mm=String((clock%60|0)).padStart(2,'0');
+  // 时辰：两小时一个，子时跨午夜。纯粹是氛围，钟点照旧留着方便对事件流。
+  const SHICHEN=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+  const sc=SHICHEN[Math.floor(((clock/60|0)+1)%24/2)];
+  const a=sel.act;
+  const isPC = sel.isPlayer;
+  P.innerHTML=`
+  <div id="ctl">
+    ${[['⏸',0],['▶',1],['▶▶',6],['▶▶▶',30]].map(([l,v])=>
+      `<button data-sp="${v}" class="${(running?speed:0)===v?'on':''}">${l}</button>`).join('')}
+  </div>
+  <h2>${yearOf(day)}年 ${seasonOf(day)}${dayInSeason(day)} &nbsp; ${sc}时
+    <span class="dim" style="font-weight:400">${hh}:${mm}</span>
+    <span style="float:right;color:${wx.id==='雨'?'#8fb6d8':wx.id==='阴'?'#9a9a92':'#e8c169'}">
+    ${wx.id} · ${wx.tip}</span></h2>
+  <div class="row"><span class="dim">木器行情</span><b style="color:${
+    MKT.furniture.p>=MKT.furniture.base?'#8fd08a':'#d07a72'}">${MKT.furniture.p.toFixed(0)}</b>
+    <span class="dim" style="font-size:10px">基准 ${MKT.furniture.base}</span></div>
+  <div class="row"><span class="dim">米价</span><b style="color:${
+    MKT.food.p<=MKT.food.base?'#8fd08a':'#d07a72'}">${MKT.food.p.toFixed(0)}</b>
+    <span class="dim" style="font-size:10px">基准 ${MKT.food.base}</span></div>
+
+  <h2>家赀排名</h2>
+  ${sims.slice().sort((a,b)=>(b.money+b.inv.goods*MKT.furniture.p)-(a.money+a.inv.goods*MKT.furniture.p))
+    .map((s,i)=>`<div class="row"><span class="${s===sel?'':'dim'}">${i+1}. ${s.isPlayer?'★ ':''}${s.name}</span>
+      <span>${s.money|0} 文<span class="dim" style="font-size:10px"> · 米${s.inv.food} 木${s.inv.wood} 器${s.inv.goods}${
+        ['veg','fruit','mush','herb'].map(k=>s.inv[k]?' '+
+          (Object.values(FORAGE).find(f=>f.key===k).n)+s.inv[k]:'').join('')
+      }</span></span></div>`).join('')}
+  <h2>祠堂 <span class="dim" style="font-weight:400;font-size:10px">${
+    Object.keys(SHRINE.done).length}/4 · ${seasonOf(day)}供</span></h2>
+  ${SEASONS.map(se=>{
+    const of=OFFER[se], cur=se===seasonOf(day);
+    if(SHRINE.done[se]) return `<div class="row"><span class="dim">${se}供</span>
+      <span style="color:#8fd08a">已毕 · ${of.tip}</span></div>`;
+    const pr=offerProgress(PC,se);
+    return `<div class="row"><span class="dim"${cur?' style="color:#e8c169"':''}>${se}供${cur?' ←':''}</span>
+      <span style="font-size:10px">${pr.map(x=>
+        `<span style="color:${x.ok?'#8fd08a':'#8a7f6d'}">${x.nm}${x.have}/${x.need}</span>`).join(' ')}</span></div>`;
+  }).join('')}
+
+  <h2>操作</h2>
+  <div class="dim" style="font-size:10px;line-height:1.8">
+    ${isTouch
+      ? `<b style="color:#e8c169">左下摇杆</b> 移动 &nbsp;·&nbsp;
+         <b style="color:#e8c169">互动</b> 键交互 &nbsp;·&nbsp;
+         <b style="color:#e8c169">✕</b> 中断 &nbsp;·&nbsp;
+         <b style="color:#e8c169">造</b> 兴造 &nbsp;·&nbsp;
+         点小人可切换查看<br>
+         走到发光的格子上会弹出交互提示，菜单可直接点选。移动会打断正在做的事。<br>
+         兴造：选好东西后点地图选格子，再按「互动」落成。只能建在自家院里。`
+      : `<b style="color:#e8c169">WASD / 方向键</b> 移动 &nbsp;·&nbsp;
+         <b style="color:#e8c169">E / 空格</b> 交互 &nbsp;·&nbsp;
+         <b style="color:#e8c169">ESC</b> 中断 &nbsp;·&nbsp;
+         <b style="color:#e8c169">T</b> 托管 &nbsp;·&nbsp;
+         <b style="color:#e8c169">B</b> 兴造<br>
+         走到发光的格子上会弹出交互提示。移动会打断正在做的事。<br>
+         兴造：选好东西后用方向键挪光标，E 落成。只能建在自家院里。`}
+  </div>
+  <div style="margin-top:6px">
+    <button data-auto="1" class="${autoPilot?'on':''}">${autoPilot?'● 已托管给 AI':'○ 手动操控中'}</button>
+    <button data-reset="1" style="margin-left:6px">重开一局</button>
+    <span class="dim" style="font-size:10px;margin-left:6px">进度每日自动保存</span>
+  </div>
+
+  <h2>${isPC?'你 · '+sel.name:'观察 · '+sel.name}</h2>
+  <div class="who">${sims.map((s,i)=>
+    `<b data-i="${i}" class="${s===sel&&!selKid?'on':''}">${s.isPlayer?'★ ':''}${s.name}${
+      HOMEOWNER[s.home]===s.name?'':'<span class="dim" style="font-weight:400;font-size:10px">·厢</span>'
+    }</b>`).join('')}${
+    // 摇篮里的孩子也列出来 —— 他还不是 NPC，但他在村里，玩家该看得见他
+    KIDS.map((k,i)=>`<b data-kid="${i}" class="${k===selKid?'on':''}" style="opacity:.7"
+      title="${k.key.split('|').join('与')}之子">◦ ${k.name}</b>`).join('')}</div>
+  ${selKid?(()=>{ const k=selKid, [an,bn]=k.key.split('|'), left=GROW_UP-(day-k.born);
+    return `<div class="row"><span class="dim">摇篮</span><b>${k.name}</b>
+      <span class="dim" style="font-size:10px">${an} 与 ${bn}之子 · 出生第 ${k.born} 日</span></div>
+    <div class="row"><span class="dim">成年</span><span>${
+      left>0?`还有 <b>${left}</b> 日`:'就在这两日'}<span class="dim" style="font-size:10px">　${
+      kidFate(k)}</span></span></div>
+    <div class="row"><span class="dim">今日</span><span style="color:${
+      k.fed>=day?'#8fd08a':'#d08a7a'}">${k.fed>=day?'哄过了':'还没人哄'}</span></div>
+    <div class="dim" style="font-size:10px;line-height:1.7">孩子满 ${GROW_UP} 日成年，
+      到时才进花名册。一座宅子住得下 ${HOMECAP} 个成年人：没有空宅、爹娘家也满了，
+      他就只能出外谋生。</div>`; })():''}
+  <div class="row"><span class="dim">性格</span><span class="tag">${sel.trait}</span></div>
+  <div class="row"><span class="dim">特质</span><span>${sel.tt.map(t=>
+    `<span class="tag" style="background:#3a2c40;color:#c9a3d8" title="${TRAIT[t].tip}">${t}</span>`).join(' ')}</span></div>
+  ${(()=>{ const p=pairOf(sel.name); const kd=kidOf(sel.name);
+    if(!p && !isPC) return '';
+    const txt = p ? `<b style="color:#e39ab0">${p.st==='结发'?'结发':'相恋'} · ${p.other}</b>`
+                       + (kd?`<span class="dim" style="font-size:10px">　膝下一子 ${kd.name}（${
+                              day-kd.born} 日，再 ${Math.max(0,GROW_UP-(day-kd.born))} 日成年）</span>`:'')
+                  : '<span class="dim">尚无</span>';
+    return `<div class="row"><span class="dim">亲缘</span>${txt}</div>`; })()}
+  ${isPC?`<div class="row"><span class="dim">交心</span><span style="font-size:10px">${
+    sims.filter(x=>x!==sel).map(x=>{
+      const b=bondOf(sel,x.name), c={陌生:'#6f6659',相识:'#a89a82',交好:'#8fd08a',
+                                     相恋:'#e39ab0',结发:'#e8c169'}[b];
+      return `<span style="color:${c}">${x.name}·${b}</span>`; }).join('　')
+  }</span></div>`:''}
+  ${sel.parents?`<div class="row"><span class="dim">出身</span><span class="dim">${
+    sel.parents.join(' 与 ')}之子</span></div>`:''}
+  <div class="row"><span class="dim">年岁</span><b>${sel.age}
+    <span class="dim" style="font-weight:400;font-size:10px">体质 ${Math.round(sel.vigor)}/${
+      Math.round(vigorCap(sel))}${sel.ill?' · <span style="color:#d08a7a">病着</span>':''}</span></b></div>
+  <div class="row"><span class="dim">人格</span><b style="color:#8fb0e8">${sel.mbti}
+    <span class="dim" style="font-weight:400;font-size:10px">${MBNAME[sel.mbti]} · ${
+      [ sel.mbti[0]==='E'?'爱扎堆':'待得住',
+        sel.mbti[1]==='S'?'看眼前':'想得远',
+        sel.mbti[2]==='T'?'不吃情面':'重情面',
+        sel.mbti[3]==='J'?'认死理':'随性子' ].join('·')}</span></b></div>
+  ${(()=>{const bad=sims.filter(x=>x!==sel&&friction(sel,x));
+    return bad.length?`<div class="row"><span class="dim">合不来</span><span style="color:#d08a7a">${
+      bad.map(x=>x.name).join('、')}</span></div>`:'';})()}
+  <div class="row"><span class="dim">手艺</span><b>${skillName(skillLv(sel))}
+    <span class="dim" style="font-weight:400;font-size:10px">
+    ${skillLv(sel)}级 · 工时${Math.round((1-skillSpeed(sel))*100)}%↓ · 价${Math.round((skillPrice(sel)-1)*100)}%↑</span></b></div>
+  ${isPC?`<div class="row"><span class="dim">家什</span><b style="color:${
+    toolNames().length?'#8fd08a':'#5f574c'}">${toolNames().join('、')||'还没打过工具'}</b></div>`:''}
+  <div class="row"><span class="dim">家计</span><b style="color:${hue(provision(sel))}">${pct(provision(sel))}</b></div>
+  <div class="row"><span class="dim">当前</span><b style="color:#e8c169">${
+    a? (a.phase==='go'?'前往 '+a.o.n : a.o.n+(a.o.note?'（'+a.o.note+'）':'')) : (isPC?(autoPilot?'托管中…':'自由行动'):'思考中…')}</b></div>
+  ${a&&a.phase==='do'?`<div class="bar"><i style="width:${(1-a.left/a.o.dur)*100}%;background:#c9a86a"></i></div>`:''}
+
+  <h2>需求</h2>
+  ${NK.filter(k=>NEEDS[k].dec).map(k=>`
+    <div class="row"><span class="dim">${NEEDS[k].n}</span><span>${pct(sel.need[k])}</span></div>
+    <div class="bar"><i style="width:${sel.need[k]}%;background:${NEEDS[k].c}"></i></div>`).join('')}
+
+  <h2>${isPC?(autoPilot?'托管中 · AI 正在按此决策':'AI 建议 · 你可以无视'):'它的决策依据 · 效用打分'}</h2>
+  ${sel.cands.length? sel.cands.map((c,i)=>`
+    <div class="cand ${i===0?'win':''}">
+      <div class="t"><span>${i+1}. ${c.o.n}</span><span>${c.s.toFixed(1)}</span></div>
+      <div class="b"><i style="width:${Math.min(100,c.s/Math.max(1,sel.cands[0].s)*100)}%"></i></div>
+    </div>`).join('') : '<div class="dim">—</div>'}
+  <div class="dim" style="font-size:10px;margin-top:6px">
+    分数 = Σ(广播量 × 紧迫度² × 性格权重) ÷ 距离折扣<br>
+    ${isPC?'同一套打分，对 NPC 是决策，对你只是提示。'
+          :'这就是它下一步会去做的事。'}
+  </div>
+
+  <h2>生产链 · 前置条件自动串联</h2>
+  <div class="dim" style="font-size:10px;line-height:1.7">
+    林地(伐木) → 木作案(木×2→木器) → 市摊(木器→48文)<br>
+    → 米铺(24文→米×3) → 灶台/米缸(米→饱腹)<br>
+    条件不满足的物件直接不进候选，链条因此自然涌现。
+  </div>
+
+  <h2>关系 · 以及为什么</h2>
+  ${sims.filter(s=>s!==sel).map(s=>{
+    const list=((sel.mem&&sel.mem[s.name])||[]).slice().reverse();
+    const top=list.map(e=>({e,v:memWeight(e)}))
+                  .filter(x=>Math.abs(x.v)>0.6)
+                  .sort((a,b)=>Math.abs(b.v)-Math.abs(a.v)).slice(0,4);
+    return `
+    <div class="row"><span class="dim">${s.name}${friction(sel,s)?' <span style="color:#d08a7a">✦</span>':''}</span>
+      <span>${pct(sel.rel[s.name])}</span></div>
+    <div class="bar"><i style="width:${sel.rel[s.name]}%;background:#c05f7f"></i></div>
+    ${top.length? `<div style="font-size:10px;color:#7d7263;margin:-2px 0 7px 4px">${
+      top.map(x=>`第${x.e.day}天 ${x.e.hand===2
+        ?'<span style="color:#8a7fa8">传闻</span> ':''}${x.e.why} <span style="color:${
+        x.v>0?'#7fa86e':'#c07a72'}">${x.v>0?'+':''}${x.v.toFixed(1)}</span>`).join('<br>')}</div>`
+      : '<div style="font-size:10px;color:#5f574c;margin:-2px 0 7px 4px">还没什么来往</div>'}`;
+  }).join('')}`;
+}
+P.addEventListener('click',e=>{
+  // 名字里现在套着 <span>（厢屋标记），点在标记上 e.target 就不是那个 <b> 了 ——
+  // 得往上找一层，不然点到名字的一半会没反应。
+  const el=(e.target.closest&&e.target.closest('[data-i],[data-kid],[data-sp],[data-auto],[data-reset]'))
+           || e.target;
+  const sp=el.dataset.sp, i=el.dataset.i, kd=el.dataset.kid;
+  if(kd!==undefined){ selKid=KIDS[+kd]||null; panel(); return; }
+  if(el.dataset.reset!==undefined){
+    if(confirm('重开一局？当前村子的记忆、田地和账目都会清空。')){ wipeSave(); location.reload(); }
+    return; }
+  if(el.dataset.auto!==undefined){ autoPilot=!autoPilot; PC.act=null; panel(); return; }
+  if(sp!==undefined){ const v=+sp; if(v===0)running=false; else {running=true;speed=v;} panel(); }
+  if(i!==undefined){ sel=sims[+i]; selKid=null; panel(); }
+});
+cv.addEventListener('click',e=>{
+  if(ending){ wipeSave(); location.reload(); return; }
+  if(daily){ closeDaily(); return; }
+  // 用实际渲染尺寸换算，别用 dataset.s —— 窄屏上 CSS 的 max-width 会再缩一次
+  const r=cv.getBoundingClientRect();
+  const mx=(e.clientX-r.left)/r.width*VPW, my=(e.clientY-r.top)/r.height*VPH;
+  if(menu){                                          // 菜单打开时点击即选中（屏幕坐标）
+    const {_x:x,_y:y,_w:w,_rowH:rowH}=menu;
+    const i=Math.floor((my-(y+21))/rowH);
+    if(i>=0&&i<menu.items.length && mx>x && mx<x+w){ menu.idx=i; runMenu(); }
+    else closeMenu();
+    return;
+  }
+  const wx=mx+CAM.x, wy=my+CAM.y;                     // 屏幕 → 世界
+  if(bmode){ bmode.x=Math.max(1,Math.min(GW-2,(wx/T)|0));
+             bmode.y=Math.max(1,Math.min(GH-2,(wy/T)|0));
+             bmode.why=buildCheck(bmode.key,bmode.x,bmode.y); return; }
+  let best=null,bd=26;
+  for(const p of sims){ const d=Math.hypot(p.px-wx,p.py-18-wy); if(d<bd){bd=d;best=p;} }
+  if(best){ sel=best; panel(); }
+});
+
+// ---------- 事件流 UI ----------
+const FEED=document.getElementById('feed');
+let feedMode='all', feedHi=null, feedHiT=0;
+function feedClass(e){
+  if(e.tags&&e.tags.includes('conflict')) return 'c';
+  if(e.type.startsWith('social.'))        return 's';
+  if(e.type.startsWith('econ.'))          return 'm';
+  if(e.who===PC.name||e.whom===PC.name)   return 'y';
+  return '';
+}
+function feedPass(e){
+  if(!isStory(e)) return false;
+  if(feedMode==='me')       return e.who===PC.name||e.whom===PC.name;
+  if(feedMode==='conflict') return !!(e.tags&&e.tags.includes('conflict'));
+  return true;
+}
+function renderFeed(){
+  const near=FEED.scrollHeight-FEED.scrollTop-FEED.clientHeight < 40;   // 贴底才自动跟随
+  const rows=EVENTS.filter(feedPass).slice(-90);
+  FEED.innerHTML = rows.length ? rows.map(e=>{
+    const hh=String(e.clock/60|0).padStart(2,'0'), mm=String(e.clock%60|0).padStart(2,'0');
+    return `<div class="l" data-id="${e.id}"><span class="t">第${e.day}日 ${hh}:${mm}</span>`+
+           `<span class="${feedClass(e)}">${evText(e)}</span></div>`;
+  }).join('') : '<div style="color:#5f574c">还没发生什么</div>';
+  if(near) FEED.scrollTop=FEED.scrollHeight;
+}
+document.getElementById('feedhd').addEventListener('click',ev=>{
+  const f=ev.target.dataset.f; if(!f) return;
+  feedMode=f;
+  [...ev.currentTarget.querySelectorAll('button')].forEach(b=>
+    b.classList.toggle('on', b.dataset.f===f));
+  renderFeed();
+});
+// 点某条 → 高亮涉及的角色
+FEED.addEventListener('click',ev=>{
+  const row=ev.target.closest('.l'); if(!row) return;
+  const e=EVENTS.find(x=>x.id===+row.dataset.id); if(!e) return;
+  feedHi=[e.who,e.whom].filter(Boolean); feedHiT=90;
+  const s=sims.find(x=>x.name===e.who); if(s) sel=s, panel();
+});
+
+
+// ==========================================================================
+//  T20 · 存档
+//  在此之前 localStorage 出现 0 次 —— 关掉页面一切归零。
+//  种地一茬要三天、记忆的半衰期按天算、积怨要攒好几天，
+//  【没有存档，这些"跨天"的设计全是空转】—— 玩家根本没有明天。
+//
+//  只挑纯数据存。sims 里的 act/cands/path 挂着 OBJ 引用（OBJ 又挂着函数和田的反向引用），
+//  直接 JSON.stringify 会踩到循环引用；而且行为状态本来就该重算，不必留。
+// ==========================================================================
+const SAVE_KEY='sim-game-save', SAVE_VER=12;
+
+function saveGame(){
+  // 终局之后不再写档：否则 pagehide 会把"死后的村子"存下去，
+  // 而那份档里没有 isPlayer，读回来玩家会静默变成花名册里的第一个人。
+  if(ending) return false;
+  try{
+    // 先刷一次关系再存。rel 是从记忆推导的，但只每 5 模拟分钟整表重算一次；
+    // 不刷就会把"最多差一个刷新周期的衰减量"的旧值存进去，
+    // 读档时重算又是新值，于是存档前后对不上（实测差到 0.0104）。
+    refreshRel();
+    // running 也要存：暂停着关掉页面，回来就该还是暂停的
+    const data={ v:SAVE_VER, day, clock, autoPilot, speed, running, selIdx:sims.indexOf(sel),
+      mkt:{}, shrine:SHRINE.done, forage:FORAGE_SPOT.map(s=>s.left),
+      built:BUILT.map(b=>({key:b.key, x:b.x, y:b.y})),
+      dole:DOLE.stock, daily:DAILY.map(d=>d.left), tools:Object.keys(TOOLS),
+      barn:BARN.n, pair:PAIR, kids:KIDS,
+      // 花名册：谁还在、住哪座宅子、长什么样。人会死会来，六个人不再是常数。
+      roster:sims.map(s=>({name:s.name, home:s.home, row:s.row, trait:s.trait,
+                           tt:s.tt, mbti:s.mbti, age:s.age, vigor:s.vigor, ill:s.ill,
+                           isPlayer:!!s.isPlayer, parents:s.parents||null})),
+      homeowner:HOMEOWNER.slice(), gone:GONE, moveInAt,
+      fields:FIELDS.map(f=>({st:f.st, grow:f.grow, wet:f.wet, sower:f.sower, crop:f.crop})),
+      // 事件流留最近 200 条就够读了，全存会让存档无谓地胖
+      events:EVENTS.slice(-200), evSeq,
+      sims:sims.map(s=>({ name:s.name, gx:s.gx, gy:s.gy, px:s.px, py:s.py, face:s.face,
+        need:s.need, skill:s.skill, money:s.money, inv:s.inv, rel:s.rel, mem:s.mem,
+        _gift:s._gift||null, _vent:s._vent||null, _fr:s._fr||null, _frT:s._frT||null,
+        _blockN:s._blockN||null, _crit:s._crit||null })) };
+    for(const k in MKT) data.mkt[k]=MKT[k].p;
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    return true;
+  }catch(e){ return false; }              // 隐私模式/配额满：存不上就算了，别把游戏搞崩
+}
+
+function loadGame(){
+  let d;
+  try{ const raw=localStorage.getItem(SAVE_KEY); if(!raw) return false; d=JSON.parse(raw); }
+  catch(e){ return false; }
+  if(!d || d.v!==SAVE_VER || !Array.isArray(d.sims)) return false;   // 版本对不上就当没有
+  try{
+    day=d.day; clock=d.clock; autoPilot=!!d.autoPilot; speed=d.speed||1;
+    if(d.running!=null) running=!!d.running;
+    for(const k in MKT) if(d.mkt && d.mkt[k]!=null) MKT[k].p=d.mkt[k];
+    // 建造要【先】replay：田的状态按 FIELDS 下标存，新田会改变数组长度，
+    // 顺序反了整片田的状态就会串位。
+    wipeBuilt();
+    for(const b of (d.built||[])) placeBuild(b.key, b.x, b.y, true);
+    DOLE.stock=d.dole||0;   // BARN.n / DOLE.n 由 replay 自己加回来
+    for(const k in PAIR) delete PAIR[k];
+    for(const k in (d.pair||{})) PAIR[k]=d.pair[k];
+    KIDS.length=0; for(const kd of (d.kids||[])) KIDS.push(kd);
+    // 摇篮/铺盖都要按【读回来的】花名册和宅子归属摆 —— 所以放到下面重建完再 sync
+    TOOLS={}; for(const k of (d.tools||[])) if(TOOL[k]) TOOLS[k]=1;
+    (d.daily||[]).forEach((v,i)=>{ if(DAILY[i]) DAILY[i].left=v; });
+    // 地图会随版本改，存档里的坐标未必还站得住 —— 读完统一自救一次
+    SHRINE.done = d.shrine || {};
+    (d.forage||[]).forEach((v,i)=>{ if(FORAGE_SPOT[i]) FORAGE_SPOT[i].left=v; });
+    (d.fields||[]).forEach((f,i)=>{ if(!FIELDS[i]) return;
+      FIELDS[i].st=f.st; FIELDS[i].grow=f.grow; FIELDS[i].wet=f.wet;
+      FIELDS[i].sower=f.sower; FIELDS[i].crop=f.crop||null; });
+    // 花名册先重建：人会死、会有人搬进来，"六个人"不再是常数。
+    // 老存档没有 roster，就保持现有阵容（向下兼容）。
+    if(Array.isArray(d.roster) && d.roster.length){
+      const keep=new Map(sims.map(s=>[s.name,s]));
+      sims.length=0;
+      for(const rd of d.roster){
+        const s = keep.get(rd.name) || mkSim(rd.name, rd.home, rd);
+        s.home=rd.home; s.row=rd.row; s.trait=rd.trait; s.w=TRAITS[rd.trait];
+        s.tt=(rd.tt||[]).slice(); s.mbti=rd.mbti;
+        s.age=rd.age; s.vigor=rd.vigor; s.ill=rd.ill||0; s.isPlayer=!!rd.isPlayer;
+        if(rd.parents) s.parents=rd.parents.slice(); else delete s.parents;
+        sims.push(s);
+      }
+      PC = sims.find(s=>s.isPlayer) || sims[0];
+      sel = PC;
+    }
+    if(Array.isArray(d.homeowner)) for(let i=0;i<HOMEOWNER.length;i++) HOMEOWNER[i]=d.homeowner[i];
+    GONE.length=0; for(const g of (d.gone||[])) GONE.push(g);
+    syncCribs(); syncBunks();          // 派生物件：现在花名册和宅子归属都到位了
+    moveInAt = d.moveInAt || 0;
+    for(const sd of d.sims){
+      const s=sims.find(x=>x.name===sd.name); if(!s) continue;       // 阵容变了就跳过这个人
+      Object.assign(s, { gx:sd.gx, gy:sd.gy, px:sd.px, py:sd.py, face:sd.face,
+        need:sd.need, skill:sd.skill, money:sd.money, inv:sd.inv, rel:sd.rel, mem:sd.mem||{},
+        _gift:sd._gift, _vent:sd._vent, _fr:sd._fr, _frT:sd._frT,
+        _blockN:sd._blockN, _crit:sd._crit });
+      // 行为状态一律重算：存下来的 act 指向的是上一局的物件
+      s.act=null; s.path=[]; s.cands=[]; s.anim=0; s.ppx=s.px; s.ppy=s.py;
+    }
+    for(const s2 of sims) unstick(s2);            // 存档的坐标未必还站得住
+    EVENTS.length=0; for(const e of (d.events||[])) EVENTS.push(e);
+    evSeq=d.evSeq||EVENTS.length;
+    if(d.selIdx>=0 && sims[d.selIdx]) sel=sims[d.selIdx];
+    refreshRel();
+    return true;
+  }catch(e){ return false; }
+}
+
+function wipeSave(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
+function hasSave(){ try{ const r=localStorage.getItem(SAVE_KEY);
+  return !!r && JSON.parse(r).v===SAVE_VER; }catch(e){ return false; } }
+
+// 存档时机：跨日一次（天然的检查点），外加离开页面时抢存一次。
+// 只靠 unload 不行 —— 手机上切后台常常根本不触发。
+addEventListener('pagehide', saveGame);
+addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') saveGame(); });
+
+
+// ==========================================================================
+//  T21 · 日结算
+//  星露谷每天睡前给你一屏"今天赚了多少、收了什么"。这是最便宜的"手感"，
+//  但对本项目还有第二层意义：它天然就是【说说这一天发生了什么】的出口 ——
+//  事件流是流水，日结算是**这一天的总结**，两者读起来完全不是一回事。
+//
+//  数据全部从事件总线里捞（T1 铺的底子在这里第三次派上用场：
+//  记忆、事件流、日结算都只是同一条总线的不同读法）。
+// ==========================================================================
+let daily=null;                       // {day, ...} 非空时罩在画面上
+// 玩家亡故 —— 这个无终局沙盒第一次有了一个终局
+let ending=null;
+let dayMark={ day:1, money:{}, food:{} };
+
+function markDayStart(){
+  dayMark={ day, money:{}, food:{} };
+  for(const s of sims){ dayMark.money[s.name]=s.money; dayMark.food[s.name]=s.inv.food; }
+}
+function buildDaily(){
+  const d=dayMark.day;
+  const evs=EVENTS.filter(e=>e.day===d);
+  const mine=e=>e.who===PC.name||e.whom===PC.name;
+  const cnt=t=>evs.filter(e=>e.type===t).length;
+  // 关系变化最大的那个人 —— 一天里最值得知道的一件事
+  let mover=null;
+  for(const s of sims){ if(s===PC) continue;
+    const w=(PC.mem&&PC.mem[s.name]||[]).filter(e=>e.day===d)
+            .reduce((a,e)=>a+memWeight(e),0);
+    if(w!==0 && (!mover||Math.abs(w)>Math.abs(mover.w))) mover={name:s.name, w};
+  }
+  return { day:d, wx:weatherOf(d).id, se:seasonOf(d), sd:dayInSeason(d),
+    money: PC.money-(dayMark.money[PC.name]||0),
+    food:  PC.inv.food-(dayMark.food[PC.name]||0),
+    sold: evs.filter(e=>e.type==='econ.sold'&&e.who===PC.name).length,
+    reaped: evs.filter(e=>(e.type==='farm.reaped'||e.type==='conflict.harvest')&&e.who===PC.name).length,
+    social: evs.filter(e=>e.type.indexOf('social.')===0&&e.type!=='social.gossip'
+                       &&e.type!=='social.missed'&&mine(e)).length,
+    gossip: evs.filter(e=>e.type==='social.gossip'&&mine(e)).length,
+    mover,
+    // 全村的：不只是玩家，看戏也是玩法
+    villFarm: cnt('farm.sown')+cnt('farm.reaped')+cnt('conflict.harvest'),
+    villRow: cnt('social.争执')+cnt('conflict.escalated')+cnt('conflict.harvest'),
+    // 挑三条最有故事的收尾
+    top: evs.filter(isStory).filter(e=>mine(e)||e.tags&&e.tags.includes('conflict'))
+            .slice(-3).map(evText),
+    shrine: Object.keys(SHRINE.done).length,
+    shrineReady: offerReady(PC, seasonOf(d)),
+    ripe: FIELDS.filter(f=>fieldStage(f)==='穗').length,
+    thirsty: FIELDS.filter(f=>fieldStage(f)==='苗'&&!f.wet).length,
+  };
+}
+function openDaily(){ daily=buildDaily(); running=false; panel(); }
+function closeDaily(){ daily=null; markDayStart(); running=true; panel(); }
+
+function drawEnding(){
+  ctx.fillStyle='rgba(10,8,7,.86)'; ctx.fillRect(0,0,VPW,VPH);
+  const W=Math.min(VPW-24, 240), H=118;
+  const x=Math.round((VPW-W)/2), y=Math.round((VPH-H)/2);
+  ctx.fillStyle='#17130f'; ctx.fillRect(x,y,W,H);
+  ctx.strokeStyle='#8a6a5a'; ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,W-1,H-1);
+  ctx.textAlign='center'; ctx.font='11px monospace'; ctx.fillStyle='#d8a06a';
+  ctx.fillText(ending.name+' 没了', x+W/2, y+22);
+  ctx.font='9px monospace'; ctx.fillStyle='#c9bda4';
+  const kid=ending.kids||0, sp=ending.spouse;
+  const lines=[ '享年 '+ending.age+'（'+ending.why+'）',
+                '在这村子里过了 '+ending.day+' 天',
+                sp? ('身后留下'+sp) : '孑然一身',
+                kid? ('膝下 '+kid+' 个孩子') : '' ].filter(Boolean);
+  lines.forEach((t,i)=>ctx.fillText(t, x+W/2, y+42+i*14));
+  ctx.fillStyle='#6f6659'; ctx.fillText('按任意键重开一局', x+W/2, y+H-10);
+}
+function drawDaily(){
+  // 高度按内容算 —— 固定高度在内容少的日子会留一大块空
+  const rows = 3 + (daily.reaped?1:0) + (daily.sold?1:0) + (daily.mover?1:0)
+             + ((daily.shrineReady||daily.shrine)?1:0)
+             + ((daily.ripe||daily.thirsty)?1:0);
+  const W=Math.min(VPW-24, 250);
+  const H=Math.min(VPH-20, 60 + rows*13 + 18 + daily.top.length*11);
+  const x=Math.round((VPW-W)/2), y=Math.round((VPH-H)/2);
+  ctx.fillStyle='rgba(10,8,7,.72)'; ctx.fillRect(0,0,VPW,VPH);
+  ctx.fillStyle='#1b1815'; ctx.fillRect(x,y,W,H);
+  ctx.strokeStyle='#c9a86a'; ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,W-1,H-1);
+  ctx.strokeStyle='#3d352c'; ctx.strokeRect(x+3.5,y+3.5,W-7,H-7);
+  ctx.textAlign='center'; ctx.font='11px monospace'; ctx.fillStyle='#e8c169';
+  ctx.fillText(`${daily.se}${daily.sd} · ${daily.wx} · 记`, x+W/2, y+18);
+  ctx.fillStyle='#3d352c'; ctx.fillRect(x+10,y+24,W-20,1);
+
+  ctx.textAlign='left'; ctx.font='9px monospace';
+  let ly=y+38;
+  const line=(label, val, col)=>{
+    ctx.fillStyle='#8a7f6d'; ctx.fillText(label, x+14, ly);
+    ctx.fillStyle=col||'#d6cab0'; ctx.textAlign='right';
+    ctx.fillText(val, x+W-14, ly); ctx.textAlign='left'; ly+=13;
+  };
+  const sign=v=>(v>0?'+':'')+v;
+  line('进出', sign(daily.money)+' 文', daily.money>=0?'#8fd08a':'#d07a72');
+  line('米', sign(daily.food)+' 斗', daily.food>=0?'#8fd08a':'#d07a72');
+  if(daily.reaped) line('收割', daily.reaped+' 次');
+  if(daily.sold)   line('售出木器', daily.sold+' 件');
+  line('往来', daily.social+' 次'+(daily.gossip?`（听说了 ${daily.gossip} 桩事）`:''));
+  if(daily.mover) line('人情',
+    `${daily.mover.name} ${daily.mover.w>0?'亲近':'疏远'}了`,
+    daily.mover.w>0?'#8fd08a':'#d07a72');
+  if(daily.shrineReady) line('祠堂', daily.se+'供可献了', '#e8c169');
+  else if(daily.shrine) line('祠堂', daily.shrine+'/4 供已毕', '#8fd08a');
+  if(daily.ripe||daily.thirsty){
+    const t=[]; if(daily.ripe) t.push(daily.ripe+' 块待割');
+    if(daily.thirsty) t.push(daily.thirsty+' 块该浇');
+    line('田里', t.join('，'), daily.thirsty?'#e0b866':'#d6cab0');
+  }
+  ly+=2; ctx.fillStyle='#3d352c'; ctx.fillRect(x+10,ly-6,W-20,1);
+  ctx.fillStyle='#7d7263'; ctx.font='8px monospace';
+  ctx.fillText(`村里：农事 ${daily.villFarm} 桩　龃龉 ${daily.villRow} 桩`, x+14, ly+4); ly+=14;
+  ctx.fillStyle='#a99c85';
+  for(const t of daily.top){
+    let s=t; while(ctx.measureText(s).width>W-28 && s.length>4) s=s.slice(0,-2);
+    if(s!==t) s=s.slice(0,-1)+'…';
+    ctx.fillText('· '+s, x+14, ly); ly+=11;
+  }
+  ctx.textAlign='center'; ctx.fillStyle='#e8c169'; ctx.font='9px monospace';
+  ctx.fillText(isTouch?'点一下继续':'按任意键继续', x+W/2, y+H-10);
+}
+
+
+
+// ==========================================================================
+//  T24 · 季节与第二种作物
+//  星露谷里季节是【硬窗口】：春天没种的作物等一年。这才是"计划"的压力来源。
+//  但直接照抄"冬天什么都不长"会把这个六个人的小村逼死 —— 存粮撑不住一整季。
+//  所以改成【两种作物各有各的时令】：永远有东西可种，但得种对。
+//    稻：春夏疯长，秋天勉强，冬天完全停 —— 产四斗，是好年景的选择
+//    麦：秋冬最好，春夏偏慢          —— 产三斗，是保底的选择
+//  于是每到换季，玩家要重新算一次"这一季该种什么"，而不是无脑重复。
+// ==========================================================================
+const SEASON_LEN=7;                          // 一季七天，一年二十八天
+const SEASONS=['春','夏','秋','冬'];
+function seasonOf(d){ return SEASONS[Math.floor((d-1)/SEASON_LEN)%4]; }
+function yearOf(d){ return Math.floor((d-1)/(SEASON_LEN*4))+1; }
+function dayInSeason(d){ return ((d-1)%SEASON_LEN)+1; }
+
+const CROP={
+  稻:{ n:'稻', yield:4, grow:{春:1.00, 夏:1.15, 秋:0.55, 冬:0},
+       stalk:'#5f8c3f', ear:'#d8bc62', hi:'#f0da8a' },
+  麦:{ n:'麦', yield:3, grow:{春:0.60, 夏:0.50, 秋:1.15, 冬:0.75},
+       stalk:'#7d8a4e', ear:'#c9a94e', hi:'#e8dca0' },
+};
+const CROPS=Object.keys(CROP);
+// 这一季最划算的：生长倍率 × 产量。NPC 播种时用它，不用懂"季节"这个概念
+function bestCrop(d){ const se=seasonOf(d==null?day:d);
+  return CROPS.slice().sort((a,b)=>
+    CROP[b].grow[se]*CROP[b].yield - CROP[a].grow[se]*CROP[a].yield)[0]; }
+// 「风调」：夏供的恩泽，雨水应时，庄稼长得快
+function cropRate(f){ const c=CROP[f.crop]; if(!c) return 1;
+  return c.grow[seasonOf(day)] * (boonOn('风调')?1.15:1); }
+
+// 季节色调：盖一层薄色就够了，比重画一套地砖便宜得多，也不会打乱既有配色
+const SEASON_TINT={ 春:null, 夏:'rgba(120,170,70,.08)',
+                    秋:'rgba(190,130,50,.14)', 冬:'rgba(180,196,220,.18)' };
+
+// ==========================================================================
+//  T23 · 天气
+//  抄星露谷最划算的一条：一个变量同时带来【变化】【运气】和【计划的必要】。
+//  最要紧的是 —— 雨天自动浇田。于是"今天下雨"= 半天白捡，
+//  玩家第一次会因为外部条件改变当天的打算，而不是照着需求条办事。
+//
+//  用天数做确定性哈希，不用 Math.random：整个项目都不用随机数，
+//  这样行为可复现、测试对得上、存档也不必额外存天气。
+// ==========================================================================
+const WX={
+  晴:{ id:'晴', tint:null,                 out:1.00, tip:'日头正好' },
+  阴:{ id:'阴', tint:'rgba(90,96,110,.16)', out:0.94, tip:'天阴着' },
+  雨:{ id:'雨', tint:'rgba(60,78,104,.30)', out:0.72, tip:'落雨，田里不用浇了' },
+};
+// sin(d*常数) 那种"伪随机"有明显周期，实测 30 天里后半段连着 12 个晴天。
+// 换成整数位混淆，分布才匀。
+function hash01(n){
+  let x=(n|0)*2654435761 >>> 0;
+  x ^= x>>>15; x=Math.imul(x,2246822519); x^=x>>>13;
+  x=Math.imul(x,3266489917); x^=x>>>16;
+  return (x>>>0)/4294967296;
+}
+function weatherOf(d){
+  const h=hash01(d*7+13);
+  // 各季的雨/阴概率不同 —— 冬天阴冷多雨，夏天晴得多。
+  // 这样"换季"不只是数值变了，天色也跟着变。
+  const P={ 春:[0.24,0.44], 夏:[0.16,0.30], 秋:[0.22,0.42], 冬:[0.30,0.62] }[seasonOf(d)];
+  return h<P[0] ? WX.雨 : h<P[1] ? WX.阴 : WX.晴;
+}
+let wx=weatherOf(1);
+function applyWeather(){
+  wx=weatherOf(day);
+  if(wx.id==='雨'){                                    // 落雨顶替浇水
+    let n=0;
+    for(const f of FIELDS) if(fieldStage(f)==='苗' && !f.wet){ f.wet=true; n++; }
+    if(n) emit('wx.rain',{who:'天', val:n, tags:['wx']});
+  } else emit('wx.turn',{who:'天', why:wx.id, tags:['wx']});
+}
+// 雨天的户外活计不好干 —— 露天的（林地、田、市摊）打折，屋里的不受影响
+function weatherMul(o){
+  if(!o) return 1;
+  if(o.fish) return wx.id==='雨' ? 1.55 : 1;    // 雨天鱼口好 —— 天气的用法是改道，不是罚站
+  if(wx.out===1) return 1;
+  const outdoor = o.tree || o.field || o.id==='stall';
+  return outdoor ? wx.out : 1;
+}
+
+// ---------- 主循环：固定步长 + 时间倍速 ----------
+let last=performance.now(), accSim=0, accUi=0;
+function loop(now){
+  const dt=Math.min(.1,(now-last)/1000); last=now;
+  if(running){ accSim+=dt*speed*4;                   // 1x = 4 模拟分钟/秒
+    let guard=0;
+    while(accSim>=SIM_DT && guard++<600){ step(SIM_DT); accSim-=SIM_DT; } }
+  render();
+  if(feedHiT>0 && --feedHiT===0) feedHi=null;
+  accUi+=dt; if(accUi>0.2){ accUi=0; panel(); renderFeed(); }
+  requestAnimationFrame(loop);
+}
+let started=false;
+function boot(){ if(started) return; started=true;
+  document.getElementById('boot').remove();
+  try{ loadGame(); panel(); renderFeed(); requestAnimationFrame(loop); }
+  catch(e){ fail(e.stack||e.message); } }
+</script></body></html>
+'''
+open('sim_demo.html','w').write(HTML.replace('__B64__', b64))
+print('ok', len(HTML))

@@ -53,3 +53,6 @@ desktop.ini
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# ---- 沙箱同步的中转目录（沙箱删不掉，只能忽略）----
+_to_delete/
