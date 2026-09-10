@@ -10,7 +10,7 @@
 //      于是"你家孩子能不能留下"和"村里有没有人过世"是同一条线 —— 那才叫延续。
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
 
 (async () => {
   const browser = await chromium.launch();

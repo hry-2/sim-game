@@ -1,0 +1,3105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="description" content="Neon Scrapline — 赛博朋克像素俯视角生存射击，纯前端单文件。">
+<style>html,body{margin:0;background:#04060c;overflow:hidden;overscroll-behavior:none}
+img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Neon Scrapline</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap">
+<style>
+  :root{
+    --ink:#04060c;
+    --deep:#0a1020;
+    --steel:#7b89ab;
+    --cyan:#45f0ff;
+    --mag:#ff2ea6;
+    --amber:#ffb347;
+    --tox:#7cff4f;
+    --danger:#ff3b5c;
+    --mono:'Share Tech Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --disp:'Press Start 2P','Share Tech Mono',monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--ink);color:var(--steel);
+    font-family:var(--mono);
+    overflow:hidden;
+    height:100vh;height:100dvh;          /* dvh 跟着地址栏收放走，100vh 在手机上会偏高 */
+    display:grid;place-items:center;
+    user-select:none;-webkit-user-select:none;
+  }
+  #stage{position:relative;touch-action:none}
+  .screen,#levelup,#hud,.layer{line-height:1.4}
+  canvas{
+    display:block;
+    image-rendering:pixelated;
+    image-rendering:-moz-crisp-edges;
+    background:#04060c;
+    box-shadow:0 0 0 1px #16213a, 0 0 60px rgba(69,240,255,.10), 0 0 160px rgba(255,46,166,.07);
+    cursor:crosshair;
+  }
+  .layer{position:absolute;inset:0;pointer-events:none}
+
+  /* ---------- 义体档案（标题页上的成长面板） ---------- */
+  #prof{margin:10px auto 2px;max-width:520px;display:flex;flex-direction:column;gap:5px;
+    font:500 11px/1.5 var(--mono,monospace);letter-spacing:.04em}
+  #prof .prow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center}
+  #prof .plbl{color:#5d7392;letter-spacing:.16em;margin-right:2px}
+  #prof b{color:#45f0ff;font-weight:600;margin-right:8px}
+  #prof .chip{font:inherit;color:#a9c0dc;background:rgba(12,22,38,.6);
+    border:1px solid #223252;padding:3px 9px;cursor:pointer;letter-spacing:.04em}
+  #prof .chip:hover{border-color:#45f0ff;color:#eaf6ff}
+  #prof .chip.on{color:#04060c;background:#45f0ff;border-color:#45f0ff}
+  #prof .chip.lock{color:#3e4c63;border-color:#182541;cursor:not-allowed}
+  #prof .chip.lock:hover{border-color:#182541;color:#3e4c63}
+  #prof .next{color:#ffb03a;letter-spacing:.08em;margin-top:2px}
+
+  /* ---------- 触屏 ---------- */
+  /* 盖满整个视口，不是只盖画布：竖屏时画布只占屏幕中间一条，
+     而拇指是放在屏幕最下面的 */
+  #tc{display:none;position:fixed;inset:0;z-index:5;pointer-events:none}
+  body.touch #tc.play{display:block}
+  /* 暂停时摇杆和动作键收起来，但系统键必须留着 —— 否则点不回来 */
+  #tc.paused .stk,#tc.paused .tbtns{display:none}
+  #tc .tsys{position:absolute;display:flex;gap:8px;pointer-events:none;
+    right:calc(12px + env(safe-area-inset-right,0px));
+    top:calc(54px + env(safe-area-inset-top,0px))}
+  #tc .tsys button{pointer-events:auto;width:44px;height:44px;border-radius:50%;
+    font:600 11px/1 var(--mono,monospace);color:#9fb4cc;background:rgba(10,18,32,.6);
+    border:1px solid rgba(120,150,190,.3);-webkit-tap-highlight-color:transparent}
+  #tc .tsys button:active{background:rgba(69,240,255,.2);color:#eaf6ff}
+  #tc .tsys button.off{color:#4c5468;border-color:#1d2740}
+  #tc .stk{position:absolute;width:92px;height:92px;margin:-46px 0 0 -46px;border-radius:50%;
+    border:2px solid rgba(69,240,255,.30);background:rgba(10,20,34,.26);
+    opacity:0;transition:opacity .1s;pointer-events:none}
+  #tc .stk.on{opacity:1}
+  #tc .stk i{position:absolute;left:50%;top:50%;width:38px;height:38px;border-radius:50%;
+    background:rgba(69,240,255,.42);box-shadow:0 0 10px rgba(69,240,255,.5)}
+  #tc .stk.r{border-color:rgba(255,46,166,.32)}
+  #tc .stk.r i{background:rgba(255,46,166,.45);box-shadow:0 0 10px rgba(255,46,166,.5)}
+  #tc .tbtns{position:absolute;display:flex;flex-direction:column;gap:10px;pointer-events:none;
+    right:calc(14px + env(safe-area-inset-right,0px));
+    bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+  #tc .tbtns button{pointer-events:auto;width:58px;height:58px;border-radius:50%;
+    font:600 12px/1 var(--mono,monospace);letter-spacing:.06em;
+    color:#cfe8ff;background:rgba(12,22,38,.62);border:1px solid rgba(69,240,255,.35);
+    box-shadow:0 0 12px rgba(69,240,255,.12);-webkit-tap-highlight-color:transparent}
+  #tc .tbtns button:active{background:rgba(69,240,255,.22)}
+  /* 竖屏原来只占屏幕中间一条，所以要催人横过来。现在竖屏也铺满、而且看得更高，
+     催就没道理了 —— 改成只提一句「横屏更宽」，几秒后自己走。 */
+  #rotHint{display:none}
+  body.touch.portrait #rotHint{display:block;position:fixed;left:50%;
+    bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:6;
+    opacity:0;animation:rot 7s ease-in-out forwards;
+    transform:translateX(-50%);padding:5px 12px;font:600 11px/1 var(--mono,monospace);
+    letter-spacing:.12em;color:#ffd97a;background:rgba(8,14,26,.8);
+    border:1px solid rgba(255,217,122,.35);white-space:nowrap}
+  @keyframes rot{0%{opacity:0}8%{opacity:1}72%{opacity:1}100%{opacity:0}}
+
+  /* ---------- HUD ---------- */
+  #hud{
+    display:flex;flex-direction:column;gap:6px;
+    padding:10px 12px;font-size:11px;letter-spacing:.06em;
+  }
+  /* 画布现在顶到屏幕边缘（viewport-fit=cover），所以 HUD 得自己让开刘海和圆角。
+     以前画布是居中缩在中间的，天然离边很远，用不着管这个。 */
+  body.touch #hud{
+    padding-top:calc(10px + env(safe-area-inset-top,0px));
+    padding-left:calc(12px + env(safe-area-inset-left,0px));
+    padding-right:calc(12px + env(safe-area-inset-right,0px));
+  }
+  body.touch #buffs{
+    left:calc(14px + env(safe-area-inset-left,0px));
+    top:calc(78px + env(safe-area-inset-top,0px));
+  }
+  #hud .row{display:flex;align-items:center;gap:10px}
+  #hud .row.top{justify-content:space-between}
+  .lbl{color:#5d6b8c;font-size:9px;letter-spacing:.18em;text-transform:uppercase}
+  .bar{
+    position:relative;height:7px;flex:1;max-width:190px;
+    background:#0b1224;border:1px solid #1d2b4a;
+  }
+  .bar > i{position:absolute;inset:0;width:0%;display:block;transition:width .12s linear}
+  #hpFill{background:linear-gradient(90deg,#ff2ea6,#ff6b6b);box-shadow:0 0 10px rgba(255,46,166,.7)}
+  #xpFill{background:linear-gradient(90deg,#45f0ff,#7cff4f);box-shadow:0 0 10px rgba(69,240,255,.7)}
+  .num{font-family:var(--disp);font-size:11px;color:#c9d6f0;font-variant-numeric:tabular-nums}
+  .tag{
+    font-size:9px;letter-spacing:.16em;text-transform:uppercase;
+    border:1px solid currentColor;padding:2px 6px;color:#3d4d70;
+  }
+  #waveTag{color:var(--amber)}
+  #dashPip{display:flex;gap:3px}
+  #dashPip span{width:14px;height:5px;background:#16223c;border:1px solid #223252}
+  #dashPip span.on{background:var(--cyan);box-shadow:0 0 8px var(--cyan);border-color:var(--cyan)}
+  #comboWrap{
+    position:absolute;right:14px;top:60px;text-align:right;
+    font-family:var(--disp);font-size:14px;color:var(--amber);
+    opacity:0;transition:opacity .2s;text-shadow:0 0 12px rgba(255,179,71,.8)
+  }
+  /* 增益条：没有倒计时的话「超频还剩几秒、要不要现在压上去」就无从判断，
+     那这套增益就只是随机变强，不是决策。 */
+  #buffs{position:absolute;left:14px;top:78px;display:flex;flex-direction:column;gap:4px;pointer-events:none}
+  #buffs .bf{
+    font-family:var(--disp);font-size:10px;letter-spacing:1px;color:var(--c);width:76px;
+    border:1px solid var(--c);border-radius:2px;padding:2px 5px;background:rgba(4,6,14,.62);
+    text-shadow:0 0 8px var(--c)
+  }
+  #buffs .bf i{display:block;height:2px;margin-top:3px;background:var(--c);box-shadow:0 0 6px var(--c)}
+  #banner{
+    position:absolute;left:0;right:0;top:38%;text-align:center;
+    font-family:var(--disp);font-size:20px;color:var(--cyan);
+    text-shadow:0 0 18px rgba(69,240,255,.8);
+    opacity:0;transition:opacity .35s;
+  }
+  #banner small{display:block;margin-top:10px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--mag)}
+
+  /* ---------- screens ---------- */
+  .screen{
+    position:absolute;inset:0;display:none;
+    place-content:center;justify-items:center;gap:0;
+    background:radial-gradient(120% 90% at 50% 30%,rgba(10,16,32,.82),rgba(4,6,12,.96));
+    pointer-events:auto;text-align:center;padding:24px;
+  }
+  .screen.show{display:grid}
+  h1{
+    font-family:var(--disp);font-size:clamp(20px,4.2vw,40px);margin:0;
+    color:#eaf6ff;letter-spacing:.02em;line-height:1.35;text-wrap:balance;
+  }
+  h1 em{font-style:normal;color:var(--mag);text-shadow:0 0 22px rgba(255,46,166,.75)}
+  .sub{margin:14px 0 0;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#63739a}
+  .keys{
+    margin:26px 0 0;display:grid;grid-template-columns:repeat(2,auto);gap:8px 26px;
+    font-size:12px;color:#8b9ac0;justify-content:center;
+  }
+  .keys b{color:var(--cyan);font-weight:400}
+  .btn{
+    margin-top:28px;font-family:var(--disp);font-size:12px;
+    background:transparent;color:var(--cyan);border:1px solid var(--cyan);
+    padding:12px 22px;cursor:pointer;letter-spacing:.06em;
+    box-shadow:0 0 18px rgba(69,240,255,.25) inset,0 0 18px rgba(69,240,255,.2);
+  }
+  .btn:hover,.btn:focus-visible{background:var(--cyan);color:#04060c;outline:none}
+  #over h1{color:var(--danger);text-shadow:0 0 24px rgba(255,59,92,.6)}
+  .stats{
+    margin:22px 0 0;display:grid;grid-template-columns:repeat(3,minmax(96px,1fr));
+    gap:1px;background:#1a2540;border:1px solid #1a2540;
+  }
+  .stats div{background:#080d18;padding:12px 14px;line-height:1.3}
+  .stats span{display:block;font-size:9px;letter-spacing:.18em;color:#56658a;text-transform:uppercase}
+  .stats strong{display:block;margin-top:6px;font-family:var(--disp);font-size:15px;color:#dceaff;font-weight:400}
+
+  /* ---------- level up cards ---------- */
+  #levelup{
+    position:absolute;inset:0;display:none;
+    align-content:center;justify-items:center;
+    background:linear-gradient(rgba(4,6,12,.5),rgba(4,6,12,.88));
+    pointer-events:auto;padding:20px;
+  }
+  #levelup.show{display:grid}
+  #levelup .head{font-family:var(--disp);font-size:13px;color:var(--tox);text-shadow:0 0 14px rgba(124,255,79,.6);margin-bottom:4px}
+  #levelup .hint{font-size:10px;letter-spacing:.2em;color:#54648a;margin-bottom:20px;text-transform:uppercase}
+  #cards{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+  .card{
+    width:172px;min-height:172px;padding:16px 14px;cursor:pointer;
+    background:linear-gradient(160deg,#0c1426,#070b16);
+    border:1px solid #22304f;
+    display:flex;flex-direction:column;gap:8px;
+    text-align:left;color:#9fb0d4;font-family:var(--mono);
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%);
+    transition:transform .12s,border-color .12s,box-shadow .12s;
+  }
+  .card:hover,.card:focus-visible{
+    transform:translateY(-5px);border-color:var(--cyan);outline:none;
+    box-shadow:0 0 24px rgba(69,240,255,.22);
+  }
+  .card .k{font-size:9px;letter-spacing:.18em;color:#4c5c80}
+  .card .icon{font-family:var(--disp);font-size:17px;color:var(--cyan)}
+  .card h3{margin:0;font-size:14px;color:#e6f2ff;font-weight:400;letter-spacing:.04em}
+  .card p{margin:0;font-size:11px;line-height:1.55;color:#8494b8}
+  .card .stack{margin-top:auto;font-size:9px;letter-spacing:.14em;color:#3f4e70}
+  .card.rare{border-color:#4b2e63}
+  .card.rare .icon{color:var(--mag)}
+  .card.rare:hover{border-color:var(--mag);box-shadow:0 0 24px rgba(255,46,166,.25)}
+
+  @media (prefers-reduced-motion:reduce){
+    .card{transition:none}
+  }
+</style>
+
+<div id="stage">
+  <canvas id="game" width="320" height="180"></canvas><!-- 尺寸由 fit() 按视口比例重设 -->
+
+  <div class="layer" id="hud">
+    <div class="row top">
+      <div class="row">
+        <span class="lbl">整合度</span>
+        <span class="bar"><i id="hpFill"></i></span>
+        <span class="num" id="hpTxt">100</span>
+      </div>
+      <div class="row">
+        <span class="tag" id="waveTag">WAVE 01</span>
+        <span class="num" id="scoreTxt">0</span>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lbl">义体等级</span>
+      <span class="num" id="lvTxt">1</span>
+      <span class="bar"><i id="xpFill"></i></span>
+      <span class="lbl">冲刺</span>
+      <span id="dashPip"><span></span></span>
+      <span class="lbl">武器</span>
+      <span class="tag" id="wepTxt">脉冲步枪</span>
+    </div>
+  </div>
+
+  <div class="layer" id="tc">
+    <div class="stk" id="stkL"><i></i></div>
+    <div class="stk r" id="stkR"><i></i></div>
+    <div class="tbtns"><button id="btnDash">冲刺</button><button id="btnWep">枪</button></div>
+    <div class="tsys"><button id="btnPause">暂停</button><button id="btnMute">音乐</button></div>
+    <div id="rotHint">横过来左右视野更宽</div>
+  </div>
+
+  <div class="layer" id="buffs"></div>
+  <div class="layer" id="comboWrap"><span id="comboTxt"></span></div>
+  <div class="layer" id="banner"></div>
+
+  <div class="screen show" id="title">
+    <h1>NEON <em>SCRAPLINE</em></h1>
+    <p class="sub">下城区 · 废钢回收线 · 生存射击</p>
+    <div class="keys">
+      <div><b>WASD</b> 移动</div><div><b>鼠标</b> 瞄准 / 左键开火</div>
+      <div><b>空格</b> 相位冲刺</div><div><b>P</b> 暂停 · <b>M</b> 静音</div>
+      <div><b>手柄</b> 左摇杆移动 / 右摇杆瞄准开火</div><div><b>RT·B·X</b> 开火 / 冲刺 / 换枪</div>
+    </div>
+    <p class="sub" id="titleBest"></p>
+    <div id="prof"></div>
+    <button class="btn" id="startBtn">接 入 神 经 索</button>
+  </div>
+
+  <div id="levelup">
+    <div class="head">义 体 升 级</div>
+    <div class="hint">选择一条改装 · 按 1 / 2 / 3</div>
+    <div id="cards"></div>
+  </div>
+
+  <div class="screen" id="over">
+    <h1>连 接 中 断</h1>
+    <p class="sub" id="overSub">义体在第 1 波被拆解</p>
+    <div class="stats">
+      <div><span>得分</span><strong id="oScore">0</strong></div>
+      <div><span>存活波次</span><strong id="oWave">0</strong></div>
+      <div><span>拆解数</span><strong id="oKills">0</strong></div>
+    </div>
+    <p class="sub" id="overBuild"></p>
+    <p class="sub" id="overBest"></p>
+    <p class="sub" id="overGain"></p>
+    <button class="btn" id="retryBtn">重 新 接 入 &nbsp;[R]</button>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= 常量 ================= */
+// 参考视野 320×180。手机上要铺满屏幕，所以真正的 VW/VH 跟着视口宽高比变：
+// 规则是「参考框永远完整装在里面」，多出来的空间填成更多可见战场，而不是黑边。
+// 这样不管什么屏，任何一个方向上看到的都不会比 320×180 少。
+const REF_W = 320, REF_H = 180;
+let VW = REF_W, VH = REF_H;
+// 视野可能比场地还大（冷却塔只有 608 高，竖屏能看到 690）。
+// 那时候不能再夹相机，得把场地摆在中间，否则 clamp 的上界比下界还小。
+const camAt = (v, span, view) => span > view ? clamp(v, 0, span - view) : (span - view) / 2;
+/* 场地：每打掉一个 BOSS 就换一张，形状、装饰色、网格色都不一样。
+   ARENA 是对象，所以只改字段不重新赋值 —— 二十多处引用一个都不用动。 */
+const ARENAS = [
+  { n: '废钢回收线', w: 1216, h: 768,  props: 84, c1: '#ff2ea6', c2: '#45f0ff', grid: '69,240,255',  lane: '255,46,166' },
+  { n: '熔渣池',     w: 1024, h: 1024, props: 62, c1: '#ff9d3d', c2: '#ff2f4f', grid: '255,157,61',  lane: '255,47,79' },
+  { n: '冷却塔',     w: 1440, h: 608,  props: 98, c1: '#45f0ff', c2: '#a45cff', grid: '164,92,255',  lane: '69,240,255' },
+];
+let ARENA_I = 0;
+const ARENA = { w: ARENAS[0].w, h: ARENAS[0].h, a: ARENAS[0] };
+const TAU = Math.PI * 2;
+const PROPS = [], DUST = [];
+
+const cv  = document.getElementById('game');
+const ctx = cv.getContext('2d');
+// bloom 降采样缓冲
+// 尺寸在 fit() 里跟着 VW/VH 重设 —— 写死 80×45 的话换了分辨率辉光就错位
+const b1 = document.createElement('canvas'); b1.width = REF_W >> 2; b1.height = REF_H >> 2;
+const b1x = b1.getContext('2d');
+const b2 = document.createElement('canvas'); b2.width = REF_W >> 3; b2.height = REF_H >> 3;
+const b2x = b2.getContext('2d');
+
+/* ================= 工具 ================= */
+/* ================= 随机源 =================
+   仓库的规矩是不用 Math.random（市井那边写在文档里）。这里补上，顺带换来两样东西：
+   每日局、以及"同一个种子能复现"。
+
+   关键是【分流】：刷怪和三选一各走自己的随机流，别和粒子、暴击混在一起。
+   混在一起的话，你多打一发子弹，下一次三选一的三张卡就变了 ——
+   那"每日局大家一样"就不成立了。 */
+function mkRng(seed) {
+  let s = (seed >>> 0) || 1;
+  return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+}
+const RNG = { fx: mkRng(1), wave: mkRng(2), card: mkRng(3) };
+function seedRun(seed) {
+  RNG.fx = mkRng(seed ^ 0x9e3779b9);       // 粒子、暴击、护盾 —— 不影响公平
+  RNG.wave = mkRng(seed ^ 0x85ebca6b);     // 刷怪表、掉落、场景装饰
+  RNG.card = mkRng(seed ^ 0xc2b2ae35);     // 升级三选一
+}
+// 字符串 → 种子（FNV-1a）。每日局的种子就是当天的日期。
+function strSeed(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+const dayKey = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+};
+
+const rnd  = (a, b) => a + RNG.fx() * (b - a);          // 默认流：粒子、抖动、暴击
+const rndi = (a, b) => Math.floor(rnd(a, b + 1));
+const rndw = (a, b) => a + RNG.wave() * (b - a);        // 刷怪流：同一个种子刷出同一批怪
+const pickw = arr => arr[(RNG.wave() * arr.length) | 0];
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const pick = arr => arr[(RNG.fx() * arr.length) | 0];
+const len  = (x, y) => Math.hypot(x, y);
+const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
+
+function genScenery() {
+  const A = ARENA.a;
+  PROPS.length = 0; DUST.length = 0;
+  for (let i = 0; i < A.props; i++) {
+    const t = RNG.wave();
+    PROPS.push({
+      x: rndw(24, ARENA.w - 24), y: rndw(24, ARENA.h - 24),
+      w: rndi(8, 30), h: rndi(3, 8),
+      k: t < .40 ? 'strip' : t < .74 ? 'crate' : 'vent',
+      c: RNG.wave() < .55 ? A.c1 : A.c2,
+      v: RNG.wave() < .5,
+      ph: rndw(0, TAU)
+    });
+  }
+  for (let i = 0; i < 90; i++)
+    DUST.push({ x: rndw(0, ARENA.w), y: rndw(0, ARENA.h), z: rndw(.35, .85), s: RNG.wave() < .8 ? 1 : 2 });
+}
+// 换场地：清掉残留，把人放到新场地中间
+function setArena(i, announce) {
+  ARENA_I = ((i % ARENAS.length) + ARENAS.length) % ARENAS.length;
+  const A = ARENAS[ARENA_I];
+  ARENA.a = A; ARENA.w = A.w; ARENA.h = A.h;
+  genScenery();
+  if (P) {
+    G.mobs.length = 0; G.ebullets.length = 0; G.bullets.length = 0; G.drops.length = 0;
+    P.x = A.w / 2; P.y = A.h / 2;
+    G.cam.x = camAt(P.x - VW / 2, A.w, VW);
+    G.cam.y = camAt(P.y - VH / 2, A.h, VH);
+    if (announce) banner('场 地 · ' + A.n, A.w + ' × ' + A.h);
+  }
+}
+
+/* ================= 像素精灵 ================= */
+const PAL = {
+  K:'#05070d', B:'#1b2340', S:'#37456e', L:'#5b6d9e', G:'#8e9cc0',
+  C:'#45f0ff', M:'#ff2ea6', P:'#a45cff', O:'#ff9d3d', D:'#452a4e',
+  E:'#ff2f4f', W:'#eaf6ff', T:'#7cff4f', Y:'#ffe066',
+  R:'#8a5a2a', N:'#a01f6a', H:'#ffd9a0', X:'#2a1840'
+};
+function sprite(rows, pal) {
+  pal = pal || PAL;
+  const w = rows[0].length, h = rows.length;
+  for (let i = 0; i < h; i++) if (rows[i].length !== w)
+    throw new Error('精灵第 ' + i + ' 行宽度 ' + rows[i].length + '，应为 ' + w);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const t = c.getContext('2d');
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const ch = rows[y][x];
+    if (ch === '.') continue;
+    t.fillStyle = pal[ch] || '#f0f';
+    t.fillRect(x, y, 1, 1);
+  }
+  return c;
+}
+const GRID = {
+  player: [
+    [
+      '.....KKKKKK.....',
+      '...KKBBBBBBKK...',
+      '..KBBSSSSSSBBK..',
+      '..KBSSSSSSSSBK..',
+      '..KBSLLLLLLSBK..',
+      '..KBSCCCCCCSBK..',
+      '..KBSCWWWWCSBK..',
+      '..KBSSCCCCSSBK..',
+      '..KBBSSSSSSBBK..',
+      '...KKBSSSSBKK...',
+      '.KKBBBSSSSBBBKK.',
+      'KKOBSSLLLLSSBOKK',
+      'KHOBSLLLLLLSBOHK',
+      'KHOBSLLLLLLSBOHK',
+      'KKOBSSLLLLSSBOKK',
+      '.KKBBSSSSSSBBKK.',
+      '...KBBBBBBBBK...',
+      '...KBSSKKBSSK...',
+      '...KBSSKKBSSK...',
+      '...KGGK..KGGK...',
+    ],
+    [
+      '.....KKKKKK.....',
+      '...KKBBBBBBKK...',
+      '..KBBSSSSSSBBK..',
+      '..KBSSSSSSSSBK..',
+      '..KBSLLLLLLSBK..',
+      '..KBSCCCCCCSBK..',
+      '..KBSCWWWWCSBK..',
+      '..KBSSCCCCSSBK..',
+      '..KBBSSSSSSBBK..',
+      '...KKBSSSSBKK...',
+      '.KKBBBSSSSBBBKK.',
+      'KKOBSSLLLLSSBOKK',
+      'KHOBSLLLLLLSBOHK',
+      'KHOBSLLLLLLSBOHK',
+      'KKOBSSLLLLSSBOKK',
+      '.KKBBSSSSSSBBKK.',
+      '...KBBBBBBBBK...',
+      '...KBSSKKBLLK...',
+      '...KBSSKKBLLK...',
+      '...KGGK..KHHK...',
+    ],
+    [
+      '.....KKKKKK.....',
+      '...KKBBBBBBKK...',
+      '..KBBSSSSSSBBK..',
+      '..KBSSSSSSSSBK..',
+      '..KBSLLLLLLSBK..',
+      '..KBSCCCCCCSBK..',
+      '..KBSCWWWWCSBK..',
+      '..KBSSCCCCSSBK..',
+      '..KBBSSSSSSBBK..',
+      '...KKBSSSSBKK...',
+      '.KKBBBSSSSBBBKK.',
+      'KKOBSSLLLLSSBOKK',
+      'KHOBSLLLLLLSBOHK',
+      'KHOBSLLLLLLSBOHK',
+      'KKOBSSLLLLSSBOKK',
+      '.KKBBSSSSSSBBKK.',
+      '...KBBBBBBBBK...',
+      '...KBLLKKBSSK...',
+      '...KBLLKKBSSK...',
+      '...KHHK..KGGK...',
+    ],
+    [
+      '.....KKKKKK.....',
+      '...KKBBBBBBKK...',
+      '..KBBSSSSSSBBK..',
+      '..KBSSSSSSSSBK..',
+      '..KBSLLLLLLSBK..',
+      '..KBSCCCCCCSBK..',
+      '..KBSCWWWWCSBK..',
+      '..KBSSCCCCSSBK..',
+      '..KBBSSSSSSBBK..',
+      '...KKBSSSSBKK...',
+      '.KKBBBSSSSBBBKK.',
+      'KKOBSSLLLLSSBOKK',
+      'KHOBSLLLLLLSBOHK',
+      'KHOBSLLLLLLSBOHK',
+      'KKOBSSLLLLSSBOKK',
+      '.KKBBSSSSSSBBKK.',
+      '...KBBBBBBBBK...',
+      '...KBSSKKBLLK...',
+      '...KBSSKKBLLK...',
+      '...KGGK..KHHK...',
+    ],
+  ],
+  gun_pulse: [
+    [
+      '..KKKK.....',
+      'KKGGGGKKKK.',
+      'KGLLLLGGGGW',
+      'KKGGGGKKKK.',
+      '..KKKK.....',
+    ],
+  ],
+  gun_shot: [
+    [
+      '.KKKKK.....',
+      'KGGGGGKKKK.',
+      'KGLLLLGGGWW',
+      'KGGGGGKKKK.',
+      '.KKKKK.....',
+      'KGGGGGKKKK.',
+      'KGLLLLGGGWW',
+      'KGGGGGKKKK.',
+    ],
+  ],
+  gun_rail: [
+    [
+      '..KKKK......',
+      'KKGGGGKKKKK.',
+      'KGLLLLGCCCGW',
+      'KKGGGGKKKKK.',
+      '..KKKK......',
+    ],
+  ],
+  gun_arc: [
+    [
+      '..KKKK...C..',
+      'KKGGGGKKCKK.',
+      'KGLLLLGGCCCW',
+      'KKGGGGKKCKK.',
+      '..KKKK...C..',
+    ],
+  ],
+  gun_nade: [
+    [
+      '..KKKKK....',
+      'KKGGGGGKKK.',
+      'KGLLLLGGOOW',
+      'KGLLLLGGOOW',
+      'KKGGGGGKKK.',
+      '..KKKKK....',
+    ],
+  ],
+  boss_a: [
+    [
+      '........KKSSSSSKKK.......',
+      '......KKSSSSSSSSSSK......',
+      '....KKSKSLLLLLLLSSK.K....',
+      '...KSSSKKLLLLLLLLLKKSK...',
+      '..KSSSLLKBBBBBBBLKKSSSK..',
+      '..KSSLLLSSBBBBBBBKLLSSK..',
+      '.KSSLLBBBSBBBBBBSBBLLSSK.',
+      'KSSLLLBBBBBKKKBSBBBLLLSSK',
+      'KSSLLBBBBKKKOKKKBBBBLLSSK',
+      'KSLLBBBBKKOOOOOKKBBBBLLSK',
+      'SSLLBBBBKOOYYYOOKBBBBLLSS',
+      'KKKKBBBKKOYYYYYOKKBBBLLSS',
+      'KKKKSSSKOOYYYYYOOKSSSKKKK',
+      'SSLLBBBKKOYYYYYOKKBBBKKKK',
+      'SSLLBBBBKOOYYYOOKBBBBLLSS',
+      'KSLLBBBBKKOOOOOKKBBBBLLSK',
+      'KSSLLBBBBKKKOKKKBBBBLLSSK',
+      'KSSLLLBBBSBKKKBBBBBLLLSSK',
+      '.KSSLLBBSBBBBBBSBBBLLSSK.',
+      '..KSSLLKBBBBBBBSSLLLSSK..',
+      '..KSSSKKLBBBBBBBKLLSSSK..',
+      '...KSKKLLLLLLLLLKKSSSK...',
+      '....K.KSSLLLLLLLSKSKK....',
+      '......KSSSSSSSSSSKK......',
+      '.......KKKSSSSSKK........',
+    ],
+  ],
+  boss_b: [
+    [
+      '........KKSSSSSKKK.......',
+      '.......KSSSSSSSSSSK......',
+      '.......KSLLLLLLLSSK......',
+      '........KLLLLLLLLLK......',
+      '........KBBBBBBBLK.......',
+      '......KKSSBKKKBBBKK......',
+      '.....KBBBKKKEKKKSBBK.....',
+      '.....KBKKEEEEEEEKKBK.....',
+      '....KBBKEEWWWWWEEKBBK....',
+      '...KBBKEEWWWWWWWEEKBBK...',
+      '...KBBKEWWWWWWWWWEKBBK...',
+      '...KBKKEWWWWWWWWWEKKBK...',
+      'KKKKSKEEWWWWWWWWWEEKSK...',
+      'SSLLBKKEWWWWWWWWWEKKBKKKK',
+      'SSLLBBKEWWWWWWWWWEKBBLLSS',
+      'KSLLBBKEEWWWWWWWEEKBBLLSK',
+      'KSSLLBBKEEWWWWWEEKBBLLSSK',
+      'KSSLLLBKKEEEEEEEKKBLLLSSK',
+      '.KSSLLBBSKKKEKKKBBBLLSSK.',
+      '..KSSLLKBBBKKKBSSLLLSSK..',
+      '..KSSSK.KBBBBBBBKLLSSSK..',
+      '...KSK...KKKKKKK.KSSSK...',
+      '....K............KSKK....',
+      '..................K......',
+      '.........................',
+    ],
+  ],
+  gun_blade: [
+    [
+      '...KK.......',
+      '..KGGK......',
+      'KKGLLGKKKKK.',
+      'KGLLLLCCCCCW',
+      'KKGLLGKKKKK.',
+      '..KGGK......',
+      '...KK.......',
+    ],
+  ],
+  d_rof: [
+    [
+      'KGGK',
+      'GLLG',
+      'KGGK',
+    ],
+  ],
+  d_dmg: [
+    [
+      'KOOK',
+      'OWWO',
+      'KOOK',
+    ],
+  ],
+  d_pierce: [
+    [
+      'KGK',
+      'KLK',
+      'KLK',
+      'KWK',
+    ],
+  ],
+  d_spd: [
+    [
+      'KCK',
+      'CWC',
+      'KCK',
+    ],
+  ],
+  d_hp: [
+    [
+      'KWWK',
+      'WTTW',
+      'WTTW',
+      'KWWK',
+    ],
+  ],
+  d_mag: [
+    [
+      'KCK',
+      'C.C',
+      'KCK',
+    ],
+  ],
+  d_shield: [
+    [
+      'KKGK',
+      'KGLG',
+      'GLLG',
+      'KGLG',
+      'KKGK',
+    ],
+  ],
+  d_slow: [
+    [
+      'KCCK',
+      'CWWC',
+      'CWWC',
+      'KCCK',
+    ],
+  ],
+  d_boom: [
+    [
+      'KEEK',
+      'EWWE',
+      'EWWE',
+      'KEEK',
+    ],
+  ],
+  d_leech: [
+    [
+      'KMK',
+      'MWM',
+      'KMK',
+      'KMK',
+    ],
+  ],
+  d_dash: [
+    [
+      'KCK',
+      'CCK',
+      'KCK',
+    ],
+  ],
+  d_lens: [
+    [
+      'KPPK',
+      'P..P',
+      'P..P',
+      'KPPK',
+    ],
+  ],
+  d_aura: [
+    [
+      'CKC',
+      'KWK',
+      'CKC',
+    ],
+  ],
+  d_crit: [
+    [
+      'KYK',
+      'YWY',
+      'KYK',
+    ],
+  ],
+  d_cap: [
+    [
+      'KYYK',
+      'YWWY',
+      'KYYK',
+    ],
+  ],
+  d_recoil: [
+    [
+      'KGGK',
+      'GLLG',
+      'KGGK',
+    ],
+  ],
+  d_ghost: [
+    [
+      'KWK',
+      'W.W',
+      'KWK',
+    ],
+  ],
+  shieldbot: [
+    [
+      '...KKKKKK.....',
+      '..KSSSSSSK.KK.',
+      '.KSSLLLLSSKGGK',
+      'KSSLLLLLLSSKGG',
+      'KSLLEEEELLSKGG',
+      'KSLLEEEELLSKGG',
+      'KSLLWWWWLLSKGG',
+      'KSLLEEEELLSKGG',
+      'KSLLEEEELLSKGG',
+      'KSSLLLLLLSSKGG',
+      '.KSSLLLLSSKGGK',
+      '..KSSSSSSK.KK.',
+      '...KKKKKK.....',
+    ],
+    [
+      '...KKKKKK.....',
+      '..KSSSSSSK.KK.',
+      '.KSSLLLLSSKGGK',
+      'KSSLLLLLLSSKGG',
+      'KSLLEEEELLSKGG',
+      'KSLLEEEELLSKGG',
+      'KSLLWCCWLLSKGG',
+      'KSLLEEEELLSKGG',
+      'KSLLEEEELLSKGG',
+      'KSSLLLLLLSSKGG',
+      '.KSSLLLLSSKGGK',
+      '..KSSSSSSK.KK.',
+      '...KKKKKK.....',
+    ],
+  ],
+  bomber: [
+    [
+      '...KKK...',
+      '.KKEEEKK.',
+      'KEEEEEEEK',
+      'KEEEEEEEK',
+      'KEEKKKEEK',
+      'KEEEEEEEK',
+      'KEEEEEEEK',
+      '.KKEEEKK.',
+      '...KKK...',
+    ],
+    [
+      '...KKK...',
+      '.KKEEEKK.',
+      'KEEWWWEEK',
+      'KEWWWWWEK',
+      'KEWKKKWEK',
+      'KEWWWWWEK',
+      'KEEWWWEEK',
+      '.KKEEEKK.',
+      '...KKK...',
+    ],
+  ],
+  relay: [
+    [
+      '......C......',
+      '....KKCKK....',
+      '.....KCK.....',
+      '.....KCK.....',
+      '...KKTTTKK...',
+      '..KTTTTTTTK..',
+      '.KTTDDDDDTTK.',
+      'KTTDDCCCDDTTK',
+      'KTTDDCWCDDTTK',
+      'KTTDDCCCDDTTK',
+      '.KTTDDDDDTTK.',
+      '..KTTTTTTTK..',
+      '...KKTTTKK...',
+    ],
+    [
+      '.....CCC.....',
+      '....KKCKK....',
+      '.....KCK.....',
+      '.....KCK.....',
+      '...KKTTTKK...',
+      '..KTTTTTTTK..',
+      '.KTTDDDDDTTK.',
+      'KTTDDCCCDDTTK',
+      'KTTDDCWCDDTTK',
+      'KTTDDCCCDDTTK',
+      '.KTTDDDDDTTK.',
+      '..KTTTTTTTK..',
+      '...KKTTTKK...',
+    ],
+    [
+      '......C......',
+      '....KKCKK....',
+      '.....KCK.....',
+      '.....KCK.....',
+      '...KKTTTKK...',
+      '..KTTTTTTTK..',
+      '.KTTDDDDDTTK.',
+      'KTTDDCCCDDTTK',
+      'KTTDDCWCDDTTK',
+      'KTTDDCCCDDTTK',
+      '.KTTDDDDDTTK.',
+      '..KTTTTTTTK..',
+      '...KKTTTKK...',
+    ],
+  ],
+  grunt: [
+    [
+      '...KK....KK...',
+      '..KRRK..KRRK..',
+      '..KRKKKKKRKK..',
+      '.KKRRRRRRRRKK.',
+      'KRRDDDDDDDDRRK',
+      'KRDDDEEEEDDDOK',
+      'KRDDDEEEEDDDOO',
+      'KRDDDEEEEDDDOK',
+      'KRRDDDDDDDDRRK',
+      '.KKRRRRRRRRKK.',
+      '..KRKKKKKRKK..',
+      '..KRRK..KRRK..',
+      '...KK....KK...',
+    ],
+    [
+      '...KK....KK...',
+      '..KRKK..KRKK..',
+      '..KRRKKKKRRK..',
+      '.KKRRRRRRRRKK.',
+      'KRRDDDDDDDDRRK',
+      'KRDDDEEEEDDDOK',
+      'KRDDDEEEEDDDOO',
+      'KRDDDEEEEDDDOK',
+      'KRRDDDDDDDDRRK',
+      '.KKRRRRRRRRKK.',
+      '..KRRKKKKRRK..',
+      '..KRKK..KRKK..',
+      '...KK....KK...',
+    ],
+  ],
+  rusher: [
+    [
+      '.......KKKK....',
+      '...KKKNMMMMKK..',
+      '..KNMMMMMMMMNK.',
+      '.KNMMMEEMMMMMK.',
+      'KNMMMMEEMMMMMWW',
+      '.KNMMMEEMMMMMK.',
+      '..KNMMMMMMMMNK.',
+      '...KKKNMMMMKK..',
+      '.......KKKK....',
+    ],
+    [
+      '.......KKKK....',
+      '...KKKNMMMMKKW.',
+      '..KNMMMMMMMMNWW',
+      '.KNMMMEEMMMMMWW',
+      'KNMMMMEEMMMMMWW',
+      '.KNMMMEEMMMMMWW',
+      '..KNMMMMMMMMNWW',
+      '...KKKNMMMMKKW.',
+      '.......KKKK....',
+    ],
+  ],
+  drone: [
+    [
+      'GG...........GG',
+      '.KK.........KK.',
+      '..KK.......KK..',
+      '...KKKPPPKKK...',
+      '....KPPPPPK....',
+      '...KPPPPPPPK...',
+      '..KPPPPPCCPPK..',
+      '..KPPPPCCCCPK..',
+      '..KPPPPPCCPPK..',
+      '...KPPPPPPPK...',
+      '....KPPPPPK....',
+      '...KKKPPPKKK...',
+      '..KK.......KK..',
+      '.KK.........KK.',
+      'GG...........GG',
+    ],
+    [
+      'G.............G',
+      '.KK.........KK.',
+      '..KK.......KK..',
+      '...KKKPPPKKK...',
+      '....KPPPPPK....',
+      '...KPPPPPPPK...',
+      '..KPPPPPCCPPK..',
+      '..KPPPPCCCCPK..',
+      '..KPPPPPCCPPK..',
+      '...KPPPPPPPK...',
+      '....KPPPPPK....',
+      '...KKKPPPKKK...',
+      '..KK.......KK..',
+      '.KK.........KK.',
+      '.G...........G.',
+    ],
+    [
+      '.G...........G.',
+      '.KK.........KK.',
+      '..KK.......KK..',
+      '...KKKPPPKKK...',
+      '....KPPPPPK....',
+      '...KPPPPPPPK...',
+      '..KPPPPPCCPPK..',
+      '..KPPPPCCCCPK..',
+      '..KPPPPPCCPPK..',
+      '...KPPPPPPPK...',
+      '....KPPPPPK....',
+      '...KKKPPPKKK...',
+      '..KK.......KK..',
+      '.KK.........KK.',
+      'G.............G',
+    ],
+  ],
+  tank: [
+    [
+      '..KKKKKKKKKKKK....',
+      '.KGGGGGGGGGGGGK...',
+      '.KGKGKGKGKGKGGK...',
+      'KKSSSSSSSSSSSSKK..',
+      'KSSLLLLLLLLLLSSKK.',
+      'KSLLLOOOOOOLLLSGW.',
+      'KSLLOEEEEEEOLLSGWW',
+      'KSLLOEEEEEEOLLSGWW',
+      'KSLLLOOOOOOLLLSGW.',
+      'KSSLLLLLLLLLLSSKK.',
+      'KKSSSSSSSSSSSSKK..',
+      '.KGKGKGKGKGKGGK...',
+      '.KGGGGGGGGGGGGK...',
+      '..KKKKKKKKKKKK....',
+    ],
+    [
+      '..KKKKKKKKKKKK....',
+      '.KGGGGGGGGGGGGK...',
+      '.KGGKGKGKGKGKGK...',
+      'KKSSSSSSSSSSSSKK..',
+      'KSSLLLLLLLLLLSSKK.',
+      'KSLLLOOOOOOLLLSGW.',
+      'KSLLOEEEEEEOLLSGWW',
+      'KSLLOEEEEEEOLLSGWW',
+      'KSLLLOOOOOOLLLSGW.',
+      'KSSLLLLLLLLLLSSKK.',
+      'KKSSSSSSSSSSSSKK..',
+      '.KGGKGKGKGKGKGK...',
+      '.KGGGGGGGGGGGGK...',
+      '..KKKKKKKKKKKK....',
+    ],
+  ],
+};
+
+// 多帧精灵：按索引取一帧（负数也能取）
+const frame = (s, i) => Array.isArray(s) ? s[((i | 0) % s.length + s.length) % s.length] : s;
+
+function blit(spr, x, y, ang, sc) {
+  sc = sc || 1;
+  ctx.save();
+  ctx.translate(x | 0, y | 0);
+  if (ang) ctx.rotate(ang);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(spr, -spr.width * sc / 2, -spr.height * sc / 2, spr.width * sc, spr.height * sc);
+  ctx.restore();
+}
+function orb(x, y, r, col, a) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, col);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.globalAlpha = a === undefined ? 1 : a;
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+/* ================= 音频 ================= */
+const Sfx = {
+  ac: null, master: null, musicGain: null, noise: null, on: true, musicOn: true,
+  init() {
+    if (this.ac) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ac = new AC();
+    this.master = this.ac.createGain();
+    this.master.gain.value = .5 * (typeof OPT === 'undefined' ? 1 : OPT.vol);
+    this.master.connect(this.ac.destination);
+    this.musicGain = this.ac.createGain();
+    this.musicGain.gain.value = .5;
+    this.musicGain.connect(this.master);
+    const n = this.ac.createBuffer(1, this.ac.sampleRate * 1, this.ac.sampleRate);
+    const d = n.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = RNG.fx() * 2 - 1;
+    this.noise = n;
+    this.next = this.ac.currentTime;
+  },
+  tone(f1, f2, dur, type, vol, dest) {
+    if (!this.ac || !this.on) return;
+    const t = this.ac.currentTime;
+    const o = this.ac.createOscillator(), g = this.ac.createGain();
+    o.type = type || 'square';
+    o.frequency.setValueAtTime(f1, t);
+    if (f2 !== f1) o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g); g.connect(dest || this.master);
+    o.start(t); o.stop(t + dur + .02);
+  },
+  burst(dur, vol, freq, q) {
+    if (!this.ac || !this.on) return;
+    const t = this.ac.currentTime;
+    const s = this.ac.createBufferSource(); s.buffer = this.noise;
+    const f = this.ac.createBiquadFilter(); f.type = 'lowpass';
+    f.frequency.setValueAtTime(freq, t);
+    f.frequency.exponentialRampToValueAtTime(200, t + dur);
+    f.Q.value = q || 1;
+    const g = this.ac.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(this.master);
+    s.start(t); s.stop(t + dur + .02);
+  },
+  shoot()  { this.tone(760, 190, .07, 'square', .05); },
+  hit()    { this.burst(.05, .10, 3200, 2); },
+  kill()   { this.burst(.22, .16, 1400, 1); },
+  boom()   { this.burst(.5, .3, 900, 1); this.tone(120, 34, .45, 'sawtooth', .16); },
+  hurt()   { this.tone(240, 60, .22, 'sawtooth', .13); },
+  dash()   { this.tone(180, 900, .13, 'triangle', .07); },
+  xp()     { this.tone(980, 1560, .06, 'sine', .04); },
+  levelup(){ [523, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, f, .16, 'triangle', .08), i * 70)); },
+  wave()   { [392, 523].forEach((f, i) => setTimeout(() => this.tone(f, f, .3, 'square', .06), i * 130)); },
+  eshoot() { this.tone(300, 140, .1, 'sawtooth', .035); },
+  shotgun(){ this.burst(.16, .18, 2600, 1); this.tone(320, 90, .12, 'square', .06); },
+  rail()   { this.tone(1400, 180, .26, 'sawtooth', .09); this.burst(.14, .10, 5200, 4); },
+  arc()    { this.tone(1800, 900, .09, 'square', .04); this.burst(.06, .06, 7000, 6); },
+  nade()   { this.tone(200, 420, .09, 'triangle', .06); },
+  swap()   { this.tone(520, 880, .07, 'square', .05); },
+  buff()   { [660, 880, 1320].forEach((f, i) => setTimeout(() => this.tone(f, f, .1, 'triangle', .06), i * 55)); },
+  block()  { this.tone(1200, 700, .06, 'square', .05); },
+  fuse()   { this.tone(600, 1500, .5, 'sawtooth', .04); },
+  swing(n) { this.burst(.09, n ? .14 : .07, n ? 4200 : 2600, 2); this.tone(n ? 900 : 600, 240, .08, 'triangle', .05); },
+  // 极简驱动型 bassline
+  next: 0, step: 0,
+  music(intensity) {
+    if (!this.ac || !this.musicOn || !this.on) return;
+    const bass = [55, 55, 82.41, 55, 65.41, 55, 98, 82.41];
+    const arp  = [440, 523.25, 659.25, 523.25];
+    while (this.next < this.ac.currentTime + .25) {
+      const s = this.step, t0 = this.next;
+      const sched = (fn) => setTimeout(fn, Math.max(0, (t0 - this.ac.currentTime) * 1000));
+      if (s % 2 === 0) sched(() => this.tone(bass[(s / 2) % 8], bass[(s / 2) % 8] * .98, .28, 'sawtooth', .055, this.musicGain));
+      if (s % 4 === 2) sched(() => this.burst(.05, .05, 6000, 3));
+      if (intensity > .5 && s % 8 === 5) sched(() => this.tone(arp[(s / 2 | 0) % 4], arp[(s / 2 | 0) % 4], .12, 'square', .022, this.musicGain));
+      this.next += .15; this.step++;
+    }
+  }
+};
+
+/* ================= 输入 ================= */
+const keys = {};
+let mouse = { x: VW / 2, y: VH / 2, down: false };
+addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Space') e.preventDefault();
+  if (e.code === 'KeyP' && G.state === 'play') G.paused = !G.paused;
+  if (e.code === 'KeyM') { Sfx.musicOn = !Sfx.musicOn; if (Sfx.musicGain) Sfx.musicGain.gain.value = Sfx.musicOn ? .5 : 0; }
+  if (e.code === 'KeyR' && G.state === 'over') start();
+  if (e.code === 'KeyQ' && G.state === 'play') cycleWep();
+  if (G.state === 'levelup') {
+    const i = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
+    if (i >= 0 && G.offer[i]) takeUpgrade(G.offer[i]);
+  }
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+function toLocal(e) {
+  const r = cv.getBoundingClientRect();
+  mouse.x = (e.clientX - r.left) / r.width * VW;
+  mouse.y = (e.clientY - r.top) / r.height * VH;
+}
+cv.addEventListener('mousemove', toLocal);
+cv.addEventListener('mousedown', e => { Sfx.init(); toLocal(e); mouse.down = true; });
+addEventListener('mouseup', () => { mouse.down = false; });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+
+/* ================= 触屏 =================
+   双摇杆射击在手机上有一套约定俗成的做法，照着来：
+     * 左半屏按下 = 移动摇杆，摇杆的圆心就落在你按下的那一点（不是固定在角上，
+       那样拇指得去找它）
+     * 右半屏按下 = 瞄准摇杆，按着就一直开火
+     * 右手没按的时候自动瞄最近的敌人并开火 —— 单手也能玩
+   两个摇杆各自记住自己的 pointerId，所以能同时用。 */
+// 一开始按指针粗细猜一次（手机进来就是触屏），但监听器【总是】装上：
+// 触屏笔记本插着鼠标时 pointer 是 fine，可用户还是会用手指戳屏幕。
+// 真的碰到屏幕那一刻再切到触屏模式，比开局猜一次可靠。
+let isTouch = matchMedia('(pointer:coarse)').matches;
+const TC = { on: isTouch, idL: null, idR: null, mx: 0, my: 0, ml: 0, ax: 0, ay: 0, al: 0 };
+if (isTouch) document.body.classList.add('touch');
+function goTouch() {
+  if (TC.on && isTouch) return;
+  isTouch = true; TC.on = true;
+  document.body.classList.add('touch');
+  if (typeof fit === 'function') fit();
+}
+
+(function () {
+  const stkL = document.getElementById('stkL'), stkR = document.getElementById('stkR');
+  const R = 46, DEAD = 7;                       // 摇杆半径 / 死区（px）
+  const org = { L: { x: 0, y: 0 }, R: { x: 0, y: 0 } };
+
+  const show = (side, x, y) => {
+    const s = side === 'L' ? stkL : stkR;
+    org[side].x = x; org[side].y = y;
+    s.style.left = x + 'px'; s.style.top = y + 'px';
+    s.firstElementChild.style.transform = 'translate(-50%,-50%)';
+    s.classList.add('on');
+  };
+  const move = (side, x, y) => {
+    const dx = x - org[side].x, dy = y - org[side].y;
+    const d = Math.hypot(dx, dy), k = d > R ? R / d : 1;
+    const s = side === 'L' ? stkL : stkR;
+    s.firstElementChild.style.transform = `translate(calc(-50% + ${dx * k}px), calc(-50% + ${dy * k}px))`;
+    const nx = d ? dx / d : 0, ny = d ? dy / d : 0, l = d < DEAD ? 0 : Math.min(1, d / R);
+    if (side === 'L') { TC.mx = nx; TC.my = ny; TC.ml = l; }
+    else { TC.ax = nx; TC.ay = ny; TC.al = l; }
+  };
+  const drop = side => {
+    (side === 'L' ? stkL : stkR).classList.remove('on');
+    if (side === 'L') { TC.idL = null; TC.mx = TC.my = TC.ml = 0; }
+    else { TC.idR = null; TC.ax = TC.ay = TC.al = 0; }
+  };
+
+  // 挂在 document 上：屏幕任何一处都能起摇杆，不限于画布那一条
+  const usable = e => G.state === 'play' && !G.paused &&
+    !(e.target && e.target.closest && e.target.closest('button, .screen, #levelup'));
+  document.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse') return;
+    goTouch();
+    if (!usable(e)) return;
+    Sfx.init();
+    const side = e.clientX < innerWidth * .5 ? 'L' : 'R';
+    if (side === 'L' && TC.idL !== null) return;
+    if (side === 'R' && TC.idR !== null) return;
+    if (side === 'L') TC.idL = e.pointerId; else TC.idR = e.pointerId;
+    show(side, e.clientX, e.clientY); move(side, e.clientX, e.clientY);
+  }, { passive: true });
+  document.addEventListener('pointermove', e => {
+    if (e.pointerId === TC.idL) move('L', e.clientX, e.clientY);
+    else if (e.pointerId === TC.idR) move('R', e.clientX, e.clientY);
+  }, { passive: true });
+  for (const ev of ['pointerup', 'pointercancel']) {
+    document.addEventListener(ev, e => {
+      if (e.pointerId === TC.idL) drop('L');
+      else if (e.pointerId === TC.idR) drop('R');
+    }, { passive: true });
+  }
+  // 切到后台或弹出升级卡时，手指状态要清掉，否则回来还在"按着"
+  document.addEventListener('visibilitychange', () => { drop('L'); drop('R'); });
+  // 两个按钮：冲刺和换枪。挡住冒泡，别顺手把摇杆也点出来。
+  const btn = (id, fn) => {
+    const b = document.getElementById(id); if (!b) return;
+    b.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); Sfx.init(); fn(); });
+  };
+  btn('btnDash', () => { if (P && P.dashCdT === 0) TC.dash = 1; });
+  btn('btnWep', () => cycleWep());
+  btn('btnPause', () => { if (G.state === 'play') { G.paused = !G.paused; drop('L'); drop('R'); } });
+  btn('btnMute', () => {
+    Sfx.musicOn = !Sfx.musicOn;
+    if (Sfx.musicGain) Sfx.musicGain.gain.value = Sfx.musicOn ? .5 : 0;
+    document.getElementById('btnMute').classList.toggle('off', !Sfx.musicOn);
+  });
+})();
+function nearestMob() {
+  let best = null, bd = 1e9;
+  for (const m of G.mobs) {
+    if (m.dead) continue;
+    const d = len(m.x - P.x, m.y - P.y);
+    if (d < bd) { bd = d; best = m; }
+  }
+  return best;
+}
+
+/* ================= 手柄 =================
+   双摇杆射击本来就是手柄游戏，之前零支持。
+   左摇杆走、右摇杆瞄且推着就开火、按键冲刺换枪暂停。
+   哪套输入最后动过就用哪套 —— 不猜设备，看行为。 */
+const PAD = { on: false, ix: 0, iy: 0, ax: 0, ay: 0, al: 0, fire: 0, dash: 0, prev: {} };
+const PAD_DEAD = .22;
+addEventListener('gamepadconnected', e => {
+  PAD.on = true;
+  banner('手 柄 已 接 入', (e.gamepad.id || '').slice(0, 28));
+});
+addEventListener('gamepaddisconnected', () => { PAD.on = false; });
+function pollPad() {
+  const list = navigator.getGamepads ? navigator.getGamepads() : [];
+  let g = null;
+  for (const p of list) if (p && p.connected) { g = p; break; }
+  if (!g) { PAD.al = 0; PAD.ix = PAD.iy = 0; return; }
+  const dz = v => Math.abs(v) < PAD_DEAD ? 0 : (v - Math.sign(v) * PAD_DEAD) / (1 - PAD_DEAD);
+  const a = g.axes || [];
+  PAD.ix = dz(a[0] || 0); PAD.iy = dz(a[1] || 0);
+  const rx = dz(a[2] || 0), ry = dz(a[3] || 0);
+  PAD.ax = rx; PAD.ay = ry; PAD.al = len(rx, ry);
+  const btn = i => !!(g.buttons[i] && g.buttons[i].pressed);
+  const tap = i => { const now = btn(i), was = PAD.prev[i]; PAD.prev[i] = now; return now && !was; };
+  PAD.fire = btn(7) || btn(5) || btn(0) ? 1 : 0;        // 右扳机 / 右肩 / A 都能开火
+  if (tap(1) || tap(10)) PAD.dash = 1;                  // B / 左摇杆键 冲刺
+  if (tap(2) || tap(4)) cycleWep();                     // X / 左肩 换枪
+  if (tap(9)) { if (G.state === 'play') G.paused = !G.paused; }
+  // 有任何输入就认为玩家在用手柄
+  if (PAD.ix || PAD.iy || PAD.al > 0 || PAD.fire) PAD.on = true;
+}
+
+/* ================= 状态 ================= */
+const G = {
+  state: 'title', paused: false,
+  t: 0, dt: 0, shake: 0, flash: 0, hitFlash: 0,
+  score: 0, kills: 0, wave: 0, waveT: 0, phase: 'break', spawnT: 0, budget: 0,
+  combo: 0, comboT: 0,
+  bullets: [], ebullets: [], mobs: [], parts: [], drops: [], beams: [], arcs: [], slashes: [],
+  wepDmg: {}, deathBy: null, bossKills: 0, tankKills: 0, buffs: {}, mod: null, eliteKills: 0,
+  offer: [], stacks: {},
+  cam: { x: 0, y: 0 }
+};
+let P = null;
+
+const BASE = {
+  speed: 82, maxhp: 100, fireRate: 4.2, dmg: 11, pierce: 0, count: 1,
+  spread: .05, bspd: 265, range: 1.05, pickR: 46, shield: 0, slow: 0,
+  explode: 0, lifesteal: 0, dashCd: 2.2, dashDmg: 0, aura: 0, crit: 0
+};
+
+function newPlayer() {
+  return Object.assign({
+    x: ARENA.w / 2, y: ARENA.h / 2, vx: 0, vy: 0, ang: 0,
+    hp: BASE.maxhp, fireT: 0, dashT: 0, dashCdT: 0, inv: 0,
+    lv: 1, xp: 0, need: 6, auraT: 0, walk: 0,
+    wep: 'pulse', owned: ['pulse'], kind: 'bullet', wcol: '69,240,255',
+    // 词条作用在倍率上，不直接改武器本身 —— 否则换枪就把强化清掉了
+    mul: { rate: 1, dmg: 1, count: 0, spread: 0, bspd: 1, range: 1, pierce: 0 }
+  }, BASE);
+}
+
+/* ================= 武器 =================
+   五把枪改的是【怎么打】，不是数值大小。词条还是词条，作用在倍率上，
+   所以换枪不会把攒下来的强化清掉。 */
+const WEAPONS = {
+  pulse: { n:'脉冲步枪', ic:'>',  kind:'bullet', rate:4.2, dmg:11, count:1, spread:.05, bspd:265, range:1.05,
+    col:'69,240,255', d:'中速单发。没有短板，也没有长处' },
+  shot:  { n:'霰弹枪',   ic:'*',  kind:'bullet', rate:1.5, dmg:6,  count:7, spread:.34, bspd:230, range:.42,
+    col:'255,157,61', d:'一次七发扇形。贴脸撕开一片，远了什么都打不到' },
+  rail:  { n:'磁轨枪',   ic:'=',  kind:'rail',   rate:.62, dmg:44, reach:260,
+    col:'164,92,255', d:'一击穿透整条线上所有敌人。慢，要预判他们排队' },
+  arc:   { n:'电弧链',   ic:'~',  kind:'arc',    rate:2.8, dmg:7,  chain:3, reach:56,
+    col:'124,255,79', d:'自动跳到最近的敌人，连锁三次。不用瞄，但伤害低' },
+  nade:  { n:'榴弹',     ic:'o',  kind:'nade',   rate:1.05, dmg:15, splash:32, bspd:150, range:.9,
+    col:'255,224,102', d:'落地爆炸，能越过前排。站太近会炸到自己' },
+  // 近战。不能只是"射程为 0 的枪"—— 敌人靠碰撞伤人，所以贴上去这件事本身有代价。
+  // 补偿写进武器里：一刀砍一片、命中击退、命中回一点血。
+  blade: { n:'振动刀',   ic:'/',  kind:'melee',  rate:2.4, dmg:26, reach:42, arc:110, knock:150, heal:0.8,
+    col:'69,240,255', d:'身前扇形一刀砍一片，命中击退并回一点血。但你得贴上去' },
+};
+const WEP_ORDER = ['pulse', 'shot', 'rail', 'arc', 'nade', 'blade'];
+
+/* ================= 词条 ================= */
+const UPGRADES = [
+  { id:'rof',   n:'超频枪机', ic:'>>', d:'射速 +22%', max:6, rare:0, f:p=>{p.mul.rate*=1.22;equip(p.wep);} },
+  { id:'dmg',   n:'强化弹头', ic:'^',  d:'伤害 +28%', max:6, rare:0, f:p=>{p.mul.dmg*=1.28;equip(p.wep);} },
+  { id:'pierce',n:'穿甲钨芯', ic:'|',  d:'子弹多穿透 1 个目标', max:3, rare:1, f:p=>{p.mul.pierce+=1;equip(p.wep);} },
+  { id:'count', n:'双联发射', ic:'::', d:'弹丸 +1，散布略增', max:3, rare:1, f:p=>{p.mul.count+=1;p.mul.spread+=.05;equip(p.wep);} },
+  { id:'spd',   n:'义体伺服', ic:'/',  d:'移速 +13%', max:5, rare:0, f:p=>p.speed*=1.13 },
+  { id:'hp',    n:'纳米修复', ic:'+',  d:'生命上限 +25，并立即回满', max:5, rare:0, f:p=>{p.maxhp+=25;p.hp=p.maxhp;} },
+  { id:'mag',   n:'磁力回收', ic:'( )',d:'核心拾取范围 +70%', max:3, rare:0, f:p=>p.pickR*=1.7 },
+  { id:'shield',n:'反应护盾', ic:'[]', d:'20% 概率完全免伤', max:3, rare:1, f:p=>p.shield+=.2 },
+  { id:'slow',  n:'冷凝弹头', ic:'*',  d:'命中使敌人减速 40%', max:2, rare:0, f:p=>p.slow+=.4 },
+  { id:'boom',  n:'爆裂核心', ic:'@',  d:'击杀时引发范围爆炸', max:3, rare:1, f:p=>p.explode+=1 },
+  { id:'leech', n:'血肉汲取', ic:'v',  d:'击杀回复 4 点生命', max:3, rare:0, f:p=>p.lifesteal+=4 },
+  { id:'dash',  n:'幽灵冲刺', ic:'~',  d:'冲刺 CD -35%，冲刺撞击造成伤害', max:2, rare:1, f:p=>{p.dashCd*=.65;p.dashDmg+=28;} },
+  { id:'lens',  n:'弹幕透镜', ic:'=',  d:'弹速 +30%，射程 +25%', max:3, rare:0, f:p=>{p.mul.bspd*=1.3;p.mul.range*=1.25;equip(p.wep);} },
+  { id:'aura',  n:'静电场',   ic:'#',  d:'身周持续放电伤害', max:3, rare:1, f:p=>p.aura+=9 },
+  { id:'crit',  n:'暴击回路', ic:'!',  d:'15% 概率造成 3 倍伤害', max:3, rare:1, f:p=>p.crit+=.15 },
+  // 换装卡：拿到就永久带着，Q 键在带着的枪之间切
+  { id:'w_shot', n:'霰弹枪',   ic:'*', d:WEAPONS.shot.d, max:1, rare:1, wep:'shot', req:'w_shot', f:p=>equip('shot') },
+  { id:'w_rail', n:'磁轨枪',   ic:'=', d:WEAPONS.rail.d, max:1, rare:1, wep:'rail', req:'w_rail', f:p=>equip('rail') },
+  { id:'w_arc',  n:'电弧链',   ic:'~', d:WEAPONS.arc.d,  max:1, rare:1, wep:'arc', req:'w_arc',  f:p=>equip('arc') },
+  { id:'w_nade', n:'榴弹',     ic:'o', d:WEAPONS.nade.d, max:1, rare:1, wep:'nade', req:'w_nade', f:p=>equip('nade') },
+  { id:'w_blade',n:'振动刀',   ic:'/', d:WEAPONS.blade.d, max:1, rare:1, wep:'blade', req:'w_blade', f:p=>equip('blade') },
+  // 下面三条要先在档案里解锁才会进池。都带代价 —— 纯加强的卡不会被记住。
+  { id:'u_cap',    n:'过载电容', ic:'!!', d:'射速 +45%，但生命上限 -15', max:3, rare:1, req:'u_cap',
+    f:p=>{ p.mul.rate*=1.45; p.maxhp-=15; p.hp=Math.min(p.hp,p.maxhp); equip(p.wep); } },
+  { id:'u_recoil', n:'反冲抑制', ic:'><', d:'散布 -60%，弹速 +40%', max:2, rare:1, req:'u_recoil',
+    f:p=>{ p.mul.spread-=0.6; p.mul.bspd*=1.4; equip(p.wep); } },
+  { id:'u_ghost',  n:'幽灵协议', ic:'::', d:'冲刺 CD -50%，但生命上限 -20', max:2, rare:1, req:'u_ghost',
+    f:p=>{ p.dashCd*=.5; p.maxhp-=20; p.hp=Math.min(p.hp,p.maxhp); } }
+];
+
+function rollOffer() {
+  // 没解锁的卡不进池 —— 池子随着档案一点点变大，这才是「下一局会不一样」
+  const open = MODE === 'daily';                  // 每日局全部词条开放，大家一样
+  const pool = UPGRADES.filter(u => (G.stacks[u.id] || 0) < u.max && (!u.req || open || PROF.unlocked[u.req]));
+  const out = [];
+  while (out.length < 3 && pool.length) {
+    const i = (RNG.card() * pool.length) | 0;
+    out.push(pool.splice(i, 1)[0]);
+  }
+  return out;
+}
+function takeUpgrade(u) {
+  u.f(P);
+  G.stacks[u.id] = (G.stacks[u.id] || 0) + 1;
+  document.getElementById('levelup').classList.remove('show');
+  G.state = 'play';
+  syncHud();
+}
+function showLevelup() {
+  const offer = rollOffer();
+  if (!offer.length) {
+    // 所有词条都满级之后牌池是空的。原来这里照样把状态切进 levelup 再发 0 张牌，
+    // 于是升级界面弹出来、一张牌都没有、点哪都没反应 —— 整局卡死在这。
+    // 离线探针打到二十几波撞出来的；手玩很难玩到那个等级，所以一直没人发现。
+    P.hp = Math.min(P.maxhp, P.hp + P.maxhp * .25);
+    G.score += 250;
+    banner('全 部 满 载', '没有新词条了 · 回血 25% + 250 分');
+    syncHud();
+    return;
+  }
+  G.state = 'levelup';
+  G.offer = offer;
+  const box = document.getElementById('cards');
+  box.innerHTML = '';
+  G.offer.forEach((u, i) => {
+    const el = document.createElement('button');
+    el.className = 'card' + (u.rare ? ' rare' : '');
+    const st = G.stacks[u.id] || 0;
+    el.innerHTML =
+      '<div class="k">MOD 0' + (i + 1) + '</div>' +
+      '<div class="icon">' + u.ic + '</div>' +
+      '<h3>' + u.n + '</h3>' +
+      '<p>' + u.d + '</p>' +
+      '<div class="stack">' + (st ? '已装载 ' + st + ' / ' + u.max : '未装载 · 上限 ' + u.max) + '</div>';
+    el.onclick = () => takeUpgrade(u);
+    box.appendChild(el);
+  });
+  document.getElementById('levelup').classList.add('show');
+  Sfx.levelup();
+}
+
+/* ================= 敌人定义 ================= */
+const MOB = {
+  grunt:  { nm:'拾荒机兵',   spr:'grunt',  r:5,  hp:20,  spd:44, dmg:9,  xp:1, sc:1, col:'#ff9d3d' },
+  rusher: { nm:'刀锋犬',     spr:'rusher', r:4,  hp:12,  spd:64, dmg:11, xp:1, sc:1, col:'#ff2ea6' },
+  drone:  { nm:'哨戒无人机', spr:'drone',  r:5,  hp:26,  spd:30, dmg:9,  xp:2, sc:1, col:'#a45cff' },
+  tank:   { nm:'重装机甲',   spr:'tank',   r:8,  hp:110, spd:24, dmg:20, xp:5, sc:1, col:'#ff9d3d' },
+  // 下面三种存在的唯一理由：逼你改变打法。前四种的应对方式都是「对着打」。
+  shieldbot:{ nm:'铁闸',     spr:'shieldbot', r:7, hp:70, spd:26, dmg:16, xp:3, sc:1, col:'#8e9cc0',
+    shield:1 },                                        // 正面挡伤，得绕后，或者用爆炸（爆炸没有方向）
+  bomber: { nm:'爆囊',       spr:'bomber', r:4,  hp:14,  spd:70, dmg:0,  xp:2, sc:1, col:'#ff2f4f',
+    fuse:1, blast:34, bdmg:30 },                       // 靠近就炸，专治站着不动和贴身近战
+  relay:  { nm:'信号中继',   spr:'relay',  r:6,  hp:46,  spd:18, dmg:8,  xp:4, sc:1, col:'#7cff4f',
+    guard:78 },                                        // 给周围的加护盾，不打掉它别的都打不动
+  boss:   { nm:'母体核心',   spr:'boss_a', r:17, hp:620, spd:17, dmg:26, xp:26, sc:1, col:'#ff2f4f' }
+};
+
+function spawn(type) {
+  const d = MOB[type], w = G.wave;
+  const hpS  = 1 + w * .17;
+  const spdS = Math.min(1.5, 1 + w * .022);
+  // 在视野外一圈生成，保证马上能打起来
+  let x, y, tries = 0;
+  const ax = P ? P.x : ARENA.w / 2, ay = P ? P.y : ARENA.h / 2;
+  do {
+    const a = rndw(0, TAU);
+    x = clamp(ax + Math.cos(a) * (VW * .62 + rndw(16, 90)), 14, ARENA.w - 14);
+    y = clamp(ay + Math.sin(a) * (VH * .62 + rndw(16, 90)), 14, ARENA.h - 14);
+    tries++;
+  } while (len(x - ax, y - ay) < 145 && tries < 40);
+  const m0 = {
+    type, x, y, vx: 0, vy: 0, ang: 0,
+    r: d.r, hp: d.hp * hpS, max: d.hp * hpS, spd: d.spd * spdS,
+    dmg: d.dmg, xp: d.xp, flash: 0, slowT: 0, cd: rndw(.6, 2), phase: rndw(0, TAU),
+    dashT: 0, spin: 0, p2: 0, sum: 0, guarded: 0, fz: -1, links: null, elite: 0
+  };
+  if (G.mod && G.mod.spd) m0.spd *= G.mod.spd;
+  if (type !== 'boss' && RNG.wave() < eliteChance()) makeElite(m0);
+  G.mobs.push(m0);
+}
+
+/* ================= 记录与战报 =================
+   一局 roguelite 打完，如果什么都不留下，那"我死了"就只是一个会被忘掉的数字。
+   两件事把它变成目标：
+     * 存一个最好成绩，死亡屏上写"差几波"
+     * 给这一局起个名字（用什么枪、堆了什么词条、被谁拆的）
+   都很小，但它们是"再来一局"的全部理由。 */
+const SAVE_KEY = 'ns.best';
+// 无痕模式下 localStorage 会直接抛，不能让它把游戏带崩
+function loadBest() {
+  try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || null; } catch (e) { return null; }
+}
+function saveBest(r) {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(r)); return true; } catch (e) { return false; }
+}
+let BEST = loadBest();
+
+// 这一局用哪把枪打出的伤害最多，就算哪把枪的局
+function topWeapon() {
+  let id = null, best = -1;
+  for (const k in G.wepDmg) if (G.wepDmg[k] > best) { best = G.wepDmg[k]; id = k; }
+  return id && WEAPONS[id] ? WEAPONS[id].n : WEAPONS[P.wep].n;
+}
+// 堆得最多的两条词条（换装卡不算，它不是"堆"出来的）
+function topUpgrades(n) {
+  return Object.keys(G.stacks)
+    .filter(id => !/^w_/.test(id) && G.stacks[id] > 0)
+    .sort((a, b) => G.stacks[b] - G.stacks[a])
+    .slice(0, n)
+    .map(id => (UPGRADES.find(u => u.id === id) || {}).n)
+    .filter(Boolean);
+}
+function runReport() {
+  return [topWeapon()].concat(topUpgrades(2)).join(' + ');
+}
+
+/* ================= 成长：义体档案 =================
+   Roguelite 的成长系统最容易做坏的一点是【给永久数值加成】——
+   那只会让前期变简单，把已经通过的关卡再削一遍，玩得越久越无聊。
+
+   所以这里三层，没有一条是纯数值：
+     ① 解锁：改变【可能出现什么】。里程碑达成 → 新武器进换装卡池、新词条进词条池。
+        每一局都在扩大未来局的可能性，这才是"下一局会不一样"。
+     ② 废钢：改变【怎么开局】。每局都有产出，所以打崩的一局也不算白打；
+        攒够了把某把枪买成"起手武器"，下一局从它开始。
+     ③ 底座：改变【这一局的性格】。三个底座都带代价，不是三档强度。
+   ===================================================================== */
+const PROF_KEY = 'ns.prof';
+const PROF_DEF = { scrap: 0, scrapTotal: 0, kills: 0, runs: 0, bestWave: 0,
+  bossKills: 0, tankKills: 0, unlocked: {}, bought: {}, wep: 'pulse', chassis: 'std', skin: 'std' };
+function loadProf() {
+  try { return Object.assign({}, PROF_DEF, JSON.parse(localStorage.getItem(PROF_KEY)) || {}); }
+  catch (e) { return Object.assign({}, PROF_DEF); }
+}
+function saveProf() {
+  try { localStorage.setItem(PROF_KEY, JSON.stringify(PROF)); return true; } catch (e) { return false; }
+}
+const PROF = loadProf();
+/* ---- 观感设置 ----
+   震屏最高到 10、辉光叠两层，这对晕动敏感的人是硬门槛，而原来没有关的办法。
+   这不是打磨，是可及性。系统里说了「减少动态效果」就默认关掉，不用他自己找。 */
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const OPT = {
+  shake: PROF.optShake != null ? PROF.optShake : (REDUCE ? 0 : 1),
+  bloom: PROF.optBloom != null ? PROF.optBloom : (REDUCE ? 0 : 1),
+  vol:   PROF.optVol   != null ? PROF.optVol   : 1,
+};
+function setOpt(k, v) {
+  OPT[k] = v;
+  PROF['opt' + k[0].toUpperCase() + k.slice(1)] = v;
+  saveProf();
+  if (k === 'vol' && Sfx.master) Sfx.master.gain.value = .5 * v;
+  syncProf();
+}
+/* ---- 每日局 ----
+   种子取当天日期，所以全世界今天是同一局：同一批怪、同一批三选一。
+   而且【固定配置】—— 标准底座、脉冲步枪、全部词条开放。
+   如果让档案生效，解锁多的人天然占便宜，"在同一条起跑线上比"就不成立了。 */
+let MODE = PROF.mode === 'daily' ? 'daily' : 'free';
+let RUN_SEED = 0;
+const DAILY_KEY = 'ns.daily';
+function loadDaily() {
+  try { const d = JSON.parse(localStorage.getItem(DAILY_KEY)); return (d && d.day === dayKey()) ? d : null; }
+  catch (e) { return null; }
+}
+function saveDaily(r) { try { localStorage.setItem(DAILY_KEY, JSON.stringify(r)); return true; } catch (e) { return false; } }
+let DAILY = loadDaily();
+function setMode(m) {
+  MODE = m === 'daily' ? 'daily' : 'free';
+  PROF.mode = MODE; saveProf();
+  DAILY = loadDaily(); syncProf(); syncBest();
+}
+// 读档时也补一次：条件早就满足了却还没发的（比如新版本加了里程碑），
+// 现在就发给他，否则档案会显示「打满 5 局」而他已经打了 11 局。
+
+
+// 底座：三个都带代价，选的是"这一局想怎么打"，不是"哪个更强"
+const CHASSIS = {
+  std:   { n: '标准型', d: '没有加成，也没有代价', f: () => {} },
+  light: { n: '轻甲型', d: '移速 +25%，生命上限 -30', req: 'c_light',
+    f: p => { p.speed *= 1.25; p.maxhp -= 30; } },
+  heavy: { n: '重载型', d: '生命上限 +60，移速 -15%', req: 'c_heavy',
+    f: p => { p.maxhp += 60; p.speed *= .85; } },
+};
+// 里程碑：达成一次，永久解锁一样东西
+const MILES = [
+  { id: 'w_shot',  d: '活到第 4 波',        n: '霰弹枪进卡池',     ok: p => p.bestWave >= 4 },
+  { id: 'c_light', d: '活到第 6 波',        n: '底座：轻甲型',     ok: p => p.bestWave >= 6 },
+  { id: 'w_rail',  d: '活到第 7 波',        n: '磁轨枪进卡池',     ok: p => p.bestWave >= 7 },
+  { id: 'w_arc',   d: '累计拆解 400 个',    n: '电弧链进卡池',     ok: p => p.kills >= 400 },
+  { id: 'u_cap',   d: '打满 5 局',          n: '新词条：过载电容', ok: p => p.runs >= 5 },
+  { id: 'w_nade',  d: '活到第 10 波',       n: '榴弹进卡池',       ok: p => p.bestWave >= 10 },
+  { id: 'u_recoil',d: '拆掉 20 台重装机甲', n: '新词条：反冲抑制', ok: p => p.tankKills >= 20 },
+  { id: 'c_heavy', d: '累计 600 废钢',      n: '底座：重载型',     ok: p => p.scrapTotal >= 600 },
+  // 解锁条件本身就是一次近战预演：重装机甲慢、血厚，只能贴上去打
+  { id: 'w_blade', d: '近身拆掉 8 台重装机甲', n: '振动刀进卡池',   ok: p => p.tankKills >= 8 },
+  { id: 'u_ghost', d: '拆掉一个母体核心',   n: '新词条：幽灵协议', ok: p => p.bossKills >= 1 },
+  // 涂装：纯外观，不带数值。里程碑到现在只发玩法，缺一种「纯粹好看」的奖励。
+  { id: 's_core',  d: '拆掉一个母体核心',   n: '涂装：母体',   ok: p => p.bossKills >= 1 },
+  { id: 's_scrap', d: '累计 1000 废钢',     n: '涂装：废钢',   ok: p => p.scrapTotal >= 1000 },
+  { id: 's_rail',  d: '活到第 12 波',       n: '涂装：磁轨',   ok: p => p.bestWave >= 12 },
+  { id: 's_neon',  d: '累计拆解 1500 个',   n: '涂装：霓虹',   ok: p => p.kills >= 1500 },
+  { id: 's_ghost', d: '打满 20 局',         n: '涂装：幽灵',   ok: p => p.runs >= 20 },
+];
+const WEP_COST = 150;                       // 把一把枪买成"起手武器"的价钱
+
+function checkMiles() {
+  const got = [];
+  for (const m of MILES) if (!PROF.unlocked[m.id] && m.ok(PROF)) { PROF.unlocked[m.id] = 1; got.push(m); }
+  return got;
+}
+function nextMile() { return MILES.find(m => !PROF.unlocked[m.id]) || null; }
+if (checkMiles().length) saveProf();          // 读档补发
+// 一局结束：把这一局的战绩折进档案，然后看解锁了什么
+function bankRun() {
+  const scrap = G.wave * 12 + G.kills;
+  PROF.runs++; PROF.kills += G.kills;
+  PROF.bestWave = Math.max(PROF.bestWave, G.wave);
+  PROF.bossKills += G.bossKills; PROF.tankKills += G.tankKills;
+  PROF.scrap += scrap; PROF.scrapTotal += scrap;
+  const got = checkMiles();
+  saveProf();
+  return { scrap, got };
+}
+function buyWep(id) {
+  if (PROF.bought[id] || PROF.scrap < WEP_COST) return false;
+  if (id !== 'pulse' && !PROF.unlocked['w_' + id]) return false;
+  PROF.scrap -= WEP_COST; PROF.bought[id] = 1; PROF.wep = id;
+  saveProf(); syncProf(); return true;
+}
+function pickWep(id) {
+  if (id !== 'pulse' && !PROF.bought[id]) return buyWep(id);
+  PROF.wep = id; saveProf(); syncProf(); return true;
+}
+function pickChassis(id) {
+  const c = CHASSIS[id];
+  if (!c || (c.req && !PROF.unlocked[c.req])) return false;
+  PROF.chassis = id; saveProf(); syncProf(); return true;
+}
+
+/* ---- 档案面板：就在标题页上，不另开一屏 ---- */
+function syncProf() {
+  const box = document.getElementById('prof');
+  if (!box) return;
+  const chip = (label, on, lock, act, tip) =>
+    `<button class="chip${on ? ' on' : ''}${lock ? ' lock' : ''}" data-act="${act}" title="${tip || ''}">${label}</button>`;
+  const daily = MODE === 'daily';
+  let h = `<div class="prow"><span class="plbl">模式</span>`
+    + chip('自由', !daily, false, 'mode:free', '用你自己的档案打')
+    + chip('每日 ' + dayKey().slice(5), daily, false, 'mode:daily', '全世界今天同一局：固定配置、词条全开')
+    + `</div>`;
+  h += `<div class="prow"><span class="plbl">废钢</span><b>${PROF.scrap}</b>`
+    + `<span class="plbl">局数</span><b>${PROF.runs}</b>`
+    + `<span class="plbl">累计拆解</span><b>${PROF.kills}</b></div>`;
+  h += '<div class="prow"><span class="plbl">起手</span>';
+  if (daily) h += '<span class="plbl">脉冲步枪 · 标准型 · 词条全开（每日局固定）</span>';
+  else for (const id of WEP_ORDER) {
+    const unlocked = id === 'pulse' || PROF.unlocked['w_' + id];
+    const bought = id === 'pulse' || PROF.bought[id];
+    const label = WEAPONS[id].n + (bought ? '' : unlocked ? ` ${WEP_COST}废钢` : ' 未解锁');
+    h += chip(label, PROF.wep === id, !unlocked, 'wep:' + id, WEAPONS[id].d);
+  }
+  h += '</div>';
+  h += '<div class="prow"><span class="plbl">涂装</span>';
+  if (daily) h += `<span class="plbl">${SKINS[dailySkin()].n} · 今日主题</span>`;
+  else for (const id of SKIN_ORDER) {
+    const sk = SKINS[id], unlocked = !sk.req || PROF.unlocked[sk.req];
+    h += chip(sk.n, PROF.skin === id, !unlocked, 'skin:' + id, '纯外观，不带数值');
+  }
+  h += '</div>';
+  if (!daily) {
+    h += '<div class="prow"><span class="plbl">底座</span>';
+    for (const id in CHASSIS) {
+      const c = CHASSIS[id], unlocked = !c.req || PROF.unlocked[c.req];
+      h += chip(c.n, PROF.chassis === id, !unlocked, 'ch:' + id, c.d);
+    }
+    h += '</div>';
+  }
+  h += '<div class="prow"><span class="plbl">震屏</span>';
+  for (const [v, n] of [[0, '关'], [.5, '弱'], [1, '标准']])
+    h += chip(n, OPT.shake === v, false, 'opt:shake:' + v, '晕动敏感就关掉');
+  h += '<span class="plbl">辉光</span>';
+  for (const [v, n] of [[0, '关'], [1, '开']])
+    h += chip(n, OPT.bloom === v, false, 'opt:bloom:' + v, '关掉像素更清楚');
+  h += '<span class="plbl">音量</span>';
+  for (const [v, n] of [[0, '静音'], [.5, '低'], [1, '标准']])
+    h += chip(n, OPT.vol === v, false, 'opt:vol:' + v, '');
+  h += '</div>';
+  if (REDUCE) h += '<div class="prow next">系统里开了「减少动态效果」，震屏和辉光已默认关闭</div>';
+  const nm = nextMile();
+  h += `<div class="prow next">${nm ? '下一个解锁：' + nm.d + ' → ' + nm.n : '全部解锁完了'}</div>`;
+  box.innerHTML = h;
+  for (const b of box.querySelectorAll('.chip')) b.onclick = () => {
+    const [k, ...rest] = b.dataset.act.split(':'); const v = rest.join(':');
+    if (k === 'opt') { const [ok2, ov] = v.split(':'); setOpt(ok2, +ov); return; }
+    if (k === 'mode') setMode(v);
+    else if (k === 'skin') pickSkin(v);
+    else if (k === 'wep') pickWep(v);
+    else pickChassis(v);
+  };
+}
+
+/* ================= 涂装（纯外观） =================
+   精灵本来就是「字符网格 + 调色板索引」画出来的，不是位图 ——
+   所以换一份调色板就是一套新皮肤，网格一个字都不用改。
+
+   刻意只做外观：涂装不带任何数值。带了数值它就成了第二套底座系统，
+   跟已有的底座打架，而且会把「选好看的」变成「选强的」。
+   验收里有一条专门守这个：换遍所有涂装，玩家的数值必须一模一样。 */
+const SKINS = {
+  std:   { n: '神经索', trail: '#45f0ff', pal: {} },
+  core:  { n: '母体',   trail: '#ff2f4f', req: 's_core',
+    pal: { B: '#3a0f1c', S: '#6b1c30', L: '#a02a44', C: '#ff2f4f', O: '#ff6f8f', H: '#ffd0d8' } },
+  rail:  { n: '磁轨',   trail: '#a45cff', req: 's_rail',
+    pal: { B: '#221040', S: '#3d1d6b', L: '#5f2f9e', C: '#a45cff', O: '#c88cff', H: '#e8d0ff' } },
+  scrap: { n: '废钢',   trail: '#ffb03a', req: 's_scrap',
+    pal: { B: '#231a10', S: '#42311c', L: '#6b5230', C: '#ffb03a', O: '#8a5a2a', H: '#ffe0a0' } },
+  neon:  { n: '霓虹',   trail: '#ff2ea6', req: 's_neon',
+    pal: { B: '#3a0f2e', S: '#6b1c56', L: '#a02a80', C: '#ff2ea6', O: '#45f0ff', H: '#ffd0f0' } },
+  ghost: { n: '幽灵',   trail: '#dff0ff', req: 's_ghost',
+    pal: { B: '#1a2028', S: '#33404c', L: '#5b6b7a', C: '#eaf6ff', O: '#9fb4c4', H: '#ffffff' } },
+};
+const SKIN_ORDER = ['std', 'core', 'rail', 'scrap', 'neon', 'ghost'];
+
+// 一套皮肤烤一次就缓存住，之后换皮肤是零成本
+const SPRCACHE = {};
+function sprSet(id) {
+  if (!SPRCACHE[id]) {
+    const pal = Object.assign({}, PAL, (SKINS[id] || SKINS.std).pal);
+    const set = {};
+    for (const k in GRID) set[k] = GRID[k].map(rows => sprite(rows, pal));
+    SPRCACHE[id] = set;
+  }
+  return SPRCACHE[id];
+}
+let SPR = null, SKIN = SKINS.std;
+function applySkin(id) {
+  if (!SKINS[id]) id = 'std';
+  SKIN = SKINS[id]; SPR = sprSet(id);
+}
+function pickSkin(id) {
+  const sk = SKINS[id];
+  if (!sk || (sk.req && !PROF.unlocked[sk.req])) return false;
+  PROF.skin = id; saveProf(); applySkin(id); syncProf(); return true;
+}
+// 每日局按当天种子换一套涂装当「今日主题」—— 不看解锁，反正是外观
+function dailySkin() { return SKIN_ORDER[strSeed('skin-' + dayKey()) % SKIN_ORDER.length]; }
+
+/* ================= 玩家的画法 =================
+   以撒和土豆兄弟的人物之所以看得清、之所以挂得住道具，是因为**身体始终朝着镜头**。
+   俯视角随准心整体旋转的人，必然是个圆块 —— 没有头、没有手、没有脚，
+   也没有固定的地方能挂东西。
+
+   所以这里：身体朝镜头（往左瞄就水平翻转），只有【枪】绕胸口的支点跟着准心转。
+   道具升级了就往固定槽位上挂一片贴花 —— 枪上的挂枪上，背上的挂背上。 */
+const GUN_OF = { pulse: 'gun_pulse', shot: 'gun_shot', rail: 'gun_rail', arc: 'gun_arc', nade: 'gun_nade',
+  blade: 'gun_blade' };
+// on: 'gun' 跟着枪转 / 'body' 贴在身上 / 'back' 画在身体后面
+// x,y 是相对精灵中心的偏移（身体 16×20，枪的支点在它左端中央）
+const DECAL = {
+  // 枪上的：贴在枪身和枪口，都在枪的长度之内（枪 11~12 长，支点在左端）
+  rof:      { g: 'd_rof',    on: 'gun',  x: 4,  y: -4 },   // 散热片
+  slow:     { g: 'd_slow',   on: 'gun',  x: 2,  y: -4 },   // 冷凝罐
+  u_recoil: { g: 'd_recoil', on: 'gun',  x: 3,  y: 4 },    // 配重
+  pierce:   { g: 'd_pierce', on: 'gun',  x: 6,  y: 3 },    // 长针
+  dmg:      { g: 'd_dmg',    on: 'gun',  x: 9,  y: 0 },    // 制退器
+  lens:     { g: 'd_lens',   on: 'gun',  x: 11, y: -3 },   // 环形透镜
+  // 背后的：被身体压住一半，看起来是背着的
+  hp:       { g: 'd_hp',     on: 'back', x: -5, y: 1 },    // 药罐
+  boom:     { g: 'd_boom',   on: 'back', x: 4,  y: 2 },    // 爆裂罐
+  u_cap:    { g: 'd_cap',    on: 'back', x: 0,  y: 5 },    // 电容组
+  // 身上的：全在轮廓内或紧贴轮廓
+  crit:     { g: 'd_crit',   on: 'body', x: 5,  y: -6 },   // 头侧目镜
+  u_ghost:  { g: 'd_ghost',  on: 'body', x: 0,  y: -9 },   // 头顶残影环
+  leech:    { g: 'd_leech',  on: 'body', x: 5,  y: -1 },   // 肩上输血管
+  shield:   { g: 'd_shield', on: 'body', x: -6, y: 1 },    // 左肩盾板
+  mag:      { g: 'd_mag',    on: 'body', x: 0,  y: 4 },    // 腰间磁环
+  aura:     { g: 'd_aura',   on: 'body', x: -5, y: 5 },    // 腰侧电极
+  spd:      { g: 'd_spd',    on: 'body', x: -4, y: 8 },    // 腿侧助推
+  dash:     { g: 'd_dash',   on: 'body', x: 4,  y: 9 },    // 脚后尾翼
+};
+// 左上角对齐地画一张（blit 是按中心对齐的，槽位算起来不直观）
+function blitAt(spr, dx, dy) {
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(spr, dx | 0, dy | 0);
+}
+// 贴花按【中心】对齐：贴花大小 3~5 不一，固定减 2 会让位置飘
+function blitMid(spr, cx, cy) { blitAt(spr, cx - spr.width / 2, cy - spr.height / 2); }
+function decalsOn(where) {
+  const out = [];
+  for (const id in DECAL) if (G.stacks[id] > 0 && DECAL[id].on === where) out.push(DECAL[id]);
+  return out;
+}
+function drawPlayer(x, y) {
+  const bodySpr = frame(SPR.player, P.vxm ? P.walk : 0);
+  const bw = bodySpr.width, bh = bodySpr.height;
+  const left = Math.cos(P.ang) < 0;                      // 往左瞄就把身体翻过来
+  const gunSpr = SPR[GUN_OF[P.wep] || 'gun_pulse'][0];
+  const stacks = G.stacks;
+
+  // 枪：绕胸口支点转。朝左时上下翻一下，否则枪会倒过来。
+  const drawGun = () => {
+    ctx.save();
+    ctx.translate((x | 0) + (left ? -1 : 1), (y | 0) + 1);
+    ctx.rotate(P.ang);
+    if (left) ctx.scale(1, -1);
+    // 双联发射：每一层多一根枪管，这是最看得出来的叠加
+    const extra = Math.min(2, stacks.count || 0);
+    for (let i = extra; i >= 1; i--) blitAt(gunSpr, 1, -gunSpr.height / 2 + i * 4);
+    blitAt(gunSpr, 1, -gunSpr.height / 2);
+    for (const d of decalsOn('gun')) blitMid(SPR[d.g][0], d.x, d.y);
+    ctx.restore();
+  };
+
+  ctx.save();
+  ctx.translate(x | 0, y | 0);
+  if (left) ctx.scale(-1, 1);
+  for (const d of decalsOn('back')) blitMid(SPR[d.g][0], d.x, d.y);   // 背上的先画，被身体压住一半
+  blitAt(bodySpr, -bw / 2, -bh / 2);
+  for (const d of decalsOn('body')) blitMid(SPR[d.g][0], d.x, d.y);
+  ctx.restore();
+
+  drawGun();
+}
+
+/* ================= 临时增益 =================
+   掉落物原来只有经验和血包，捡不捡没有决策。加几个短时增益，
+   「要不要冒险跑过去捡」就成了一个即时选择。 */
+const BUFFS = {
+  rush:   { n: '超频',  t: 8,  c: '#ffe066', d: '射速翻倍' },
+  ward:   { n: '护壁',  t: 4,  c: '#45f0ff', d: '完全免伤' },
+  magnet: { n: '吸附',  t: 10, c: '#7cff4f', d: '拾取范围 ×4' },
+  surge:  { n: '磁暴',  t: 0,  c: '#ff2ea6', d: '当场清一片' },   // t:0 = 即时生效
+};
+const BUFF_IDS = Object.keys(BUFFS);
+function grabBuff(id) {
+  const b = BUFFS[id];
+  if (!b) return;
+  if (b.t > 0) G.buffs[id] = Math.max(G.buffs[id] || 0, b.t);
+  else if (id === 'surge') {                            // 磁暴：当场炸一圈
+    G.shake = Math.max(G.shake, 7);
+    G.parts.push({ x: P.x, y: P.y, vx: 0, vy: 0, life: .4, max: .4, s: 120, c: '#ff8ecb', ring: true });
+    for (const m of G.mobs) {
+      if (m.dead) continue;
+      const dx = m.x - P.x, dy = m.y - P.y, d = len(dx, dy) || 1;
+      if (d > 130) continue;
+      hurtMob(m, 46, dx / d * 14, dy / d * 14);          // 不传来源 → 无视铁闸的盾
+    }
+    Sfx.boom();
+  }
+  banner(b.n, b.d);
+  Sfx.buff();
+}
+
+/* ================= 精英与波次修饰 =================
+   修线性堆血的正路是【换组合】，不是把血条拉长。 */
+function eliteChance() {
+  if (G.mod && G.mod.allElite) return 1;
+  return G.wave >= 6 ? Math.min(.20, (G.wave - 5) * .02) : 0;
+}
+function makeElite(m) {
+  m.elite = 1;
+  m.hp *= 2.6; m.max *= 2.6; m.spd *= 1.12; m.xp *= 3;
+}
+// 每一波有机会带一个修饰。写死在刷怪流里，所以每日局大家拿到同一串修饰。
+// from：这个修饰用到的怪自己得先在正常刷怪表里出现过。
+// 探针抓到的坑：不设 from 的话「精锐」能摇到第 4 波，
+// 于是一级角色正面撞上十几只 2.6 倍血的精英 —— 不是难，是没法打。
+const MODS = [
+  { id: 'swarm', n: '兽 潮',  d: '只有刀锋犬，而且更快',   from: 4,  bag: ['rusher'], budget: 1.5, spd: 1.3 },
+  { id: 'wall',  n: '铁 壁',  d: '全是带盾和重装的',       from: 9,  bag: ['shieldbot', 'shieldbot', 'tank'], budget: .45 },
+  { id: 'boom',  n: '引 爆',  d: '一半是爆囊',             from: 8,  bag: ['bomber', 'bomber', 'grunt', 'drone'], budget: 1.2 },
+  { id: 'elite', n: '精 锐',  d: '全是精英，但数量少',     from: 11, allElite: 1, budget: .55 },
+];
+function rollMod(w) {
+  if (w < 4 || w % 5 === 0) return null;                // BOSS 那一波不加修饰
+  const pool = MODS.filter(m => w >= m.from);
+  const r = RNG.wave(), i = RNG.wave();                 // 两次都摇，保证每波消耗的随机数一样多
+  return pool.length && r < .28 ? pool[(i * pool.length) | 0] : null;
+}
+
+/* ================= 波次 ================= */
+function nextWave() {
+  G.wave++;
+  G.mod = rollMod(G.wave);
+  // BOSS 在第 5/10/15 波，所以下一波就换个地方 —— 打赢了就往前走
+  if (G.wave > 1 && G.wave % 5 === 1) setArena(ARENA_I + 1, true);
+  G.phase = 'wave';
+  G.waveT = 18 + Math.min(10, G.wave);
+  G.budget = Math.round((9 + G.wave * 4) * (G.mod ? (G.mod.budget || 1) : 1));
+  G.spawnT = 0;
+  if (G.wave % 5 === 0) { spawn('boss'); banner('母 体 核 心 接 入', 'WAVE ' + G.wave + ' · BOSS'); }
+  else if (G.mod) banner(G.mod.n, G.mod.d);
+  else banner('WAVE ' + String(G.wave).padStart(2, '0'), ARENA.a.n + ' · ' + waveTitle());
+  Sfx.wave();
+  syncHud();
+}
+function waveTitle() {
+  const t = ['废钢清扫','拾荒者潮汐','哨戒巡逻','重装推进','裂隙泄漏','霓虹屠场','拆解流水线'];
+  return t[(G.wave - 1) % t.length];
+}
+function waveSpawn(dt) {
+  if (G.phase !== 'wave' || G.budget <= 0) return;
+  G.spawnT -= dt;
+  if (G.spawnT > 0) return;
+  const w = G.wave;
+  if (G.mod && G.mod.bag) { spawn(pickw(G.mod.bag)); G.budget--; G.spawnT = clamp(1.15 - w * .06, .18, 1.15) * rndw(.7, 1.3); return; }
+  const bag = ['grunt', 'grunt', 'grunt'];
+  if (w >= 2) bag.push('rusher', 'rusher');
+  if (w >= 3) bag.push('drone', 'drone');
+  if (w >= 4) bag.push('shieldbot');                   // 逼你绕后
+  if (w >= 5) bag.push('tank');
+  if (w >= 6) bag.push('bomber', 'bomber');            // 逼你别贴着打
+  if (w >= 8) bag.push('tank', 'drone', 'shieldbot');
+  if (w >= 9) bag.push('relay');                       // 逼你先打谁后打谁
+  const t = pickw(bag);
+  spawn(t);
+  G.budget--;
+  G.spawnT = clamp(1.15 - w * .06, .20, 1.15) * rndw(.7, 1.3);
+}
+
+
+// 把武器基础值 × 词条倍率，算出这一把枪现在的实际手感
+function equip(id) {
+  const W = WEAPONS[id]; if (!W || !P) return;
+  P.wep = id; P.kind = W.kind; P.wcol = W.col;
+  if (P.owned.indexOf(id) < 0) P.owned.push(id);
+  const m = P.mul;
+  P.fireRate = W.rate * m.rate;
+  P.dmg = W.dmg * m.dmg;
+  P.count = (W.count || 1) + m.count;
+  P.spread = (W.spread || 0) + m.spread;
+  P.bspd = (W.bspd || 265) * m.bspd;
+  P.range = (W.range || 1) * m.range;
+  P.pierce = W.kind === 'melee' ? 0 : (W.pierce || 0) + m.pierce;
+  P.chain = W.chain || 0;
+  P.splash = (W.splash || 0);
+  if (W.kind === 'melee') {
+    // 近战没有弹丸，所以这两条词条换个说法接着有用：
+    // 双联发射 → 扇形更宽；穿甲钨芯 → 砍得更远。不然它们对刀就是废卡。
+    P.reach = W.reach * m.range + m.pierce * 6;
+    P.arc = (W.arc + m.count * 18) * Math.PI / 180;
+    P.knock = W.knock; P.heal = W.heal;
+  } else {
+    P.reach = (W.reach || 0) * m.range;
+    P.arc = 0; P.knock = 0; P.heal = 0;
+  }
+  P.fireT = Math.min(P.fireT, .25);
+  syncHud();
+}
+function cycleWep() {
+  if (!P || P.owned.length < 2) return;
+  const i = P.owned.indexOf(P.wep);
+  equip(P.owned[(i + 1) % P.owned.length]);
+  Sfx.swap();
+  banner(WEAPONS[P.wep].n, WEAPONS[P.wep].d);
+}
+
+/* ================= 开火 ================= */
+function fire() {
+  const a0 = P.ang;
+  if (P.kind === 'melee') return fireMelee(a0);
+  if (P.kind === 'rail') return fireRail(a0);
+  if (P.kind === 'arc') return fireArc();
+  if (P.kind === 'nade') return fireNade(a0);
+  // 子弹类：脉冲和霰弹走同一条路，区别全在数值
+  const spread = P.spread * (P.count > 1 ? P.count : 1);
+  for (let i = 0; i < P.count; i++) {
+    const off = P.count === 1 ? rnd(-P.spread, P.spread)
+      : (-spread / 2 + spread * (i / (P.count - 1))) + rnd(-.03, .03);
+    const a = a0 + off;
+    const crit = RNG.fx() < P.crit;
+    G.bullets.push({
+      x: P.x + Math.cos(a) * 8, y: P.y + Math.sin(a) * 8,
+      vx: Math.cos(a) * P.bspd * rnd(.92, 1.08), vy: Math.sin(a) * P.bspd * rnd(.92, 1.08),
+      life: P.range, dmg: P.dmg * (crit ? 3 : 1), crit,
+      pierce: P.pierce, hits: [], px: 0, py: 0, col: P.wcol, wep: P.wep
+    });
+  }
+  muzzle(a0, P.kind === 'bullet' && P.count > 3 ? 7 : 3);
+  G.shake = Math.max(G.shake, P.count > 3 ? 3.2 : 1.1);
+  if (P.count > 3) { Sfx.shotgun(); P.vx -= Math.cos(a0) * 34; P.vy -= Math.sin(a0) * 34; }  // 霰弹的后坐
+  else Sfx.shoot();
+}
+// 近战：身前一个扇形，扇形里的全砍到（cleave）。这是它对得起"贴上去"的原因。
+function fireMelee(a) {
+  P.swingDir = -(P.swingDir || 1);                       // 一刀左一刀右，别每下都一样
+  const half = P.arc / 2;
+  let n = 0;
+  for (const m of G.mobs) {
+    if (m.dead) continue;
+    const dx = m.x - P.x, dy = m.y - P.y, d = len(dx, dy);
+    if (d > P.reach + m.r) continue;
+    if (d > 1 && Math.abs(angDiff(Math.atan2(dy, dx), a)) > half) continue;
+    const crit = RNG.fx() < P.crit;
+    // 击退按【单位向量 × 固定像素】算，不能除以距离 —— 那样越近推得越少，
+    // 而近战恰恰是贴着打的，等于没有击退。而"把空间打出来"是近战成立的理由。
+    const nx = d > 1 ? dx / d : 1, ny = d > 1 ? dy / d : 0;
+    hurtMob(m, P.dmg * (crit ? 3 : 1), nx * P.knock * .08, ny * P.knock * .08, P.x, P.y);
+    G.wepDmg.blade = (G.wepDmg.blade || 0) + P.dmg;
+    burstFx(m.x, m.y, crit ? 9 : 5, crit ? '#ffe066' : '#dff6ff', 150);
+    n++;
+  }
+  // 命中回血：奖励留在人堆里。但一刀砍一片不能就地满血，所以每刀有上限。
+  if (n) { P.hp = Math.min(P.maxhp, P.hp + Math.min(3, P.heal * n)); syncHud(); }
+  G.slashes.push({ x: P.x, y: P.y, a, half, reach: P.reach, dir: P.swingDir, t: .17, col: P.wcol });
+  G.shake = Math.max(G.shake, n ? 3 : 1.4);
+  Sfx.swing(n);
+}
+
+// 磁轨：一条线，线上所有人一起吃伤害
+function fireRail(a) {
+  const dx = Math.cos(a), dy = Math.sin(a), R = P.reach || 260;
+  const x2 = P.x + dx * R, y2 = P.y + dy * R;
+  let n = 0;
+  for (const m of G.mobs) {
+    if (m.dead) continue;
+    const t = (m.x - P.x) * dx + (m.y - P.y) * dy;      // 投影到射线上
+    if (t < 0 || t > R) continue;
+    if (len(m.x - P.x - dx * t, m.y - P.y - dy * t) > m.r + 4) continue;
+    const crit = RNG.fx() < P.crit;
+    hurtMob(m, P.dmg * (crit ? 3 : 1), dx * 3, dy * 3, P.x, P.y);
+    G.wepDmg.rail = (G.wepDmg.rail || 0) + P.dmg;
+    burstFx(m.x, m.y, 7, '#c8a0ff', 150); n++;
+  }
+  G.beams.push({ x1: P.x + dx * 8, y1: P.y + dy * 8, x2, y2, t: .16, col: P.wcol });
+  muzzle(a, 9); G.shake = Math.max(G.shake, 4.2);
+  Sfx.rail();
+  if (n) Sfx.hit();
+}
+// 电弧：跳到最近的，再从他跳到下一个
+function fireArc() {
+  const hit = [];
+  let sx = P.x, sy = P.y;
+  const pts = [[P.x, P.y]];
+  for (let k = 0; k <= P.chain; k++) {
+    let best = null, bd = P.reach;
+    for (const m of G.mobs) {
+      if (m.dead || hit.indexOf(m) >= 0) continue;
+      const d = len(m.x - sx, m.y - sy);
+      if (d < bd) { bd = d; best = m; }
+    }
+    if (!best) break;
+    hit.push(best); pts.push([best.x, best.y]);
+    hurtMob(best, P.dmg * (RNG.fx() < P.crit ? 3 : 1), 0, 0, sx, sy);
+    G.wepDmg.arc = (G.wepDmg.arc || 0) + P.dmg;
+    burstFx(best.x, best.y, 5, '#a8ff7c', 110);
+    sx = best.x; sy = best.y;
+  }
+  if (!hit.length) { P.fireT = .12; return; }           // 没人可跳就不算开火，别浪费冷却
+  G.arcs.push({ pts, t: .13, col: P.wcol });
+  G.shake = Math.max(G.shake, 1.4);
+  Sfx.arc();
+}
+// 榴弹：抛出去，撞到人或者飞到头就炸
+function fireNade(a) {
+  G.bullets.push({
+    x: P.x + Math.cos(a) * 8, y: P.y + Math.sin(a) * 8,
+    vx: Math.cos(a) * P.bspd, vy: Math.sin(a) * P.bspd,
+    life: P.range, dmg: P.dmg, crit: false, pierce: 0, hits: [], px: 0, py: 0,
+    col: P.wcol, nade: 1, splash: P.splash, wep: P.wep
+  });
+  muzzle(a, 4); G.shake = Math.max(G.shake, 1.8);
+  Sfx.nade();
+}
+function muzzle(a, n) {
+  for (let i = 0; i < n; i++) {
+    const d = a + rnd(-.5, .5);
+    G.parts.push({ x: P.x + Math.cos(a) * 9, y: P.y + Math.sin(a) * 9,
+      vx: Math.cos(d) * rnd(50, 160), vy: Math.sin(d) * rnd(50, 160),
+      life: .12, max: .12, s: 1, c: '#ffe066' });
+  }
+}
+
+function eshoot(m, ang, spd, dmg) {
+  G.ebullets.push({ x: m.x, y: m.y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: 3, dmg, src: m.type });
+  Sfx.eshoot();
+}
+
+/* ================= 特效 ================= */
+function burstFx(x, y, n, col, pow) {
+  for (let i = 0; i < n; i++) {
+    const a = rnd(0, TAU), s = rnd(20, pow);
+    G.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: rnd(.2, .55), max: .55, s: rnd(1, 2), c: col });
+  }
+}
+function explode(x, y, r, dmg) {
+  burstFx(x, y, 26, '#ff9d3d', 220);
+  G.parts.push({ x, y, vx: 0, vy: 0, life: .28, max: .28, s: r, c: '#ffd9a0', ring: true });
+  for (const m of G.mobs) {
+    if (len(m.x - x, m.y - y) < r + m.r) hurtMob(m, dmg, 0, 0);
+  }
+  G.shake = Math.max(G.shake, 4);
+  Sfx.boom();
+}
+function hurtMob(m, dmg, kx, ky, sx, sy) {
+  const d = MOB[m.type];
+  // 铁闸：正面来的伤害几乎全挡掉。爆炸不传来源，所以【爆炸无视盾】—— 榴弹和爆裂核心因此有了专属场合。
+  if (d.shield && sx != null && !G.overheat) {
+    // atan2(来源 - 自己) 就是「从它指向来源」的方向；和它的朝向一致 = 来源在正面。
+    // 一开始写成了 rel > 115°，那是在挡【背后】—— 正好反了。
+    const rel = Math.abs(angDiff(Math.atan2(sy - m.y, sx - m.x), m.ang));
+    if (rel < Math.PI * 65 / 180) {                    // 来源在它正面 ±65°
+      dmg *= .15;
+      G.parts.push({ x: m.x + Math.cos(m.ang) * 7, y: m.y + Math.sin(m.ang) * 7,
+        vx: 0, vy: 0, life: .18, max: .18, s: 9, c: '#cfe0ff', ring: true });
+      Sfx.block();
+    }
+  }
+  if (m.guarded > 0 && !G.overheat) dmg *= .35;                       // 被中继护着：先打中继
+  m.hp -= dmg;
+  m.flash = .12;
+  if (P.slow) m.slowT = Math.max(m.slowT, .8);
+  m.x += kx; m.y += ky;
+  if (m.hp <= 0) killMob(m);
+}
+// 爆囊引爆：不算玩家的击杀功劳来源，但连锁能打到一片
+function blowUp(m) {
+  const d = MOB.bomber;
+  burstFx(m.x, m.y, 26, '#ff9d3d', 240);
+  G.parts.push({ x: m.x, y: m.y, vx: 0, vy: 0, life: .3, max: .3, s: d.blast, c: '#ffd9a0', ring: true });
+  G.shake = Math.max(G.shake, 6);
+  if (len(P.x - m.x, P.y - m.y) < d.blast) hurtPlayer(d.bdmg, 'bomber');
+  for (const o of G.mobs) if (o !== m && !o.dead && len(o.x - m.x, o.y - m.y) < d.blast + o.r)
+    hurtMob(o, d.bdmg * .8, 0, 0);                     // 连锁：爆炸没有方向，所以铁闸也挡不住
+  Sfx.boom();
+  m.dead = true;
+  G.mobs = G.mobs.filter(x => x !== m);
+}
+function killMob(m) {
+  if (m.dead) return;
+  if (m.type === 'bomber' && m.fz !== 0) { m.fz = 0; }   // 打死也会炸，只是不给伤害两次
+  m.dead = true;
+  const d = MOB[m.type];
+  G.score += (m.type === 'boss' ? 500 : d.xp * 12) * (1 + G.combo * .05) | 0;
+  G.kills++;
+  if (m.type === 'boss') G.bossKills++;
+  if (m.type === 'tank') G.tankKills++;
+  G.combo++; G.comboT = 2.4;
+  burstFx(m.x, m.y, m.type === 'boss' ? 60 : 14, d.col, m.type === 'boss' ? 300 : 150);
+  for (let i = 0; i < (m.type === 'boss' ? 14 : d.xp); i++) {
+    const a = rnd(0, TAU);
+    G.drops.push({ x: m.x, y: m.y, vx: Math.cos(a) * rnd(10, 50), vy: Math.sin(a) * rnd(10, 50),
+      t: 0, kind: 'xp' });
+  }
+  if (RNG.wave() < (m.type === 'tank' || m.type === 'boss' ? .9 : .06))
+    G.drops.push({ x: m.x, y: m.y, vx: 0, vy: 0, t: 0, kind: 'hp' });
+  // 精英必掉一个增益，普通怪极小概率 —— 所以看见精英就知道值得去打
+  if (m.elite || m.type === 'boss' || RNG.wave() < .015) {
+    if (m.elite) G.eliteKills++;
+    G.drops.push({ x: m.x, y: m.y, vx: 0, vy: 0, t: 0, kind: BUFF_IDS[(RNG.wave() * BUFF_IDS.length) | 0] });
+  }
+  if (P.lifesteal) P.hp = Math.min(P.maxhp, P.hp + P.lifesteal);
+  if (P.explode) explode(m.x, m.y, 24 + 9 * P.explode, 12 * P.explode);
+  else Sfx.kill();
+  if (m.type === 'boss') { G.shake = 10; banner('核 心 已 拆 解', '+500'); }
+  syncHud();
+}
+function hurtPlayer(dmg, src) {
+  if (src) G.deathBy = src;
+  if (P.inv > 0 || P.dashT > 0) return;
+  if (G.buffs.ward > 0) {                               // 护壁：完全免伤
+    G.parts.push({ x: P.x, y: P.y, vx: 0, vy: 0, life: .2, max: .2, s: 18, c: '#45f0ff', ring: true });
+    return;
+  }
+  if (P.shield && RNG.fx() < P.shield) {
+    G.parts.push({ x: P.x, y: P.y, vx: 0, vy: 0, life: .25, max: .25, s: 16, c: SKIN.trail, ring: true });
+    P.inv = .3; return;
+  }
+  P.hp -= dmg; P.inv = .55;
+  G.combo = 0;
+  G.shake = Math.max(G.shake, 5);
+  G.hitFlash = .3;
+  Sfx.hurt();
+  burstFx(P.x, P.y, 10, '#ff2ea6', 120);
+  syncHud();
+  if (P.hp <= 0) gameOver();
+}
+
+/* ================= 更新 ================= */
+function update(dt) {
+  G.t += dt;
+  pollPad();
+  for (const k in G.buffs) if (G.buffs[k] > 0) G.buffs[k] = Math.max(0, G.buffs[k] - dt);
+
+  // 玩家
+  let ix = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
+  let iy = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
+  if (TC.ml > 0) { ix = TC.mx; iy = TC.my; }          // 触屏摇杆优先
+  else if (PAD.on && (PAD.ix || PAD.iy)) { ix = PAD.ix; iy = PAD.iy; }
+  const il = len(ix, iy);
+  if (il > 0) { ix /= il; iy /= il; }
+
+  P.dashCdT = Math.max(0, P.dashCdT - dt);
+  P.dashT = Math.max(0, P.dashT - dt);
+  P.inv = Math.max(0, P.inv - dt);
+
+  if ((keys.Space || keys.ShiftLeft || TC.dash || PAD.dash) && P.dashCdT === 0) {
+    TC.dash = 0; PAD.dash = 0;
+    P.dashT = .17; P.dashCdT = P.dashCd;
+    const a = il > 0 ? Math.atan2(iy, ix) : P.ang;
+    P.dvx = Math.cos(a) * 430; P.dvy = Math.sin(a) * 430;
+    Sfx.dash();
+    for (let i = 0; i < 14; i++) burstFx(P.x, P.y, 1, SKIN.trail, 90);
+  }
+  TC.dash = 0; PAD.dash = 0;                          // 冷却里按的不排队，直接丢掉
+
+  if (P.dashT > 0) { P.vx = P.dvx; P.vy = P.dvy; }
+  else { P.vx = ix * P.speed; P.vy = iy * P.speed; }
+
+  P.x = clamp(P.x + P.vx * dt, 10, ARENA.w - 10);
+  P.y = clamp(P.y + P.vy * dt, 10, ARENA.h - 10);
+  if (il > 0 || P.dashT > 0) P.walk += dt * 11;
+
+  if (P.dashT > 0) {
+    G.parts.push({ x: P.x, y: P.y, vx: 0, vy: 0, life: .3, max: .3, s: 4, c: SKIN.trail });
+    if (P.dashDmg) for (const m of G.mobs)
+      if (!m.dead && len(m.x - P.x, m.y - P.y) < m.r + 9) hurtMob(m, P.dashDmg * dt * 6, 0, 0);
+  }
+
+  let shooting;
+  if (TC.on) {
+    if (TC.al > 0) P.ang = Math.atan2(TC.ay, TC.ax);
+    else { const m = nearestMob(); if (m) P.ang = Math.atan2(m.y - P.y, m.x - P.x); }
+    shooting = true;                                  // 手机上不留"要不要开枪"这个决策，横竖都要打
+  } else if (PAD.on && (PAD.al > 0 || PAD.fire)) {
+    if (PAD.al > 0) P.ang = Math.atan2(PAD.ay, PAD.ax);  // 右摇杆瞄
+    else { const m = nearestMob(); if (m) P.ang = Math.atan2(m.y - P.y, m.x - P.x); }
+    shooting = PAD.al > .35 || !!PAD.fire;               // 推着右摇杆就开火，也能用扳机
+  } else {
+    const wx = mouse.x + G.cam.x, wy = mouse.y + G.cam.y;
+    P.ang = Math.atan2(wy - P.y, wx - P.x);
+    shooting = mouse.down;
+  }
+
+  P.fireT -= dt;
+  if (shooting && P.fireT <= 0) { fire(); P.fireT = 1 / (P.fireRate * (G.buffs.rush > 0 ? 2 : 1)); }
+
+  // 静电场
+  if (P.aura) {
+    P.auraT -= dt;
+    if (P.auraT <= 0) {
+      P.auraT = .25;
+      const R = 22 + P.aura * 1.5;
+      for (const m of G.mobs) if (!m.dead && len(m.x - P.x, m.y - P.y) < R + m.r) {
+        hurtMob(m, P.aura * .55, 0, 0);
+        const a = Math.atan2(m.y - P.y, m.x - P.x);
+        for (let i = 0; i < 2; i++)
+          G.parts.push({ x: P.x + Math.cos(a) * rnd(4, R), y: P.y + Math.sin(a) * rnd(4, R),
+            vx: 0, vy: 0, life: .12, max: .12, s: 1, c: SKIN.trail });
+      }
+    }
+  }
+
+  // 摄像机
+  const tx = camAt(P.x - VW / 2 + (mouse.x - VW / 2) * .18, ARENA.w, VW);
+  const ty = camAt(P.y - VH / 2 + (mouse.y - VH / 2) * .18, ARENA.h, VH);
+  G.cam.x += (tx - G.cam.x) * Math.min(1, dt * 8);
+  G.cam.y += (ty - G.cam.y) * Math.min(1, dt * 8);
+
+  // 波次
+  if (G.phase === 'wave') {
+    G.waveT -= dt;
+    waveSpawn(dt);
+    // 泄压阀：一波要清空才推进，所以只要出现「打不动」的僵局就会永远卡着。
+    // 探针在第 8 波撞见三十只带盾的，正面只能打出 15%，人被困在盾墙里耗死。
+    // 加时超过 12 秒还没清完，剩下的护盾全部过热失效 —— 僵局由玩家动手解开，
+    // 而不是直接放它过关。
+    if (!G.overheat && G.budget <= 0 && G.waveT < -12 && G.mobs.length) {
+      G.overheat = 1;
+      banner('护 盾 过 热', '场上剩下的护盾全部失效');
+    }
+    if (G.waveT <= 0 && G.budget <= 0 && G.mobs.length === 0) { G.phase = 'break'; G.waveT = 3.2; G.overheat = 0; }
+  } else {
+    G.waveT -= dt;
+    if (G.waveT <= 0) nextWave();
+  }
+
+  // 敌人
+  for (const m of G.mobs) {
+    if (m.dead) continue;
+    m.flash = Math.max(0, m.flash - dt);
+    m.slowT = Math.max(0, m.slowT - dt);
+    m.guarded = Math.max(0, (m.guarded || 0) - dt);   // 中继的护盾每帧衰减，中继一死马上失效
+    const sl = m.slowT > 0 ? (1 - P.slow) : 1;
+    const dx = P.x - m.x, dy = P.y - m.y, d = len(dx, dy) || 1;
+    m.ang = Math.atan2(dy, dx);
+
+    if (m.type === 'grunt') {
+      m.vx = dx / d * m.spd * sl; m.vy = dy / d * m.spd * sl;
+    } else if (m.type === 'rusher') {
+      m.cd -= dt;
+      if (m.cd <= 0 && d < 190) { m.dashT = .45; m.cd = rnd(1.4, 2.4); }
+      m.dashT = Math.max(0, m.dashT - dt);
+      const s = m.spd * (m.dashT > 0 ? 2.6 : .8) * sl;
+      m.vx = dx / d * s; m.vy = dy / d * s;
+    } else if (m.type === 'drone') {
+      const want = 92;
+      const push = d < want ? -1 : d > want + 30 ? 1 : 0;
+      m.phase += dt * 1.4;
+      m.vx = (dx / d * push * m.spd + -dy / d * Math.cos(m.phase) * m.spd * .8) * sl;
+      m.vy = (dy / d * push * m.spd +  dx / d * Math.cos(m.phase) * m.spd * .8) * sl;
+      m.cd -= dt;
+      if (m.cd <= 0 && d < 240) { eshoot(m, m.ang + rnd(-.08, .08), 118, m.dmg); m.cd = rnd(1.6, 2.6); }
+    } else if (m.type === 'tank') {
+      m.vx = dx / d * m.spd * sl; m.vy = dy / d * m.spd * sl;
+      m.cd -= dt;
+      if (m.cd <= 0 && d < 300) {
+        for (let i = -1; i <= 1; i++) eshoot(m, m.ang + i * .22, 100, m.dmg * .6);
+        m.cd = rnd(2.6, 3.8);
+      }
+    } else if (m.type === 'bomber') {
+      // 爆囊：一路冲过来，够近就点火，引信烧完就炸（也炸到别的敌人）
+      m.vx = dx / d * m.spd * sl; m.vy = dy / d * m.spd * sl;
+      m.ang = Math.atan2(dy, dx);
+      if (m.fz == null) m.fz = -1;
+      if (m.fz < 0 && d < 30) { m.fz = .55; Sfx.fuse(); }
+      if (m.fz > 0) {
+        m.fz -= dt;
+        if (m.fz <= 0) { blowUp(m); continue; }
+      }
+    } else if (m.type === 'relay') {
+      // 中继：躲远处，给周围的加护盾
+      const want = 150;
+      const push = d < want ? -.8 : (d > want + 60 ? .8 : 0);
+      m.vx = dx / d * m.spd * push * sl; m.vy = dy / d * m.spd * push * sl;
+      m.ang = Math.atan2(dy, dx);
+      m.links = [];
+      for (const o of G.mobs) {
+        if (o === m || o.dead || o.type === 'relay') continue;
+        if (len(o.x - m.x, o.y - m.y) < MOB.relay.guard) { o.guarded = .3; m.links.push(o); }
+      }
+    } else if (m.type === 'shieldbot') {
+      // 铁闸：正面推进，盾一直朝着你 —— 想打它就得自己绕过去
+      m.vx = dx / d * m.spd * sl; m.vy = dy / d * m.spd * sl;
+      m.ang += angDiff(Math.atan2(dy, dx), m.ang) * Math.min(1, dt * 2.2);   // 转身慢，所以绕得过来
+    } else if (m.type === 'boss') {
+      m.spin += dt * (m.p2 ? 2.4 : 1.1);
+      // 掉到一半血：外壳崩解，进第二形态。打法整个变一次，比"血更多"有意思。
+      if (!m.p2 && m.hp <= m.max * .5) {
+        m.p2 = 1; m.spd *= 1.5; m.cd = .6;
+        G.shake = 9; burstFx(m.x, m.y, 46, '#ffe066', 260);
+        banner('外 壳 崩 解', '母体核心 · 第二形态');
+        Sfx.boom();
+      }
+      if (m.p2) {
+        // 第二形态：贴着追，喷螺旋弹幕，还会突进
+        const push = d < 60 ? -.4 : 1;
+        m.vx = dx / d * m.spd * push * sl; m.vy = dy / d * m.spd * push * sl;
+        m.cd -= dt;
+        if (m.cd <= 0) {
+          for (let i = 0; i < 3; i++) eshoot(m, m.spin * 2.2 + i * TAU / 3, 108, m.dmg * .45);
+          m.cd = .16;                                    // 连绵不断的螺旋，而不是一波一波
+        }
+        m.sum = (m.sum || 0) - dt;
+        if (m.sum <= 0) { spawn('rusher'); spawn('rusher'); m.sum = rnd(3.4, 4.6); }
+      } else {
+        const want = 120;
+        const push = d < want ? -.5 : 1;
+        m.vx = dx / d * m.spd * push * sl; m.vy = dy / d * m.spd * push * sl;
+        m.cd -= dt;
+        if (m.cd <= 0) {
+          const n = 10;
+          for (let i = 0; i < n; i++) eshoot(m, m.spin + i * TAU / n, 92, m.dmg * .5);
+          if (RNG.wave() < .6) { spawn('grunt'); spawn('rusher'); }
+          m.cd = rnd(2.2, 3.2);
+        }
+      }
+    }
+
+    m.x = clamp(m.x + m.vx * dt, m.r, ARENA.w - m.r);
+    m.y = clamp(m.y + m.vy * dt, m.r, ARENA.h - m.r);
+
+    if (d < m.r + 7) hurtPlayer(m.dmg, m.type);
+  }
+
+  // 敌人之间分离
+  for (let i = 0; i < G.mobs.length; i++) for (let j = i + 1; j < G.mobs.length; j++) {
+    const a = G.mobs[i], b = G.mobs[j];
+    const dx = b.x - a.x, dy = b.y - a.y, mr = a.r + b.r, d2 = dx * dx + dy * dy;
+    if (d2 > 0 && d2 < mr * mr) {
+      const d = Math.sqrt(d2), o = (mr - d) / d * .3;
+      a.x -= dx * o; a.y -= dy * o; b.x += dx * o; b.y += dy * o;
+    }
+  }
+
+  // 近战挥出去的那道弧：从一侧扫到另一侧，看得见才叫挥击
+  for (const sl of G.slashes) {
+    const k = sl.t / .17, p = 1 - k;                    // p: 0→1 挥的进度
+    const from = sl.a - sl.half * sl.dir;
+    const cur = from + sl.half * 2 * sl.dir * p;
+    const x0 = sl.x - G.cam.x, y0 = sl.y - G.cam.y;
+    for (const [w, al] of [[7, .22 * k], [2.5, .85 * k]]) {
+      ctx.strokeStyle = 'rgba(' + sl.col + ',' + al.toFixed(2) + ')'; ctx.lineWidth = w;
+      ctx.beginPath();
+      ctx.arc(x0, y0, sl.reach * (.72 + .28 * p), Math.min(from, cur), Math.max(from, cur));
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,' + (.8 * k).toFixed(2) + ')'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x0, y0);
+    ctx.lineTo(x0 + Math.cos(cur) * sl.reach, y0 + Math.sin(cur) * sl.reach); ctx.stroke();
+  }
+  // 磁轨的光束
+  for (const bm of G.beams) {
+    const k = bm.t / .16;
+    ctx.strokeStyle = 'rgba(' + bm.col + ',' + (.35 * k).toFixed(2) + ')'; ctx.lineWidth = 9 * k;
+    ctx.beginPath(); ctx.moveTo(bm.x1 - G.cam.x, bm.y1 - G.cam.y); ctx.lineTo(bm.x2 - G.cam.x, bm.y2 - G.cam.y); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,' + (.9 * k).toFixed(2) + ')'; ctx.lineWidth = 2 * k;
+    ctx.beginPath(); ctx.moveTo(bm.x1 - G.cam.x, bm.y1 - G.cam.y); ctx.lineTo(bm.x2 - G.cam.x, bm.y2 - G.cam.y); ctx.stroke();
+  }
+  // 电弧链：折线加一点抖动
+  for (const ar of G.arcs) {
+    const k = ar.t / .13;
+    for (const [w, c] of [[7, 'rgba(' + ar.col + ',' + (.3 * k).toFixed(2) + ')'], [1.5, 'rgba(230,255,220,' + (.95 * k).toFixed(2) + ')']]) {
+      ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath();
+      for (let i = 0; i < ar.pts.length; i++) {
+        const [ax, ay] = ar.pts[i];
+        const jx = i ? rnd(-2, 2) : 0, jy = i ? rnd(-2, 2) : 0;
+        if (i === 0) ctx.moveTo(ax - G.cam.x, ay - G.cam.y); else ctx.lineTo(ax - G.cam.x + jx, ay - G.cam.y + jy);
+      }
+      ctx.stroke();
+    }
+  }
+  // 玩家子弹
+  for (const b of G.bullets) {
+    b.px = b.x; b.py = b.y;
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    b.life -= dt;
+    if (b.x < 0 || b.y < 0 || b.x > ARENA.w || b.y > ARENA.h) b.life = 0;
+    if (b.nade) {                                    // 榴弹不打直伤，只管炸
+      let boom = b.life <= 0;
+      if (!boom) for (const m of G.mobs) if (!m.dead && len(m.x - b.x, m.y - b.y) < m.r + 3) { boom = true; break; }
+      if (boom) {
+        G.wepDmg[b.wep || 'nade'] = (G.wepDmg[b.wep || 'nade'] || 0) + b.dmg;
+        explode(b.x, b.y, b.splash, b.dmg);
+        if (len(P.x - b.x, P.y - b.y) < b.splash) hurtPlayer(b.dmg * .4, 'self');   // 自伤：这是它的代价
+        b.life = 0; continue;
+      }
+    }
+    for (const m of G.mobs) {
+      if (m.dead || b.life <= 0 || b.hits.indexOf(m) >= 0) continue;
+      if (len(m.x - b.x, m.y - b.y) < m.r + 2) {
+        hurtMob(m, b.dmg, b.vx * dt * .5, b.vy * dt * .5, b.x - b.vx * .05, b.y - b.vy * .05);
+        G.wepDmg[b.wep || 'pulse'] = (G.wepDmg[b.wep || 'pulse'] || 0) + b.dmg;
+        burstFx(b.x, b.y, b.crit ? 8 : 4, b.crit ? '#ffe066' : 'rgb(' + (b.col || '69,240,255') + ')', 120);
+        Sfx.hit();
+        b.hits.push(m);
+        if (b.hits.length > b.pierce) { b.life = 0; break; }
+      }
+    }
+  }
+  G.bullets = G.bullets.filter(b => b.life > 0);
+  for (const x of G.beams) x.t -= dt; G.beams = G.beams.filter(x => x.t > 0);
+  for (const x of G.arcs) x.t -= dt; G.arcs = G.arcs.filter(x => x.t > 0);
+  for (const x of G.slashes) x.t -= dt; G.slashes = G.slashes.filter(x => x.t > 0);
+
+  // 敌人子弹
+  for (const b of G.ebullets) {
+    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+    if (b.x < 0 || b.y < 0 || b.x > ARENA.w || b.y > ARENA.h) b.life = 0;
+    if (b.life > 0 && len(b.x - P.x, b.y - P.y) < 7) { hurtPlayer(b.dmg, b.src); b.life = 0; }
+  }
+  G.ebullets = G.ebullets.filter(b => b.life > 0);
+
+  // 掉落
+  for (const d of G.drops) {
+    d.t += dt;
+    const dx = P.x - d.x, dy = P.y - d.y, dd = len(dx, dy) || 1;
+    const R = (d.kind === 'hp' ? P.pickR * .8 : P.pickR) * (G.buffs.magnet > 0 ? 4 : 1);
+    if (dd < R) { d.vx += dx / dd * 340 * dt; d.vy += dy / dd * 340 * dt; }
+    else if (d.t > 2.5) { d.vx += dx / dd * 70 * dt; d.vy += dy / dd * 70 * dt; }
+    d.vx *= .94; d.vy *= .94;
+    d.x += d.vx * dt; d.y += d.vy * dt;
+    if (dd < 8) {
+      d.gone = true;
+      if (d.kind === 'hp') { P.hp = Math.min(P.maxhp, P.hp + 18); }
+      else if (BUFFS[d.kind]) { grabBuff(d.kind); }
+      else {
+        P.xp++; Sfx.xp();
+        if (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = 4 + P.lv * 2; showLevelup(); }
+      }
+      syncHud();
+    }
+  }
+  G.drops = G.drops.filter(d => !d.gone);
+
+  // 粒子
+  for (const p of G.parts) {
+    p.life -= dt;
+    if (!p.ring) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .93; p.vy *= .93; }
+  }
+  G.parts = G.parts.filter(p => p.life > 0);
+
+  G.mobs = G.mobs.filter(m => !m.dead);
+
+  G.shake *= Math.pow(.02, dt);
+  G.hitFlash = Math.max(0, G.hitFlash - dt);
+  if (G.comboT > 0) { G.comboT -= dt; if (G.comboT <= 0) G.combo = 0; }
+  updateCombo();
+}
+
+/* ================= 绘制 ================= */
+function drawGrid() {
+  const cx = G.cam.x, cy = G.cam.y;
+  const step = 40;
+  // 远景霓虹雾
+  const hz = ctx.createLinearGradient(0, 0, 0, VH);
+  hz.addColorStop(0, 'rgba(255,46,166,.055)');
+  hz.addColorStop(.45, 'rgba(10,16,32,0)');
+  hz.addColorStop(1, 'rgba(69,240,255,.04)');
+  ctx.fillStyle = hz; ctx.fillRect(0, 0, VW, VH);
+  const pulse = .075 + .028 * Math.sin(G.t * 1.6);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(' + ARENA.a.grid + ',' + pulse.toFixed(3) + ')';
+  ctx.beginPath();
+  for (let x = Math.floor(cx / step) * step; x < cx + VW + step; x += step) {
+    const sx = (x - cx) | 0; ctx.moveTo(sx + .5, 0); ctx.lineTo(sx + .5, VH);
+  }
+  for (let y = Math.floor(cy / step) * step; y < cy + VH + step; y += step) {
+    const sy = (y - cy) | 0; ctx.moveTo(0, sy + .5); ctx.lineTo(VW, sy + .5);
+  }
+  ctx.stroke();
+
+  // 主干霓虹通道
+  ctx.strokeStyle = 'rgba(' + ARENA.a.lane + ',.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = Math.floor(cx / 256) * 256; x < cx + VW + 256; x += 256) {
+    const sx = (x - cx) | 0; ctx.moveTo(sx + .5, 0); ctx.lineTo(sx + .5, VH);
+  }
+  for (let y = Math.floor(cy / 256) * 256; y < cy + VH + 256; y += 256) {
+    const sy = (y - cy) | 0; ctx.moveTo(0, sy + .5); ctx.lineTo(VW, sy + .5);
+  }
+  ctx.stroke();
+
+  // 尘埃（视差）
+  for (const d of DUST) {
+    const x = d.x - cx * d.z, y = d.y - cy * d.z;
+    if (x < 0 || y < 0 || x > VW || y > VH) continue;
+    ctx.fillStyle = 'rgba(150,190,230,' + (.10 + d.z * .16).toFixed(3) + ')';
+    ctx.fillRect(x | 0, y | 0, d.s, d.s);
+  }
+
+  // 地面道具
+  for (const p of PROPS) {
+    const x = (p.x - cx) | 0, y = (p.y - cy) | 0;
+    if (x < -40 || y < -40 || x > VW + 40 || y > VH + 40) continue;
+    const w = p.v ? p.h : p.w, h = p.v ? p.w : p.h;
+    if (p.k === 'crate') {
+      ctx.fillStyle = '#0a1020'; ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = 'rgba(91,109,158,.55)'; ctx.lineWidth = 1;
+      ctx.strokeRect(x + .5, y + .5, w - 1, h - 1);
+      ctx.fillStyle = p.c === '#ff2ea6' ? 'rgba(255,46,166,.55)' : 'rgba(69,240,255,.55)';
+      ctx.fillRect(x + 1, y + 1, 2, 1);
+    } else if (p.k === 'strip') {
+      const a = .35 + .25 * Math.sin(G.t * 2.2 + p.ph);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.c; ctx.fillRect(x, y, w, Math.max(1, h - 4));
+      ctx.globalAlpha = 1;
+      orb(x + w / 2, y + 1, Math.max(w, 10) * .8, p.c === '#ff2ea6' ? 'rgba(255,46,166,.20)' : 'rgba(69,240,255,.20)', a * .8);
+    } else {
+      ctx.strokeStyle = 'rgba(55,69,110,.45)'; ctx.lineWidth = 1;
+      for (let i = 0; i < Math.min(w, 15); i += 3) ctx.strokeRect(x + i + .5, y + .5, 1, h);
+    }
+  }
+
+  // 边界
+  ctx.strokeStyle = 'rgba(255,46,166,.85)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-cx, -cy, ARENA.w, ARENA.h);
+  ctx.strokeStyle = 'rgba(69,240,255,.45)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(-cx + 4, -cy + 4, ARENA.w - 8, ARENA.h - 8);
+}
+
+/* 屏幕外敌人指示 + 小地图 */
+function drawOffscreenMarkers() {
+  for (const m of G.mobs) {
+    const x = m.x - G.cam.x, y = m.y - G.cam.y;
+    if (x >= -8 && y >= -8 && x <= VW + 8 && y <= VH + 8) continue;
+    const cx = clamp(x, 6, VW - 6), cy = clamp(y, 6, VH - 6);
+    const a = Math.atan2(y - VH / 2, x - VW / 2);
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(a);
+    ctx.fillStyle = m.type === 'boss' ? '#ff2f4f' : MOB[m.type].col;
+    ctx.globalAlpha = .8;
+    ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-3, 3); ctx.lineTo(-3, -3); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+function drawMinimap() {
+  const mw = 40, mh = Math.round(mw * ARENA.h / ARENA.w);
+  // 触屏时挪到左下、并且离边远一点：右下角是冲刺和开枪按钮的地盘，
+  // 画布铺满屏幕之后这两个位置就重叠了；边距也要躲开圆角。
+  const pad = isTouch ? 11 : 6;
+  const ox = isTouch ? pad : VW - mw - pad, oy = VH - mh - pad;
+  ctx.fillStyle = 'rgba(4,8,18,.6)'; ctx.fillRect(ox, oy, mw, mh);
+  ctx.strokeStyle = 'rgba(69,240,255,.26)'; ctx.lineWidth = 1;
+  ctx.strokeRect(ox + .5, oy + .5, mw - 1, mh - 1);
+  const sx = mw / ARENA.w, sy = mh / ARENA.h;
+  // 视野框
+  ctx.strokeStyle = 'rgba(120,150,200,.22)';
+  ctx.strokeRect(ox + G.cam.x * sx, oy + G.cam.y * sy, VW * sx, VH * sy);
+  for (const m of G.mobs) {
+    ctx.fillStyle = m.type === 'boss' ? '#ff2f4f' : MOB[m.type].col;
+    const s = m.type === 'boss' ? 3 : 1;
+    ctx.fillRect(ox + m.x * sx - s / 2, oy + m.y * sy - s / 2, s + 1, s + 1);
+  }
+  if (P) { ctx.fillStyle = SKIN.trail; ctx.fillRect(ox + P.x * sx - 1, oy + P.y * sy - 1, 2, 2); }
+}
+
+function drawBoss(m) {
+  const x = m.x - G.cam.x, y = m.y - G.cam.y;
+  const p2 = !!m.p2;
+  // 本体走精灵，和四种杂兵同一套画风（原来是程序化画的圆环，画风是断的）
+  const spr = SPR[p2 ? 'boss_b' : 'boss_a'][0];
+  ctx.save();
+  ctx.translate(x | 0, y | 0);
+  ctx.rotate(m.spin * (p2 ? .9 : .35));                 // 第二形态转得更快
+  if (m.flash > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; blit(spr, 0, 0); blit(spr, 0, 0); ctx.restore(); }
+  else blit(spr, 0, 0);
+  ctx.restore();
+  // 外面两圈反向转的光环：保留原来那点仪式感
+  ctx.save(); ctx.translate(x | 0, y | 0);
+  for (let k = 0; k < 2; k++) {
+    ctx.save(); ctx.rotate(-m.spin * (k ? 1.4 : .8) + k);
+    ctx.strokeStyle = p2 ? (k ? 'rgba(255,224,102,.5)' : 'rgba(255,47,79,.6)')
+                         : (k ? 'rgba(255,46,166,.45)' : 'rgba(255,47,79,.5)');
+    ctx.lineWidth = p2 ? 2 : 1.5;
+    ctx.beginPath();
+    const R = 22 - k * 5;
+    for (let i = 0; i < 6; i++) { const a = i * TAU / 6;
+      const px = Math.cos(a) * R, py = Math.sin(a) * R; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.closePath(); ctx.stroke(); ctx.restore();
+  }
+  ctx.restore();
+  orb(x, y, p2 ? 42 : 34, p2 ? 'rgba(255,224,102,.4)' : 'rgba(255,47,79,.35)');
+  // 血条
+  const w = 46, hp = clamp(m.hp / m.max, 0, 1);
+  ctx.fillStyle = '#1a0b18'; ctx.fillRect(x - w / 2, y - 28, w, 3);
+  ctx.fillStyle = '#ff2f4f'; ctx.fillRect(x - w / 2, y - 28, w * hp, 3);
+}
+
+function render() {
+  const sh = G.shake * OPT.shake;                    // 设置里可以调到 0
+  const ox = sh > .05 ? rnd(-sh, sh) : 0, oy = sh > .05 ? rnd(-sh, sh) : 0;
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#04060c';
+  ctx.fillRect(0, 0, VW, VH);
+  ctx.save();
+  ctx.translate(ox | 0, oy | 0);
+
+  drawGrid();
+
+  // 掉落
+  for (const d of G.drops) {
+    const x = d.x - G.cam.x, y = d.y - G.cam.y;
+    const b = .6 + .4 * Math.sin(G.t * 8 + d.t * 5);
+    if (d.kind === 'hp') {
+      orb(x, y, 8, 'rgba(255,46,166,.8)', b);
+      ctx.fillStyle = '#ff8ecb'; ctx.fillRect(x - 2, y - 1, 5, 2); ctx.fillRect(x - .5, y - 2.5, 2, 5);
+    } else if (BUFFS[d.kind]) {                        // 增益：一个转着的方框，颜色就是它的身份
+      const c = BUFFS[d.kind].c;
+      orb(x, y, 9, c.replace('#', 'rgba(').length ? c + '99' : c, b);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(G.t * 1.4);
+      ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.strokeRect(-3.5, -3.5, 7, 7); ctx.restore();
+      ctx.fillStyle = '#fff'; ctx.fillRect(x - 1, y - 1, 2, 2);
+    } else {
+      orb(x, y, 4.5, 'rgba(124,255,79,.7)', b);
+      ctx.fillStyle = '#d7ffc4'; ctx.fillRect(x - 1, y - 1, 2, 2);
+    }
+  }
+
+  // 敌人子弹
+  for (const b of G.ebullets) {
+    const x = b.x - G.cam.x, y = b.y - G.cam.y;
+    orb(x, y, 6, 'rgba(255,157,61,.8)');
+    ctx.fillStyle = '#fff0c0'; ctx.fillRect(x - 1, y - 1, 2, 2);
+  }
+
+  // 敌人
+  for (const m of G.mobs) {
+    if (m.type === 'boss') { drawBoss(m); continue; }
+    const x = m.x - G.cam.x, y = m.y - G.cam.y;
+    if (x < -30 || y < -30 || x > VW + 30 || y > VH + 30) continue;
+    orb(x, y, m.r * 2.5, m.type === 'rusher' ? 'rgba(255,46,166,.24)' : m.type === 'drone' ? 'rgba(164,92,255,.24)' : 'rgba(255,140,50,.24)');
+    // 精英的底光垫在精灵下面。第一版只在外面画三段短弧，在辉光里糊成两个亮点，
+    // 跟普通怪摆在一起根本分不出 —— 认得出来才算标记。
+    if (m.elite) orb(x, y, m.r * 3.4, 'rgba(255,214,64,.42)');
+    const fly = m.type === 'drone';
+    const hov = fly ? -3 - Math.sin(G.t * 3 + m.phase) * 1.6 : 0;
+    if (!fly) {                                        // 地面单位的投影：让它们踩在地上
+      ctx.globalAlpha = .3; ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.ellipse(x, y + m.r * .8, m.r * 1.1, m.r * .45, 0, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.globalAlpha = .22; ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.ellipse(x, y + 4, m.r * .9, m.r * .35, 0, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    // 动画帧：快的走得快，慢的走得慢；phase 让同类不同步
+    const rate = m.type === 'drone' ? 22 : m.type === 'rusher' ? 14 : m.type === 'tank' ? 5 : 8;
+    const fr = frame(SPR[MOB[m.type].spr], G.t * rate + m.phase * 3);
+    if (m.flash > 0) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      blit(fr, x, y + hov, m.ang); blit(fr, x, y + hov, m.ang);
+      ctx.restore();
+    } else blit(fr, x, y + hov, m.ang, m.elite ? 1.25 : 1);
+    if (m.elite) {
+      const ey = y + hov, r = m.r + 7;
+      // 闭合环：给眼睛一个连续的轮廓，短弧是散点，圈才是「这只不一样」
+      ctx.strokeStyle = 'rgba(255,214,64,.9)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(x, ey, r, 0, TAU); ctx.stroke();
+      // 三个爪甩在环外面：有环作底，转起来才看得出是在转
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) {
+        const a = G.t * 1.9 + i * TAU / 3;
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(a) * (r + 1), ey + Math.sin(a) * (r + 1));
+        ctx.lineTo(x + Math.cos(a) * (r + 5), ey + Math.sin(a) * (r + 5));
+        ctx.stroke();
+      }
+      // 头顶三格冠：静止的，混战里不跟着转也能认
+      ctx.fillStyle = '#ffd640';
+      for (let i = -1; i <= 1; i++) ctx.fillRect(x + i * 3 - 1, ey - r - (i === 0 ? 6 : 4), 2, i === 0 ? 4 : 2);
+    }
+    if (m.slowT > 0) orb(x, y, m.r * 2, 'rgba(69,240,255,.25)');
+    if (m.guarded > 0) {                               // 被中继护着：套一层绿环，一眼看得出打不动
+      ctx.strokeStyle = 'rgba(124,255,79,.55)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x, y, m.r + 3, 0, TAU); ctx.stroke();
+    }
+    if (m.type === 'bomber' && m.fz > 0) {             // 引信：越烧越亮越大
+      const k = 1 - m.fz / .55;
+      orb(x, y, m.r * (2 + k * 3), 'rgba(255,80,60,' + (.3 + k * .5).toFixed(2) + ')');
+    }
+    if (m.type === 'relay' && m.links) {               // 连线：谁在护谁，一看就懂
+      ctx.strokeStyle = 'rgba(124,255,79,.35)'; ctx.lineWidth = 1;
+      for (const o of m.links) {
+        if (o.dead) continue;
+        ctx.beginPath(); ctx.moveTo(x, y);
+        ctx.lineTo(o.x - G.cam.x, o.y - G.cam.y); ctx.stroke();
+      }
+    }
+    if (m.max > 60) {
+      const w = m.r * 3, hp = clamp(m.hp / m.max, 0, 1);
+      ctx.fillStyle = '#20101a'; ctx.fillRect(x - w / 2, y - m.r - 6, w, 2);
+      ctx.fillStyle = '#ff9d3d'; ctx.fillRect(x - w / 2, y - m.r - 6, w * hp, 2);
+    }
+  }
+
+  // 玩家子弹
+  for (const b of G.bullets) {
+    const x = b.x - G.cam.x, y = b.y - G.cam.y;
+    const px = b.px - G.cam.x, py = b.py - G.cam.y;
+    const col = b.crit ? '255,224,102' : (b.col || '69,240,255');
+    ctx.strokeStyle = 'rgba(' + col + ',.32)';
+    ctx.lineWidth = b.crit ? 4 : 3;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.92)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke();
+    orb(x, y, b.crit ? 6 : 4, 'rgba(' + col + ',.75)');
+  }
+
+  // 静电场
+  if (P && P.aura) {
+    const R = 22 + P.aura * 1.5, x = P.x - G.cam.x, y = P.y - G.cam.y;
+    orb(x, y, R, 'rgba(69,240,255,.10)');
+    ctx.strokeStyle = 'rgba(69,240,255,' + (.14 + .1 * Math.sin(G.t * 9)).toFixed(3) + ')';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      const a0 = G.t * 1.3 + i * TAU / 6;
+      ctx.beginPath(); ctx.arc(x, y, R, a0, a0 + .55); ctx.stroke();
+    }
+  }
+
+  // 玩家
+  if (P) {
+    const x = P.x - G.cam.x, y = P.y - G.cam.y;
+    orb(x, y, 13, SKIN.trail + '30');                   // 十六进制加两位 = 透明度
+    ctx.strokeStyle = SKIN.trail + '4d'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(x, y, 10, 5, 0, 0, TAU); ctx.stroke();
+    if (P.inv > 0 && ((G.t * 20) | 0) % 2) { /* 受击闪烁 */ }
+    else {
+      ctx.globalAlpha = .32; ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.ellipse(x, y + 9, 8, 3.2, 0, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+      drawPlayer(x, y);
+    }
+    // 枪口指示
+    const gx = x + Math.cos(P.ang) * 11, gy = y + Math.sin(P.ang) * 11;
+    orb(gx, gy, 5, 'rgba(255,224,102,.5)');
+  }
+
+  // 粒子
+  for (const p of G.parts) {
+    const a = p.life / p.max;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (p.ring) {
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = p.c; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, p.s * (1.2 - a), 0, TAU); ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.c;
+      ctx.fillRect(x - p.s / 2, y - p.s / 2, p.s, p.s);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  drawOffscreenMarkers();
+
+  // 准心
+  const mx = mouse.x | 0, my = mouse.y | 0;
+  ctx.strokeStyle = 'rgba(69,240,255,.95)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(mx - 8, my + .5); ctx.lineTo(mx - 3, my + .5);
+  ctx.moveTo(mx + 4, my + .5); ctx.lineTo(mx + 9, my + .5);
+  ctx.moveTo(mx + .5, my - 8); ctx.lineTo(mx + .5, my - 3);
+  ctx.moveTo(mx + .5, my + 4); ctx.lineTo(mx + .5, my + 9);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,46,166,.9)'; ctx.fillRect(mx, my, 1, 1);
+
+  ctx.restore();
+  drawMinimap();
+
+  // ---- bloom ----
+  // 辉光关掉时整段都不做 —— 两次下采样加两次 lighter 合成，省下来是真的省
+  if (OPT.bloom > 0) {
+    b1x.clearRect(0, 0, b1.width, b1.height);
+    b1x.imageSmoothingEnabled = true;
+    // 只让【亮的部分】参与辉光。原来是整帧下采样再加回去，等于把中间调也一起点亮，
+    // 结果精灵的细节全被糊平 —— 提亮度加对比度近似一个阈值，霓虹还在发光，像素还看得清。
+    b1x.filter = 'brightness(1.5) contrast(2.3)';
+    b1x.drawImage(cv, 0, 0, b1.width, b1.height);
+    b1x.filter = 'none';
+    b2x.clearRect(0, 0, b2.width, b2.height);
+    b2x.imageSmoothingEnabled = true;
+    b2x.drawImage(b1, 0, 0, b2.width, b2.height);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.imageSmoothingEnabled = true;
+    ctx.globalAlpha = .42 * OPT.bloom; ctx.drawImage(b1, 0, 0, VW, VH);
+    ctx.globalAlpha = .28 * OPT.bloom; ctx.drawImage(b2, 0, 0, VW, VH);
+    ctx.restore();
+  }
+
+  // ---- 受击红闪 ----
+  if (G.hitFlash > 0) {
+    ctx.fillStyle = 'rgba(255,46,86,' + (G.hitFlash * .5).toFixed(3) + ')';
+    ctx.fillRect(0, 0, VW, VH);
+  }
+
+  // ---- CRT overlay ----
+  ctx.drawImage(OVL, 0, 0);
+  // 移动扫描带
+  const band = (G.t * 60) % (VH + 60) - 30;
+  const gg = ctx.createLinearGradient(0, band, 0, band + 30);
+  gg.addColorStop(0, 'rgba(255,255,255,0)');
+  gg.addColorStop(.5, 'rgba(190,235,255,.045)');
+  gg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gg; ctx.fillRect(0, band, VW, 30);
+
+  if (G.paused) {
+    ctx.fillStyle = 'rgba(4,6,12,.7)'; ctx.fillRect(0, 0, VW, VH);
+    ctx.fillStyle = '#45f0ff'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(TC.on ? '- 已 暂 停 -  点右上角继续'
+      : PAD.on ? '- 已 暂 停 -  按 START 继 续' : '- 已 暂 停 -  按 P 继 续', VW / 2, VH / 2);
+    ctx.textAlign = 'left';
+  }
+}
+
+// 预渲染扫描线 + 暗角
+const OVL = (() => {
+  const c = document.createElement('canvas'); c.width = VW; c.height = VH;
+  const t = c.getContext('2d');
+  t.fillStyle = 'rgba(0,0,0,.20)';
+  for (let y = 0; y < VH; y += 2) t.fillRect(0, y, VW, 1);
+  const g = t.createRadialGradient(VW / 2, VH / 2, VH * .28, VW / 2, VH / 2, VH * .95);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(0,0,0,.5)');
+  t.fillStyle = g; t.fillRect(0, 0, VW, VH);
+  return c;
+})();
+
+/* ================= HUD ================= */
+const el = id => document.getElementById(id);
+function syncHud() {
+  if (!P) return;
+  el('hpFill').style.width = clamp(P.hp / P.maxhp * 100, 0, 100) + '%';
+  el('hpTxt').textContent = Math.max(0, Math.ceil(P.hp));
+  el('xpFill').style.width = (P.xp / P.need * 100) + '%';
+  el('lvTxt').textContent = P.lv;
+  el('scoreTxt').textContent = G.score;
+  el('waveTag').textContent = 'WAVE ' + String(Math.max(1, G.wave)).padStart(2, '0');
+  const wt = el('wepTxt');
+  if (wt) wt.textContent = WEAPONS[P.wep].n + (P.owned.length > 1 ? '  Q▸' : '');
+}
+function updateDash() {
+  const pip = el('dashPip').firstElementChild;
+  if (!pip || !P) return;
+  const ready = P.dashCdT === 0;
+  if (ready !== (pip.className === 'on')) pip.className = ready ? 'on' : '';
+}
+// 芯片按需增删，不每帧重建 innerHTML；条子每帧只改一个 width。
+const BUFF_EL = {};
+function updateBuffs() {
+  const box = el('buffs');
+  if (!box) return;
+  for (const id of BUFF_IDS) {
+    const b = BUFFS[id];
+    if (b.t <= 0) continue;                            // 磁暴是即时的，没有条可走
+    const t = G.buffs[id] || 0, cur = BUFF_EL[id];
+    if (t > 0 && !cur) {
+      const e = document.createElement('div'), nm = document.createElement('b'), bar = document.createElement('i');
+      e.className = 'bf'; e.style.setProperty('--c', b.c); nm.textContent = b.n;
+      e.appendChild(nm); e.appendChild(bar); box.appendChild(e);
+      BUFF_EL[id] = { e, bar };
+    } else if (t <= 0 && cur) {
+      cur.e.remove(); delete BUFF_EL[id];
+    }
+    if (BUFF_EL[id]) BUFF_EL[id].bar.style.width = (t / b.t * 100) + '%';
+  }
+}
+function updateCombo() {
+  updateDash();
+  updateBuffs();
+  const w = el('comboWrap');
+  if (G.combo >= 3) { w.style.opacity = 1; el('comboTxt').textContent = 'x' + G.combo + ' COMBO'; }
+  else w.style.opacity = 0;
+}
+let bannerT = 0;
+function banner(main, sub) {
+  const b = el('banner');
+  b.innerHTML = main + (sub ? '<small>' + sub + '</small>' : '');
+  b.style.opacity = 1;
+  bannerT = 2;
+}
+
+/* ================= 流程 ================= */
+// seedOverride：给指定种子就用它。两个用处 ——
+// 一是 ?seed=123 能把一局原样复现（roguelite 里「这把种子太离谱了」值得能分享），
+// 二是离线探针只有把种子钉死才能比较改动前后的难度。
+function start(seedOverride) {
+  Sfx.init();
+  // 种子必须在生成场景之前定下来，场景装饰也走刷怪流
+  const urlSeed = (() => {
+    const q = new URLSearchParams(location.search || '').get('seed');
+    return q && /^\d+$/.test(q) ? (Number(q) >>> 0) : null;
+  })();
+  RUN_SEED = MODE === 'daily' ? strSeed('ns-' + dayKey())
+    : seedOverride != null ? (seedOverride >>> 0)
+    : urlSeed != null ? urlSeed
+    : ((Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0);
+  seedRun(RUN_SEED);
+  ARENA_I = 0; setArena(0);
+  P = newPlayer();
+  Object.assign(G, {
+    state: 'play', paused: false, t: 0, shake: 0, hitFlash: 0,
+    score: 0, kills: 0, wave: 0, waveT: .8, phase: 'break',
+    spawnT: 0, budget: 0, combo: 0, comboT: 0,
+    bullets: [], ebullets: [], mobs: [], parts: [], drops: [], offer: [], stacks: {},
+    beams: [], arcs: [], slashes: [], wepDmg: {}, deathBy: null, bossKills: 0, tankKills: 0,
+    buffs: {}, mod: null, eliteKills: 0, overheat: 0, overheat: 0
+  });
+  if (MODE === 'daily') {                               // 每日局：固定配置
+    applySkin(dailySkin());                             // 涂装是外观，可以跟着当天换
+    P.hp = P.maxhp; equip('pulse');
+  } else {
+    applySkin(PROF.skin);
+    (CHASSIS[PROF.chassis] || CHASSIS.std).f(P);         // 底座
+    P.hp = P.maxhp;
+    equip(PROF.wep && (PROF.wep === 'pulse' || PROF.bought[PROF.wep]) ? PROF.wep : 'pulse');
+  }
+  G.cam.x = camAt(P.x - VW / 2, ARENA.w, VW);
+  G.cam.y = camAt(P.y - VH / 2, ARENA.h, VH);
+  el('title').classList.remove('show');
+  el('over').classList.remove('show');
+  el('levelup').classList.remove('show');
+  syncHud();
+}
+function gameOver() {
+  G.state = 'over';
+  el('oScore').textContent = G.score;
+  el('oWave').textContent = G.wave;
+  el('oKills').textContent = G.kills;
+  const by = G.deathBy === 'self' ? '自己的榴弹' : (MOB[G.deathBy] || {}).nm;
+  el('overSub').textContent = '义体在第 ' + G.wave + ' 波被' + (by || '拆解队') + '拆解';
+  el('overBuild').textContent = '打法：' + runReport();
+
+  // 比法一样，比的对象不一样：自由局比历史最好，每日局比今天自己
+  const cur = { wave: G.wave, score: G.score, kills: G.kills, build: runReport(), at: Date.now() };
+  const beats = (a, b) => !b || a.wave > b.wave || (a.wave === b.wave && a.score > b.score);
+  if (MODE === 'daily') {
+    const rec = Object.assign({ day: dayKey() }, cur);
+    if (beats(cur, DAILY)) {
+      el('overBest').textContent = DAILY
+        ? '今日新纪录 · 上一次是第 ' + DAILY.wave + ' 波'
+        : '今日第一局 · 种子 ' + dayKey();
+      DAILY = rec; saveDaily(DAILY);
+    } else {
+      el('overBest').textContent = '今日最好：第 ' + DAILY.wave + ' 波 ' + DAILY.score + ' 分 —— 差 '
+        + Math.max(1, DAILY.wave - cur.wave) + ' 波';
+    }
+  } else if (beats(cur, BEST)) {
+    const old = BEST;
+    el('overBest').textContent = old
+      ? '新纪录 · 上一个是第 ' + old.wave + ' 波 ' + old.score + ' 分'
+      : '第一条记录已存下';
+    BEST = cur; saveBest(BEST);
+  } else {
+    const d = BEST.wave - cur.wave;
+    el('overBest').textContent = d > 0
+      ? '最好：第 ' + BEST.wave + ' 波 —— 差 ' + d + ' 波'
+      : '最好：第 ' + BEST.wave + ' 波 ' + BEST.score + ' 分 —— 差 ' + (BEST.score - cur.score) + ' 分';
+  }
+  syncBest();
+  const bank = bankRun();
+  el('overGain').textContent = '+' + bank.scrap + ' 废钢'
+    + (bank.got.length ? ' · 解锁：' + bank.got.map(m => m.n).join('、') : '');
+  syncProf();
+  el('over').classList.add('show');
+  explode(P.x, P.y, 40, 0);
+}
+function syncBest() {
+  const t = el('titleBest');
+  if (!t) return;
+  if (MODE === 'daily')
+    t.textContent = '每日局 ' + dayKey() + (DAILY ? ' · 今日最好：第 ' + DAILY.wave + ' 波 ' + DAILY.score + ' 分' : ' · 今天还没打');
+  else
+    t.textContent = BEST ? '最好：第 ' + BEST.wave + ' 波 · ' + BEST.score + ' 分 · ' + BEST.build : '';
+}
+syncBest();
+syncProf();
+el('startBtn').onclick = start;
+el('retryBtn').onclick = start;
+
+/* ================= 主循环 ================= */
+let last = performance.now();
+function loop(now) {
+  let dt = (now - last) / 1000; last = now;
+  if (dt > .05) dt = .05;
+
+  if (G.state === 'play' && !G.paused) update(dt);
+  if (G.state === 'levelup' || G.paused) { /* 冻结世界 */ }
+
+  if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) el('banner').style.opacity = 0; }
+  if (P) render();
+  else {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#04060c'; ctx.fillRect(0, 0, VW, VH);
+    G.t += dt;
+    G.cam.x = 200 + Math.sin(G.t * .12) * 160;
+    G.cam.y = 200 + Math.cos(G.t * .09) * 120;
+    drawGrid();
+    b1x.clearRect(0, 0, b1.width, b1.height);
+    b1x.drawImage(cv, 0, 0, b1.width, b1.height);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .5;
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(b1, 0, 0, VW, VH); ctx.restore();
+    ctx.drawImage(OVL, 0, 0);
+  }
+
+  const tc = el('tc');
+  if (tc) {
+    tc.classList.toggle('play', G.state === 'play');       // 暂停时也留着，否则点不回来
+    tc.classList.toggle('paused', !!G.paused);
+  }
+  Sfx.music(Math.min(1, G.wave / 6));
+  requestAnimationFrame(loop);
+}
+applySkin(PROF.skin);
+setArena(0);
+requestAnimationFrame(loop);
+
+/* ================= 自适应尺寸 ================= */
+function fit() {
+  const pad = isTouch ? 0 : 24;
+  const vw = (window.visualViewport ? visualViewport.width : innerWidth) - pad;
+  const vh = (window.visualViewport ? visualViewport.height : innerHeight) - pad;
+  // 只有触屏才改分辨率。桌面保持 320×180 的机台观感，也免得视野大小跟着
+  // 窗口形状漂 —— 每日局里大家看到的战场应该一样大。
+  const w0 = VW, h0 = VH;
+  if (!isTouch) { VW = REF_W; VH = REF_H; }
+  else {
+    // 把逻辑分辨率对齐到视口宽高比，缩放才能同时填满两个方向。
+    // 比例掐在 [.3, 4]：真出现更离谱的比例，宁可留点黑边也不要算出 2000 像素高的视野。
+    const ar = clamp(vw / vh, .3, 4);
+    if (ar >= REF_W / REF_H) { VH = REF_H; VW = Math.round(REF_H * ar); }
+    else { VW = REF_W; VH = Math.round(REF_W / ar); }
+  }
+  if (VW !== w0 || VH !== h0) {
+    // 重设 canvas.width 会清掉 ctx 的所有状态，但这里的状态都是每帧重设的，没事
+    cv.width = VW; cv.height = VH;
+    b1.width = Math.max(8, VW >> 2); b1.height = Math.max(8, VH >> 2);
+    b2.width = Math.max(4, VW >> 3); b2.height = Math.max(4, VH >> 3);
+    if (P) { G.cam.x = camAt(P.x - VW / 2, ARENA.w, VW); G.cam.y = camAt(P.y - VH / 2, ARENA.h, VH); }
+  }
+  const s = Math.max(isTouch ? .4 : 1, Math.min(vw / VW, vh / VH));
+  cv.style.width = (VW * s) + 'px';
+  cv.style.height = (VH * s) + 'px';
+  if (isTouch) {
+    // body 用 100vh 时手机地址栏收起前后会差一截，画布就不在可视区正中。
+    // 直接钉成可视视口的高度。
+    document.body.style.height = vh + 'px';
+    document.body.classList.toggle('portrait', vh > vw);
+  }
+}
+// 横竖屏切换和地址栏收起都会改可视视口，光听 resize 不够
+addEventListener('resize', fit);
+addEventListener('orientationchange', () => setTimeout(fit, 120));
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', fit);
+  visualViewport.addEventListener('scroll', fit);
+}
+fit();
+
+// 验收钩子。整个游戏包在 IIFE 里，没有它就没法用脚本摆敌人位置、验精灵和武器手感，
+// 而这些正是肉眼最难看准的东西。市井那边也是把全局摊开给 tools/verify-*.js 用的，
+// 这里保持一致。只读内部状态，不影响玩法。
+window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
+  update, render, WEAPONS, WEP_ORDER, SPR, MOB, UPGRADES, frame, TC, nearestMob,
+  gameOver, runReport, topWeapon, topUpgrades, loadBest, saveBest, SAVE_KEY, get BEST() { return BEST; },
+  PROF, PROF_DEF, PROF_KEY, MILES, CHASSIS, WEP_COST, checkMiles, nextMile, bankRun, buyWep, pickWep, pickChassis,
+  loadProf, saveProf, rollOffer, syncProf, setMode, seedRun, strSeed, dayKey, RNG, mkRng,
+  OPT, setOpt, REDUCE, PAD, pollPad, updateBuffs, BUFF_EL,
+  fit, cv, REF_W, REF_H, camAt, get VW() { return VW; }, get VH() { return VH; },
+  loadDaily, saveDaily, DAILY_KEY, get MODE() { return MODE; }, get RUN_SEED() { return RUN_SEED; },
+  ARENAS, ARENA, setArena, nextWave, genScenery, get ARENA_I() { return ARENA_I; },
+  hurtMob, hurtPlayer, blowUp, killMob, waveSpawn, takeUpgrade, rollOffer, showLevelup, BUFFS, BUFF_IDS, grabBuff, MODS, rollMod, eliteChance, makeElite,
+  SKINS, SKIN_ORDER, GRID, applySkin, pickSkin, dailySkin, sprSet, DECAL, GUN_OF, drawPlayer,
+  get SKIN() { return SKIN; }, get SPRACTIVE() { return SPR; },
+  get isTouch() { return isTouch; } };
+
+})();
+</script>
+
+</html>

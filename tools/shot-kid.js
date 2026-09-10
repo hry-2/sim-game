@@ -2,7 +2,7 @@
 // 这一版有两处只有眼睛能验的东西：花名册那一行长什么样、铺盖画出来像不像地铺。
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
 
 (async () => {
   const b = await chromium.launch();

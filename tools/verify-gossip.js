@@ -8,7 +8,7 @@ const path = require('path');
   const page = await browser.newPage({ viewport: { width: 1280, height: 880 } });
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  await page.goto('file://' + path.resolve(__dirname, '..', 'index.html'));
+  await page.goto('file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html'));
   await page.waitForTimeout(1500);
 
   // === 1. 因果链：玩家跟 A 吵架 → A 转述给 B → B 对玩家变冷淡 ===

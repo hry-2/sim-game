@@ -12,7 +12,7 @@ const path = require('path');
   const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  await page.goto('file://' + path.resolve(__dirname, '..', 'index.html'));
+  await page.goto('file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html'));
   await page.waitForTimeout(1400);
 
   const r = await page.evaluate(() => {

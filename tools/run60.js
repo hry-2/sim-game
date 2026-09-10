@@ -3,7 +3,7 @@
 // 所以人口该在 6 和 12 之间自己找平衡 —— 既不清零，也不无限膨胀。
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
 
 (async () => {
   const b = await chromium.launch();

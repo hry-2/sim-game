@@ -1,0 +1,1681 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>夜港 · 原型</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:#07080d;color:#c9d4e6;font:12px/1.5 ui-monospace,"SF Mono",Menlo,Consolas,monospace;overflow:hidden}
+#wrap{position:relative;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center}
+canvas{image-rendering:pixelated;background:#000;display:block}
+.box{background:rgba(7,8,13,.72);border:1px solid #1e2a3f;padding:6px 10px}
+/* ---- 关卡 HUD ---- */
+#hud{position:absolute;left:0;top:0;right:0;padding:10px 14px;display:none;justify-content:space-between;pointer-events:none;text-shadow:0 1px 0 #000}
+#hp{width:140px;height:8px;background:#1a1420;border:1px solid #3a2233;margin-top:4px}
+#hp i{display:block;height:100%;background:#ff2ea6;width:100%}
+#alert{font-weight:bold;letter-spacing:.15em}
+#alert.idle{color:#8fd18f}#alert.search{color:#ffb347}#alert.combat{color:#ff4d6d}
+#obj{color:#ffd97a}
+#hud.walk .box:first-child,#hud.walk .box:last-child,#hud.walk #alert{display:none}
+#hud.walk{justify-content:center}
+/* ---- 常驻状态条：倒计时和欠款是这个游戏的脊梁，任何时候都看得见 ---- */
+#status{position:absolute;right:14px;top:10px;display:none;text-align:right;pointer-events:none;text-shadow:0 1px 0 #000;font-size:11px}
+#status.inlevel{top:auto;bottom:10px}
+#status b{color:#45f0ff;font-weight:normal}
+#status .d{color:#ff8f6d}
+#status .r{color:#7d8aa5}
+/* ---- 对话 ---- */
+#dlg{position:absolute;inset:0;display:none;flex-direction:column;justify-content:flex-end;pointer-events:none}
+#dlg .loc{position:absolute;left:0;top:0;padding:10px 16px;color:#7d8aa5;letter-spacing:.16em;font-size:11px;text-shadow:0 1px 0 #000}
+#dlg .port{position:absolute;left:20px;bottom:2px;width:192px;height:224px;pointer-events:none;
+  background-repeat:no-repeat;image-rendering:pixelated;opacity:0;transition:opacity .16s;
+  filter:drop-shadow(0 2px 10px rgba(0,0,0,.9))}
+
+#dlg .panel{pointer-events:auto;background:linear-gradient(180deg,rgba(7,8,13,0),rgba(7,8,13,.93) 22%,rgba(7,8,13,.97));
+  border-top:1px solid #1e2a3f;padding:16px 22px 14px 228px;max-height:66%;display:flex;flex-direction:column}
+@media (max-width:900px){#dlg .port{display:none}#dlg .panel{padding-left:22px}}
+#dlg .log{overflow-y:auto;margin-bottom:2px}
+#dlg .l{margin:3px 0;max-width:820px}
+#dlg .l .who{color:#45f0ff}
+#dlg .l .who.pc{color:#ffd97a}
+#dlg .l .note{color:#5a6478}
+#dlg .l.nar{color:#8a94a8;font-style:italic}
+#dlg .l.scr{color:#8fd18f;white-space:pre-wrap;border-left:2px solid #24503a;padding:2px 0 2px 8px;margin:6px 0}
+#dlg .l.dim{opacity:.45}
+#dlg .opts{margin-top:8px;display:flex;flex-direction:column;gap:2px;max-width:820px}
+#dlg .opt{pointer-events:auto;text-align:left;background:none;border:1px solid #1e2a3f;color:#c9d4e6;
+  font:inherit;padding:4px 10px;cursor:pointer}
+#dlg .opt:hover{border-color:#45f0ff;color:#fff;background:rgba(69,240,255,.06)}
+#dlg .opt .k{color:#5a6478;margin-right:8px}
+#dlg .opt.locked{color:#4c5468;border-color:#161d2b;cursor:not-allowed;text-decoration:line-through}
+#dlg .opt.locked:hover{border-color:#161d2b;background:none;color:#4c5468}
+#dlg .hint{margin-top:8px;color:#5a6478;font-size:11px}
+/* ---- 全屏卡片：标题 / 结算 ---- */
+#ovl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(4,5,9,.86)}
+#ovl .card{max-width:580px;padding:26px 30px;border:1px solid #2a3b5a;background:#0b0e16;box-shadow:0 0 40px rgba(69,240,255,.08)}
+#ovl h1{font-size:26px;letter-spacing:.3em;color:#45f0ff;margin-bottom:4px}
+#ovl h2{font-size:12px;color:#7d8aa5;font-weight:normal;letter-spacing:.2em;margin-bottom:18px}
+#ovl p{margin:8px 0}
+#ovl table{border-collapse:collapse;margin:10px 0 16px}
+#ovl td{padding:2px 12px 2px 0}
+#ovl td:first-child{color:#7d8aa5}
+#ovl kbd{display:inline-block;min-width:22px;text-align:center;padding:0 5px;border:1px solid #3a4b6a;border-bottom-width:2px;border-radius:3px;color:#e8eefc;background:#141a28;font:inherit}
+#ovl .go{margin-top:14px;color:#ffd97a}
+#ovl .stat{display:flex;gap:22px;margin:12px 0}
+#ovl .stat b{display:block;font-size:20px;color:#45f0ff}
+#ovl .bonus{color:#8fd18f}#ovl .miss{color:#5a6478;text-decoration:line-through}
+#ovl button{font:inherit;background:none;border:1px solid #2a3b5a;color:#c9d4e6;padding:5px 14px;cursor:pointer;margin-right:8px}
+#ovl button:hover{border-color:#45f0ff;color:#fff}
+#toast{position:absolute;left:50%;bottom:12%;transform:translateX(-50%);color:#ffd97a;font-size:14px;letter-spacing:.1em;text-shadow:0 0 12px #000;pointer-events:none;opacity:0;transition:opacity .2s}
+</style></head><body>
+<div id="wrap">
+  <canvas id="game" width="320" height="180"></canvas>
+  <div id="hud">
+    <div class="box">
+      <div>生命 <span id="hpn">100</span></div><div id="hp"><i></i></div>
+    </div>
+    <div class="box" style="text-align:center"><div id="alert" class="idle">未察觉</div><div id="obj"></div></div>
+    <div class="box" style="text-align:right"><div>击杀 <span id="kills">0</span> · 被发现 <span id="seen">0</span></div><div id="tip" style="color:#7d8aa5"></div></div>
+  </div>
+  <div id="status"></div>
+  <div id="dlg">
+    <div class="loc"></div>
+    <div class="port"></div>
+    <div class="panel"><div class="log"></div><div class="opts"></div><div class="hint"></div></div>
+  </div>
+  <div id="toast"></div>
+  <div id="ovl"></div>
+</div>
+<script>
+'use strict';
+/* ===================================================================
+   夜港 · 原型
+   策划：docs/夜港策划拆解.md   剧本：docs/夜港剧本.md
+
+   这一版接上了 T8：剧本不再是文档，是游戏读的数据。
+   台词全部来自 docs/夜港剧本.md，由 tools/script2json.js 解析后嵌在下面的
+   SCRIPT 里 —— 游戏代码里没有一句写死的台词，也没有一行"如果选了 A 就说 B"。
+   =================================================================== */
+
+/* ===== 剧本数据（tools/script2json.js --embed 写进来的，别手改） ===== */
+const SCRIPT = /*@script*/{"quests":{"P0":{"key":"P0","title":"裁员日","scenes":[{"id":"P0.1","title":"明烛穹顶，安保部会议室 B","steps":[{"t":"nar","text":"陈九坐着。对面是一块屏幕，屏幕里是一个笑容标准的头像，胸牌写着\"人力资源 · 晨曦\"。"},{"t":"say","who":"晨曦","text":"陈九，早上好。感谢您为明烛服务的七年一个月零三天。"},{"t":"say","who":"晨曦","text":"经岗位结构优化评估，您所在的岗位将于今日 18:00 撤销。"},{"t":"say","who":"晨曦","text":"您的苗子计划合同将按第十二条提前终止。已配发义体的未偿部分转为个人债务，明细已发送至您的终端。"},{"t":"say","who":"晨曦","text":"您的义体固件订阅将转入离职宽限期，宽限期为 90 天。这段时间内您的义体将正常运行。"},{"t":"say","who":"晨曦","text":"请问您对以上安排有什么疑问吗？"},{"t":"ask","opts":[{"text":"为什么是我","set":"flag.asked_why=1","goto":"1a","to":{"scene":"P0.1","step":7}},{"text":"债是多少","goto":"1b","to":{"scene":"P0.1","step":13}},{"text":"没有","set":"flag.quiet=1","goto":"1c","to":{"scene":"P0.1","step":20}}]},{"t":"say","who":"晨曦","text":"岗位结构优化不针对任何个人。您的绩效记录是优秀的。"},{"t":"say","who":"晨曦","text":"请问您还有其他疑问吗？"},{"t":"ask","opts":[{"text":"许维安知道吗","set":"flag.asked_xu=1","goto":"1a2","to":{"scene":"P0.1","step":10}},{"text":"没有了","goto":"1c","to":{"scene":"P0.1","step":20}}]},{"t":"say","who":"晨曦","text":"许总监已签署本次优化方案。他让我转达：改天一起吃饭。"},{"t":"nar","text":"（屏幕下方滚过一行小字：本次会话已记录。）"},{"t":"goto","goto":"1c","to":{"scene":"P0.1","step":20}},{"t":"say","who":"晨曦","text":"右臂环宇 M7、双眼环宇 V4 定制、脊柱环宇 S2，合计未偿 218,400。"},{"t":"say","who":"晨曦","text":"宽限期内您可以选择一次性结清，或申请环宇的个人分期。"},{"t":"say","who":"晨曦","text":"请问您还有其他疑问吗？"},{"t":"ask","opts":[{"text":"我七年的工资加起来没这么多","goto":"1b2","to":{"scene":"P0.1","step":17}},{"text":"没有了","goto":"1c","to":{"scene":"P0.1","step":20}}]},{"t":"say","who":"晨曦","text":"苗子计划的义体按配发时的市价计算。具体请咨询环宇公司。"},{"t":"say","who":"晨曦","text":"请问您还有其他疑问吗？"},{"t":"ask","opts":[{"text":"没有了","goto":"1c","to":{"scene":"P0.1","step":20}}]},{"t":"say","who":"晨曦","text":"好的。请您在 18:00 前交还工牌、制式武器和门禁凭证。"},{"t":"say","who":"晨曦","text":"您的个人物品已由同事代为整理，在一号门领取。"},{"t":"say","who":"晨曦","text":"明烛祝您未来一切顺利。"},{"t":"nar","text":"屏幕暗了。门开了。门外站着一个年轻保安，比陈九还小。"},{"t":"say","who":"保安","text":"陈……陈{哥|姐}。我送您到一号门。"},{"t":"ask","opts":[{"text":"不用，我认路","set":"flag.walk_alone=1","goto":"场景 2","to":{"scene":"P0.2","step":0}},{"text":"走吧","goto":"场景 2","to":{"scene":"P0.2","step":0}}]}],"labels":{"1a":7,"1a2":10,"1b":13,"1b2":17,"1c":20}},{"id":"P0.2","title":"一号门","steps":[{"t":"nar","text":"一个纸箱。里面是一个保温杯、一双备用鞋、一张内审组的合影。合影里有林可，站在陈九旁边。"},{"t":"nar","text":"抱着箱子往外走。玻璃幕墙外面是草坪，恒温的，一年四季都那么绿。"},{"t":"walk","key":"gate","hint":"抱着箱子走到闸机前，按 E 交工牌"},{"t":"say","who":"闸机","text":"请出示门禁凭证。"},{"t":"nar","text":"陈九把工牌放进回收口。闸机绿了一下，然后黄了。"},{"t":"say","who":"闸机","text":"用户 A-77120，您的穹顶通行权限已撤销。祝您一天愉快。"},{"t":"say","who":"保安","note":"（在身后，小声）","text":"陈{哥|姐}。林{哥|姐}让我跟您说一句：她没签。","need":"flag.walk_alone"},{"t":"say","who":"保安","text":"陈{哥|姐}，我……我是十一期的。","need":"!(flag.walk_alone)"},{"t":"say","who":"陈九","text":"我知道。","need":"!(flag.walk_alone)"},{"t":"say","who":"保安","text":"……我们这期，合同改成十二年了。","need":"!(flag.walk_alone)"},{"t":"say","who":"陈九","text":"我知道。","need":"!(flag.walk_alone)"}],"labels":{}},{"id":"P0.3","title":"轨道车，穹顶 → 港区","steps":[{"t":"nar","text":"车窗外从草坪变成雨。车厢广播："},{"t":"say","who":"广播","text":"环宇义体提醒您：固件签名是您安全的保障。按时续订，畅享生活。"},{"t":"nar","text":"陈九的右眼视野角落亮起一个小字：剩余 89 天 22 小时。这是玩家第一次看见倒计时。它以后一直在。"},{"t":"nar","text":"下面还有一行更小的：未偿 218,400。这个也一直在。"}],"labels":{}},{"id":"P0.4","title":"港区，桂记面馆","steps":[{"t":"nar","text":"雨。霓虹。面馆的门帘湿着。桂姐在擀面，豆包在后面剥葱——那个位置七年前是陈九的。"},{"t":"say","who":"桂姐","text":"小九？今天不是礼拜天。"},{"t":"ask","opts":[{"text":"今天不用上班了","set":"flag.told_truth=1","goto":"4a","to":{"scene":"P0.4","step":3}},{"text":"换班","set":"flag.lied_gui=1","goto":"4b","to":{"scene":"P0.4","step":10}},{"text":"（不说话，坐下）","set":"flag.quiet=1","goto":"4c","to":{"scene":"P0.4","step":15}}]},{"t":"say","who":"桂姐","text":"……不用上班了？"},{"t":"say","who":"陈九","text":"优化了。"},{"t":"nar","text":"桂姐停了一下，接着擀。"},{"t":"say","who":"桂姐","text":"那今天吃大碗。钱下个月给。"},{"t":"say","who":"豆包","text":"什么叫优化？"},{"t":"say","who":"桂姐","text":"剥你的葱。"},{"t":"goto","goto":"4d","to":{"scene":"P0.4","step":20}},{"t":"say","who":"桂姐","text":"换班还抱个箱子。"},{"t":"nar","text":"她看了一眼纸箱，没再问。"},{"t":"say","who":"桂姐","text":"大碗？"},{"t":"say","who":"陈九","text":"大碗。"},{"t":"goto","goto":"4d","to":{"scene":"P0.4","step":20}},{"t":"nar","text":"桂姐看了一眼纸箱，看了一眼那张脸。她认识那张脸十八年了。"},{"t":"say","who":"桂姐","text":"大碗。不要钱。"},{"t":"say","who":"陈九","text":"桂姐——"},{"t":"say","who":"桂姐","text":"吃。"},{"t":"goto","goto":"4d","to":{"scene":"P0.4","step":20}},{"t":"nar","text":"面来了。豆包凑过来。"},{"t":"say","who":"豆包","text":"九{哥|姐}——白大夫说你们苗子计划配的义体，宽限期一过，坏得比我们的快。真的假的？"},{"t":"say","who":"桂姐","text":"豆包！"},{"t":"say","who":"豆包","text":"我就问问。我明年就能报名了。"},{"t":"ask","opts":[{"text":"真的","goto":"4e","to":{"scene":"P0.4","step":25}},{"text":"别报","set":"flag.told_doubao=1","goto":"4f","to":{"scene":"P0.4","step":28}}]},{"t":"say","who":"豆包","text":"那你得赶紧找活。阿鲈那儿有委托板。"},{"t":"say","who":"桂姐","text":"吃面。都吃面。"},{"t":"goto","goto":"4g","to":{"scene":"P0.4","step":33}},{"t":"nar","text":"豆包不说话了。桂姐也不说话了。擀面的声音停了一下。"},{"t":"say","who":"桂姐","text":"七年前也有人跟你说别报。"},{"t":"say","who":"陈九","text":"我知道。"},{"t":"say","who":"桂姐","text":"吃面。"},{"t":"goto","goto":"4g","to":{"scene":"P0.4","step":33}},{"t":"nar","text":"吃完。天黑了。"},{"t":"say","who":"桂姐","text":"小九。"},{"t":"say","who":"陈九","text":"嗯。"},{"t":"say","who":"桂姐","text":"阿鲈今天问了你两次。你去看看。"},{"t":"say","who":"桂姐","text":"后厨的铺还在。豆包睡里头，你睡外头。"},{"t":"nar","text":"（目标更新：去潮声酒吧找阿鲈。）"}],"labels":{"4a":3,"4b":10,"4c":15,"4d":20,"4e":25,"4f":28,"4g":33}},{"id":"P0.5","title":"潮声酒吧（P1 入口 · 阿鲈第一拍）","steps":[{"t":"nar","text":"阿鲈在擦杯子。看见你进来，没停。"},{"t":"say","who":"阿鲈","text":"小九。坐。"},{"t":"say","who":"阿鲈","text":"三个人找你。一天之内三个，你要么发财了要么完了。"},{"t":"say","who":"阿鲈","text":"许维安，你的老上司。他让人留了张卡，说随时。"},{"t":"say","who":"阿鲈","text":"六指。他让我跟你说，港区的事港区人自己管。"},{"t":"say","who":"阿鲈","text":"还有一个没留名字。就说让你去老船那边，你自己知道是哪条船。"},{"t":"ask","opts":[{"text":"我不知道是哪条船","goto":"5a","to":{"scene":"P0.5","step":7}},{"text":"知道了","goto":"5b","to":{"scene":"P0.5","step":10}}]},{"t":"say","who":"阿鲈","text":"那就是还不到你知道的时候。"},{"t":"say","who":"阿鲈","text":"先见另外两个吧。"},{"t":"goto","goto":"5b","to":{"scene":"P0.5","step":10}},{"t":"nar","text":"他把擦好的杯子放下，倒了一杯，推过来。"},{"t":"say","who":"阿鲈","text":"你上去那年我十九。你走的那天六指在我这儿喝到关门，说港区又送走一个。"},{"t":"say","who":"阿鲈","text":"我说小九不一样。"},{"t":"ask","opts":[{"text":"现在呢","goto":"5c","to":{"scene":"P0.5","step":14}},{"text":"六指说对了","goto":"5d","to":{"scene":"P0.5","step":17}}]},{"t":"say","who":"阿鲈","text":"现在你回来了。"},{"t":"say","who":"阿鲈","text":"回来的人不多。"},{"t":"goto","goto":"结束序章","to":{"exit":"结束序章"}},{"t":"say","who":"阿鲈","text":"六指说对的事多了。他也说过我这店撑不过三年。"},{"t":"nar","text":"他看了一眼吧台后面的墙，墙上有一块比周围新的地方，像是摘掉了什么。"},{"t":"say","who":"阿鲈","text":"喝完再走。第一杯不要钱。"},{"t":"goto","goto":"结束序章","to":{"exit":"结束序章"}},{"t":"nar","text":"（序章结束。三个中间人的任务同时开放。）"}],"labels":{"5a":7,"5b":10,"5c":14,"5d":17}}],"after":[{"who":"桂姐","text":"「昨天的面钱不急。」","quest":"P0","need":"flag.told_truth"},{"who":"桂姐","text":"「你昨天说换班。」（停顿）「豆包都知道了。」","quest":"P0","need":"flag.lied_gui"},{"who":"桂姐","text":"什么都不说，多给一勺卤","quest":"P0","need":"flag.quiet"},{"who":"豆包","text":"「九{哥","quest":"P0","need":"flag.told_doubao"}]},"M1":{"key":"M1","title":"旧钥匙","scenes":[{"id":"M1.1","title":"见许维安：穹顶外围，一家有包厢的餐厅","steps":[{"t":"nar","text":"许维安已经点好了菜。两副筷子。七年前面试完他也是带陈九来的这里。"},{"t":"say","who":"许维安","text":"坐。这家的鱼还是老样子。"},{"t":"say","who":"许维安","text":"先说清楚，裁员那件事不是我的意思。上面要数字，我给的名单里没有你。"},{"t":"ask","opts":[{"text":"晨曦说你签了","need":"flag.asked_xu","set":"rep.corp-=5","goto":"a1","to":{"scene":"M1.1","step":4}},{"text":"我知道","goto":"a2","to":{"scene":"M1.1","step":8}},{"text":"说事吧","set":"flag.blunt=1","goto":"a3","to":{"scene":"M1.1","step":10}}]},{"t":"nar","text":"许维安夹菜的手停了半秒。"},{"t":"say","who":"许维安","text":"签是一定要签的。不签，名单就是别人来定。"},{"t":"say","who":"许维安","text":"你在内审组三年，这个道理不用我讲。"},{"t":"goto","goto":"a3","to":{"scene":"M1.1","step":10}},{"t":"say","who":"许维安","text":"你一直是明白人。七年前我在港区看一圈，就你一个不问工资先问合同。"},{"t":"goto","goto":"a3","to":{"scene":"M1.1","step":10}},{"t":"say","who":"许维安","text":"有件小事。安保部老楼那边有间档案室，里面有块盘，我要拿出来。"},{"t":"say","who":"许维安","text":"走流程要三个星期。我没有三个星期。"},{"t":"say","who":"许维安","text":"你那套旧门禁还在——那栋楼的锁老，没换。"},{"t":"say","who":"陈九","text":"里面是什么。"},{"t":"say","who":"许维安","text":"一些不该留在公司系统里的东西。"},{"t":"say","who":"许维安","text":"你拿出来，交给我，不看。事成之后我帮你把账户接回来——不是宽限期，是正式的。债也可以谈。"},{"t":"ask","opts":[{"text":"我看一眼","goto":"a4","to":{"scene":"M1.1","step":17}},{"text":"好","set":"flag.m1_agree=1","goto":"任务开始","to":{"exit":"任务开始"}},{"text":"我不做这种事","need":"flag.blunt","goto":"a5","to":{"scene":"M1.1","step":20}}]},{"t":"say","who":"许维安","text":"你要是看了，我们俩就都得走另一条路。"},{"t":"say","who":"许维安","text":"我不建议。"},{"t":"ask","opts":[{"text":"那我不看","set":"flag.m1_agree=1","goto":"任务开始","to":{"exit":"任务开始"}},{"text":"那算了","goto":"a5","to":{"scene":"M1.1","step":20}}]},{"t":"say","who":"许维安","text":"小九。"},{"t":"nar","text":"他很少这么叫。上一次是七年前在港区。"},{"t":"say","who":"许维安","text":"你剩多少天？"},{"t":"nar","text":"他没等回答。"},{"t":"say","who":"许维安","text":"卡留着。想通了随时。"},{"t":"nar","text":"（M1 暂停。三天后自动重开，再来的时候许维安会说\"我等着你\"。）"}],"labels":{"a1":4,"a2":8,"a3":10,"a4":17,"a5":20}},{"id":"M1.2","title":"任务：安保部老楼","steps":[{"t":"note","text":"关卡：三层楼，两条巡逻路线（外包保安，不认识陈九），门禁全部是陈九的旧密码——走到任何一扇门前按 E 都会直接开，这是本关的教学：你的价值就是这些门。"},{"t":"note","text":"可选目标：不被发现。不杀人（他们是外包的，跟公司没关系）。"},{"t":"nar","text":"到达档案室。硬盘在一个上锁的抽屉里，抽屉是旧密码。"},{"t":"nar","text":"义眼视野角落弹出一行：检测到可读存储 · 是否挂载。"},{"t":"ask","opts":[{"text":"挂载","set":"flag.m1_looked=1","goto":"硬盘内容","to":{"scene":"M1.2","step":5}},{"text":"不挂载","goto":"撤离","to":{"exit":"撤离"}}]},{"t":"screen","lines":["明烛安保 · 内部调查 · 结案报告（草稿）","调查对象：许维安","调查负责人：陈九 / 林可","状态：负责人（陈九）已优化，案卷封存"]},{"t":"nar","text":"倒计时在角落跳了一下。"}],"labels":{"（拿到硬盘时）":3,"硬盘内容":5}},{"id":"M1.3","title":"交硬盘：同一家餐厅","steps":[{"t":"say","who":"许维安","text":"顺利？"},{"t":"say","who":"陈九","text":"顺利。"},{"t":"say","who":"许维安","text":"看了？","need":"flag.m1_looked"},{"t":"ask","opts":[{"text":"看了","set":"flag.m1_admit=1","goto":"b1","to":{"scene":"M1.3","step":5}},{"text":"没看","set":"flag.m1_lied=1","goto":"b2","to":{"scene":"M1.3","step":10}}],"need":"flag.m1_looked"},{"t":"goto","goto":"b3","need":"!(flag.m1_looked)","to":{"scene":"M1.3","step":16}},{"t":"nar","text":"许维安把硬盘收进包里。很久。"},{"t":"say","who":"许维安","text":"那你现在知道了。"},{"t":"say","who":"许维安","text":"知道了也好。你我之间就不用演了。"},{"t":"say","who":"许维安","text":"账户的事我照办。下一件事，你自己决定接不接。"},{"t":"goto","set":"rep.corp+=10; days+=15","goto":"结算","to":{"exit":"结算"}},{"t":"say","who":"许维安","text":"好。"},{"t":"nar","text":"他看了你一眼，你知道他知道。"},{"t":"say","who":"许维安","text":"七年了，你撒谎还是不看人。"},{"t":"say","who":"许维安","text":"账户的事我照办。"},{"t":"nar","text":"（flag.m1_lied 在 M4 会被他拿出来讲。）"},{"t":"goto","set":"rep.corp+=10; days+=15","goto":"结算","to":{"exit":"结算"}},{"t":"say","who":"许维安","text":"你还是老样子。"},{"t":"say","who":"许维安","text":"所以我才找你。"},{"t":"say","who":"许维安","text":"账户的事我照办。过几天还有一件。"},{"t":"goto","set":"rep.corp+=15; days+=15","goto":"结算","to":{"exit":"结算"}}],"labels":{"b1":5,"b2":10,"b3":16}}],"after":[{"who":"桂姐","text":"「阿鲈说你昨晚穿了公司那套衣服出去。」（不等回答）「面好了。」","quest":"M1"},{"who":"豆包","text":"「九{哥","quest":"M1","need":"flag.m1_looked"},{"who":"老韩","text":"「听说老楼昨晚死了两个外包的。外包的，啧。」","quest":"M1","needLabel":"任务里杀了人"},{"who":"林可的消息","text":"「你去了老楼。」只有这四个字。","quest":"M1","need":"flag.m1_looked"}]},"G1":{"key":"G1","title":"第一针","scenes":[{"id":"G1.1","title":"见六指：潮声酒吧后巷","steps":[{"t":"nar","text":"六指靠在墙上抽烟。左手五根手指，烟夹在无名指和小指之间。"},{"t":"say","who":"六指","text":"小九。回来了。"},{"t":"say","who":"六指","text":"七年前你走的时候我就说，穹顶不留港区的人。"},{"t":"say","who":"六指","text":"我不跟你绕。你剩多少天？"},{"t":"ask","opts":[{"text":"八十几","goto":"c1","to":{"scene":"G1.1","step":5}},{"text":"你管这个？","goto":"c2","to":{"scene":"G1.1","step":7}}]},{"t":"say","who":"六指","text":"八十几。够我把你养熟了。"},{"t":"goto","goto":"c3","to":{"scene":"G1.1","step":10}},{"t":"say","who":"六指","text":"港区所有人剩几天我都管。这是我吃饭的本事。"},{"t":"say","who":"六指","text":"你在上面查别人的时候，我在下面数日子。一样的活。"},{"t":"goto","goto":"c3","to":{"scene":"G1.1","step":10}},{"t":"say","who":"六指","text":"我这儿有固件。不是环宇那种，是破解的。一针三十天，价钱是公司的三分之一。"},{"t":"say","who":"六指","text":"坏处我也直说：十针里坏一针。坏了不是死，是难受。白大夫能修。"},{"t":"say","who":"六指","text":"今晚有一趟货要送到十七栋。你陪小陆走一趟，回来第一针我请。"},{"t":"say","who":"陈九","text":"小陆是谁。"},{"t":"say","who":"六指","text":"陆妈妈的儿子。你走那年他十二，天天在你屁股后面跑。"},{"t":"say","who":"六指","text":"孩子刚上手，毛躁。你就走在他后面，别让他出事。"},{"t":"ask","opts":[{"text":"好","set":"flag.g1_agree=1","goto":"任务开始","to":{"exit":"任务开始"}},{"text":"我不带小孩","goto":"c4","to":{"scene":"G1.1","step":17}}]},{"t":"say","who":"六指","text":"他十九。"},{"t":"say","who":"六指","text":"你十九的时候在干什么？"},{"t":"say","who":"陈九","text":"站门。"},{"t":"say","who":"六指","text":"在穹顶给人站门。他在港区给自己人跑腿。"},{"t":"say","who":"六指","text":"去不去？"},{"t":"ask","opts":[{"text":"去","set":"flag.g1_agree=1","goto":"任务开始","to":{"exit":"任务开始"}},{"text":"不去","goto":"c5","to":{"scene":"G1.1","step":23}}]},{"t":"say","who":"六指","text":"行。"},{"t":"say","who":"六指","text":"卡我不留，港区人找我不用卡。"},{"t":"nar","text":"（G1 暂停。三天后重开，重开时六指第一句：\"小陆昨天自己走了一趟，没出事。你的运气。\"）"}],"labels":{"c1":5,"c2":7,"c3":10,"c4":17,"c5":23}},{"id":"G1.2","title":"任务：从潮声到十七栋","steps":[{"t":"note","text":"关卡：三条巷子。小陆走在前面，你跟着。没有敌人。"},{"t":"nar","text":"巷子中间有一台明烛的巡逻无人机——陈九认得它的巡逻间隔，屏幕上会提示：它每 12 秒转一次头。教玩家读节奏。"},{"t":"nar","text":"小陆边走边说："},{"t":"say","who":"小陆","text":"九{哥|姐}，你还记得我不？"},{"t":"say","who":"陈九","text":"记得。"},{"t":"say","who":"小陆","text":"你走那天我去车站了。你没看见我。"},{"t":"ask","opts":[{"text":"看见了","goto":"d1","to":{"scene":"G1.2","step":7}},{"text":"没看见","goto":"d2","to":{"scene":"G1.2","step":11}}]},{"t":"say","who":"小陆","text":"骗人。你看见了怎么不挥手。"},{"t":"say","who":"陈九","text":"……"},{"t":"say","who":"小陆","text":"算了。你们上去的人都这样，我妈说的。"},{"t":"goto","goto":"d3","to":{"scene":"G1.2","step":15}},{"t":"say","who":"小陆","text":"哦。"},{"t":"nar","text":"沉默走了半条巷子。"},{"t":"say","who":"小陆","text":"我妈不让我进六指这儿。可她自己的义腿也是六指的针。"},{"t":"goto","goto":"d3","to":{"scene":"G1.2","step":15}},{"t":"walk","key":"alley","hint":"跟着小陆穿过三条巷子，走到十七栋楼下"},{"t":"nar","text":"十七栋楼下。交货的人没来。小陆等得不耐烦。"},{"t":"say","who":"小陆","text":"他说八点。"},{"t":"nar","text":"一辆车灯亮了。不是接货的车，是澜海的巡查车。"},{"t":"say","who":"小陆","text":"操——"},{"t":"nar","text":"他把货塞进嘴里。三支固件针。"},{"t":"say","who":"陈九","text":"吐出来。"},{"t":"say","who":"小陆","text":"他们要查的！"},{"t":"nar","text":"车停了。两个澜海的巡查下来。"},{"t":"say","who":"巡查甲","text":"站住。港区禁夜令你们不知道？"},{"t":"say","who":"巡查甲","text":"包打开。"},{"t":"nar","text":"（这里可以打。也可以不打。）"},{"t":"ask","opts":[{"text":"明烛安保，编号 A-77120，这孩子跟我的","need":"flag.walk_alone || rep.corp>=5","set":"flag.g1_badge=1","goto":"d4","to":{"scene":"G1.2","step":28}},{"text":"打","action":"战斗","goto":"d5","to":{"scene":"G1.2","step":35}},{"text":"举手","goto":"d6","to":{"scene":"G1.2","step":40}}]},{"t":"nar","text":"巡查甲的义眼扫了你一下。工牌是撤了，但编号还在明烛的名册上——宽限期的意思。"},{"t":"say","who":"巡查甲","text":"……明烛的管到我们澜海地界了？"},{"t":"say","who":"巡查乙","text":"算了算了，别惹那边。"},{"t":"nar","text":"车走了。"},{"t":"say","who":"小陆","note":"（吐出针，三支，一支已经破了）","text":"九{哥|姐}……你还能用那个号？"},{"t":"say","who":"陈九","text":"还有八十几天能用。破了的那支别用。"},{"t":"goto","goto":"回潮声","to":{"scene":"G1.3","step":0}},{"t":"nar","text":"两个巡查倒下。澜海的车会记下你的脸。"},{"t":"nar","text":"小陆吐出针。三支，一支破了，他自己手也抖。"},{"t":"say","who":"小陆","text":"我……我没打过人。"},{"t":"say","who":"陈九","text":"你没打。是我打的。"},{"t":"goto","set":"flag.g1_killed=1; rep.street-=5","goto":"回潮声","to":{"scene":"G1.3","step":0}},{"t":"nar","text":"他们搜了包，搜了你，没搜小陆的嘴。走的时候踹了小陆一脚。"},{"t":"say","who":"巡查甲","text":"港区的狗。"},{"t":"nar","text":"车走了。小陆吐出针，两支破了。"},{"t":"say","who":"小陆","text":"对不起。"},{"t":"ask","opts":[{"text":"没事","goto":"d6a","to":{"scene":"G1.2","step":45}},{"text":"下次别吞","goto":"d6b","to":{"scene":"G1.2","step":48}}]},{"t":"say","who":"小陆","text":"六指会扣我的。"},{"t":"say","who":"陈九","text":"我说是我弄破的。"},{"t":"goto","set":"flag.g1_cover=1","goto":"回潮声","to":{"scene":"G1.3","step":0}},{"t":"say","who":"小陆","text":"那要不吞了他们搜出来我更完。"},{"t":"say","who":"陈九","text":"……"},{"t":"goto","goto":"回潮声","to":{"scene":"G1.3","step":0}}],"labels":{"d1":7,"d2":11,"d3":15,"d4":28,"d5":35,"d6":40,"d6a":45,"d6b":48}},{"id":"G1.3","title":"回潮声：六指","steps":[{"t":"say","who":"六指","text":"货呢。"},{"t":"nar","text":"小陆把针放在桌上。"},{"t":"say","who":"陈九","text":"我弄破的。","need":"flag.g1_cover"},{"t":"say","who":"六指","text":"你？","need":"flag.g1_cover"},{"t":"say","who":"陈九","text":"手滑。","need":"flag.g1_cover"},{"t":"nar","text":"六指看了小陆一眼，小陆盯着地。","need":"flag.g1_cover"},{"t":"say","who":"六指","text":"行。小九手滑。","need":"flag.g1_cover"},{"t":"say","who":"六指","text":"小陆，回去看你妈。","need":"flag.g1_cover"},{"t":"set","set":"rep.gang+=5; flag.saved_xiaolu=1","need":"flag.g1_cover"},{"t":"say","who":"六指","text":"小陆。","need":"!(flag.g1_cover)"},{"t":"say","who":"小陆","text":"澜海的车……","need":"!(flag.g1_cover)"},{"t":"say","who":"六指","text":"我问你货。","need":"!(flag.g1_cover)"},{"t":"say","who":"小陆","text":"我吞了。","need":"!(flag.g1_cover)"},{"t":"say","who":"六指","text":"吞了。","need":"!(flag.g1_cover)"},{"t":"nar","text":"六指没说话。他把两支破的推给小陆。","need":"!(flag.g1_cover)"},{"t":"say","who":"六指","text":"这两针记你账上。回去看你妈。","need":"!(flag.g1_cover)"},{"t":"set","set":"rep.gang+=5","need":"!(flag.g1_cover)"},{"t":"nar","text":"小陆走后。"},{"t":"say","who":"六指","text":"第一针，我请。白大夫那儿，随时。"},{"t":"say","who":"六指","text":"澜海的人你打了两个。他们记脸的。","need":"flag.g1_killed"},{"t":"say","who":"六指","text":"以后走码头，戴个帽子。","need":"flag.g1_killed"},{"t":"say","who":"六指","text":"你报了明烛的号。","need":"flag.g1_badge"},{"t":"say","who":"六指","text":"好用。但下次我就不知道你是哪边的了。","need":"flag.g1_badge"},{"t":"set","set":"rep.corp+=3","need":"flag.g1_badge"},{"t":"nar","text":"吧台后面，阿鲈一直在擦同一个杯子。你走的时候他说："},{"t":"say","who":"阿鲈","text":"小陆那孩子，你走以后就没人管了。"},{"t":"say","who":"阿鲈","text":"今天有了。","need":"flag.saved_xiaolu"}],"labels":{}}],"after":[{"who":"陆妈妈","text":"「小九？」（她看了很久）「你走那年小陆哭了一晚上。」（停顿）「他说你手滑。谢谢你的手。」","quest":"G1","need":"flag.saved_xiaolu"},{"who":"陆妈妈","text":"「小陆昨晚没回来。」","quest":"G1","need":"!flag.saved_xiaolu"},{"who":"大勇","text":"「昨晚死了两个澜海巡查。今天我们全码头挨个查。」","quest":"G1","need":"flag.g1_killed"},{"who":"桂姐","text":"「白大夫说你在她那儿排了号。」（她没有再说话，卤少了半勺）","quest":"G1"}]},"N1":{"key":"N1","title":"看东西","scenes":[{"id":"N1.1","title":"见老鲸：报废疏浚船「沪疏 07」","steps":[{"t":"nar","text":"船搁浅在新陆边缘的滩上，锈了一半。舷梯下有一个铃。"},{"t":"nar","text":"玩家拉铃。舱门开了一半。"},{"t":"say","who":"老鲸","note":"（从里面）","text":"进来。鞋脱了。"},{"t":"nar","text":"舱里堆满显示器，全亮着，每个都在滚字。老鲸背对着门。角落有一张折叠床，床上有人睡过的痕迹，但没人。"},{"t":"say","who":"老鲸","text":"陈九。二十五岁。明烛苗子计划第九期。右臂环宇 M7，双眼环宇 V4 定制，脊柱环宇 S2。宽限期八十七天。未偿二十一万八千四。"},{"t":"say","who":"老鲸","text":"我念错了吗？"},{"t":"ask","opts":[{"text":"你怎么知道的","goto":"e1","to":{"scene":"N1.1","step":7}},{"text":"没有","goto":"e2","to":{"scene":"N1.1","step":10}}]},{"t":"say","who":"老鲸","text":"你的义眼每三十天跟环宇握一次手。握手的时候把你全身都报一遍。"},{"t":"say","who":"老鲸","text":"环宇知道。所以我也知道。"},{"t":"goto","goto":"e3","to":{"scene":"N1.1","step":12}},{"t":"say","who":"老鲸","text":"好。你不惊讶。这是我找你的第一个理由。"},{"t":"goto","goto":"e3","to":{"scene":"N1.1","step":12}},{"t":"nar","text":"他转过来。左眼是义眼，右眼是真的，有白内障。"},{"t":"say","who":"老鲸","text":"我不给你固件。我不是六指。"},{"t":"say","who":"老鲸","text":"我给你看东西。看完你自己决定要不要再来。"},{"t":"say","who":"老鲸","text":"新陆东边有座信号塔，塔下面有个白色的箱子。你去，拍一张箱子上的编号。"},{"t":"say","who":"陈九","text":"为什么。"},{"t":"say","who":"老鲸","text":"因为你去了才会问对的问题。"},{"t":"ask","opts":[{"text":"行","set":"flag.n1_agree=1","goto":"任务开始","to":{"exit":"任务开始"}},{"text":"我不做不知道为什么的事","goto":"e4","to":{"scene":"N1.1","step":19}}]},{"t":"say","who":"老鲸","text":"你在穹顶做了七年不知道为什么的事。"},{"t":"say","who":"老鲸","text":"这一件不一样的地方是，做完你会知道。"},{"t":"ask","opts":[{"text":"行","set":"flag.n1_agree=1","goto":"任务开始","to":{"exit":"任务开始"}},{"text":"不去","goto":"e5","to":{"scene":"N1.1","step":22}}]},{"t":"say","who":"老鲸","text":"门在那儿。鞋在门口。"},{"t":"nar","text":"（N1 暂停。三天后重开。重开时他第一句：\"第三十天你会回来的。他们都是第三十天回来。\"）"}],"labels":{"e1":7,"e2":10,"e3":12,"e4":19,"e5":22}},{"id":"N1.2","title":"任务：信号塔","steps":[{"t":"note","text":"关卡：一片工地，围栏，两个澜海的守夜人，一条狗（机械犬，有噪音探测）。塔下白箱子上有一台摄像头。"},{"t":"note","text":"可选目标：不被发现。不破坏任何东西。"},{"t":"nar","text":"玩家靠近白箱子，义眼自动对焦。箱子上："},{"t":"screen","lines":["环宇义体 · 固件签名中继 · HK-E-014","维护：明烛安保外包"]},{"t":"nar","text":"拍照。义眼弹出：已保存。然后弹出第二行，不是系统字体，是手打的："},{"t":"screen","lines":["> 看见\"明烛\"两个字了吗。 —— 鲸"]},{"t":"nar","text":"有人在你眼睛里。这是第一次。"},{"t":"ask","opts":[{"text":"（对着空气）你什么时候进来的","goto":"f1","to":{"scene":"N1.2","step":8}},{"text":"（不说话，撤离）","goto":"撤离","to":{"exit":"撤离"}}]},{"t":"nar","text":"义眼里打字："},{"t":"screen","lines":["> 你拉铃的时候。别紧张，我只看你看的。","> 现在往回走。狗醒了。"]},{"t":"nar","text":"打字的速度很快，快得不像六十二岁的人。玩家现在不会注意到这一点。"},{"t":"nar","text":"机械犬确实醒了。撤离。"}],"labels":{"f1":8}},{"id":"N1.3","title":"回船","steps":[{"t":"say","who":"老鲸","text":"编号。"},{"t":"say","who":"陈九","text":"HK-E-014。"},{"t":"say","who":"老鲸","text":"全城有四十一个这种箱子。每个箱子每三十天给一片区的义体签一次名。"},{"t":"say","who":"老鲸","text":"签名从环宇的服务器发出来，经过澜海的光缆，由明烛的外包维护。"},{"t":"say","who":"老鲸","text":"三家公司，一把锁。"},{"t":"say","who":"陈九","text":"所以呢。"},{"t":"say","who":"老鲸","text":"所以锁是在城里的，不是在天上的。"},{"t":"say","who":"老鲸","text":"城里的东西，人就摸得到。"},{"t":"nar","text":"他把一杯茶推过来。"},{"t":"say","who":"老鲸","text":"第三十天你会降级。到时候来，我给你打个补丁。不要钱。"},{"t":"say","who":"老鲸","text":"要的是别的。到时候说。"},{"t":"ask","opts":[{"text":"什么别的","goto":"f2","to":{"scene":"N1.3","step":12}},{"text":"到时候说","goto":"结算","to":{"exit":"结算"}}]},{"t":"say","who":"老鲸","text":"让我们住在你眼睛里。"},{"t":"say","who":"老鲸","text":"像刚才那样。但是一直。"},{"t":"say","who":"陈九","text":"……\"我们\"？"},{"t":"say","who":"老鲸","text":"三十天。你有三十天想。"},{"t":"goto","set":"rep.street+=5; flag.n1_done=1","goto":"结算","to":{"exit":"结算"}}],"labels":{"f2":12}}],"after":[{"who":"桂姐","text":"「你昨晚上新陆去了？」（她放下碗）「小九，那边的滩，晚上会涨。你小时候差点淹在那儿。」","quest":"N1"},{"who":"豆包","text":"「九{哥","quest":"N1"},{"who":"大勇","text":"「昨晚工地进贼了，今天澜海加了两条狗。」","quest":"N1","needLabel":"任务里被发现"}]},"R1":{"key":"R1","title":"潮声的账","scenes":[{"id":"R1.1","title":"潮声的账","steps":[{"t":"nar","text":"第 8 天以后，你去潮声。店关着，门没锁。阿鲈一个人坐在吧台外面——客人的位置。他面前的墙上那块新的地方，现在挂了一张纸：潮帮 · 产业登记 · 潮声酒吧 · 抵押人：鲈。"},{"t":"say","who":"阿鲈","text":"坐。今天不开门。"},{"t":"say","who":"阿鲈","text":"六指昨天来贴的。以前他不贴，因为不用贴，港区没人不知道。"},{"t":"say","who":"阿鲈","text":"昨天贴了。就是要让我知道他随时能收。"},{"t":"ask","opts":[{"text":"为什么是昨天","goto":"g1","to":{"scene":"R1.1","step":5}},{"text":"你欠他多少","goto":"g2","to":{"scene":"R1.1","step":9}}]},{"t":"say","who":"阿鲈","text":"因为你回来了。"},{"t":"say","who":"阿鲈","text":"你在我这儿坐了三个晚上。六指觉得我在替你传话，替谁都没事，替你不行。"},{"t":"say","who":"阿鲈","text":"他说小九是穹顶的人，小九的话经过我的店，他就得知道每一句。"},{"t":"goto","goto":"g2","to":{"scene":"R1.1","step":9}},{"t":"say","who":"阿鲈","text":"四万二。三年前是三万，我爹的固件钱。"},{"t":"say","who":"阿鲈","text":"我爹撑了四针，第五针没撑到。钱花完了，人没留下，店抵出去了。"},{"t":"nar","text":"他第一次看你。"},{"t":"say","who":"阿鲈","text":"我从来没求过人。这是第一次。"},{"t":"say","who":"阿鲈","text":"帮我把店赎回来。不是要你的钱，你没有。是要你去跟六指谈。他听你的，他现在需要你。"},{"t":"ask","opts":[{"text":"我去谈","goto":"g3","to":{"scene":"R1.1","step":15}},{"text":"六指不会因为我改主意","goto":"g4","to":{"scene":"R1.1","step":18}},{"text":"你可以不要这个店","goto":"g5","to":{"scene":"R1.1","step":23}}]},{"t":"say","who":"阿鲈","text":"谢了。"},{"t":"say","who":"阿鲈","text":"谈成谈不成，今晚这杯我请。"},{"t":"goto","goto":"任务：跟六指谈","to":{"scene":"R1.2","step":0}},{"t":"say","who":"阿鲈","text":"那你就是白问了。"},{"t":"nar","text":"他站起来，把纸从墙上摘下来，又贴回去。"},{"t":"say","who":"阿鲈","text":"算了。当我没说。"},{"t":"nar","text":"（love.alu 不变。R1 关闭三天，重开时他说：\"上次的事，忘了吧。\"）"},{"t":"goto","set":"flag.r1_defer=1","goto":"结算","to":{"exit":"结算"}},{"t":"nar","text":"他愣了一下，然后笑了。"},{"t":"say","who":"阿鲈","text":"这店我爹擦了二十年，我擦了九年。你说不要。"},{"t":"say","who":"阿鲈","text":"……你知道吗，你是第一个这么说的。所有人都觉得我该保住它。"},{"t":"ask","opts":[{"text":"我是说，你不用替谁擦杯子","set":"flag.alu_heard=1","goto":"g6","to":{"scene":"R1.1","step":27}},{"text":"我的意思是有些东西保不住","goto":"g7","to":{"scene":"R1.1","step":31}}]},{"t":"nar","text":"他很久没说话。"},{"t":"say","who":"阿鲈","text":"先帮我赎回来。"},{"t":"say","who":"阿鲈","text":"赎回来了，我再想要不要。"},{"t":"goto","goto":"任务：跟六指谈","to":{"scene":"R1.2","step":0}},{"t":"say","who":"阿鲈","text":"你说得对。"},{"t":"say","who":"阿鲈","text":"但我还是想试一次。帮不帮？"},{"t":"ask","opts":[{"text":"帮","goto":"g3","to":{"scene":"R1.1","step":15}},{"text":"不帮","goto":"g4","to":{"scene":"R1.1","step":18}}]}],"labels":{"g1":5,"g2":9,"g3":15,"g4":18,"g5":23,"g6":27,"g7":31}},{"id":"R1.2","title":"任务：跟六指谈（后巷）","steps":[{"t":"say","who":"六指","text":"阿鲈让你来的。"},{"t":"say","who":"六指","text":"他自己怎么不来？"},{"t":"ask","opts":[{"text":"他来过了，你贴了张纸","goto":"h1","to":{"scene":"R1.2","step":3}},{"text":"他不好开口","goto":"h2","to":{"scene":"R1.2","step":6}}]},{"t":"say","who":"六指","text":"纸是给他看的，也是给你看的。"},{"t":"say","who":"六指","text":"你在他那儿坐了三晚上。你要是许维安的人，我这港区一半的话就进了穹顶。"},{"t":"goto","goto":"h3","to":{"scene":"R1.2","step":9}},{"t":"say","who":"六指","text":"他不好开口，你就好？"},{"t":"say","who":"六指","text":"小九，你上去七年，回来第八天就替人说话。你以前不这样。"},{"t":"goto","goto":"h3","to":{"scene":"R1.2","step":9}},{"t":"say","who":"六指","text":"四万二。你有？"},{"t":"say","who":"陈九","text":"没有。"},{"t":"say","who":"六指","text":"那你拿什么谈。"},{"t":"ask","opts":[{"text":"明烛老楼所有门的密码","need":"flag.m1_agree","goto":"h4","to":{"scene":"R1.2","step":13}},{"text":"我以后走你的针，不走公司的","goto":"h5","to":{"scene":"R1.2","step":17}},{"text":"我给你干三趟活","goto":"h6","to":{"scene":"R1.2","step":19}}]},{"t":"nar","text":"六指笑了。"},{"t":"say","who":"六指","text":"你把公司卖了换一间酒吧。"},{"t":"say","who":"六指","text":"行。密码给我，纸我撕。"},{"t":"goto","set":"rep.corp-=10; rep.gang+=10; flag.alu_bar_free=1","goto":"回潮声","to":{"scene":"R1.3","step":0}},{"t":"say","who":"六指","text":"你走谁的针我都知道。这不算筹码。"},{"t":"goto","goto":"h3","to":{"scene":"R1.2","step":9}},{"t":"say","who":"六指","text":"三趟。什么活我定。"},{"t":"say","who":"六指","text":"第一趟你已经走过了。还欠两趟。"},{"t":"say","who":"六指","text":"纸先不撕。两趟走完撕。"},{"t":"set","set":"rep.gang+=5; flag.alu_bar_pending=2"},{"t":"nar","text":"（G2、G3 完成后自动清零，届时 flag.alu_bar_free=1。）"}],"labels":{"h1":3,"h2":6,"h3":9,"h4":13,"h5":17,"h6":19}},{"id":"R1.3","title":"回潮声","steps":[{"t":"nar","text":"店开了。墙上的纸没了（h4）或者还在（h6）。"},{"t":"nar","text":"h4："},{"t":"say","who":"阿鲈","text":"他撕了？"},{"t":"say","who":"陈九","text":"撕了。"},{"t":"say","who":"阿鲈","text":"你拿什么换的。"},{"t":"say","who":"陈九","text":"……"},{"t":"say","who":"阿鲈","text":"算了。不问。"},{"t":"nar","text":"他倒了两杯，自己一杯。这是他第一次在自己店里坐在客人这边喝。"},{"t":"say","who":"阿鲈","text":"我爹说酒吧老板不能坐这边。"},{"t":"say","who":"阿鲈","text":"今天坐一次。"},{"t":"goto","set":"love.alu+=1","goto":"结算","to":{"exit":"结算"}},{"t":"nar","text":"h6："},{"t":"say","who":"阿鲈","text":"他说两趟。"},{"t":"say","who":"陈九","text":"两趟。"},{"t":"say","who":"阿鲈","text":"你替我扛两趟。"},{"t":"nar","text":"他没说谢谢。他把那张纸的一角折起来，露出后面墙的颜色。"},{"t":"say","who":"阿鲈","text":"走完了我自己撕。"}],"labels":{}}],"after":[{"who":"桂姐","text":"「阿鲈今天早上来吃面了。他从来不吃早饭。」","quest":"R1","need":"flag.alu_bar_free"},{"who":"豆包","text":"「九{哥","quest":"R1","need":"flag.alu_bar_free"},{"who":"六指","text":"「替人扛账的人，最后都是自己还。」","quest":"R1"}]}}}/*@script*/;
+
+/* ===== 人物立绘（tools/portrait_gen.js --embed 写进来的） ===== */
+const PORTS = /*@portnames*/["陈九男","陈九女","晨曦","许维安","林可","保安","桂姐","豆包","阿鲈","六指","白岚","老韩","陆妈妈","小陆","大勇","老鲸","青蛉","巡查甲","巡查乙"]/*@portnames*/;
+const PORTSRC = /*@port*/'data:image/png;base64,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FkSO3s9nW5Dubf4DQJr/AI/9gkcgsu/5D/Bo/qmfyjtPqgWLtRkdsETvf+bAY28Asnfw2DuIbAWQvYFI83/zf58neUBwbe69/5atvgFIABKABCABSAASgAQgAUgAEoAEIAFIABKABCABSADSAhwACUACkBaAAEgAEoAEIC1AWICwAAFAApAAJAAJQFrYN/8BIAFIABKABCABSPNPABKoASABSAASgAQgzf/N/32eAJAAJAAJQAKQACQACUACkAAkAAlAApAAJAAJQAKQACQACUACkAAkAGkBDoC0AARAApAAJABpAcIChAUIABKABCABSAASgAQgAUgAEoAEIAFIABKABCABSAASgAQgAUgA0vzf/B+ABCABSAASgAQgAUgAEoAEIAFIABKABCABSAASgAQgAUgAEoC0AAdAApAApAUgABKABCABSADSAoQFCAASgAQgAUgA0sK++Q8ACUACkAAkAKlfMf8EIAFIANK8BoAEIAFI83/zf/N/ABKABCCjD3CWHlj0vlAwOogcHpAFH3iq/1j1PAcgj09OqzL6wr/cFwTU1uPeADI6iGkFj60gEnjJDR7lWBkNRGYDj9LnQ8v5WHvh7L2fv1mVb3zvW7Iit16QAx77WkjpfcETiFy2nqMDx1qQ5+sfG0h6gSszL0gAjxKIdD8Y5b4w2oL/6P/Bk9HnP1uDvtGz9/9AFvBo/8f+z377bNGBo/lnLiAJBPQNHkcDkeH+H482Bo+1AHLr7B08toLI0XLr/sf8X/o8cV5kkv4IgDQAAiANQNU/AAlASgASkAEgARcAUgKQAKT0+QBAApAW4ABIC0AAJADp6wcgvdCVFiAASAlAApAAJAAJQAKQAKT9H/s/ACQAaf4JQAKQACQACUACkACklACk86KeAUgAEoAEIA1ADUABSAAAAAAgAUgAEoCUACQAKfU/ACQACUBacLYABEACkAAhAAlASi+MAUgJQLofAJAW9s1/AEgAEoC0/2P/R79i/glAApAApHkNAAlAApBAlzT/d16kegYgDYAASOdF/atnAFICkIAMAAm4AJASgPR8lz4fAEgJQAKQFoAASAASgAQgvdCVXhgDkBKABAoASAASgAQgzX/s/9j/ASABSPNP/RQACUACkAAkAAlAmv9LANJ5kd3X82gDnKUHGqMPfIDIbQdIe58X9W8gumo9F2Ds7PziYF69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gAQgvQC2AAFAApAAJAAJQAKQACQACUACkHZy7P8AkBKABCABSAASgJQAJAApzf8BSAlAApASgAQgpQFoPYA8O784mFev35rkjdv3q/LazbtVWf59tb9ftuXS3//yz6vNufoEIPcFj3sDyKVBJAADQAKQACQACUB6/gOQ2QDk0guIAKQFIAASgAQgAUgA0gtgCxAAJAAJQAKQ6/Sf0cHj2iAyWv8PQMo9v/8ApP0f+z8ApPknAAlALj9/yA4el/7+hAMAAKQEIM3/pfk/ACkBSABSApAGoBKABCAlAAlAApAADAApAUgAEoD0/AcgAUgLcACkBSAAEoAEIAFICxBeAAOQACQACUACkAAkAAlAApAApP0f+z8AJABp/glAApAAJAAJQAKQAKT5v/k/AAlAApAApAEQAAlAqn8DUAASgAQgAUgAEoAEIAFIABKABCABSAASgAQgAUgLQAAkAAlAApAApBfAFiAASCgRgNT/A5AApPmPBCABSGn/B4CUACQACUACkACkBCABSGn+D0BKABKAlAAkACkNQAFICUACkAAkAAlASgASgJSe/wAkAAlAApASgAQgJQBpAUJagAAgAUgAEoAEIAFIABKANP+x/2P/B4AEIM0/AUgAEoAEIAFIABKANP83/wcgAUj1D0ACkAZAAKQBqPofEEAen5weTAAAANgTAMzVJwDZV84BSPUPQAKQACQAqf/x/AcgewOQ2dMCHABpAQiABCABSADSAoQXwAAkAAlAApD6f/0/AAlAApAApP0f+z8AJACp/wEgAQDzHwASgAQgAUjzf89/AFL/o/4BSADSAAiAVP8GoAAkAAAAAJAAJAAJQAKQACQAqf/x/AcgAUgAEoC0AGQBGoAEIAFIANILYAsQACQACUACkPp//b/5D5QIQAKQ0v4PACkBSABSAgAApAQgAUhp/g9ASv0PACkBSABSGoACkBKABCABSAAGgJQApOe/9PwHICUAaQFaApAApAQgLUBICxAApAQg9f8SgAQgAUjzH/s/9n8ASABS/wNAAgDmPwAkAAlAApDm/57/AKT+R/0DkACkARAAaQCq/gFIAAAAACDVPwAJQAKQACQAqf/R/wCQACQACUBaALIADUACkAAkAOkFsAUIABKABCABSP2//h+ABCABSADS/o/9HwBS/wNAApDmPwAAAAlAApAApGey+T8AKfU/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AJAAJAApAUjzf2n+r/+RACQAKQFIA1AJQAKQEoAEYABIAAaABCABSM9/ABKABCABSADSArQFIAASgAQgAUgLEF4AA5AAJAAJQOr/9f8AJAAJQAKQ9n/s/wCQAKT+B4AEAMx/AEgAEoAEID3/zf8BSPWv/wEgDYAASABS/RuA9gEgj09ODyYAAADsCQDm6hOABCABGABSApAApPT8ByABSADSArS0AA1ASgDSAoS0AAFASgBS/y8BSABSApD2fyQACUBKABIAkAAkAAlAApDm/57/5v/6H/UPQAKQBkAApAGo+gcgAQAAAIBU/wAkAAlAApAApOe//geABCABSADSArQFIAASgAQgAUgLEF4AA5AAJAAJQOr/9f8AJAAJQAKQ9n/s/wCQ+h8AEoA0/wEAAEgAEoAEID3/zf8BSPWv/wEgDYAASABS/RuAApAAAAAAQAKQAAwAKQFIAFJ6/gOQACQAaQFaWoAGICUACUBKCxAApAQg9f9S/w9ASgASgJT2fwBICUACABKABCAlAGn+L83/9T8SgAQgJQBpACoBSABSApAADAAJwACQACQA6fmv/wEgAUgAEoC0AG0BCIAEIAFIANIChBfAACQACUACkPp//T8ACUACkACk/R/7PwAkAKn/ASABAPMfABKABCABSM9/838AUv3rfwBIAyAAEoBU/wagfQDIs/OLg3n1+q1J3rh9vyqv3bxbleXfV/v7ZVsu/f0v/7zanKtPABKABGAASAlAApDS8x+ABCABSAvQ0gI0ACkBSAsQ0gIEACkBSP2/BCABSAlA2v+RACQAKQFIAEACkAAkAAlAmv97/pv/63/UPwAJQBoAAZAGoOofgAQgAUgAEoABIAFIABKABCA9/wFIABKABCABSAvQFoAASAASgAQgLUB4AQxAApAAJACp/9f/A5AAJAAJQNr/sf8DQOp/AEgA0vwHAAAgAUgAEoD0/Df/ByDVv/4HgDQAAiABSPVvAApAApAAJAAJQAIwAKQEIAFI6fkPQAKQAKQFaGkBGoCUACQAKS1AAJASgNT/S/0/ACkBSABS2v8BICUACQBIABKAlACk+b80/9f/SAASgJQApAGoBCABSAlAAjAAJAADQAKQAKTnPwAJQAKQACQAaQHaAhAACUACkACkBQgvgAFIABKABCD1//p/ABKABCABSPs/9n8ASABS/wNAAgDmPwAkAAlAApCe/+b/AKT61/8AkAZAACQAqf4NQPsAkMcnpwcTAAAA9gQAc/UJQAKQAAwAKQFIAFJ6/gOQACQAaQFaWoAGICUAaQFCWoAAICUAqf+XACQAKQFI+z8SgAQgJQAJAEgAEoAEIAFI83/Pf/N//Y/6ByABSAMgANIAVP0DkAAAAABAqn8AEoAEIAFIANLzX/8DQAKQACQAaQHaAhAACUACkACkBQgvgAFIABKABCD1//p/ABKABCABSPs/9n8ASP0PAAlAmv8AAAAkAAlAApCe/+b/AKT61/8AkAZAACQAqf4NQAFIAAAAACABSAAGgJQAJAApPf8BSAASgLQALS1AA5ASgAQgpQUIAFICkPp/qf8HICUACUBK+z8ApAQgAQAJQAKQEoA0/5fm//ofCUACkBKANACVACQAKQFIAAaABGAASAASgPT81/8AkAAkAAlAWoC2AARAApAAJABpAcILYAASgAQgAUj9v/4fgAQgAUgA0v6P/R8AEoDU/wCQAID5DwAJQAKQAKTnv/k/AKn+9T8ApAEQAAlAqn8D0D4A5Nn5xcG8ev3WJG/cvl+V127ercry76v9/bItl/7+l39ebc7VJwAJQAIwAKQEIAFI6fkPQAKQAKQFaGkBGoCUAKQFCGkBAoCUAKT+XwKQAKQEIO3/SAASgJQAJAAgAUgAEoAEIM3/Pf/N//U/6h+ABCANgABIA1D1D0ACkAAkAAnAAJAAJAAJQAKQnv8AJAAJQAKQAKQFaAtAACQACUACkBYgvAAGIAFIABKA1P/r/wFIABKABCDt/9j/ASD1PwAkAGn+AwAAkAAkAAlAev6b/wOQ6l//A0AaAAGQAKT6NwAFIAFIABKABCABGABSApAApPT8ByABSADSArS0AA1ASgASgJQWIABICUDq/6X+H4CUACQAKe3/AJASgAQAJAAJQEoA0vxfmv/rfyQACUBKANIAVAKQAKQEIAEYABKAASABSADS8x+ABCABSAASgLQAbQEIgAQgAUgA0gKEF8AAJAAJQAKQ+n/9PwAJQAKQAKT9H/s/ACQAqf8BIAEA8x8AEoAEIAFIz3/zfwBS/et/AEgDIAASgFT/BqB9AMjjk9ODCQAAAHsCgLn6BCABSAAGgJQAJAApPf8BSAASgLQALS1AA5ASgLQAIS1AAJASgNT/SwASgJQApP0fCUACkBKABAAkAAlAApAApPm/57/5v/5H/QOQAKQBEABpAKr+AUgAAAAAINU/AAlAApAAJADp+a//ASABSAASgLQAbQEIgAQgAUgA0gKEF8AAJAAJQAKQ+n/9PwAJQAKQAKT9H/s/AKT+B4AEIM1/AAAAEoAEIAFIz3/zfwBS/et/AEgDIAASgFT/BqAAJAAAAACQACQAA0BKABKAlJ7/ACQACUBagJYWoAFICUACkNICBAApAUj9v9T/A5ASgAQgpf0fAFICkACABCABSAlAmv9L83/9jwQgAUgJQBqASgASgJQAJAADQAIwACQACUB6/ut/AEgAEoAEIC1AWwACIAFIABKAtADhBTAACUACkACk/l//D0ACkAAkAGn/x/4PAAlA6n8ASADA/AeABCABSADS89/8H4BU//ofANIACIAEINW/AWgfAPLs/OJgXr1+a5I3bt+vyms371Zl+ffV/n7Zlkt//8s/rzbn6hOABCABGABSApAApPT8ByABSADSArS0AA1ASgDSAoS0AAFASgBS/y8BSABSApD2fyQACUBKABIAkAAkAAlAApDm/57/5v/6H/UPQAKQBkAApAGo+gcgAUgAEoAEYABIABKABCABSM9/ABKABCABSADSArQFIAASgAQgAUgLEF4AA5AAJAAJQOr/9f8AJAAJQAKQ9n/s/wCQ+h8AEoA0/wEAAEgAEoAEID3/zf8BSPWv/wEgDYAASABS/RuAApAAJAAJQAKQAAwAKQFIAFJ6/gOQACQAaQFaWoAGICUACUBKCxAApAQg9f9S/w9ASgASgJT2fwBICUACABKABCAlAGn+L83/9T8SgAQgJQBpACoBSABSApAADAAJwACQACQA6fkPQAKQACQACUBagLYABEACkAAkAGkBwgtgABKABCABSP2//h+ABCABSADS/o/9HwASgNT/AJAAgPkPAAlAApAApOe/+T8Aqf71PwCkARAACUCqfwPQPgCklJESgAQgARgAUgKQAKT0/AcgJQBpAVoCkACkBCAtQEgLEACkBCD1/xKABCAlAGn/RwKQAKT+B4AEAMx/AEgAEoAEIM3/Pf8BSP2P+gcgAUgDIADSAFT9A5BSApAADAAJQAKQACQA6fkPQAKQACQACUBagLYABEACkAAkAOkFsAUIABKABCABSP2//h+ABCABSADS/o/9HwBS/wNAApDmPwAAAAlAApAApOe/+T8Aqf71PwCkoQwACUBKA1AAUkoAEoAEYABICUACkNLzH4AEIAFIC9DSAjQAKQFIAFJagAAgJQCp/5cAJAApAUj7PxKABCAlAAkASAASgJQApPm/NP/X/0gAEoA0AAIgDUDVPwApJQAJwACQACQACUACkJ7/ACQACUACkACkBWgLQAAkAAlAApAWILwABiABSAASgNT/6/8BSAASgAQg7f/Y/wEg9T8AJABp/gMAAJAAJAAJQHr+m/8DkOpf/7N6Pf9fQfQx+ihB+2kAAAAASUVORK5CYII='/*@port*/;
+// 「林可的消息」是终端上的字，但说话的人就是林可
+const PORT_ALIAS = { '林可的消息': '林可' };
+function portOf(who) {
+  if (!who) return -1;
+  if (who === '陈九' || who === ST.name) return PORTS.indexOf('陈九' + (ST.gender === 'm' ? '男' : '女'));
+  return PORTS.indexOf(PORT_ALIAS[who] || who);
+}
+
+const VW = 320, VH = 180, TS = 16, TAU = Math.PI * 2;
+const cv = document.getElementById('game'), ctx = cv.getContext('2d');
+const el = id => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const len = (x, y) => Math.hypot(x, y);
+const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
+// 本仓库的规矩：不用 Math.random。确定性 LCG，同一局重开敌人走位一致，方便复现。
+let seed = 20770909;
+const rnd = (a = 0, b = 1) => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return a + (seed / 4294967296) * (b - a); };
+
+/* =====================================================================
+   全局状态
+   所有系统只读写这一个对象：对话的条件、任务结算、街坊台词、结局判定。
+   存档就是存它。
+   ===================================================================== */
+const ST = {
+  name: '陈九', gender: 'f',
+  day: 1, days: 90,                    // 固件宽限期还剩几天
+  money: 120, debt: 218400,
+  flags: {}, rep: { corp: 0, gang: 0, street: 0 },
+  love: { linke: 0, alu: 0, qingling: 0, bailan: 0 },
+  quest: {},                            // key → 'done'
+  kills: 0, seen: 0,                    // 上一次任务的战绩，街坊台词要用
+};
+const UNKNOWN = [];                     // 认不出来的条件/赋值，攒起来给开发看
+
+// 剧本里有些条件是写给人看的散文，给它们一个对照表
+const ALIAS = { '任务里杀了人': 'kills>=1', '任务里被发现': 'seen>=1', '无条件': '', '无': '' };
+
+function val(p) {
+  const [a, b] = p.split('.');
+  if (a === 'flag') return ST.flags[b] ? 1 : 0;
+  if (a === 'rep') return ST.rep[b] || 0;
+  if (a === 'love') return ST.love[b] || 0;
+  if (p === 'money') return ST.money;
+  if (p === 'days') return ST.days;
+  if (p === 'day') return ST.day;
+  if (p === 'kills') return ST.kills;
+  if (p === 'seen') return ST.seen;
+  UNKNOWN.push('读不出的量：' + p); return 0;
+}
+// 条件求值。不用 eval —— 只支持剧本实际用到的那点语法。
+function need(e) {
+  if (!e) return true;
+  e = String(e).trim();
+  if (ALIAS[e] != null) e = ALIAS[e];
+  if (!e) return true;
+  if (e.startsWith('!(') && e.endsWith(')')) return !need(e.slice(2, -1));
+  if (e.startsWith('!')) return !need(e.slice(1));
+  if (e.includes('||')) return e.split('||').some(need);
+  if (e.includes('&&')) return e.split('&&').every(need);
+  const m = e.match(/^([a-z][a-z0-9_.]*)\s*(>=|<=|==|>|<)\s*(-?\d+)$/i);
+  if (m) {
+    const v = val(m[1]), n = +m[3], op = m[2];
+    return op === '>=' ? v >= n : op === '<=' ? v <= n : op === '==' ? v === n : op === '>' ? v > n : v < n;
+  }
+  if (/^[a-z][a-z0-9_.]*$/i.test(e)) return !!val(e);
+  UNKNOWN.push('看不懂的条件：' + e);
+  return true;                          // 认不出来就放行，宁可多给一个选项也别卡住玩家
+}
+function apply(set) {
+  if (!set) return;
+  for (const one of String(set).split(/[;；]/)) {
+    const s = one.trim(); if (!s) continue;
+    const m = s.match(/^([a-z][a-z0-9_.]*)\s*(\+=|-=|=)\s*(-?\d+)$/i);
+    if (!m) { UNKNOWN.push('看不懂的赋值：' + s); continue; }
+    const [a, b] = m[1].split('.'), n = +m[3], op = m[2];
+    const bag = a === 'flag' ? ST.flags : a === 'rep' ? ST.rep : a === 'love' ? ST.love : null;
+    const cur = bag ? (bag[b] || 0) : (m[1] === 'money' ? ST.money : m[1] === 'days' ? ST.days : null);
+    if (cur === null) { UNKNOWN.push('写不了的量：' + s); continue; }
+    let v = op === '=' ? n : op === '+=' ? cur + n : cur - n;
+    if (a === 'love') v = clamp(v, 0, 3);   // 一拍最多一点，四拍到顶
+    if (bag) bag[b] = v; else if (m[1] === 'money') ST.money = v; else ST.days = v;
+  }
+  syncStatus();
+}
+// {哥|姐} 按玩家选的性别替换；主角名字统一走 ST.name
+const fmt = s => String(s).replace(/\{(.+?)\|(.+?)\}/g, (_, a, b) => ST.gender === 'm' ? a : b)
+  .replace(/陈九/g, () => ST.name);
+
+/* =====================================================================
+   场次图
+   剧本负责台词，这里负责"哪一场接哪一场、哪一场要加载关卡"。
+   它是玩法不是文字，所以手写在这儿，而且很少变。
+   ===================================================================== */
+const SCENE = {
+  'P0.1': { where: '明烛穹顶 · 安保部会议室 B', then: 'P0.2' },
+  'P0.2': { where: '明烛穹顶 · 一号门', then: 'P0.3' },
+  'P0.3': { where: '轨道车 · 穹顶 → 港区', then: 'P0.4' },
+  'P0.4': { where: '港区 · 桂记面馆', then: 'P0.5' },
+  'P0.5': { where: '港区 · 潮声酒吧', then: 'hub', on: { '结束序章': 'hub' } },
+
+  'M1.1': { where: '穹顶外围 · 餐厅', then: 'hub', on: { '任务开始': 'level:M1' } },
+  'M1.2': { then: 'exfil', on: { '撤离': 'exfil' } },          // 关卡里摸到硬盘时触发
+  'M1.3': { where: '穹顶外围 · 餐厅', then: 'done:M1', on: { '结算': 'done:M1' } },
+
+  'G1.1': { where: '港区 · 潮声酒吧后巷', then: 'hub', on: { '任务开始': 'G1.2' } },
+  'G1.2': { where: '港区 · 通往十七栋的巷子', then: 'G1.3', on: { '回潮声': 'G1.3', '战斗': 'G1.2' } },
+  'G1.3': { where: '港区 · 潮声酒吧', then: 'done:G1' },
+
+  'N1.1': { where: '新陆 · 疏浚船「沪疏 07」', then: 'hub', on: { '任务开始': 'level:N1' } },
+  'N1.2': { then: 'exfil', on: { '撤离': 'exfil' } },
+  'N1.3': { where: '新陆 · 疏浚船「沪疏 07」', then: 'done:N1', on: { '结算': 'done:N1' } },
+
+  'R1.1': { where: '港区 · 潮声酒吧', then: 'R1.2', on: { '结算': 'done:R1' } },
+  'R1.2': { where: '港区 · 潮声酒吧后巷', then: 'R1.3' },
+  'R1.3': { where: '港区 · 潮声酒吧', then: 'done:R1', on: { '结算': 'done:R1' } },
+};
+// 任务：接活对话 → 关卡 → 关卡里的触发对话 → 结算屏 → 交活对话
+// 原型只有一张地图，M1 和 N1 共用它，换标题换目标 —— 关卡美术不是这一步要验证的东西。
+const MISSION = {
+  M1: { title: '旧钥匙', place: '明烛 · 安保部老楼',
+    obj: '取出档案室的硬盘（走到发光的抽屉按住 E）', objExfil: '带着硬盘撤离（右下角出口按 E）',
+    grab: 'M1.2', debrief: 'M1.3', bonus: ['不被发现', '不杀人'], cost: 2, map: 'warehouse' },
+  N1: { title: '看东西', place: '新陆 · 信号塔工地',
+    obj: '拍下白箱子上的编号（走到箱子按住 E）', objExfil: '原路撤离（右下角出口按 E）',
+    grab: 'N1.2', debrief: 'N1.3', bonus: ['不被发现', '不破坏任何东西'], cost: 2, map: 'warehouse' },
+};
+// 港区的去处。T11 的街区还没做，先用一张地点表顶着 —— 它验证的是任务能不能开。
+const HUB = [
+  { label: '穹顶外围 · 餐厅 —— 许维安等着你', need: '!(flag.q_M1)', go: () => quest('M1') },
+  { label: '潮声酒吧后巷 —— 六指要跟你说话', need: '!(flag.q_G1)', go: () => quest('G1') },
+  { label: '新陆的滩上 —— 那条报废的船', need: '!(flag.q_N1)', go: () => quest('N1') },
+  { label: '潮声酒吧 —— 阿鲈今天没开门', need: 'day>=3 && !(flag.q_R1)', go: () => quest('R1') },
+  { label: '桂记面馆 —— 吃碗面，听两句话', go: () => neighbours(true) },
+];
+
+/* =====================================================================
+   对话引擎
+   ===================================================================== */
+const DLG = {
+  q: null, sc: null, i: 0, lines: [], type: null, opts: null, custom: null, active: false,
+};
+const scene = id => { for (const q of Object.values(SCRIPT.quests)) { const s = q.scenes.find(x => x.id === id); if (s) return { q, s }; } return null; };
+
+function dlgOpen(where) {
+  DLG.active = true; G.state = 'dlg';
+  el('dlg').style.display = 'flex'; el('hud').style.display = 'none';
+  el('ovl').style.display = 'none';
+  el('dlg').querySelector('.loc').textContent = where || '';
+  el('toast').style.opacity = 0; G.toastT = 0;
+  backdrop = where || '';
+  syncStatus();
+}
+function dlgClose() { DLG.active = false; el('dlg').style.display = 'none'; }
+
+function play(id, at) {
+  const f = scene(id);
+  if (!f) { toast('缺一场：' + id); return hub(); }
+  DLG.q = f.q; DLG.sc = f.s; DLG.custom = null;
+  DLG.i = typeof at === 'string' ? (f.s.labels[at] || 0) : (at || 0);
+  DLG.lines = []; DLG.opts = null; DLG.type = null;
+  dlgOpen((SCENE[id] || {}).where);
+  advance();
+}
+// 自造一场对话（港区去处、次日街坊）——不走剧本数据
+function playCustom(o) {
+  DLG.q = null; DLG.sc = null; DLG.custom = o;
+  DLG.lines = o.lines || []; DLG.opts = null; DLG.type = null;
+  dlgOpen(o.where);
+  if (o.opts) DLG.opts = o.opts.filter(x => need(x.need));
+  paint();
+}
+
+// 走下一步。碰到提问就停下等人选。
+function advance() {
+  if (DLG.type) { DLG.type.i = DLG.type.n; DLG.type = null; paint(); return; }   // 打字机没打完 → 一次打完
+  if (DLG.opts) return;
+  const sc = DLG.sc;
+  if (!sc) { if (DLG.custom && DLG.custom.then) { const t = DLG.custom.then; DLG.custom = null; return goExit(t); } return; }
+  while (DLG.i < sc.steps.length) {
+    const st = sc.steps[DLG.i++];
+    if (st.need && !need(st.need)) continue;          // 条件不满足的整段跳过
+    if (st.t === 'note') continue;                    // 写给做关卡的人看的，玩家不看
+    if (st.t === 'set') { apply(st.set); continue; }
+    if (st.t === 'goto') { apply(st.set); return jump(st); }
+    if (st.t === 'walk') return startWalk(st, { scene: sc.id, step: DLG.i, lines: DLG.lines.slice() });
+    if (st.t === 'ask') {
+      DLG.opts = st.opts;                             // 不满足的选项也要显示，只是灰掉
+      paint(); return;
+    }
+    DLG.lines.push(st);
+    DLG.type = { i: 0, n: (st.text || (st.lines || []).join('\n')).length, t: 0 };
+    paint(); return;
+  }
+  goExit((SCENE[sc.id] || {}).then || 'hub');
+}
+function jump(st) {
+  if (st.action === '战斗') DLG.lines.push({ t: 'nar', text: '——（交火。两个澜海的巡查倒下了。这一段的关卡还没做，先记在账上。）' });
+  const to = st.to || {};
+  if (to.exit) {
+    const on = (SCENE[DLG.sc.id] || {}).on || {};
+    return goExit(on[to.exit] || to.exit);
+  }
+  // 换场景就是换地点，对话记录清空重新开始；只有本场内的锚点跳转才留着上面说过的话。
+  // （走位段是同一场戏被打断，由 endWalk 负责把话接回去。）
+  if (to.scene && to.scene !== DLG.sc.id) return play(to.scene, to.step);
+  DLG.i = to.step != null ? to.step : DLG.i;
+  return advance();
+}
+function pick(k) {
+  if (!DLG.opts) return;
+  const o = DLG.opts[k];
+  if (!o || !need(o.need)) return;
+  DLG.opts = null;
+  if (o.go) { dlgClose(); return o.go(); }            // 自造选项：直接跑函数
+  DLG.lines.push({ t: 'pc', text: o.text });
+  apply(o.set);
+  if (o.to || o.action) return jump(o);
+  return advance();
+}
+// 出口：交给场次图解释
+function goExit(x) {
+  if (!x) return hub();
+  if (x === 'hub') { dlgClose(); return hub(); }
+  if (x === 'exfil') return exfil();
+  if (x.startsWith('level:')) { dlgClose(); return startLevel(x.slice(6)); }
+  if (x.startsWith('done:')) return questDone(x.slice(5));
+  if (SCENE[x]) return play(x);
+  toast('场次图没定义的出口：' + x); dlgClose(); return hub();
+}
+
+const PC = new Set(['陈九']);                          // 主角的台词右对齐、换个颜色
+function paint() {
+  const log = el('dlg').querySelector('.log');
+  log.innerHTML = DLG.lines.map((l, k) => {
+    const last = k === DLG.lines.length - 1;
+    let body;
+    if (l.t === 'screen') {
+      const txt = l.lines.join('\n');
+      body = `<div class="l scr${last ? '' : ' dim'}">${esc(cut(txt, last))}</div>`;
+    } else if (l.t === 'nar') {
+      body = `<div class="l nar${last ? '' : ' dim'}">${esc(cut(fmt(l.text), last))}</div>`;
+    } else if (l.t === 'pc') {
+      body = `<div class="l${last ? '' : ' dim'}"><span class="who pc">${esc(ST.name)}</span> ${esc(fmt(l.text))}</div>`;
+    } else {
+      const who = PC.has(l.who) ? ST.name : fmt(l.who);
+      body = `<div class="l${last ? '' : ' dim'}"><span class="who${PC.has(l.who) ? ' pc' : ''}">${esc(who)}</span>`
+        + (l.note ? `<span class="note">${esc(l.note)}</span>` : '') + ` ${esc(cut(fmt(l.text), last))}</div>`;
+    }
+    return body;
+  }).join('');
+  log.scrollTop = log.scrollHeight;
+
+  // 立绘：跟着最后一句有主的台词换。闸机、广播这种没有脸的就不显示。
+  const spk = [...DLG.lines].reverse().find(l => l.who || l.t === 'pc');
+  const pi = portOf(spk ? (spk.t === 'pc' ? ST.name : spk.who) : null);
+  const pe = el('dlg').querySelector('.port');
+  if (pi >= 0) { pe.style.backgroundPosition = `-${pi * 192}px 0`; pe.style.opacity = 1; }
+  else pe.style.opacity = 0;
+
+  const ob = el('dlg').querySelector('.opts');
+  if (DLG.opts) {
+    ob.innerHTML = DLG.opts.map((o, k) => {
+      const ok = need(o.need);
+      return `<button class="opt${ok ? '' : ' locked'}" data-k="${k}"><span class="k">${k + 1}</span>${esc(fmt(o.text))}</button>`;
+    }).join('');
+    [...ob.querySelectorAll('.opt')].forEach(b => b.onclick = () => pick(+b.dataset.k));
+    el('dlg').querySelector('.hint').textContent = '按数字键或点一下。灰掉的是你现在做不到的事。';
+  } else {
+    ob.innerHTML = '';
+    el('dlg').querySelector('.hint').textContent = DLG.type ? '' : '空格 / 点一下 继续';
+  }
+}
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const cut = (s, last) => (last && DLG.type) ? s.slice(0, DLG.type.i) : s;
+function dlgTick(dt) {
+  if (!DLG.type) return;
+  DLG.type.t += dt;
+  const want = Math.floor(DLG.type.t / 0.018);
+  if (want > DLG.type.i) { DLG.type.i = Math.min(DLG.type.n, want); paint(); }
+  if (DLG.type.i >= DLG.type.n) { DLG.type = null; paint(); }
+}
+
+/* ===== 港区：去处 / 次日街坊 / 任务收尾 ===== */
+function hub() {
+  dlgClose();
+  if (pendingAfter.length) return neighbours();
+  const opts = HUB.filter(h => need(h.need)).map(h => ({ text: h.label, go: h.go }));
+  playCustom({
+    where: `港区 · 旧渡口 · 第 ${ST.day} 天`,
+    lines: [{ t: 'nar', text: `雨还在下。剩 ${ST.days} 天。要去哪儿。` }],
+    opts,
+  });
+}
+function quest(k) { ST.flags['q_' + k] = 1; play(k + '.1'); }
+let pendingAfter = [];
+function questDone(k) {
+  ST.quest[k] = 'done';
+  ST.day += 1; ST.days -= (MISSION[k] ? MISSION[k].cost : 1);
+  const q = SCRIPT.quests[k];
+  pendingAfter = (q && q.after || []).filter(r => need(r.needLabel || r.need));
+  dlgClose();
+  if (pendingAfter.length) return neighbours();
+  return hub();
+}
+// 「任务结束多一句家里人的台词」—— 剧本每场末尾那张表，就是这段
+function neighbours(atStall) {
+  const rules = pendingAfter.length ? pendingAfter : [];
+  pendingAfter = [];
+  const lines = rules.length
+    ? rules.map(r => ({ t: 'say', who: r.who, text: r.text }))
+    : [{ t: 'nar', text: '桂姐把面推过来，没说话。' }];
+  playCustom({
+    where: '港区 · 桂记面馆 · 次日',
+    lines: [{ t: 'nar', text: atStall ? '面馆的门帘湿着。' : '第二天。' }].concat(lines),
+    then: 'hub',
+  });
+}
+
+function syncStatus() {
+  const s = el('status');
+  s.style.display = G.state === 'title' ? 'none' : 'block';
+  s.className = (G.state === 'play' || G.state === 'over') ? 'inlevel' : '';
+  const r = ST.rep;
+  s.innerHTML = `第 <b>${ST.day}</b> 天 · 剩余 <span class="d">${ST.days}</span> 天<br>`
+    + `未偿 <b>${ST.debt.toLocaleString()}</b> · 现金 <b>${ST.money}</b><br>`
+    + `<span class="r">公司 ${r.corp} · 潮帮 ${r.gang} · 街头 ${r.street}</span>`;
+}
+
+/* =====================================================================
+   关卡（T1~T3：房间与遮挡 / 玩家 / 视锥三态）
+   ===================================================================== */
+/* 瓦片： # 墙  . 地面  c 掩体(挡子弹不挡视线)  g 玻璃(挡子弹不挡视线，可打碎)
+   D 门(靠近自动开，关着时挡视线挡子弹)  S 起点  T 目标/交互点  X 撤离点
+
+   地图不再只有一张：任务关卡用 warehouse，剧本里的「走位」段用 gate / alley。
+   每张地图带自己的调色板 —— 穹顶是干净的冷色，港区是脏的暖色，一眼就知道在哪。 */
+const PAL = {
+  industrial: { floor: '#151a26', floor2: '#181e2c', wall: '#2b3550', wallTop: '#3d4a6b', cover: '#7a4a2a', coverTop: '#a86a3a', coverEdge: '#5a3418', glass: 'rgba(120,230,255,.35)', door: '#8a6a2a', doorOpen: '#3a3020', term: '#45f0ff', exit: '#8fd18f', grit: '#1e2434' },
+  dome:       { floor: '#232c3a', floor2: '#283242', wall: '#3a4760', wallTop: '#4e5e7a', cover: '#3f4d62', coverTop: '#54657f', coverEdge: '#2e3948', glass: 'rgba(150,220,240,.20)', door: '#5c6c88', doorOpen: '#2a3242', term: '#ffb03a', exit: '#8fd18f', grit: '#2b3546' },
+  port:       { floor: '#171620', floor2: '#1b1a26', wall: '#2a2836', wallTop: '#3a3850', cover: '#5a4029', coverTop: '#6d4e33', coverEdge: '#3e2c1c', glass: 'rgba(120,200,220,.20)', door: '#7a5a2a', doorOpen: '#2e2618', term: '#ffd97a', exit: '#8fd18f', grit: '#221f2c' },
+};
+const MAPS = {
+  warehouse: {                               // 任务关卡：安保部老楼 / 信号塔工地
+    pal: 'industrial', src: [
+  '########################################',
+  '#S.......#........#....................#',
+  '#........#........D....................#',
+  '#....cc..#........#......cc............#',
+  '#........D........#....................#',
+  '#........#........#..........T.........#',
+  '#........#........#....................#',
+  '####D#########gg###########D############',
+  '#............#.......#.................#',
+  '#............#.......#.....cc..........#',
+  '#....cc......#.......D.................#',
+  '#............D.......#.................#',
+  '#............#.......#......cc.........#',
+  '#............#.......#.................#',
+  '######D#######################D#########',
+  '#..............#.......................#',
+  '#..............#.......................#',
+  '#...cc.........g............cc.........#',
+  '#..............g.......................#',
+  '#..............D.......................#',
+  '#..............#.......................#',
+  '#..............#..................X....#',
+  '#..............#.......................#',
+  '########################################',
+    ],
+    rooms: [
+  { x: 1, y: 1, w: 8, h: 6, light: 1 }, { x: 10, y: 1, w: 8, h: 6, light: .5 }, { x: 19, y: 1, w: 20, h: 6, light: 1 },
+  { x: 1, y: 8, w: 12, h: 6, light: 1 }, { x: 14, y: 8, w: 7, h: 6, light: .5 }, { x: 22, y: 8, w: 17, h: 6, light: 1 },
+  { x: 1, y: 15, w: 14, h: 8, light: .5 }, { x: 16, y: 15, w: 23, h: 8, light: 1 },
+    ],
+    enemies: [
+  { path: [[11, 2], [16, 5]] },
+  { path: [[21, 2], [37, 2], [37, 6]] },
+  { path: [[33, 5]], face: Math.PI },
+  { path: [[2, 9], [11, 12]] },
+  { path: [[15, 9], [19, 12]] },
+  { path: [[23, 9], [37, 12], [23, 12]] },
+  { path: [[3, 16], [13, 21]] },
+  { path: [[18, 16], [37, 20], [18, 20]] },
+  { path: [[30, 21]], face: -Math.PI / 2 },
+    ],
+  },
+  gate: {                                    // 明烛穹顶 · 一号门（序章教走路）
+    pal: 'dome', src: [
+      '########################################',
+      '#gggggggggggggggggg#####################',
+      '#..................#...................#',
+      '#..................#...................#',
+      '#S.................D.........T.........#',
+      '#..................#...................#',
+      '#...cc.............#........cc.........#',
+      '#..................#...................#',
+      '#..................#####################',
+      '#......................................#',
+      '#......................................#',
+      '########################################',
+    ],
+    rooms: [{ x: 1, y: 1, w: 18, h: 8, light: 1 }, { x: 20, y: 2, w: 19, h: 6, light: 1 }, { x: 1, y: 9, w: 38, h: 2, light: 1 }],
+  },
+  alley: {                                   // 港区 · 通往十七栋的三条巷子
+    pal: 'port', src: [
+      '########################################',
+      '#S.......#############.................#',
+      '#........#...........#.................#',
+      '####.....#....cc.....#....##########...#',
+      '#........#...........#....#........#...#',
+      '#...cc...D...........D....#....T...#...#',
+      '#........#...........#....#........#...#',
+      '####.....#....cc.....#....####..####...#',
+      '#........#...........#.................#',
+      '#........#############....cc...........#',
+      '#......................................#',
+      '########################################',
+    ],
+    rooms: [{ x: 1, y: 1, w: 8, h: 9, light: .55 }, { x: 10, y: 2, w: 11, h: 8, light: .4 },
+      { x: 22, y: 2, w: 17, h: 9, light: .7 }, { x: 27, y: 4, w: 8, h: 4, light: 1 }],
+  },
+};
+
+let MAPSRC = [], MW = 0, MH = 0, MAP = [], ROOMS = [], ENEMY_DEF = [], DOORS = {};
+let TERM = null, EXIT = null, START = null, COL = PAL.industrial;
+const tile = (tx, ty) => (tx < 0 || ty < 0 || tx >= MW || ty >= MH) ? '#' : MAP[ty][tx];
+const doorAt = (tx, ty) => DOORS[tx + ',' + ty];
+const blocksMove = (tx, ty) => { const t = tile(tx, ty); return t === '#' || t === 'c' || t === 'g'; };
+const blocksLOS = (tx, ty) => { const t = tile(tx, ty); if (t === '#') return true; if (t === 'D') return !doorAt(tx, ty).open; return false; };
+const blocksShot = (tx, ty) => { const t = tile(tx, ty); if (t === '#' || t === 'c' || t === 'g') return true; if (t === 'D') return !doorAt(tx, ty).open; return false; };
+
+function loadMap(key) {
+  const M = MAPS[key];
+  MAPSRC = M.src; MW = M.src[0].length; MH = M.src.length;
+  MAP = M.src.map(r => r.split(''));
+  ROOMS = M.rooms || []; ENEMY_DEF = M.enemies || []; COL = PAL[M.pal] || PAL.industrial;
+  DOORS = {}; TERM = EXIT = START = null;
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+    const t = MAP[y][x];
+    if (t === 'D') DOORS[x + ',' + y] = { open: 0, t: 0 };
+    if (t === 'T') TERM = { x, y }; if (t === 'X') EXIT = { x, y }; if (t === 'S') START = { x, y };
+  }
+  // 走位地图最怕目标点走不到 —— 布局改一改就可能封死，开局先自己走一遍
+  if (START && TERM && !findPath(START.x, START.y, TERM.x, TERM.y).length)
+    console.error('地图 ' + key + '：从起点走不到目标点');
+}
+const roomAt = (x, y) => { const tx = x / TS | 0, ty = y / TS | 0; return ROOMS.find(r => tx >= r.x && tx < r.x + r.w && ty >= r.y && ty < r.y + r.h) || null; };
+const lightAt = (x, y) => { const r = roomAt(x, y); return r ? r.light : .7; };
+
+// 视线：沿线每 4px 采一次，撞到挡视线的格子就断
+function los(x0, y0, x1, y1) {
+  const d = len(x1 - x0, y1 - y0), n = Math.ceil(d / 4);
+  for (let i = 1; i < n; i++) {
+    const x = x0 + (x1 - x0) * i / n, y = y0 + (y1 - y0) * i / n;
+    if (blocksLOS(x / TS | 0, y / TS | 0)) return false;
+  }
+  return true;
+}
+// 圆形角色贴墙滑行：X、Y 分开试
+function moveActor(a, dx, dy) {
+  const r = a.r;
+  const free = (x, y) => {
+    for (const [ox, oy] of [[-r, -r], [r, -r], [-r, r], [r, r]]) if (blocksMove((x + ox) / TS | 0, (y + oy) / TS | 0)) return false;
+    return true;
+  };
+  if (free(a.x + dx, a.y)) a.x += dx;
+  if (free(a.x, a.y + dy)) a.y += dy;
+}
+function findPath(sx, sy, tx, ty) {
+  const key = (x, y) => y * MW + x;
+  const prev = new Int32Array(MW * MH).fill(-1);
+  const q = [key(sx, sy)]; prev[q[0]] = q[0];
+  while (q.length) {
+    const k = q.shift(), x = k % MW, y = k / MW | 0;
+    if (x === tx && y === ty) break;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (blocksMove(nx, ny)) continue;
+      const nk = key(nx, ny); if (prev[nk] !== -1) continue;
+      prev[nk] = k; q.push(nk);
+    }
+  }
+  let k = key(tx, ty); if (prev[k] === -1) return [];
+  const out = [];
+  while (k !== key(sx, sy)) { out.push([k % MW, k / MW | 0]); k = prev[k]; }
+  return out.reverse();
+}
+
+/* ---------------- 关卡状态 ---------------- */
+const G = {
+  state: 'title', t: 0, cam: { x: 0, y: 0 }, bullets: [], parts: [], noises: [], bodies: [], enemies: [],
+  kills: 0, seen: 0, grabbed: false, hackT: 0, toastT: 0, shake: 0, mission: null, phase: 'in',
+  mode: 'mission', walk: null,
+};
+let P = null, backdrop = '';
+const keys = {}, mouse = { x: VW / 2, y: VH / 2, down: false };
+
+addEventListener('keydown', e => {
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ControlLeft'].includes(e.code)) e.preventDefault();
+  if (e.repeat) return;
+  const code = e.code || ({ Enter: 'Enter', ' ': 'Space', e: 'KeyE', r: 'KeyR' }[e.key] || '');
+  keys[code] = true;
+  if (G.state === 'dlg') {
+    if (code === 'Space' || code === 'Enter') advance();
+    const n = code.match(/^Digit([1-9])$/); if (n) pick(+n[1] - 1);
+    return;
+  }
+  if (G.state === 'title' && (code === 'Enter' || code === 'Space')) titleGo();
+  else if (G.state === 'over' && code === 'KeyR') startLevel(G.mission);
+  else if (G.state === 'play' && code === 'KeyE') interact();
+  else if (G.state === 'play' && code === 'KeyV') toggleView();
+  else if (G.state === 'play' && code === 'KeyQ') scan();
+});
+addEventListener('keyup', e => { keys[e.code || ''] = false; });
+function toLocal(e) { const r = cv.getBoundingClientRect(); mouse.x = (e.clientX - r.left) / r.width * VW; mouse.y = (e.clientY - r.top) / r.height * VH; }
+cv.addEventListener('mousemove', e => {
+  if (FPS.lock) { P.ang += e.movementX * FPS.sens; return; }   // 指针锁住 → 位移就是转身
+  toLocal(e);
+});
+document.addEventListener('pointerlockchange', () => { FPS.lock = document.pointerLockElement === cv; });
+cv.addEventListener('mousedown', e => {
+  if (FPS.on && G.state === 'play' && !FPS.lock) { if (cv.requestPointerLock) cv.requestPointerLock(); return; }
+  toLocal(e); if (e.button === 0 && G.state === 'play') mouse.down = true;
+});
+addEventListener('mouseup', () => { mouse.down = false; });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+el('dlg').querySelector('.panel').addEventListener('click', e => { if (!e.target.closest('.opt')) advance(); });
+
+function newEnemy(def, i) {
+  const [tx, ty] = def.path[0];
+  return { id: i, x: tx * TS + 8, y: ty * TS + 8, r: 5, hp: 30, ang: def.face != null ? def.face : 0, def, wp: 0,
+    state: 'idle', last: null, loseT: 0, searchT: 0, scanT: 0, fireT: rnd(.3, 1), path: [], pathT: 0, flash: 0, dead: false, seenP: false, shareT: 0 };
+}
+function startLevel(key) {
+  const M = MISSION[key]; if (!M) { toast('没有这个任务的关卡：' + key); return hub(); }
+  seed = 20770909; G.mission = key; G.phase = 'in'; G.mode = 'mission';
+  loadMap(M.map || 'warehouse');
+  P = { x: START.x * TS + 8, y: START.y * TS + 8, r: 5, hp: 100, maxhp: 100, ang: 0, speed: 78, crouch: false,
+    fireT: 0, dashT: 0, dashCd: 0, inv: 0, dvx: 0, dvy: 0 };
+  G.state = 'play'; G.t = 0; G.bullets = []; G.parts = []; G.noises = []; G.bodies = [];
+  G.enemies = ENEMY_DEF.map(newEnemy); G.kills = 0; G.seen = 0; G.grabbed = false; G.hackT = 0;
+  dlgClose(); el('ovl').style.display = 'none'; el('hud').style.display = 'flex'; el('hud').className = '';
+  el('obj').textContent = M.obj; syncHud(); syncStatus();
+}
+/* ---- 走位段：剧本中间插进来的一小截"自己走" ----
+   不是任务：没有敌人、不能开枪、没有结算屏。走到目标点按 E，对话就从那一行往下接。
+   这让开局的头五分钟里，"读"和"玩"能交替一次，而不是读一百句再玩。 */
+function startWalk(st, resume) {
+  if (!MAPS[st.key]) { toast('没有这张走位地图：' + st.key); return advance(); }
+  seed = 20770909; loadMap(st.key);
+  G.mode = 'walk'; G.walk = Object.assign({ hint: st.hint }, resume);
+  P = { x: START.x * TS + 8, y: START.y * TS + 8, r: 5, hp: 100, maxhp: 100, ang: 0, speed: 78,
+    crouch: false, fireT: 0, dashT: 0, dashCd: 0, inv: 0, dvx: 0, dvy: 0 };
+  G.enemies = []; G.bullets = []; G.parts = []; G.noises = []; G.bodies = []; G.t = 0; G.hackT = 0;
+  G.state = 'play';
+  dlgClose(); el('ovl').style.display = 'none';
+  el('hud').style.display = 'flex'; el('hud').className = 'walk';
+  el('obj').textContent = st.hint; el('tip').textContent = '';
+  syncStatus();
+}
+function endWalk() {
+  const r = G.walk; G.mode = 'mission'; G.walk = null;
+  el('hud').style.display = 'none'; el('hud').className = '';
+  play(r.scene, r.step);
+  DLG.lines = r.lines.concat(DLG.lines);       // 走之前说过的话留在上面，是同一场戏
+  paint();
+}
+
+// 摸到东西了 → 播剧本里那一段（M1 是硬盘，N1 是箱子上的编号）
+function grabbed() {
+  G.grabbed = true; G.state = 'dlg';
+  play(MISSION[G.mission].grab);
+}
+// 那一段结束 → 回关卡，目标变成撤离
+function exfil() {
+  dlgClose(); G.state = 'play'; el('hud').style.display = 'flex'; G.phase = 'out';
+  el('obj').textContent = MISSION[G.mission].objExfil;
+  toast('撤离'); syncStatus();
+}
+function toggleView() {
+  FPS.on = !FPS.on;
+  if (!FPS.on && document.exitPointerLock) document.exitPointerLock();
+  toast(FPS.on ? '第一人称 · 点一下锁鼠标，Q 义眼扫描' : '俯视角');
+}
+function scan() {
+  if (!FPS.on) return toast('义眼扫描只在第一人称下有用（V 切视角）');
+  if (FPS.scanT > 0 || FPS.scanCd > 0) return toast('义眼还在冷却');
+  FPS.scanT = SCAN_DUR; toast('义眼扫描');
+}
+function toast(s) { el('toast').textContent = s; el('toast').style.opacity = 1; G.toastT = 2.2; }
+
+function noise(x, y, r) { G.noises.push({ x, y, r: r * TS, t: .12 }); }
+function fire() {
+  P.fireT = 1 / 5.5;
+  const a = P.ang + rnd(-.05, .05);
+  G.bullets.push({ x: P.x + Math.cos(a) * 7, y: P.y + Math.sin(a) * 7, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, life: 1.1, dmg: 12, mine: true });
+  for (let i = 0; i < 3; i++) G.parts.push({ x: P.x + Math.cos(P.ang) * 8, y: P.y + Math.sin(P.ang) * 8, vx: Math.cos(a + rnd(-.4, .4)) * rnd(40, 110), vy: Math.sin(a + rnd(-.4, .4)) * rnd(40, 110), life: .1, max: .1, s: 1, c: '#ffe066' });
+  noise(P.x, P.y, 9); G.shake = Math.max(G.shake, 1); FPS.flash = .06;
+}
+function hurtPlayer(d) {
+  if (P.inv > 0 || P.dashT > 0) return;
+  P.hp -= d; P.inv = .35; G.shake = Math.max(G.shake, 4);
+  burst(P.x, P.y, 8, '#ff2ea6', 100); syncHud();
+  if (P.hp <= 0) finish(false);
+}
+// E：处决 > 目标 > 撤离
+function interact() {
+  if (G.mode === 'walk') {
+    if (TERM && len(TERM.x * TS + 8 - P.x, TERM.y * TS + 8 - P.y) < TS * 1.5) endWalk();
+    else toast('走到发光的那一格');
+    return;
+  }
+  for (const e of G.enemies) {
+    if (e.dead || e.state === 'combat') continue;
+    if (len(e.x - P.x, e.y - P.y) > TS * 1.1) continue;
+    const toP = Math.atan2(P.y - e.y, P.x - e.x);
+    if (Math.abs(angDiff(toP, e.ang)) < Math.PI * 100 / 180) { toast('他面朝你，绕到背后再动手'); continue; }
+    killEnemy(e, true); toast('无声处决'); return;
+  }
+  if (!G.grabbed && TERM && len(TERM.x * TS + 8 - P.x, TERM.y * TS + 8 - P.y) < TS * 1.4) { G.hackT = .01; return; }
+  if (G.grabbed && EXIT && len(EXIT.x * TS + 8 - P.x, EXIT.y * TS + 8 - P.y) < TS * 1.2) finish(true);
+}
+
+/* ---------------- 敌人 ---------------- */
+const VIEW_ANG = Math.PI * 55 / 180, VIEW_DIST = 7 * TS;
+function viewDist(e) { let d = VIEW_DIST * lightAt(e.x, e.y); if (P.crouch) d *= .7; return d; }
+function canSee(e) {
+  const dx = P.x - e.x, dy = P.y - e.y, d = len(dx, dy);
+  if (d > viewDist(e)) return false;
+  if (Math.abs(angDiff(Math.atan2(dy, dx), e.ang)) > VIEW_ANG) return false;
+  return los(e.x, e.y, P.x, P.y);
+}
+function setState(e, s, at) {
+  if (s === 'combat' && e.state !== 'combat') { if (!e.seenP) { G.seen++; e.seenP = true; syncHud(); } e.loseT = 3; }
+  if (s === 'search') { e.searchT = e.state === 'combat' ? 15 : 8; e.scanT = 0; }
+  if (s === 'idle') e.path = [];
+  e.state = s; if (at) e.last = { x: at.x, y: at.y }; e.pathT = 0;
+}
+function callRoom(e, at) {
+  const r = roomAt(e.x, e.y);
+  for (const o of G.enemies) if (o !== e && !o.dead && o.state === 'idle' && roomAt(o.x, o.y) === r) setState(o, 'search', at);
+}
+function killEnemy(e, silent) {
+  e.dead = true; G.kills++;
+  G.bodies.push({ x: e.x, y: e.y, ang: e.ang, t: 0 });
+  burst(e.x, e.y, silent ? 4 : 14, '#ff4d6d', silent ? 40 : 130);
+  syncHud();
+}
+function eshoot(e) {
+  const a = Math.atan2(P.y - e.y, P.x - e.x) + rnd(-.11, .11);
+  G.bullets.push({ x: e.x + Math.cos(a) * 7, y: e.y + Math.sin(a) * 7, vx: Math.cos(a) * 190, vy: Math.sin(a) * 190, life: 1.6, dmg: 9, mine: false });
+  noise(e.x, e.y, 7);
+}
+function steer(e, tx, ty, spd, dt) {
+  e.pathT -= dt;
+  if (e.pathT <= 0 || !e.path.length) { e.path = findPath(e.x / TS | 0, e.y / TS | 0, tx / TS | 0, ty / TS | 0); e.pathT = .4; }
+  let gx = tx, gy = ty;
+  if (e.path.length) {
+    const [nx, ny] = e.path[0]; gx = nx * TS + 8; gy = ny * TS + 8;
+    if (len(gx - e.x, gy - e.y) < 3) { e.path.shift(); if (e.path.length) { gx = e.path[0][0] * TS + 8; gy = e.path[0][1] * TS + 8; } else { gx = tx; gy = ty; } }
+  }
+  const dx = gx - e.x, dy = gy - e.y, d = len(dx, dy);
+  if (d < 2) return true;
+  const a = Math.atan2(dy, dx); e.ang += angDiff(a, e.ang) * Math.min(1, dt * 8);
+  moveActor(e, dx / d * spd * dt, dy / d * spd * dt);
+  return len(tx - e.x, ty - e.y) < 6;                  // 到的是终点才算到，不是下一个路点
+}
+function updateEnemy(e, dt) {
+  e.flash = Math.max(0, e.flash - dt);
+  if (canSee(e)) {
+    if (e.state !== 'combat') { setState(e, 'combat', P); toast('被发现了'); }
+    e.last = { x: P.x, y: P.y }; e.loseT = 3;
+  }
+  for (const n of G.noises) if (e.state === 'idle' && len(n.x - e.x, n.y - e.y) < n.r) { setState(e, 'search', n); callRoom(e, n); }
+  if (e.state === 'idle') for (const b of G.bodies) {
+    if (b.found) continue;
+    const dx = b.x - e.x, dy = b.y - e.y;
+    if (len(dx, dy) < 2.5 * TS && Math.abs(angDiff(Math.atan2(dy, dx), e.ang)) < VIEW_ANG && los(e.x, e.y, b.x, b.y)) { b.found = true; setState(e, 'search', b); callRoom(e, b); toast('尸体被发现'); }
+  }
+
+  if (e.state === 'idle') {
+    const p = e.def.path;
+    if (p.length === 1) { e.ang += angDiff(e.def.face != null ? e.def.face : 0, e.ang) * Math.min(1, dt * 3); if (len(p[0][0] * TS + 8 - e.x, p[0][1] * TS + 8 - e.y) > 3) steer(e, p[0][0] * TS + 8, p[0][1] * TS + 8, 28, dt); }
+    else { const [tx, ty] = p[e.wp]; if (steer(e, tx * TS + 8, ty * TS + 8, 26, dt)) e.wp = (e.wp + 1) % p.length; }
+  } else if (e.state === 'search') {
+    e.searchT -= dt;
+    if (e.last && len(e.last.x - e.x, e.last.y - e.y) > 10) steer(e, e.last.x, e.last.y, 44, dt);
+    else { e.scanT += dt; e.ang += Math.sin(e.scanT * 1.6) * dt * 1.8; }
+    if (e.searchT <= 0) setState(e, 'idle');
+  } else if (e.state === 'combat') {
+    e.loseT -= dt;
+    const seeNow = los(e.x, e.y, P.x, P.y) && len(P.x - e.x, P.y - e.y) < viewDist(e) * 1.6;
+    if (seeNow) {
+      e.last = { x: P.x, y: P.y }; e.loseT = 3;
+      e.ang += angDiff(Math.atan2(P.y - e.y, P.x - e.x), e.ang) * Math.min(1, dt * 10);
+      const d = len(P.x - e.x, P.y - e.y);
+      if (d > 5 * TS) steer(e, P.x, P.y, 40, dt);
+      e.fireT -= dt; if (e.fireT <= 0) { eshoot(e); e.fireT = .7 + rnd(0, .3); }
+      e.shareT -= dt; if (e.shareT <= 0) { e.shareT = 1; for (const o of G.enemies) if (o !== e && !o.dead && o.state === 'combat') o.last = { x: P.x, y: P.y }; }
+    } else if (e.last) steer(e, e.last.x, e.last.y, 48, dt);
+    if (e.loseT <= 0) { setState(e, 'search', e.last); toast('敌人失去目标'); }
+  }
+}
+function burst(x, y, n, c, pow) { for (let i = 0; i < n; i++) { const a = rnd(0, TAU), s = rnd(20, pow); G.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rnd(.2, .5), max: .5, s: rnd(1, 2), c }); } }
+
+/* ---------------- 更新 ---------------- */
+function update(dt) {
+  G.t += dt;
+  if (G.toastT > 0) { G.toastT -= dt; if (G.toastT <= 0) el('toast').style.opacity = 0; }
+  for (const k in DOORS) {
+    const [tx, ty] = k.split(',').map(Number), d = DOORS[k], cx = tx * TS + 8, cy = ty * TS + 8;
+    let near = len(P.x - cx, P.y - cy) < TS * 1.3;
+    for (const e of G.enemies) if (!e.dead && len(e.x - cx, e.y - cy) < TS * 1.3) near = true;
+    if (near) { if (!d.open) noise(cx, cy, 3); d.open = 1; d.t = 1.5; } else { d.t -= dt; if (d.t <= 0) d.open = 0; }
+  }
+  let ix, iy;
+  if (FPS.on) {                                        // 第一人称：W/S 前后，A/D 侧移，方向键转身
+    const fwd = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+    const str = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+    if (keys.ArrowLeft) P.ang -= dt * 2.4;
+    if (keys.ArrowRight) P.ang += dt * 2.4;
+    const l = len(fwd, str), f = l ? fwd / l : 0, r = l ? str / l : 0;
+    const c = Math.cos(P.ang), sn = Math.sin(P.ang);
+    ix = c * f - sn * r; iy = sn * f + c * r;
+  } else {
+    ix = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
+    iy = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
+    const l = len(ix, iy); if (l > 0) { ix /= l; iy /= l; }
+  }
+  const il = len(ix, iy); P.vxm = il > 0;
+  // 义眼扫描的计时：扫完了才开始进冷却
+  if (FPS.scanT > 0) { FPS.scanT -= dt; if (FPS.scanT <= 0) { FPS.scanT = 0; FPS.scanCd = SCAN_CD; } }
+  else FPS.scanCd = Math.max(0, FPS.scanCd - dt);
+  FPS.flash = Math.max(0, FPS.flash - dt);
+  P.crouch = !!(keys.ControlLeft || keys.ControlRight || keys.KeyC);
+  P.dashCd = Math.max(0, P.dashCd - dt); P.dashT = Math.max(0, P.dashT - dt); P.inv = Math.max(0, P.inv - dt); P.fireT -= dt;
+  if ((keys.Space || keys.ShiftLeft) && P.dashCd === 0 && !G.hackT) {
+    P.dashT = .17; P.dashCd = 2.2; const a = il > 0 ? Math.atan2(iy, ix) : P.ang;
+    P.dvx = Math.cos(a) * 400; P.dvy = Math.sin(a) * 400; noise(P.x, P.y, 3); burst(P.x, P.y, 10, '#45f0ff', 80);
+  }
+  if (G.hackT > 0 && G.mode !== 'walk') {
+    G.hackT += dt;
+    // 只有正盯着你的敌人能打断读条；隔着两间屋交火的人管不到这里
+    if (il > 0 || G.enemies.some(e => !e.dead && e.state === 'combat' && los(e.x, e.y, P.x, P.y))) { G.hackT = 0; toast('中断了'); }
+    else if (G.hackT >= 2) { G.hackT = 0; return grabbed(); }
+  } else {
+    const spd = P.speed * (P.crouch ? .5 : 1);
+    if (P.dashT > 0) moveActor(P, P.dvx * dt, P.dvy * dt);
+    else { moveActor(P, ix * spd * dt, iy * spd * dt); if (il > 0 && !P.crouch && (G.t * 10 | 0) % 3 === 0) noise(P.x, P.y, 2); }
+  }
+  if (!FPS.on) P.ang = Math.atan2(mouse.y + G.cam.y - P.y, mouse.x + G.cam.x - P.x);
+  if (mouse.down && P.fireT <= 0 && !G.hackT && G.mode !== 'walk') fire();
+  for (const b of G.bullets) {
+    const steps = 3;
+    for (let i = 0; i < steps && b.life > 0; i++) {
+      b.x += b.vx * dt / steps; b.y += b.vy * dt / steps;
+      const tx = b.x / TS | 0, ty = b.y / TS | 0;
+      if (blocksShot(tx, ty)) {
+        b.life = 0; burst(b.x, b.y, 3, tile(tx, ty) === 'g' ? '#9ff' : '#aab', 60);
+        if (tile(tx, ty) === 'g') { MAP[ty][tx] = '.'; noise(b.x, b.y, 6); G.broke = 1; toast('玻璃碎了'); }
+        break;
+      }
+      if (b.mine) { for (const e of G.enemies) if (!e.dead && len(e.x - b.x, e.y - b.y) < e.r + 2) { e.hp -= b.dmg; e.flash = .1; b.life = 0; if (e.state !== 'combat') setState(e, 'combat', P); if (e.hp <= 0) killEnemy(e, false); break; } }
+      else if (len(P.x - b.x, P.y - b.y) < P.r + 2) { hurtPlayer(b.dmg); b.life = 0; }
+    }
+    b.life -= dt;
+  }
+  G.bullets = G.bullets.filter(b => b.life > 0);
+  for (const e of G.enemies) if (!e.dead) updateEnemy(e, dt);
+  for (const n of G.noises) n.t -= dt; G.noises = G.noises.filter(n => n.t > 0);
+  for (const p of G.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .9; p.vy *= .9; p.life -= dt; }
+  G.parts = G.parts.filter(p => p.life > 0);
+  G.shake = Math.max(0, G.shake - dt * 12);
+  G.cam.x = MW * TS <= VW ? (MW * TS - VW) / 2 : clamp(P.x - VW / 2, 0, MW * TS - VW);
+  G.cam.y = MH * TS <= VH ? (MH * TS - VH) / 2 : clamp(P.y - VH / 2, 0, MH * TS - VH);
+  if (G.mode === 'walk') { el('obj').textContent = G.walk.hint; return; }
+  const st = G.enemies.some(e => !e.dead && e.state === 'combat') ? 'combat' : G.enemies.some(e => !e.dead && e.state === 'search') ? 'search' : 'idle';
+  const A = el('alert'); A.className = st; A.textContent = { idle: '未察觉', search: '有人在搜索', combat: '交火中' }[st];
+  el('tip').textContent = P.crouch ? '蹲伏：慢、静、难被看见' : G.hackT ? '读取中… ' + (G.hackT / 2 * 100 | 0) + '%'
+    : FPS.on ? 'V 切视角 · Q 义眼扫描' : '';
+}
+
+/* =====================================================================
+   第一人称：光线投射
+   为什么这条路走得通：游戏本来存的就是一张字符网格（# 墙 / c 掩体 / g 玻璃 /
+   D 门），那正好是这种渲染器的输入格式。不需要 WebGL、不需要模型、不需要依赖。
+
+   三条规则和俯视角保持一致，不能因为换了视角就变：
+     * 墙挡视线挡子弹
+     * 掩体挡子弹不挡视线 —— 所以画成半高的矮墙，你能看过去，打不过去
+     * 玻璃挡子弹不挡视线 —— 所以画成半透明，光线穿过去继续走
+
+   潜行的可读性在第一人称会塌掉（看不见背后的视锥），补偿是两样：
+   雷达（右下角，画视锥）和义眼扫描（Q，透墙看人和朝向 3 秒）。
+   这不是补丁，是设定里本来就有的东西 —— 主角装的就是环宇 V4 定制义眼。
+   ===================================================================== */
+const FPS = {
+  on: false, fov: 1.15, sens: 0.0032, zbuf: new Float32Array(VW),
+  scanT: 0, scanCd: 0, flash: 0, lock: false,
+};
+const SCAN_DUR = 3, SCAN_CD = 8;
+
+// 光线怎么对待一格：0 不挡 / 1 全高挡住并停下 / 2 半高（矮墙，看得过去）/ 3 半透明
+function rayKind(tx, ty) {
+  const t = tile(tx, ty);
+  if (t === '#') return 1;
+  if (t === 'D') return doorAt(tx, ty).open ? 0 : 1;
+  if (t === 'c') return 2;
+  if (t === 'g') return 3;
+  return 0;
+}
+// 墙面上的装饰：按格子和朝向做确定性哈希 —— 第一人称最怕四面空墙
+function deco(tx, ty, side) {
+  const h = ((tx * 73856093) ^ (ty * 19349663) ^ (side * 83492791)) >>> 0;
+  return h % 7;                       // 0..1 无 / 2 竖管 / 3 亮窗 / 4 招牌 / 5 通风口 / 6 污渍
+}
+
+function renderFPS() {
+  const px = P.x / TS, py = P.y / TS;
+  const dirX = Math.cos(P.ang), dirY = Math.sin(P.ang);
+  const plX = -dirY * FPS.fov, plY = dirX * FPS.fov;
+  const HOR = VH / 2 + 6;                       // 地平线：稍微压低一点，像人的视高
+
+  // ---- 天花板与地面 ----
+  const cg = ctx.createLinearGradient(0, 0, 0, HOR);
+  cg.addColorStop(0, shade(COL.wallTop, .35)); cg.addColorStop(1, shade(COL.wall, .55));
+  ctx.fillStyle = cg; ctx.fillRect(0, 0, VW, HOR);
+  const fg = ctx.createLinearGradient(0, HOR, 0, VH);
+  fg.addColorStop(0, shade(COL.floor, .5)); fg.addColorStop(1, COL.floor2);
+  ctx.fillStyle = fg; ctx.fillRect(0, HOR, VW, VH - HOR);
+  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(0, HOR - 1, VW, 2);
+
+  // ---- 逐列投射 ----
+  for (let sx = 0; sx < VW; sx++) {
+    const camX = 2 * sx / VW - 1;
+    const rx = dirX + plX * camX, ry = dirY + plY * camX;
+    let tx = px | 0, ty = py | 0;
+    const ddx = Math.abs(1 / (rx || 1e-9)), ddy = Math.abs(1 / (ry || 1e-9));
+    const stepX = rx < 0 ? -1 : 1, stepY = ry < 0 ? -1 : 1;
+    let sdx = (rx < 0 ? px - tx : tx + 1 - px) * ddx;
+    let sdy = (ry < 0 ? py - ty : ty + 1 - py) * ddy;
+    const hits = [];
+    for (let n = 0; n < 64; n++) {
+      let side;
+      if (sdx < sdy) { sdx += ddx; tx += stepX; side = 0; } else { sdy += ddy; ty += stepY; side = 1; }
+      const k = rayKind(tx, ty);
+      if (!k) continue;
+      const d = side === 0 ? (sdx - ddx) : (sdy - ddy);
+      // 墙面上的横向坐标：拿来放窗、管道、招牌
+      const u = side === 0 ? (py + d * ry) % 1 : (px + d * rx) % 1;
+      hits.push({ d, side, k, tx, ty, u: u < 0 ? u + 1 : u });
+      if (k === 1) break;
+    }
+    FPS.zbuf[sx] = hits.length ? hits[hits.length - 1].d : 1e9;
+    // 远的先画，近的盖上去（玻璃和矮墙要能透出后面的东西）
+    for (let i = hits.length - 1; i >= 0; i--) drawStrip(sx, hits[i], HOR);
+  }
+
+  // ---- 广告牌：敌人 / 尸体 / 目标 / 出口 ----
+  const bill = [];
+  for (const e of G.enemies) {
+    if (e.dead) continue;
+    const base = e.state === 'combat' ? 'guardHot' : e.state === 'search' ? 'guardWarn' : 'guard';
+    const rel = Math.abs(angDiff(Math.atan2(P.y - e.y, P.x - e.x), e.ang));
+    const v = rel < Math.PI * 50 / 180 ? 0 : rel > Math.PI * 130 / 180 ? 2 : 1;
+    bill.push({ x: e.x, y: e.y, spr: base + v, h: 1, e, back: v === 2 });
+  }
+  for (const b of G.bodies) bill.push({ x: b.x, y: b.y, spr: 'body', h: .3 });
+  if (TERM) bill.push({ x: TERM.x * TS + 8, y: TERM.y * TS + 8, spr: G.grabbed ? 'termOn' : 'term', h: .75 });
+  if (EXIT && G.grabbed) bill.push({ x: EXIT.x * TS + 8, y: EXIT.y * TS + 8, spr: 'exit', h: 1 });
+  const inv = 1 / (plX * dirY - dirX * plY);
+  for (const b of bill) {
+    b.rx = b.x / TS - px; b.ry = b.y / TS - py;
+    b.tx = inv * (dirY * b.rx - dirX * b.ry);
+    b.ty = inv * (-plY * b.rx + plX * b.ry);
+  }
+  bill.sort((a, b) => b.ty - a.ty);
+  for (const b of bill) if (b.ty > .12) drawBill(b, HOR, false);
+
+  // ---- 义眼扫描：透墙看人和朝向 ----
+  if (FPS.scanT > 0) {
+    ctx.globalAlpha = Math.min(1, FPS.scanT / .4) * .9;
+    for (const b of bill) if (b.e && b.ty > .12) drawBill(b, HOR, true);
+    ctx.globalAlpha = 1;
+    // 一层扫描栅格，让"开着义眼"这件事看得出来
+    ctx.fillStyle = 'rgba(69,240,255,.05)'; ctx.fillRect(0, 0, VW, VH);
+    ctx.fillStyle = 'rgba(69,240,255,.10)';
+    const sy = (G.t * 90) % VH; ctx.fillRect(0, sy, VW, 2);
+    for (let y = 0; y < VH; y += 6) ctx.fillRect(0, y, VW, 1);
+  }
+
+  // ---- 枪口火光 / 准星 / 雷达 ----
+  if (FPS.flash > 0) {
+    ctx.globalAlpha = FPS.flash * 3; ctx.fillStyle = '#ffe9a0';
+    ctx.fillRect(VW / 2 - 14, VH - 34, 28, 10); ctx.globalAlpha = 1;
+  }
+  gun();
+  crosshair();
+  prompt();
+  radar(px, py);
+  ctx.fillStyle = 'rgba(0,0,0,.12)'; for (let y = 0; y < VH; y += 2) ctx.fillRect(0, y, VW, 1);
+  const vg = ctx.createRadialGradient(VW / 2, VH / 2, VH * .42, VW / 2, VH / 2, VH * .95);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, VW, VH);
+}
+
+// 把 #rrggbb 压暗 / 提亮
+function shade(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, (n >> 16) * k | 0), g = Math.min(255, ((n >> 8) & 255) * k | 0), b = Math.min(255, (n & 255) * k | 0);
+  return `rgb(${r},${g},${b})`;
+}
+function drawStrip(sx, h, HOR) {
+  const lineH = VH * 1.15 / Math.max(.05, h.d);
+  const bot = HOR + lineH / 2;
+  const top = h.k === 2 ? bot - lineH * .42 : HOR - lineH / 2;   // 矮墙只画下半截
+  const fogK = Math.max(.18, Math.min(1, 1.9 / (h.d + .6))) * (h.side ? .74 : 1);
+  const lit = lightAt(h.tx * TS + 8, h.ty * TS + 8);
+  const base = h.k === 3 ? COL.glass : h.k === 2 ? (h.side ? COL.cover : COL.coverTop)
+    : tile(h.tx, h.ty) === 'D' ? COL.door : (h.side ? COL.wall : COL.wallTop);
+  if (h.k === 3) {                                  // 玻璃：半透明，后面的东西透出来
+    ctx.globalAlpha = .45; ctx.fillStyle = base;
+    ctx.fillRect(sx, Math.max(0, top), 1, Math.min(VH, bot) - Math.max(0, top));
+    ctx.globalAlpha = 1;
+    if (h.u > .46 && h.u < .5) { ctx.fillStyle = 'rgba(220,250,255,.5)'; ctx.fillRect(sx, Math.max(0, top), 1, Math.min(VH, bot) - Math.max(0, top)); }
+    return;
+  }
+  ctx.fillStyle = shade(base, fogK * (.55 + lit * .5));
+  ctx.fillRect(sx, Math.max(0, top), 1, Math.min(VH, bot) - Math.max(0, top));
+  // 砖缝：横向暗线，让墙有尺度感
+  const seam = Math.max(2, lineH / 7);
+  ctx.fillStyle = `rgba(0,0,0,${.18 * fogK})`;
+  for (let y = top; y < bot; y += seam) if (y > 0 && y < VH) ctx.fillRect(sx, y | 0, 1, 1);
+  if (h.u < .035 || h.u > .965) { ctx.fillStyle = `rgba(0,0,0,${.45 * fogK})`; ctx.fillRect(sx, Math.max(0, top), 1, Math.min(VH, bot) - Math.max(0, top)); }
+  if (h.k === 2) { ctx.fillStyle = shade(COL.coverTop, fogK * 1.15); ctx.fillRect(sx, Math.max(0, top), 1, Math.max(1, lineH * .05)); return; }
+
+  // ---- 墙面装饰：第一人称最怕四面空墙 ----
+  const dk = deco(h.tx, h.ty, h.side);
+  const mid = HOR + lineH * .04;
+  if (dk === 2 && h.u > .40 && h.u < .52) {                       // 竖管
+    ctx.fillStyle = shade('#4a5262', fogK); ctx.fillRect(sx, Math.max(0, top), 1, Math.min(VH, bot) - Math.max(0, top));
+    if (h.u > .43 && h.u < .46) { ctx.fillStyle = shade('#6a7484', fogK); ctx.fillRect(sx, Math.max(0, top), 1, Math.min(VH, bot) - Math.max(0, top)); }
+  } else if (dk === 3 && h.u > .30 && h.u < .70) {                // 亮窗
+    const wt = mid - lineH * .24, wb = mid - lineH * .07;
+    ctx.fillStyle = shade('#1a2230', fogK); ctx.fillRect(sx, Math.max(0, wt - 1), 1, Math.max(1, wb - wt + 2));
+    const on = ((h.tx * 7 + h.ty * 3) % 5) !== 0;
+    ctx.fillStyle = on ? shade('#c89a58', fogK * .9) : shade('#22303c', fogK);
+    ctx.fillRect(sx, Math.max(0, wt), 1, Math.max(1, wb - wt));
+    if (h.u > .48 && h.u < .52) { ctx.fillStyle = shade('#101820', fogK); ctx.fillRect(sx, Math.max(0, wt), 1, Math.max(1, wb - wt)); }
+  } else if (dk === 4 && h.u > .28 && h.u < .72) {                // 霓虹招牌
+    const st = mid - lineH * .34, sb = mid - lineH * .16;
+    const c = ['#ff2ea6', '#45f0ff', '#ffd97a', '#8fd18f'][(h.tx + h.ty) % 4];
+    const blink = Math.sin(G.t * 3 + h.tx) > -.6 ? 1 : .25;
+    ctx.globalAlpha = blink; ctx.fillStyle = shade(c, Math.min(1.2, fogK * 1.1));
+    ctx.fillRect(sx, Math.max(0, st), 1, Math.max(1, sb - st)); ctx.globalAlpha = 1;
+  } else if (dk === 5 && h.u > .34 && h.u < .66) {                // 通风口
+    const vt = mid - lineH * .26, vb = mid - lineH * .10;
+    ctx.fillStyle = shade('#1c2230', fogK); ctx.fillRect(sx, Math.max(0, vt), 1, Math.max(1, vb - vt));
+    for (let y = vt; y < vb; y += Math.max(2, lineH / 22)) if (y > 0 && y < VH) { ctx.fillStyle = shade('#3c4658', fogK); ctx.fillRect(sx, y | 0, 1, 1); }
+  } else if (dk === 6) {                                          // 污渍
+    ctx.fillStyle = `rgba(0,0,0,${.10 * fogK * (1 + Math.sin(h.u * 9 + h.tx))})`;
+    ctx.fillRect(sx, Math.max(0, mid - lineH * .1), 1, Math.max(1, lineH * .5));
+  }
+}
+
+/* ---- 广告牌精灵：开局烤一次，之后按投影大小切片画 ---- */
+const SPR = {};
+function bakeSprites() {
+  const mk = (w, h, f) => { const c = document.createElement('canvas'); c.width = w; c.height = h; f(c.getContext('2d'), w, h); return c; };
+  // view: 0 正面（他看着你）/ 1 侧面 / 2 背面（可以摸上去）
+  const guard = (col, view) => mk(16, 24, (g) => {
+    const legs = () => { g.fillStyle = '#242c3a'; g.fillRect(4, 17, 3, 7); g.fillRect(9, 17, 3, 7);
+      g.fillStyle = '#12161f'; g.fillRect(4, 22, 3, 2); g.fillRect(9, 22, 3, 2); };
+    if (view === 2) {                                                 // 背面：看不见脸，看得见颈后接口
+      g.fillStyle = '#1a1e2a'; g.fillRect(4, 2, 8, 6);
+      g.fillStyle = '#2a2f3e'; g.fillRect(5, 3, 6, 4);                // 后脑
+      g.fillStyle = '#45f0ff'; g.fillRect(7, 7, 2, 1);                // 颈后接口亮着
+      g.fillStyle = col; g.fillRect(3, 8, 10, 9);
+      g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(10, 8, 3, 9);
+      g.fillStyle = '#1a1e2a'; g.fillRect(5, 10, 6, 6);               // 背包
+      legs(); return;
+    }
+    if (view === 1) {                                                 // 侧面：窄，枪往前伸
+      g.fillStyle = '#1a1e2a'; g.fillRect(5, 2, 6, 6);
+      g.fillStyle = '#e6d2b5'; g.fillRect(6, 3, 5, 4);
+      g.fillStyle = '#ffb03a'; g.fillRect(9, 4, 2, 1);                // 面罩只剩一小截
+      g.fillStyle = col; g.fillRect(5, 8, 6, 9);
+      g.fillStyle = 'rgba(255,255,255,.10)'; g.fillRect(5, 8, 2, 9);
+      g.fillStyle = '#0e1118'; g.fillRect(10, 11, 6, 2);
+      g.fillStyle = '#242c3a'; g.fillRect(6, 17, 4, 7);
+      g.fillStyle = '#12161f'; g.fillRect(6, 22, 4, 2); return;
+    }
+    g.fillStyle = '#1a1e2a'; g.fillRect(4, 2, 8, 5);                  // 正面
+    g.fillStyle = '#e6d2b5'; g.fillRect(5, 3, 6, 4);
+    g.fillStyle = col; g.fillRect(3, 7, 10, 10);
+    g.fillStyle = 'rgba(255,255,255,.14)'; g.fillRect(3, 7, 3, 10);
+    g.fillStyle = '#1a1e2a'; g.fillRect(2, 10, 12, 2);                // 肩带
+    legs();
+    g.fillStyle = '#0e1118'; g.fillRect(11, 11, 5, 2);                // 枪
+    g.fillStyle = '#ffb03a'; g.fillRect(5, 4, 6, 1);                  // 面罩
+  });
+  for (const [nm, col] of [['guard', '#5a6478'], ['guardWarn', '#8a6a2a'], ['guardHot', '#8a2a3a']])
+    for (let v = 0; v < 3; v++) SPR[nm + v] = guard(col, v);
+  SPR.body = mk(20, 8, g => { g.fillStyle = '#3a1c26'; g.fillRect(0, 2, 20, 6); g.fillStyle = '#4a2030'; g.fillRect(2, 3, 16, 4); g.fillStyle = '#8a7a6a'; g.fillRect(14, 0, 6, 5); });
+  const term = on => mk(12, 16, g => {
+    g.fillStyle = '#1a2030'; g.fillRect(0, 0, 12, 16);
+    g.fillStyle = '#2a3448'; g.fillRect(1, 1, 10, 14);
+    g.fillStyle = on ? '#8fd18f' : '#45f0ff'; g.fillRect(2, 3, 8, 6);
+    g.fillStyle = '#0a0d14'; g.fillRect(3, 5, 6, 1);
+    g.fillStyle = '#3a4658'; g.fillRect(2, 11, 8, 3);
+  });
+  SPR.term = term(false); SPR.termOn = term(true);
+  SPR.exit = mk(14, 22, g => {
+    g.fillStyle = '#1c2a1c'; g.fillRect(0, 0, 14, 22);
+    g.fillStyle = '#8fd18f'; g.fillRect(2, 2, 10, 18);
+    g.fillStyle = '#0a0d10'; g.fillRect(4, 8, 6, 6);
+  });
+}
+function drawBill(b, HOR, xray) {
+  const spr = SPR[b.spr]; if (!spr) return;
+  const sx = (VW / 2) * (1 + b.tx / b.ty);
+  const h = Math.abs(VH * 1.15 / b.ty) * b.h, w = h * (spr.width / spr.height);
+  const bot = HOR + Math.abs(VH * 1.15 / b.ty) / 2;
+  const top = bot - h;
+  const x0 = Math.floor(sx - w / 2), x1 = Math.ceil(sx + w / 2);
+  const fog = Math.max(.25, Math.min(1, 2.2 / (b.ty + .6)));
+  for (let x = x0; x < x1; x++) {
+    if (x < 0 || x >= VW) continue;
+    if (!xray && FPS.zbuf[x] < b.ty) continue;              // 被墙挡住的列不画
+    const u = Math.floor((x - x0) / (x1 - x0) * spr.width);
+    ctx.drawImage(spr, Math.min(spr.width - 1, Math.max(0, u)), 0, 1, spr.height, x, top, 1, h);
+  }
+  if (xray) {                                               // 扫描：青色高亮 + 朝向箭头
+    ctx.globalAlpha = .5; ctx.fillStyle = '#45f0ff';
+    ctx.fillRect(Math.max(0, x0), Math.max(0, top), Math.min(VW, x1) - Math.max(0, x0), Math.max(1, h));
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#8fd18f'; ctx.fillRect(sx - 1, top - 5, 2, 3);
+  } else if (b.e && b.e.state !== 'idle') {                 // 头上的感叹号 / 问号
+    ctx.fillStyle = b.e.state === 'combat' ? '#ff4d6d' : '#ffb347';
+    ctx.font = 'bold 9px monospace';
+    if (FPS.zbuf[Math.round(sx)] >= b.ty) ctx.fillText(b.e.state === 'combat' ? '!' : '?', sx - 2, top - 3);
+  }
+}
+// 手里的枪：一点点画面占位就够，让人知道自己端着东西
+function gun() {
+  const bob = Math.sin(G.t * 7) * (P.vxm ? 1.6 : .5);
+  const x = VW / 2 + 26, y = VH - 6 + bob;
+  ctx.fillStyle = '#141a24'; ctx.fillRect(x - 6, y - 26, 16, 26);
+  ctx.fillStyle = '#1e2634'; ctx.fillRect(x - 4, y - 30, 8, 6);
+  ctx.fillStyle = '#2a3444'; ctx.fillRect(x - 6, y - 26, 4, 26);
+  ctx.fillStyle = '#0e1218'; ctx.fillRect(x - 2, y - 34, 4, 5);
+  ctx.fillStyle = '#45f0ff'; ctx.fillRect(x + 1, y - 22, 2, 2);
+}
+// 能按 E 干什么，固定写在准星下面 —— 贴在人脚下的话，人一近就跑出画面了
+function prompt() {
+  let txt = null, c = '#fff';
+  for (const e of G.enemies) {
+    if (e.dead || e.state === 'combat') continue;
+    if (len(e.x - P.x, e.y - P.y) > TS * 1.2) continue;
+    const behind = Math.abs(angDiff(Math.atan2(P.y - e.y, P.x - e.x), e.ang)) >= Math.PI * 100 / 180;
+    txt = behind ? '[E] 处决' : '他面朝你'; c = behind ? '#8fd18f' : '#ff8f6d'; break;
+  }
+  if (!txt && TERM && !G.grabbed && len(TERM.x * TS + 8 - P.x, TERM.y * TS + 8 - P.y) < TS * 1.5) { txt = '[E] 读取'; c = '#45f0ff'; }
+  if (!txt && EXIT && G.grabbed && len(EXIT.x * TS + 8 - P.x, EXIT.y * TS + 8 - P.y) < TS * 1.3) { txt = '[E] 撤离'; c = '#8fd18f'; }
+  if (!txt) return;
+  ctx.font = '9px monospace';
+  const w = ctx.measureText(txt).width;
+  ctx.fillStyle = 'rgba(7,8,13,.72)'; ctx.fillRect(VW / 2 - w / 2 - 4, VH / 2 + 14, w + 8, 12);
+  ctx.fillStyle = c; ctx.fillText(txt, VW / 2 - w / 2, VH / 2 + 23);
+}
+function crosshair() {
+  const c = FPS.scanT > 0 ? '#45f0ff' : 'rgba(230,240,255,.7)';
+  ctx.fillStyle = c;
+  ctx.fillRect(VW / 2 - 4, VH / 2 - .5 + 6, 3, 1); ctx.fillRect(VW / 2 + 2, VH / 2 - .5 + 6, 3, 1);
+  ctx.fillRect(VW / 2 - .5, VH / 2 - 4 + 6, 1, 3); ctx.fillRect(VW / 2 - .5, VH / 2 + 2 + 6, 1, 3);
+}
+/* ---- 雷达：把视锥还给玩家。没有它，第一人称的潜行就没法读了 ---- */
+function radar(px, py) {
+  const R = 24, cx = VW - R - 6, cy = VH - R - 8, S = 2.2;      // S: 一格几像素
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.clip();
+  ctx.fillStyle = 'rgba(5,8,12,.9)'; ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+  const rng = Math.ceil(R / S) + 1;
+  for (let ty = (py | 0) - rng; ty <= (py | 0) + rng; ty++) for (let tx = (px | 0) - rng; tx <= (px | 0) + rng; tx++) {
+    const t = tile(tx, ty); if (t === '.' || t === 'S') continue;
+    const X = cx + (tx + .5 - px) * S, Y = cy + (ty + .5 - py) * S;
+    ctx.fillStyle = t === '#' ? 'rgba(64,80,112,.26)' : t === 'c' ? 'rgba(150,100,60,.28)'
+      : t === 'g' ? 'rgba(120,200,220,.3)' : t === 'D' ? 'rgba(180,150,80,.45)'
+      : t === 'T' ? '#45f0ff' : t === 'X' ? '#8fd18f' : 'rgba(70,88,124,.14)';
+    ctx.fillRect(X - S / 2, Y - S / 2, S, S);
+  }
+  // 敌人 + 视锥：和俯视角同一套颜色，学过一次就不用再学
+  for (const e of G.enemies) {
+    if (e.dead) continue;
+    const X = cx + (e.x / TS - px) * S, Y = cy + (e.y / TS - py) * S;
+    if (len(X - cx, Y - cy) > R + 6) continue;
+    const c = e.state === 'combat' ? '255,77,109' : e.state === 'search' ? '255,179,71' : '255,230,120';
+    ctx.fillStyle = `rgba(${c},.16)`;
+    ctx.beginPath(); ctx.moveTo(X, Y);
+    const vd = viewDist(e) / TS * S;
+    for (let i = 0; i <= 10; i++) { const a = e.ang - VIEW_ANG + VIEW_ANG * 2 * i / 10; ctx.lineTo(X + Math.cos(a) * vd, Y + Math.sin(a) * vd); }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = `rgb(${c})`; ctx.fillRect(X - 1.5, Y - 1.5, 3, 3);
+  }
+  ctx.fillStyle = '#45f0ff'; ctx.fillRect(cx - 1.5, cy - 1.5, 3, 3);
+  ctx.strokeStyle = 'rgba(69,240,255,.7)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(P.ang) * 8, cy + Math.sin(P.ang) * 8); ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(69,240,255,.35)';
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
+  // 义眼扫描的冷却
+  ctx.fillStyle = 'rgba(6,10,14,.8)'; ctx.fillRect(cx - R, cy + R + 2, R * 2, 4);
+  const k = FPS.scanT > 0 ? FPS.scanT / SCAN_DUR : 1 - FPS.scanCd / SCAN_CD;
+  ctx.fillStyle = FPS.scanT > 0 ? '#45f0ff' : FPS.scanCd > 0 ? '#3a4658' : '#8fd18f';
+  ctx.fillRect(cx - R + 1, cy + R + 3, (R * 2 - 2) * clamp(k, 0, 1), 2);
+}
+
+/* ---------------- 渲染 ---------------- */
+function render() {
+  ctx.save();
+  ctx.fillStyle = '#07080d'; ctx.fillRect(0, 0, VW, VH);
+  const sx = G.shake ? rnd(-G.shake, G.shake) : 0, sy = G.shake ? rnd(-G.shake, G.shake) : 0;
+  ctx.translate(-Math.round(G.cam.x + sx), -Math.round(G.cam.y + sy));
+  const x0 = G.cam.x / TS | 0, y0 = G.cam.y / TS | 0, x1 = Math.min(MW - 1, x0 + VW / TS + 1), y1 = Math.min(MH - 1, y0 + VH / TS + 1);
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const t = tile(x, y), X = x * TS, Y = y * TS;
+    if (t === '#') continue;
+    ctx.fillStyle = ((x + y) & 1) ? COL.floor : COL.floor2; ctx.fillRect(X, Y, TS, TS);
+    if (((x * 7 + y * 13) % 5) === 0) { ctx.fillStyle = COL.grit; ctx.fillRect(X + 3, Y + 9, 2, 1); }
+    if (t === 'T') { ctx.fillStyle = '#222a3c'; ctx.fillRect(X + 3, Y + 4, 10, 9); ctx.fillStyle = G.grabbed ? '#8fd18f' : COL.term; ctx.fillRect(X + 4, Y + 5, 8, 5); ctx.fillStyle = '#0a0d14'; ctx.fillRect(X + 5, Y + 6 + (((G.t * 4) | 0) % 3), 6, 1); }
+    if (t === 'X') { ctx.fillStyle = G.grabbed ? COL.exit : '#2a3a2a'; ctx.fillRect(X + 2, Y + 2, 12, 12); ctx.fillStyle = '#07080d'; ctx.fillRect(X + 5, Y + 5, 6, 6); }
+  }
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const t = tile(x, y), X = x * TS, Y = y * TS;
+    if (t === 'c') { ctx.fillStyle = COL.cover; ctx.fillRect(X + 1, Y + 3, 14, 13); ctx.fillStyle = COL.coverTop; ctx.fillRect(X + 1, Y + 1, 14, 5); ctx.fillStyle = COL.coverEdge; ctx.fillRect(X + 7, Y + 1, 2, 15); }
+    if (t === 'g') { ctx.fillStyle = COL.glass; ctx.fillRect(X, Y + 5, TS, 6); ctx.fillStyle = '#dff'; ctx.fillRect(X + 2, Y + 6, 3, 1); }
+    if (t === 'D') { const d = doorAt(x, y); const horiz = tile(x - 1, y) === '#' && tile(x + 1, y) === '#'; ctx.fillStyle = d.open ? COL.doorOpen : COL.door;
+      if (horiz) ctx.fillRect(X + (d.open ? 12 : 0), Y + 5, d.open ? 4 : TS, 6); else ctx.fillRect(X + 5, Y + (d.open ? 12 : 0), 6, d.open ? 4 : TS); }
+  }
+  for (const b of G.bodies) { ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.ang + Math.PI / 2); ctx.fillStyle = '#4a2030'; ctx.fillRect(-6, -3, 12, 6); ctx.fillStyle = '#8a7a6a'; ctx.fillRect(-3, -7, 6, 5); ctx.restore(); }
+  // 视锥：潜行的可读性全靠这个
+  for (const e of G.enemies) {
+    if (e.dead) continue;
+    const d = viewDist(e), c = e.state === 'combat' ? 'rgba(255,77,109,' : e.state === 'search' ? 'rgba(255,179,71,' : 'rgba(255,230,120,';
+    ctx.fillStyle = c + '.13)'; ctx.beginPath(); ctx.moveTo(e.x, e.y);
+    const n = 14;
+    for (let i = 0; i <= n; i++) {
+      const a = e.ang - VIEW_ANG + VIEW_ANG * 2 * i / n;
+      let r = d;
+      for (let s = 4; s < d; s += 4) { if (blocksLOS((e.x + Math.cos(a) * s) / TS | 0, (e.y + Math.sin(a) * s) / TS | 0)) { r = s; break; } }
+      ctx.lineTo(e.x + Math.cos(a) * r, e.y + Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.fill();
+  }
+  for (const e of G.enemies) {
+    if (e.dead) continue;
+    ctx.save(); ctx.translate(Math.round(e.x), Math.round(e.y));
+    ctx.fillStyle = e.flash ? '#fff' : e.state === 'combat' ? '#ff4d6d' : e.state === 'search' ? '#ffb347' : '#9aa6bf';
+    ctx.fillRect(-4, -4, 8, 8); ctx.fillStyle = '#e6d2b5'; ctx.fillRect(-2, -6, 4, 3);
+    ctx.rotate(e.ang); ctx.fillStyle = '#1a1e2a'; ctx.fillRect(2, -1, 8, 2); ctx.restore();
+    if (e.state !== 'idle') { ctx.fillStyle = e.state === 'combat' ? '#ff4d6d' : '#ffb347'; ctx.font = 'bold 9px monospace'; ctx.fillText(e.state === 'combat' ? '!' : '?', e.x - 2, e.y - 9); }
+  }
+  ctx.save(); ctx.translate(Math.round(P.x), Math.round(P.y));
+  if (P.inv > 0 && ((G.t * 30) | 0) % 2) ctx.globalAlpha = .4;
+  const sz = P.crouch ? 3 : 4;
+  ctx.fillStyle = P.dashT > 0 ? '#45f0ff' : '#2b8fb0'; ctx.fillRect(-sz, -sz, sz * 2, sz * 2);
+  ctx.fillStyle = '#ffd9a0'; ctx.fillRect(-2, -sz - 2, 4, 3);
+  if (G.mode === 'walk') {
+    ctx.restore();
+    if (G.walk && G.walk.scene && G.walk.scene.startsWith('P0')) {   // 一号门那一段：手里是纸箱
+      ctx.fillStyle = '#8a6a42'; ctx.fillRect(Math.round(P.x) - 5, Math.round(P.y) - 2, 10, 7);
+      ctx.fillStyle = '#a8834f'; ctx.fillRect(Math.round(P.x) - 5, Math.round(P.y) - 2, 10, 2);
+      ctx.fillStyle = '#6b5030'; ctx.fillRect(Math.round(P.x) - 1, Math.round(P.y) - 2, 2, 7);
+    }
+  } else {
+    ctx.rotate(P.ang); ctx.fillStyle = '#dfe8ff'; ctx.fillRect(2, -1, 9, 2); ctx.restore();
+  }
+  for (const b of G.bullets) { ctx.fillStyle = b.mine ? '#ffe066' : '#ff6f8f'; ctx.fillRect(b.x - 1, b.y - 1, 2, 2); }
+  for (const p of G.parts) { ctx.globalAlpha = clamp(p.life / p.max, 0, 1); ctx.fillStyle = p.c; ctx.fillRect(p.x - p.s / 2, p.y - p.s / 2, p.s, p.s); }
+  ctx.globalAlpha = 1;
+  for (const r of ROOMS) if (r.light < 1) { ctx.fillStyle = 'rgba(2,3,8,.5)'; ctx.fillRect(r.x * TS, r.y * TS, r.w * TS, r.h * TS); }
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (tile(x, y) === '#') {
+    const X = x * TS, Y = y * TS; ctx.fillStyle = COL.wall; ctx.fillRect(X, Y, TS, TS);
+    if (tile(x, y + 1) !== '#') { ctx.fillStyle = COL.wallTop; ctx.fillRect(X, Y + TS - 3, TS, 3); }
+    else { ctx.fillStyle = COL.wall; ctx.fillRect(X + 2, Y + 2, 12, 12); ctx.fillStyle = COL.grit; ctx.fillRect(X + 2, Y + 2, 12, 12); }
+  }
+  if (G.hackT > 0) { ctx.fillStyle = '#0a0d14'; ctx.fillRect(P.x - 12, P.y - 14, 24, 4); ctx.fillStyle = '#45f0ff'; ctx.fillRect(P.x - 11, P.y - 13, 22 * clamp(G.hackT / 2, 0, 1), 2); }
+  if (G.mode === 'walk' && TERM) {                       // 走位段：目标点上一个跳动的箭头
+    const gx = TERM.x * TS + 8, gy = TERM.y * TS + 8, bob = Math.sin(G.t * 4) * 2;
+    ctx.fillStyle = COL.term;
+    ctx.beginPath(); ctx.moveTo(gx - 4, gy - 16 + bob); ctx.lineTo(gx + 4, gy - 16 + bob); ctx.lineTo(gx, gy - 10 + bob); ctx.closePath(); ctx.fill();
+    if (len(gx - P.x, gy - P.y) < TS * 1.5) { ctx.fillStyle = '#fff'; ctx.font = '8px monospace'; ctx.fillText('[E]', gx - 7, gy + 16); }
+  }
+  for (const e of G.enemies) if (!e.dead && e.state !== 'combat' && len(e.x - P.x, e.y - P.y) < TS * 1.1) {
+    const behind = Math.abs(angDiff(Math.atan2(P.y - e.y, P.x - e.x), e.ang)) >= Math.PI * 100 / 180;
+    ctx.fillStyle = behind ? '#8fd18f' : '#5a6478'; ctx.font = '8px monospace'; ctx.fillText(behind ? '[E] 处决' : '绕到背后', e.x - 12, e.y + 14);
+  }
+  ctx.restore();
+  ctx.fillStyle = 'rgba(0,0,0,.12)'; for (let y = 0; y < VH; y += 2) ctx.fillRect(0, y, VW, 1);
+}
+/* =====================================================================
+   场景背景
+   对话不能只有字。每个地点画成一小幅像素场景：配色不同、有两三样认得出来的
+   东西、有一点在动的东西（蒸汽 / 雨 / 灯闪 / 掠过的车窗）。
+   画布 320×180，下面 40% 会被对话框压住，所以内容都放在上半部。
+   ===================================================================== */
+const rainDrops = [];
+function rain(n, spd, col) {
+  if (!rainDrops.length) for (let i = 0; i < 90; i++) rainDrops.push({ x: rnd(0, VW), y: rnd(0, VH), l: rnd(4, 9), s: rnd(.7, 1.4) });
+  ctx.strokeStyle = col || 'rgba(150,180,210,.24)'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const d = rainDrops[i], y = (d.y + G.t * spd * d.s) % (VH + 12) - 6, x = (d.x + G.t * 14) % VW;
+    ctx.moveTo(x, y); ctx.lineTo(x - 1.5, y + d.l);
+  }
+  ctx.stroke();
+}
+const band = (y0, y1, c) => { ctx.fillStyle = c; ctx.fillRect(0, y0, VW, y1 - y0); };
+function win(x, y, w, h, c, lit) {            // 一扇窗
+  ctx.fillStyle = lit ? c : 'rgba(20,24,34,.9)'; ctx.fillRect(x, y, w, h);
+}
+function glow(x, y, r, c) {                   // 光晕
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, c); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+}
+// 积水：横着的一小片反光，被雨打出几道横纹
+function puddle(x, y, w, c, t) {
+  ctx.fillStyle = c;
+  ctx.beginPath(); ctx.ellipse(x + w / 2, y, w / 2, 3, 0, 0, TAU); ctx.fill();
+  ctx.globalAlpha = .5;
+  for (let i = 0; i < 3; i++) {
+    const yy = y - 2 + i * 2, ww = w * (.5 + .3 * Math.abs(Math.sin(t * 1.7 + i * 2)));
+    ctx.fillRect(x + (w - ww) / 2, yy, ww, 1);
+  }
+  ctx.globalAlpha = 1;
+}
+function sign(x, y, w, h, c, t, blink) {      // 霓虹招牌
+  const on = !blink || Math.sin(t * blink) > -.5;
+  ctx.globalAlpha = on ? 1 : .25;
+  ctx.fillStyle = '#14161f'; ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+  ctx.fillStyle = c; ctx.fillRect(x, y, w, h);
+  ctx.globalAlpha = on ? .18 : .05; glow(x + w / 2, y + h / 2, w * 1.6, c.replace('rgb', 'rgba').replace(')', ',1)'));
+  ctx.globalAlpha = 1;
+}
+
+const SCENES = {
+  // 明烛穹顶 · 会议室 B：干净、冷、没有雨。恒温的地方连空气都是买来的。
+  dome_meet(t) {
+    band(0, 118, '#1e2634'); band(0, 30, '#26303f');
+    ctx.fillStyle = '#2e3a4c'; for (let i = 0; i < 5; i++) ctx.fillRect(0, 8 + i * 5, VW, 1);   // 天花板灯槽
+    ctx.fillStyle = 'rgba(210,232,240,.5)'; ctx.fillRect(40, 10, 100, 2); ctx.fillRect(190, 10, 90, 2);
+    glow(90, 12, 46, 'rgba(200,230,245,.10)'); glow(235, 12, 46, 'rgba(200,230,245,.10)');
+    // 墙上的大屏：HR 的脸就在这块屏里
+    ctx.fillStyle = '#101822'; ctx.fillRect(196, 30, 96, 56);
+    ctx.fillStyle = '#16323e'; ctx.fillRect(199, 33, 90, 50);
+    ctx.fillStyle = 'rgba(120,220,235,.16)'; for (let y = 34; y < 83; y += 2) ctx.fillRect(199, y, 90, 1);
+    ctx.fillStyle = '#45f0ff'; ctx.fillRect(203, 78, 30 + Math.round(Math.sin(t) * 8), 2);
+    ctx.fillStyle = 'rgba(69,240,255,.5)'; ctx.fillRect(285, 35, 2, 2);
+    // 长桌 + 椅背
+    ctx.fillStyle = '#3b4658'; ctx.fillRect(0, 96, VW, 22);
+    ctx.fillStyle = '#4c586c'; ctx.fillRect(0, 96, VW, 3);
+    ctx.fillStyle = '#222a38'; ctx.fillRect(24, 86, 26, 12); ctx.fillRect(120, 86, 26, 12);
+    ctx.fillStyle = 'rgba(255,255,255,.05)'; ctx.fillRect(60, 100, 40, 6);      // 桌面反光
+    band(118, VH, '#151b26');
+  },
+  // 一号门：闸机、玻璃墙、外面那片买来的草坪
+  dome_gate(t) {
+    band(0, 108, '#202a38'); band(0, 26, '#28323f');
+    ctx.fillStyle = 'rgba(200,230,245,.45)'; ctx.fillRect(30, 8, 120, 2); ctx.fillRect(180, 8, 110, 2);
+    // 玻璃墙 + 草坪
+    ctx.fillStyle = '#1a2b28'; ctx.fillRect(0, 30, 108, 50);
+    ctx.fillStyle = '#2f5a3c'; ctx.fillRect(0, 58, 108, 22);
+    ctx.fillStyle = '#3c7049'; for (let x = 0; x < 108; x += 7) ctx.fillRect(x, 58 + (x % 3), 4, 1);
+    ctx.fillStyle = 'rgba(150,200,220,.10)'; ctx.fillRect(0, 30, 108, 50);
+    ctx.fillStyle = '#38445a'; ctx.fillRect(104, 26, 5, 82);                    // 窗框
+    // 闸机：两台，一台亮绿一台亮黄（你那台）
+    for (const [x, c] of [[150, '#8fd18f'], [216, ((t * 2) | 0) % 2 ? '#ffb03a' : '#5a4a20']]) {
+      ctx.fillStyle = '#2b3550'; ctx.fillRect(x, 62, 40, 46);
+      ctx.fillStyle = '#39456a'; ctx.fillRect(x, 62, 40, 4);
+      ctx.fillStyle = '#141a26'; ctx.fillRect(x + 12, 70, 16, 12);
+      ctx.fillStyle = c; ctx.fillRect(x + 14, 72, 12, 8);
+      ctx.globalAlpha = .2; glow(x + 20, 76, 26, 'rgba(255,255,255,1)'); ctx.globalAlpha = 1;
+    }
+    band(108, VH, '#171d29');
+    ctx.fillStyle = '#1e2634'; ctx.fillRect(0, 108, VW, 3);
+  },
+  // 轨道车：窗外从草坪变成雨
+  tram(t) {
+    band(0, VH, '#151a24');
+    ctx.fillStyle = '#0a0f18'; ctx.fillRect(18, 20, 284, 62);                   // 车窗
+    // 窗外掠过的城市
+    let x = -((t * 46) % 40);
+    while (x < 284) {
+      const h = 14 + ((Math.abs(Math.round(x / 40)) * 37) % 26);
+      ctx.fillStyle = '#131c2c'; ctx.fillRect(20 + x, 78 - h, 22, h);
+      ctx.fillStyle = ((Math.round(x / 40)) % 2) ? 'rgba(69,240,255,.4)' : 'rgba(255,46,166,.4)';
+      for (let wy = 80 - h; wy < 76; wy += 5) ctx.fillRect(22 + x, wy, 2, 2);
+      x += 40;
+    }
+    ctx.save(); ctx.beginPath(); ctx.rect(18, 20, 284, 62); ctx.clip();
+    rain(60, 300, 'rgba(160,190,215,.3)');
+    ctx.restore();
+    ctx.fillStyle = '#242e3e'; ctx.fillRect(16, 18, 288, 3); ctx.fillRect(16, 80, 288, 4);
+    ctx.fillStyle = '#2d3849'; ctx.fillRect(16, 18, 3, 66); ctx.fillRect(301, 18, 3, 66);
+    // 扶手 + 座椅
+    ctx.fillStyle = '#3a4658'; ctx.fillRect(0, 12, VW, 3);
+    for (let i = 40; i < VW; i += 70) ctx.fillRect(i, 12, 2, 14);
+    ctx.fillStyle = '#2a3444'; ctx.fillRect(0, 96, VW, 26);
+    ctx.fillStyle = '#374357'; ctx.fillRect(0, 96, VW, 4);
+    band(122, VH, '#12161f');
+  },
+  // 桂记面馆：蒸汽、吊灯、招牌，外面在下雨
+  noodle(t) {
+    band(0, VH, '#14100f');
+    ctx.fillStyle = '#1d1614'; ctx.fillRect(0, 0, VW, 96);                      // 后墙
+    for (let x = 0; x < VW; x += 24) { ctx.fillStyle = '#241c18'; ctx.fillRect(x, 0, 2, 96); }
+    sign(196, 14, 62, 16, '#e0917f', t, 0);                                     // 「桂记」
+    ctx.fillStyle = '#2a1d18'; ctx.fillRect(200, 18, 54, 8);
+    ctx.fillStyle = '#ffd97a'; ctx.fillRect(204, 20, 10, 4); ctx.fillRect(218, 20, 10, 4); ctx.fillRect(232, 20, 8, 4);
+    // 吊灯三只
+    for (const bx of [46, 116, 168]) {
+      ctx.fillStyle = '#2a2420'; ctx.fillRect(bx, 0, 1, 16);
+      const fl = .85 + Math.sin(t * 3 + bx) * .15;
+      ctx.globalAlpha = fl; ctx.fillStyle = '#ffdca0'; ctx.fillRect(bx - 3, 16, 7, 5);
+      ctx.globalAlpha = .16 * fl; glow(bx, 20, 40, 'rgba(255,200,120,1)'); ctx.globalAlpha = 1;
+    }
+    // 灶台 + 蒸汽
+    ctx.fillStyle = '#2b211c'; ctx.fillRect(12, 52, 74, 44);
+    ctx.fillStyle = '#3a2c24'; ctx.fillRect(12, 52, 74, 4);
+    ctx.fillStyle = '#4a3a2e'; ctx.fillRect(22, 44, 30, 10);                    // 锅
+    ctx.fillStyle = '#6b5442'; ctx.fillRect(22, 44, 30, 3);
+    ctx.globalAlpha = .5; ctx.fillStyle = '#c9c0b0';
+    for (let i = 0; i < 5; i++) {
+      const yy = 44 - ((t * 16 + i * 12) % 44), xx = 30 + Math.sin(t * 1.6 + i) * 7 + i * 2;
+      ctx.globalAlpha = .34 * (1 - (44 - yy) / 44 * .1); ctx.fillRect(xx, yy, 3, 3);
+    }
+    ctx.globalAlpha = 1;
+    // 吧台 + 两只碗
+    ctx.fillStyle = '#38281f'; ctx.fillRect(0, 96, VW, 30);
+    ctx.fillStyle = '#4a3527'; ctx.fillRect(0, 96, VW, 4);
+    for (const bx of [150, 196]) {
+      ctx.fillStyle = '#d8cdb8'; ctx.fillRect(bx, 88, 16, 8);
+      ctx.fillStyle = '#e8e0cc'; ctx.fillRect(bx, 88, 16, 2);
+      ctx.fillStyle = '#c07a4a'; ctx.fillRect(bx + 2, 90, 12, 2);
+    }
+    band(126, VH, '#100c0b');
+  },
+  // 潮声酒吧：酒瓶架、吧台、招牌。墙上有一块比周围新的地方
+  bar(t) {
+    band(0, VH, '#0f1016');
+    ctx.fillStyle = '#171a24'; ctx.fillRect(0, 0, VW, 100);
+    sign(20, 10, 54, 14, '#45f0ff', t, 3.1);
+    ctx.fillStyle = '#0d1016'; ctx.fillRect(24, 13, 46, 8);
+    ctx.fillStyle = '#45f0ff'; ctx.fillRect(28, 15, 8, 4); ctx.fillRect(40, 15, 8, 4); ctx.fillRect(52, 15, 12, 4);
+    // 酒瓶架
+    ctx.fillStyle = '#20242f'; ctx.fillRect(108, 26, 150, 58);
+    for (let r = 0; r < 3; r++) {
+      ctx.fillStyle = '#2b3140'; ctx.fillRect(108, 26 + r * 20 + 16, 150, 3);
+      for (let i = 0; i < 12; i++) {
+        const bx = 114 + i * 12, c = ['#8fd18f', '#e0917f', '#ffd97a', '#a89ad8', '#7fc4d8'][(i + r) % 5];
+        ctx.fillStyle = c; ctx.fillRect(bx, 30 + r * 20, 6, 12);
+        ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.fillRect(bx, 30 + r * 20, 2, 12);
+        ctx.fillStyle = '#1a1e28'; ctx.fillRect(bx + 2, 27 + r * 20, 2, 4);
+      }
+    }
+    ctx.globalAlpha = .1; glow(180, 56, 90, 'rgba(120,200,220,1)'); ctx.globalAlpha = 1;
+    // 墙上那块比周围新的地方（原来挂着产业登记）
+    ctx.fillStyle = '#1e222d'; ctx.fillRect(272, 36, 34, 26);
+    ctx.fillStyle = '#252a36'; ctx.fillRect(274, 38, 30, 22);
+    // 吧台
+    ctx.fillStyle = '#2a2018'; ctx.fillRect(0, 100, VW, 34);
+    ctx.fillStyle = '#3d2e22'; ctx.fillRect(0, 100, VW, 4);
+    ctx.fillStyle = 'rgba(255,255,255,.06)'; ctx.fillRect(30, 106, 80, 5);
+    ctx.fillStyle = '#cfd8e0'; ctx.fillRect(228, 92, 10, 10);                   // 一只擦干净的杯子
+    ctx.fillStyle = '#eef4f8'; ctx.fillRect(228, 92, 3, 10);
+    band(134, VH, '#0b0c11');
+  },
+  // 后巷 / 巷子：砖墙、管道、一盏灯、雨
+  alley(t) {
+    band(0, VH, '#0d0e14');
+    ctx.fillStyle = '#191a22'; ctx.fillRect(0, 0, VW, 122);
+    for (let y = 0; y < 122; y += 6) for (let x = (y / 6 % 2) * 10; x < VW; x += 20) {
+      ctx.fillStyle = '#1f2029'; ctx.fillRect(x, y, 18, 5);
+    }
+    ctx.fillStyle = '#2a2b36'; ctx.fillRect(88, 0, 6, 122); ctx.fillRect(96, 0, 3, 122);   // 落水管
+    ctx.fillStyle = '#33343f'; ctx.fillRect(84, 40, 14, 4); ctx.fillRect(84, 92, 14, 4);
+    // 一盏灯：唯一的光源
+    ctx.fillStyle = '#2b2c38'; ctx.fillRect(214, 12, 22, 4); ctx.fillRect(222, 16, 6, 3);
+    const fl = .8 + Math.sin(t * 7) * .2 * (Math.sin(t * 1.3) > .6 ? 1 : .2);
+    ctx.globalAlpha = fl; ctx.fillStyle = '#ffd28a'; ctx.fillRect(219, 19, 12, 4);
+    ctx.globalAlpha = .17 * fl; glow(225, 22, 74, 'rgba(255,190,110,1)'); ctx.globalAlpha = 1;
+    // 垃圾箱 + 几个箱子
+    ctx.fillStyle = '#2c3a34'; ctx.fillRect(240, 78, 56, 44);
+    ctx.fillStyle = '#3a4c44'; ctx.fillRect(240, 78, 56, 5);
+    ctx.fillStyle = '#1f2a26'; ctx.fillRect(266, 83, 2, 39);
+    ctx.fillStyle = '#5a4029'; ctx.fillRect(20, 96, 26, 26); ctx.fillStyle = '#6d4e33'; ctx.fillRect(20, 96, 26, 4);
+    // 地面 + 积水反光
+    band(122, VH, '#0b0c10');
+    puddle(200, 126, 54, 'rgba(255,190,110,.13)', t);
+    puddle(44, 132, 78, 'rgba(120,150,180,.09)', t);
+    rain(80, 330);
+  },
+  // 旧渡口（港区街上）：招牌、远处的穹顶、雨
+  street(t) {
+    const g = ctx.createLinearGradient(0, 0, 0, VH);
+    g.addColorStop(0, '#160f1c'); g.addColorStop(.6, '#0d0b13'); g.addColorStop(1, '#08080c');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+    // 远处的穹顶：一直亮着，一直进不去
+    ctx.fillStyle = '#141b26'; ctx.beginPath(); ctx.ellipse(250, 66, 74, 40, 0, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = 'rgba(140,200,220,.22)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(250, 66, 74, 40, 0, Math.PI, 0); ctx.stroke();
+    ctx.globalAlpha = .08; glow(250, 60, 90, 'rgba(160,220,240,1)'); ctx.globalAlpha = 1;
+    // 楼宇
+    let bx = 0, sd = 11;
+    while (bx < VW) {
+      sd = (sd * 1103515245 + 12345) & 0x7fffffff;
+      const bw = 26 + (sd >> 6) % 22, bh = 34 + (sd >> 11) % 46;
+      ctx.fillStyle = '#101018'; ctx.fillRect(bx, 66 - bh + 40, bw, bh);
+      for (let wy = 66 - bh + 44; wy < 104; wy += 7)
+        for (let wx = bx + 4; wx < bx + bw - 4; wx += 7) {
+          const on = ((sd >> (wx % 13)) % 4) !== 0;
+          ctx.fillStyle = on ? ((sd >> 2) % 2 ? 'rgba(255,200,120,.5)' : 'rgba(120,200,230,.45)') : 'rgba(30,34,44,.8)';
+          ctx.fillRect(wx, wy, 3, 4);
+        }
+      bx += bw + 3;
+    }
+    // 招牌
+    sign(16, 30, 8, 40, '#ff2ea6', t, 0); sign(66, 22, 7, 30, '#45f0ff', t, 2.3);
+    sign(120, 40, 8, 26, '#ffd97a', t, 0); sign(176, 26, 6, 34, '#8fd18f', t, 4.1);
+    // 街面 + 积水
+    band(106, VH, '#0a0a10');
+    ctx.fillStyle = '#0d0e15'; ctx.fillRect(0, 106, VW, 4);
+    puddle(12, 118, 38, 'rgba(255,46,166,.12)', t);
+    puddle(62, 124, 28, 'rgba(69,240,255,.10)', t);
+    puddle(172, 120, 42, 'rgba(140,220,140,.09)', t);
+    rain(90, 360);
+  },
+  // 疏浚船：一整墙滚字的显示器，除此以外全是黑的
+  ship(t) {
+    band(0, VH, '#070a0c');
+    ctx.fillStyle = '#0c1114'; ctx.fillRect(0, 0, VW, 120);
+    // 显示器墙
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) {
+      const x = 8 + c * 50, y = 8 + r * 36;
+      if ((r * 6 + c) % 7 === 3) { ctx.fillStyle = '#0e1216'; ctx.fillRect(x, y, 44, 30); continue; }
+      ctx.fillStyle = '#101820'; ctx.fillRect(x, y, 44, 30);
+      const hue = (r + c) % 3;
+      ctx.fillStyle = hue === 0 ? '#123' : hue === 1 ? '#0f2418' : '#1a1220';
+      ctx.fillRect(x + 2, y + 2, 40, 26);
+      const col = hue === 0 ? 'rgba(90,180,220,' : hue === 1 ? 'rgba(120,220,140,' : 'rgba(220,120,180,';
+      for (let i = 0; i < 7; i++) {                     // 滚动的字符行
+        const w = 6 + ((i * 17 + r * 5 + c * 3) % 30);
+        const yy = y + 4 + ((i * 4 + Math.floor(t * 9 + c * 3)) % 24);
+        ctx.fillStyle = col + (i % 3 ? '.5)' : '.85)');
+        ctx.fillRect(x + 4, yy, w, 1);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,.04)'; ctx.fillRect(x + 2, y + 2, 40, 6);
+      ctx.globalAlpha = .06; glow(x + 22, y + 15, 40, 'rgba(120,200,220,1)'); ctx.globalAlpha = 1;
+    }
+    // 折叠床 + 一只保温杯：有人住在这儿
+    ctx.fillStyle = '#1c2228'; ctx.fillRect(0, 112, 92, 22);
+    ctx.fillStyle = '#2a3238'; ctx.fillRect(0, 112, 92, 4);
+    ctx.fillStyle = '#3d4a52'; ctx.fillRect(12, 104, 28, 9);
+    ctx.fillStyle = '#7a8a92'; ctx.fillRect(58, 100, 8, 13); ctx.fillStyle = '#98a8b0'; ctx.fillRect(58, 100, 3, 13);
+    // 船体的锈
+    ctx.fillStyle = '#1a1410'; ctx.fillRect(240, 108, 80, 26);
+    ctx.fillStyle = '#2a2018'; for (let i = 0; i < 14; i++) ctx.fillRect(244 + (i * 13) % 72, 110 + (i * 7) % 20, 5, 2);
+    band(134, VH, '#05070a');
+  },
+  // 穹顶外围的餐厅：包厢、窗、一盏低垂的灯。两副筷子。
+  restaurant(t) {
+    band(0, VH, '#14121a');
+    ctx.fillStyle = '#1c1a24'; ctx.fillRect(0, 0, VW, 104);
+    ctx.fillStyle = '#231f2c'; for (let x = 0; x < VW; x += 32) ctx.fillRect(x, 0, 3, 104);
+    // 窗：外面是穹顶的光
+    ctx.fillStyle = '#0e1620'; ctx.fillRect(198, 18, 104, 56);
+    ctx.fillStyle = '#16283a'; ctx.fillRect(201, 21, 98, 50);
+    ctx.globalAlpha = .5; glow(250, 46, 60, 'rgba(150,210,235,1)'); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#2a2634'; ctx.fillRect(196, 16, 108, 3); ctx.fillRect(196, 72, 108, 3); ctx.fillRect(248, 18, 3, 56);
+    // 低垂的灯
+    ctx.fillStyle = '#26222e'; ctx.fillRect(96, 0, 2, 26);
+    ctx.fillStyle = '#3a3040'; ctx.fillRect(84, 26, 26, 6);
+    ctx.fillStyle = '#ffd9a0'; ctx.fillRect(88, 32, 18, 3);
+    ctx.globalAlpha = .2; glow(97, 36, 74, 'rgba(255,200,140,1)'); ctx.globalAlpha = 1;
+    // 桌 + 两副筷子 + 一条鱼
+    ctx.fillStyle = '#2e2028'; ctx.fillRect(0, 104, VW, 32);
+    ctx.fillStyle = '#402c34'; ctx.fillRect(0, 104, VW, 4);
+    ctx.fillStyle = '#e8e0d0'; ctx.fillRect(40, 96, 22, 9); ctx.fillRect(150, 96, 22, 9);
+    ctx.fillStyle = '#c8bca8'; ctx.fillRect(40, 96, 22, 2); ctx.fillRect(150, 96, 22, 2);
+    ctx.fillStyle = '#b8a888'; ctx.fillRect(66, 98, 14, 1); ctx.fillRect(66, 100, 14, 1);
+    ctx.fillStyle = '#b8a888'; ctx.fillRect(176, 98, 14, 1); ctx.fillRect(176, 100, 14, 1);
+    ctx.fillStyle = '#9a7a5a'; ctx.fillRect(100, 92, 34, 12);
+    ctx.fillStyle = '#b08a62'; ctx.fillRect(100, 92, 34, 3);
+    band(136, VH, '#0e0c12');
+  },
+};
+function backId(w) {
+  w = w || '';
+  if (w.includes('会议室')) return 'dome_meet';
+  if (w.includes('一号门')) return 'dome_gate';
+  if (w.includes('轨道车')) return 'tram';
+  if (w.includes('面馆')) return 'noodle';
+  if (w.includes('后巷') || w.includes('巷子')) return 'alley';
+  if (w.includes('酒吧')) return 'bar';
+  if (w.includes('船')) return 'ship';
+  if (w.includes('餐厅')) return 'restaurant';
+  return 'street';
+}
+function drawBackdrop(where) {
+  seed = 7717;
+  (SCENES[backId(where)] || SCENES.street)(G.t);
+  ctx.fillStyle = 'rgba(0,0,0,.14)'; for (let y = 0; y < VH; y += 2) ctx.fillRect(0, y, VW, 1);
+  ctx.fillStyle = 'rgba(7,8,13,.34)'; ctx.fillRect(0, VH - 26, VW, 26);        // 底部压暗，字才看得清
+}
+
+/* ---------------- 结算 / 标题 ---------------- */
+function syncHud() {
+  el('hpn').textContent = Math.max(0, P.hp | 0); el('hp').firstElementChild.style.width = clamp(P.hp / P.maxhp * 100, 0, 100) + '%';
+  el('kills').textContent = G.kills; el('seen').textContent = G.seen;
+}
+function finish(win) {
+  G.state = 'over'; el('hud').style.display = 'none';
+  ST.kills = G.kills; ST.seen = G.seen;                // 街坊台词要看战绩
+  const M = MISSION[G.mission];
+  const ghost = G.seen === 0, clean = G.kills === 0;
+  const b2 = M.bonus[1] === '不破坏任何东西' ? !G.broke : clean;
+  el('ovl').innerHTML = `<div class="card">
+    <h1>${win ? '撤离成功' : '你死了'}</h1><h2>${M.title} · ${M.place}</h2>
+    <div class="stat"><div><b>${(G.t | 0)}s</b>耗时</div><div><b>${G.kills}</b>击杀</div><div><b>${G.seen}</b>被发现</div></div>
+    <div>可选目标：<span class="${ghost ? 'bonus' : 'miss'}">${M.bonus[0]}</span> · <span class="${b2 ? 'bonus' : 'miss'}">${M.bonus[1]}</span></div>
+    <div class="go">${win ? (ghost && clean ? '没人知道你来过，也没人少一根头发。' : ghost ? '没人知道你来过。' : clean ? '一个都没杀，但他们都知道有人来过。' : '硬冲也是一种打法。') : '换一种打法：蹲下（Ctrl）、走暗房间、从背后按 E。'}</div>
+    <div style="margin-top:16px">${win ? '<button id="k1">交活</button>' : '<button id="k1">再来一次</button>'}</div></div>`;
+  el('ovl').style.display = 'flex';
+  el('k1').onclick = () => win ? play(M.debrief) : startLevel(G.mission);
+  syncStatus();
+}
+function title() {
+  G.state = 'title'; el('status').style.display = 'none'; el('hud').style.display = 'none'; dlgClose();
+  el('ovl').innerHTML = `<div class="card">
+    <h1>夜 港</h1><h2>NIGHT HARBOR · 原型 · 序章 + 三支第一个任务</h2>
+    <p>明烛把你优化了。义体是公司预支的，合同没做满，三处义体一起变成欠款。宽限期 90 天。</p>
+    <p style="color:#7d8aa5">台词全部来自 <code>docs/夜港剧本.md</code>，由 <code>tools/script2json.js</code> 解析后嵌进来。改剧本就改游戏。</p>
+    <table>
+      <tr><td>对话</td><td><kbd>空格</kbd> 继续 · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 选择（灰掉的是你做不到的事）</td></tr>
+      <tr><td>关卡</td><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动 · 鼠标瞄准开火 · <kbd>Ctrl</kbd> 蹲伏 · <kbd>空格</kbd> 冲刺</td></tr>
+      <tr><td></td><td><kbd>E</kbd> 背后处决 / 读取目标 / 撤离</td></tr>
+      <tr><td>视角</td><td><kbd>V</kbd> 俯视 ⇄ 第一人称 · 第一人称下 <kbd>Q</kbd> 义眼扫描（透墙看人 3 秒）</td></tr>
+    </table>
+    <p>你是——</p>
+    <div style="margin-top:6px"><button id="gm">男</button><button id="gf">女</button></div>
+    <div class="go">选一个就开始。全部台词不分性别，只有穹顶里的旧同事会叫你「陈哥」或「陈姐」。</div></div>`;
+  el('ovl').style.display = 'flex';
+  el('gm').onclick = () => { ST.gender = 'm'; titleGo(); };
+  el('gf').onclick = () => { ST.gender = 'f'; titleGo(); };
+}
+function titleGo() { el('ovl').style.display = 'none'; play('P0.1'); }
+
+/* ---------------- 主循环 ---------------- */
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (G.state === 'play') { update(dt); FPS.on ? renderFPS() : render(); }
+  else if (G.state === 'over' && P) render();
+  else if (G.state === 'dlg') { G.t += dt; dlgTick(dt); drawBackdrop(backdrop); }
+  else { ctx.fillStyle = '#07080d'; ctx.fillRect(0, 0, VW, VH); }
+  requestAnimationFrame(loop);
+}
+function fit() {
+  const s = Math.max(1, Math.floor(Math.min(innerWidth / VW, innerHeight / VH)));
+  cv.style.width = VW * s + 'px'; cv.style.height = VH * s + 'px';
+}
+bakeSprites();
+if (PORTSRC) el('dlg').querySelector('.port').style.backgroundImage = `url(${PORTSRC})`;
+addEventListener('resize', fit); fit(); title(); requestAnimationFrame(loop);
+</script>
+</body></html>

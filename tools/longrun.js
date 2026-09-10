@@ -11,7 +11,7 @@ async function run(gossipOn) {
   const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  await page.goto('file://' + path.resolve(__dirname, '..', 'index.html'));
+  await page.goto('file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html'));
   await page.waitForTimeout(1200);
 
   await page.evaluate(on => {
