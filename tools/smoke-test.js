@@ -10,7 +10,7 @@ const path = require('path');
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 
-  await page.goto('file://' + path.resolve(__dirname, '..', 'index.html'));
+  await page.goto('file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html'));
   await page.waitForTimeout(2000);
 
   const painted = await page.evaluate(() => {
@@ -78,7 +78,21 @@ const path = require('path');
   await page.waitForTimeout(21000);   // ~3 个游戏日。前面的菜单/平滑度检查会暂停模拟，
                                       // 窗口要留够，否则 NPC 社交采样不足
   const health = await page.evaluate(() => ({
+    // 钱的去处：收钱的公共去处几个、免费的退路几个、三天里一共花掉多少
+    money: (() => {
+      const amen = OBJ.filter(o => ['浴堂', '茶棚', '水井', '茅厕'].includes(o.n));
+      // 浴堂设闸（穷了退去水井），茶棚不设闸（有钱添碗茶，没钱白坐）——
+      // 所以「收钱」按 eff 数，「有免费退路」按没有 eff 的数
+      return { priced: amen.filter(o => o.eff).length,
+               free: amen.filter(o => !o.eff).length,
+               spent: Math.round(6 * 60 - sims.reduce((a, s) => a + s.money, 0)) };
+    })(),
     day, starving: sims.filter(s => s.need.hunger < 5).length,
+    // 饿了要说清是谁、为什么 —— 只报个数字，回头还得人肉复现
+    starvingWho: sims.filter(s => s.need.hunger < 5).map(s =>
+      `${s.name}${s.isPlayer ? '(玩家)' : ''} 米${s.inv.food}柴${s.inv.wood}钱${Math.round(s.money)}` +
+      `${OBJ.some(o => o.stove && o.owner === s.name) ? '' : '/无灶台'}` +
+      `${OBJ.some(o => artOf(o) === 'jar' && o.owner === s.name) ? '' : '/无米缸'}`),
     avg: Math.round(sims.reduce((a, s) => a + s.need.hunger + s.need.energy, 0) / (sims.length * 2)),
     // 关系梯度：对立的应当明显低于不对立的，且都不能触底 0
     // （摩擦没有地板时会全员归零，关系就不再携带任何信息）
@@ -185,15 +199,21 @@ const path = require('path');
     // T19 种地：3 天的窗口收不了一茬（要 3 天以上），所以这里只守"循环真的转起来了"，
     // 完整的状态机与抢收规则由 verify-farm.js 逐条断言。
     farm: (() => {
+      // 【改过】原来的断言是"私田人手一块"。开局无家之后，玩家那块地上什么都没有，
+      // 田要自己开 —— 基准改成"除玩家那块空地外，每座有人的宅子自带一块私田"，
+      // 玩家自己开的田算额外的（mine），不参与这条不变量。
       const priv = FIELDS.filter(f => f.owner).length;
+      const npcFields = FIELDS.filter(f => f.owner && f.owner !== PC.name).length;
+      const npcHomes  = HOMEOWNER.filter((n, i) => n && i !== PLOT0).length;
+      const mine      = FIELDS.filter(f => f.owner === PC.name).length;
       const acted = FIELDS.filter(f => f.st !== '荒').length;
       const stages = new Set(FIELDS.map(f => fieldStage(f)));
       const bad = FIELDS.filter(f => !['荒', '耕', '苗', '穗'].includes(fieldStage(f))
                                   || !(f.grow >= 0 && f.grow <= 100)).length;
       // 已播种的田必须记得住是谁种的 —— 抢收判定全靠它
       const orphan = FIELDS.filter(f => f.st === '苗' && !f.sower).length;
-      return { n: FIELDS.length, priv, acted, stages: stages.size, bad, orphan,
-               people: sims.length };
+      return { n: FIELDS.length, priv, npcFields, npcHomes, mine,
+               acted, stages: stages.size, bad, orphan, people: sims.length };
     })(),
 
     // T22 手艺 / T23 天气 / T21 日结算：守住"真的起作用"，细节由长跑和定向测试管
@@ -344,7 +364,13 @@ const path = require('path');
   // 田必须真的被动起来（有人开垦/播种），状态不能出现非法值或丢失播种人
   // 别写死块数 —— 上一版是 6 块公田，改成小镇之后是 6 块私田 + 2 块公田，
   // 这条断言就假红了。要查的是"私田人手一块、公田存在、状态合法"。
-  const farmPass = health.farm.priv === health.farm.people
+  // 钱得有下水道：茶钱澡钱是唯一持续的支出口。守两条 ——
+  // ① 公共去处真的收钱（不然钱又只进不出）②【穷了有免费的退路】：
+  // 水井免费、茅厕免费，否则收费会变成"没钱就活不下去"。
+  const moneyPass = health.money.priced === 3          // 浴堂×2 + 茶棚
+                 && health.money.free >= 2             // 水井 + 茅厕
+                 && health.money.spent > 0;            // 三天里真的花出去过
+  const farmPass = health.farm.npcFields === health.farm.npcHomes   // 每座宅子一块
                 && health.farm.n > health.farm.priv        // 公田必须还在（抢收靠它）
                 && health.farm.acted >= 1
                 && health.farm.bad === 0 && health.farm.orphan === 0;
@@ -355,11 +381,18 @@ const path = require('path');
                 && feed.blocked === 0            // 单次抢家具不得进事件流
                 && feed.topShare <= 0.35         // 没有任何一类能吃掉三分之一以上
                 && feed.gossipOrder === 0;       // 八卦必须跟在交谈之后
-  const ok = errors.length === 0 && painted > 100 && menuPass && smoothPass && evPass &&
-             traitPass && memPass && feedPass && socialPass && econPass && anchorPass &&
-             gossipPass && giftPass && farmPass && progPass &&
-             health.starving === 0 && health.avg > 20;
-  console.log(`${ok ? 'PASS' : 'FAIL'}  painted=${painted}  ` +
+  // 以前只吐一个 PASS/FAIL，红了得逐条回去人肉读代码。列出来是哪几条红的。
+  const checks = {
+    errors: errors.length === 0, painted: painted > 100,
+    menu: menuPass, smooth: smoothPass, events: evPass, traits: traitPass,
+    mem: memPass, feed: feedPass, social: socialPass, econ: econPass,
+    anchor: anchorPass, gossip: gossipPass, gift: giftPass, farm: farmPass,
+    prog: progPass, money: moneyPass,
+    starving: health.starving === 0, need: health.avg > 20,
+  };
+  const red = Object.keys(checks).filter(k => !checks[k]);
+  const ok = red.length === 0;
+  console.log(`${ok ? 'PASS' : 'FAIL[' + red.join(',') + ']'}  painted=${painted}  ` +
               `menu=${menuOk.open ? menuOk.items + '项/' + (menuOk.filled * 100 | 0) + '%绘制' : '未打开'}  ` +
               `smooth=${smooth.moved}/${smooth.total}帧/${smooth.max.toFixed(1)}px  ` +
               `events=${ev.total}/${ev.kinds}类/残缺${ev.broken}/中断率${(ev.intrRate * 100) | 0}%  ` +
@@ -373,12 +406,15 @@ const path = require('path');
               `馈赠峰值=${health.giftMax}/2  ` +
               `手艺=${health.prog.lv0}→${health.prog.lvHi}级/${health.prog.fast && health.prog.rich ? '有用' : '没用!'}  ` +
               `天=${health.prog.wxOK ? '正常' : '异常!'}  存档=${health.prog.saved ? '有' : '无!'}  ` +
-              `田=私${health.farm.priv}+公${health.farm.n - health.farm.priv}/动过${health.farm.acted}/` +
+              `田=邻${health.farm.npcFields}/${health.farm.npcHomes}+我${health.farm.mine}` +
+              `+公${health.farm.n - health.farm.priv}/动过${health.farm.acted}/` +
               `${health.farm.bad + health.farm.orphan ? '状态异常!' : '状态OK'}  ` +
               `mem=${health.memEntries}条/峰值${health.memMaxPair}/${health.memConsistent ? '一致' : '不一致'}/${health.memDecays ? '会衰减' : '不衰减'}  ` +
               `feed=${feed.rows}行/筛${feed.bus}→${feed.story}/最大类${(feed.topShare * 100) | 0}%/` +
               `瑕疵[自指${feed.selfRef}/占位${feed.placeholder}/抢家具${feed.blocked}/八卦序${feed.gossipOrder}]  ` +
-              `day=${health.day}  starving=${health.starving}  avgNeed=${health.avg}  ${errors.join(' | ')}`);
+              `钱=收费${health.money.priced}处/免费${health.money.free}处/花出${health.money.spent}文  ` +
+              `day=${health.day}  starving=${health.starving}${health.starvingWho.length ? '[' + health.starvingWho.join(';') + ']' : ''}` +
+              `  avgNeed=${health.avg}  ${errors.join(' | ')}`);
   await browser.close();
   process.exit(ok ? 0 : 1);
 })();

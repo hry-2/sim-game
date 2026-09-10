@@ -5,7 +5,7 @@
 // 这里最要紧的两条是⑦⑧（连通性闸门）和⑬（读档顺序），其余是常规回归。
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
 
 (async () => {
   const browser = await chromium.launch();
@@ -23,8 +23,16 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
       for (let y = PCHOME.y; y < PCHOME.y + HH; y++)
         for (let x = PCHOME.x; x < PCHOME.x + HW; x++)
           if (!buildCheck(key, x, y)) return [x, y];
-      return null;
+      // 找不到落子点时别返回 null 让调用方在 [0] 上崩 —— 说清楚是哪一样、为什么
+      throw new Error('院里找不到能放「' + key + '」的地方：' +
+                      buildCheck(key, PCHOME.x + 9, PCHOME.y + 7));
     };
+
+    // 手艺闸（后加的）排在料钱检查之前，不给足手艺的话下面全被它挡住。
+    // 先单独验一下闸本身拦得住，再给足往下测。
+    PC.skill = 0;
+    out.lowSkill = buildCheck('义仓', PLAZA.x0 + 2, PLAZA.y0 + 2);   // 义仓要手艺 5
+    PC.skill = 999;
 
     // ---- ① 造价是真的要付 ----
     PC.inv.wood = 0; PC.money = 5;
@@ -32,12 +40,14 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
     PC.inv.wood = 99;
     out.poorMoney = buildCheck('水渠', PCHOME.x + 9, PCHOME.y + 7);
 
-    // ---- ② 只能建在自家院里 ----
+    // ---- ② 【改过】规矩从"只能建在自家院里"换成了"只要是草地就行" ----
+    // 玩家那块地现在既没有屋也没有篱笆，就是一片草地；禁令只剩"别人家的院子"。
     PC.money = 9999; PC.inv.stone = 9999;
-    out.outside = buildCheck('腌坛', 26, 18);          // 镇中心广场
-    out.inHouse = buildCheck('腌坛', PCHOME.x + 2, PCHOME.y + 2);
+    out.onDirt = buildCheck('腌坛', 30, 30);           // 镇中心：夯土/石板，不是草地
     const other = HOME[2];
-    out.othersYard = buildCheck('腌坛', other.x + 9, other.y + 7);
+    out.inHouse = buildCheck('腌坛', other.x + 2, other.y + 2);      // 别人家的屋里
+    out.othersYard = buildCheck('腌坛', other.x + 9, other.y + 7);   // 别人家的院子
+    out.onGrass = buildCheck('腌坛', PCHOME.x + 9, PCHOME.y + 7);    // 自己那片空地：行
 
     // ---- ③ 落子扣料、物件真的加进世界 ----
     const spot = freeSpot('腌坛');
@@ -92,11 +102,20 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
       }
       return refused;
     };
-    // 南排：另一头还有北门，所以整排都该建得下去
-    out.southRefused = fill(PCHOME.y + HH - 1);
-    // 北排：这时院子只剩这一条路，最后必须恰好卡住一格
-    out.northRefused = fill(PCHOME.y);
-    out.gateBlocked = buildCheck('水渠', PCHOME.x + 9, PCHOME.y);
+    // 【改过】原来的场景是"院子只有两个门，堵完最后一个就封死"。
+    // 玩家那块地现在没有篱笆、四面通着，那个场景不存在了。
+    // 但这道闸要防的事还在 —— connectivityOK 查的是"所有座位和所有人都还到得了"。
+    // 换个还成立的场景：【把自己砌死】。人站在一格上，围三面，第四面必须被拦下。
+    const px = PCHOME.x + 5, py = PCHOME.y + 5;
+    PC.px = (px + .5) * T; PC.py = (py + .5) * T; PC.gx = px; PC.gy = py;
+    out.southRefused = [];                       // 围前三面：一面都不该被拦
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, -1]]) {
+      const why = buildCheck('水渠', px + dx, py + dy);
+      if (why) out.southRefused.push(why); else placeBuild('水渠', px + dx, py + dy);
+    }
+    // 第四面：堵上人就出不来了，必须恰好拦下这一格
+    out.gateBlocked = buildCheck('水渠', px, py + 1);
+    out.northRefused = out.gateBlocked && /封死/.test(out.gateBlocked) ? [px] : [];
 
     // ---- ⑧ 堵完之后村子仍然处处走得通 ----
     const start = OBJ.find(o => o.id === 'shrine').use[0];
@@ -134,7 +153,8 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
       for (let y = PLAZA.y0; y <= PLAZA.y1; y++)
         for (let x = PLAZA.x0; x <= PLAZA.x1; x++)
           if (!buildCheck(key, x, y)) return [x, y];
-      return null;
+      throw new Error('广场上找不到能放「' + key + '」的地方：' +
+                      buildCheck(key, PLAZA.x0 + 2, PLAZA.y0 + 2));
     };
 
     // ---- ⑯ 药圃：解开季节锁（药草野外只有冬天有），且有每日上限 ----
@@ -157,7 +177,11 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
     // ---- ⑱ 水车：第一个有依赖的建造，把浇灌半径 1 → 2 ----
     wipeBuilt(); PC.inv.wood = 9999; PC.inv.stone = 9999; PC.money = 99999;
     out.millNoDitch = buildCheck('水车', PCHOME.x + 9, PCHOME.y + 7);
-    const fd = FIELDS[0];
+    // 【改过】FIELDS[0] 原来是玩家那块私田。开局无家之后玩家没有田，
+    // FIELDS[0] 变成了邻居的 —— 水渠会被放进别人家院子，水车就永远挨不着。
+    // 自己开一块再测。
+    const fsp = freeSpot('新田'); placeBuild('新田', fsp[0], fsp[1]);
+    const fd = FIELDS[FIELDS.length - 1];
     placeBuild('水渠', fd.x + 2, fd.y);            // 离田两格：没水车够不着
     const reset = () => { fd.st = '苗'; fd.grow = 0; fd.wet = false; fd.crop = '稻'; };
     reset(); farmDayTick(); const noMill = fd.grow;
@@ -189,7 +213,7 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
                  idle: (() => { const st = DOLE.stock; sims.forEach(s => { s.need.hunger = 90; });
                                 doleTick(); return DOLE.stock === st; })() };
 
-    // ---- ㉑ 九样都得有画法、有"为什么" ----
+    // ---- ㉑ 每一样都得有画法、有"为什么" ----
     out.allArt = Object.keys(BUILD).every(k => !!FURN[BUILD[k].art]);
     out.allWhy = OBJ.filter(o => o.built && o.pre &&
       !o.why && !Object.getOwnPropertyDescriptor(o, 'why')).map(o => o.id);
@@ -247,9 +271,11 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
   const P = [
     ['① 木料不够会说差多少', /差 16 根木料/.test(r.poorWood)],
     ['① 钱不够也会说差多少', /差 \d+ 文/.test(r.poorMoney)],
-    ['② 镇上不给建', /自家院里/.test(r.outside)],
-    ['② 屋里不给建', /屋里/.test(r.inHouse)],
-    ['② 别人家院子不给建', /自家院里/.test(r.othersYard)],
+    ['② 手艺不够会说要几级', /手艺不够/.test(r.lowSkill || '')],
+    ['② 夯土地上不给建', /不是草地/.test(r.onDirt || '')],
+    ['② 别人家屋里不给建', /不是草地|别人家/.test(r.inHouse || '')],
+    ['② 别人家院子不给建', /别人家的院子/.test(r.othersYard || '')],
+    ['② 自己那片草地给建', r.onGrass === null],
     ['③ 落子扣料并加进世界', r.placed.objAdded === 1 && r.placed.wood === 8 &&
        r.placed.money === 20 && r.placed.owner === '小满' && r.placed.art &&
        r.placed.solid && r.placed.cell && r.placed.seatFree],
@@ -260,8 +286,8 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
        r.sell.gain > 0 && r.sell.vsFish],
     ['⑥ 水渠自动浇田', r.ditch.placed && r.ditch.watered > r.ditch.without * 3],
     ['⑥ 拆了水渠就回到"不浇不长"', r.ditch.without < r.ditch.watered],
-    ['⑦ 还有另一个门时，整排都建得下去', r.southRefused.length === 0],
-    ['⑦ 堵到只剩一条路时，恰好拦下那一格', r.northRefused.length === 1],
+    ['⑦ 围前三面时不该拦', r.southRefused.length === 0],
+    ['⑦ 第四面会把人砌死，恰好拦下', r.northRefused.length === 1],
     ['⑦ 提示说得清是"把路封死了"', /封死/.test(r.gateBlocked || '')],
     ['⑧ 建完村子处处仍走得通', r.stillOpen && r.nobodyPenned],
     ['⑨ 新田进 FIELDS 且只有自己看得见', r.newField.added === 1 &&
@@ -291,7 +317,10 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
     ['⑳ 义仓：捐两斗进公仓', r.dole.cost === 2 && r.dole.stock >= 1 && r.dole.noOwner],
     ['⑳ 第二天施给最饿的人', r.dole.fed === 1],
     ['⑳ 没人挨饿就不白发粮', r.dole.idle],
-    ['㉑ 十样都有画法、带条件的都写了为什么', r.allArt && r.allWhy.length === 0 && r.nKinds === 10],
+    // 【别写死样数】—— 这个仓库自己在别处也写过这条教训（"别写死块数"）。
+    // 要守的是"每一样都有画法、带条件的都写了为什么"，不是"恰好十样"。
+    [`㉑ ${r.nKinds} 样都有画法、带条件的都写了为什么`,
+      r.allArt && r.allWhy.length === 0 && r.nKinds >= 10],
     ['㉒ 石料造价扣得掉', r.stone.spent === 10],
     ['㉒ 石料不够时说得清差多少', /差 \d+ 块石料/.test(r.stone.poor || '')],
     ['㉒ 谷仓抬高存粮在家计里的封顶', r.stone.withBarn > r.stone.noBarn],

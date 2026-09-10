@@ -5,7 +5,7 @@
 // 用同一个 browser context 开两个页面，才共享 localStorage（换 context 等于换浏览器）。
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
 
 const SNAP = () => ({
   day, clock: Math.round(clock), running, speed, autoPilot,
@@ -60,7 +60,10 @@ const SNAP = () => ({
     out.corruptNoThrow = !threw;
     // ③ 阵容对不上的存档：只跳过不认识的人，不该崩
     localStorage.setItem('sim-game-save', JSON.stringify({
-      v: 12, day: 9, clock: 100, sims: [{ name: '查无此人', need: {}, inv: {}, rel: {}, mem: {} }],
+      // 【别写死版本号】：SAVE_VER 一升这条就假红。这里测的是"阵容对不上不该崩"，
+      // 不是"版本 12 能不能读"，所以跟着当前版本走。
+      v: SAVE_VER, day: 9, clock: 100,
+      sims: [{ name: '查无此人', need: {}, inv: {}, rel: {}, mem: {} }],
       fields: [], events: [],
     }));
     out.strangerOK = loadGame() === true && day === 9;

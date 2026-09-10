@@ -9,7 +9,7 @@
 // 而入口这种东西一旦断了，逻辑测试全绿、文档写着已完成，玩家却什么都点不到。
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
 
 (async () => {
   const browser = await chromium.launch();
@@ -23,6 +23,10 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
   const r = await page.evaluate(() => {
     running = false; wipeSave(); wipeBuilt(); TOOLS = {};
     const out = {};
+    // 【改过】原来是 `PC.act.left = 0; step(0.25)` 跳结算。
+    // 力气活（田、木作坊）现在是一下一下抡出来的，根本不走计时那条路 ——
+    // left 置零毫无作用，行动会一直挂着。统一走 finishAct()，两种都收得掉。
+    const finish = () => { if (PC.act) finishAct(PC); };
     const stand = id => {
       const o = OBJ.find(x => x.id === id);
       const u = o.use[0];
@@ -33,14 +37,31 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
       return { o, m, acted: !!PC.act };
     };
 
+    // 【改过】开局无家之后，玩家名下没有灶台/米缸/私田了 —— 先自己造出来再测。
+    // 这反而更贴近真实玩法：这三样本来就该是玩家亲手立的。
+    const mkMine = key => {
+      PC.inv.wood = 999; PC.inv.stone = 999; PC.money = 9999;
+      for (let y = PCHOME.y; y < PCHOME.y + HH; y++)
+        for (let x = PCHOME.x; x < PCHOME.x + HW; x++)
+          if (!buildCheck(key, x, y)) { placeBuild(key, x, y); return OBJ[OBJ.length - 1].id; }
+      return null;
+    };
+    const STOVE = mkMine('灶台'), JAR = mkMine('米缸'), FIELD = mkMine('新田');
+
+    // 手艺闸是后加的：铁斧要手艺 2 级。先确认它【真的拦得住】，
+    // 再把手艺给足往下测 —— 这个文件测的是工具本身，不是解锁条件。
+    PC.skill = 0; PC.inv.wood = 20; PC.money = 500;
+    out.lowSkillTool = missText(craftLack(PC, CRAFT.find(c => c.tool === '斧')));
+
     // ---- ① 四个入口都得弹得出菜单 ----
     PC.inv.food = 9; PC.inv.veg = 3; PC.inv.wood = 9; PC.money = 500;
-    const f1 = OBJ.find(o => o.id === 'field1'); f1.field.st = '耕'; f1.field.grow = 0;
+    const f1 = OBJ.find(o => o.id === FIELD); f1.field.st = '耕'; f1.field.grow = 0;
     out.gates = {};
-    for (const id of ['stove1', 'shrine', 'field1', 'bench'])
-      out.gates[id] = stand(id).m ? stand(id).m.n : 0;
+    for (const [label, id] of [['stove1', STOVE], ['shrine', 'shrine'],
+                               ['field1', FIELD], ['bench', 'bench']])
+      out.gates[label] = stand(id).m ? stand(id).m.n : 0;
     // 只有一种做法的不该弹菜单（米缸就是"取些冷食"，弹菜单是噪音）
-    const jar = stand('jar1');
+    const jar = stand(JAR);
     out.jarDirect = !jar.m && jar.acted;
 
     // ---- ② 祠堂：供奉这条路真的走得通（以前连 eff 都没有）----
@@ -52,40 +73,40 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
     out.shrineOK = !!(menu && menu.items[0].ok);
     menu.idx = 0; runMenu();
     const before = JSON.stringify(SHRINE.done);
-    PC.act.left = 0;                                  // 直接跳到结算
+    finish();                                         // 直接跳到结算
     step(0.25);
     out.shrine = { before, after: JSON.stringify(SHRINE.done), done: !!SHRINE.done[se] };
 
     // ---- ③ 灶台：菜谱真的能选，而且选哪道做哪道 ----
     menu = null; PC.act = null;
     PC.inv.food = 9; PC.inv.fish = 2; PC.need.hunger = 20;
-    stand('stove1');
+    stand(STOVE);
     const iRoast = menu.items.findIndex(i => i.label === '烤鱼');
     menu.idx = iRoast; runMenu();
     const pickedRoast = PC.act && PC.act.recipe && PC.act.recipe.n;
     const f0 = PC.inv.food, fi0 = PC.inv.fish;
-    PC.act.left = 0; step(0.25);
+    finish();
     out.cook = { picked: pickedRoast, foodSpent: f0 - PC.inv.food, fishSpent: fi0 - PC.inv.fish };
 
     // ---- ④ 熟田：选种要摊开，而且当季不长的那行必须是灰的（硬窗口）----
     menu = null; PC.act = null;
     f1.field.st = '耕'; f1.field.grow = 0; PC.inv.food = 9;
     const dSpring = day;
-    stand('field1');
+    stand(FIELD);
     out.crop = { rows: menu.items.length, springDisabled: menu.items.filter(i => !i.ok).length,
                  labels: menu.items.map(i => i.label), season: seasonOf(day) };
     menu = null; PC.act = null;
     day = dSpring + SEASON_LEN * 3;                    // 挪到冬天：稻的时令倍率是 0
     f1.field.st = '耕'; f1.field.grow = 0;
-    stand('field1');
+    stand(FIELD);
     out.cropWinter = { season: seasonOf(day),
                        disabled: menu.items.filter(i => !i.ok).map(i => i.label) };
     day = dSpring; menu = null; PC.act = null;
     f1.field.st = '耕'; f1.field.grow = 0;
-    stand('field1');
+    stand(FIELD);
     const okRow = menu.items.findIndex(i => i.ok);
     menu.idx = okRow; runMenu();
-    PC.act.left = 0; step(0.25);
+    finish();
     out.sown = { st: f1.field.st, crop: f1.field.crop, sower: f1.field.sower };
 
     // ================= 工具 =================
@@ -98,12 +119,13 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
     out.poorRow = menu.items.filter(i => !i.ok).length;
 
     // ---- ⑥ 打一把斧：扣料、进"家什"、清单里不再出现 ----
+    PC.skill = 999;                     // 铁斧要手艺 2 级（上面刚验过拦得住）
     PC.inv.wood = 20; PC.money = 500;
     menu = null; PC.act = null; stand('bench');
     const iAxe = menu.items.findIndex(i => /铁斧/.test(i.label));
     const w0 = PC.inv.wood, m0 = PC.money;
     menu.idx = iAxe; runMenu();
-    PC.act.left = 0; step(0.25);
+    finish();
     out.axe = { has: !!TOOLS['斧'], wood: w0 - PC.inv.wood, money: Math.round(m0 - PC.money),
                 names: toolNames() };
     menu = null; PC.act = null; stand('bench');
@@ -133,9 +155,13 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
     const cast = (s, n = 60) => { let miss = 0;
       for (let i = 0; i < n; i++) { clock = (i * 30) % 1440; if (!fishRoll(1 + i % 2, s)) miss++; }
       return miss / n; };
+    // 手艺会自己压低空竿率；满级时本来就只剩 1%，鱼篓的效果就量不出来了。
+    // 这一段测的是【鱼篓】，所以先把手艺放回生手。
+    const skBak = PC.skill; PC.skill = 0;
     TOOLS = {}; const missNo = cast(PC);
     TOOLS = { 篓: 1 }; const missYes = cast(PC); const missNpc = cast(npc);
     out.creel = { missNo, missYes, missNpc };
+    PC.skill = skBak;
 
     // ---- ⑩ 锄：田里的活省三成工时 ----
     TOOLS = {}; const hoeNo = playerDur(f1);
@@ -180,12 +206,13 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
       r.cropWinter.season === '冬' && r.cropWinter.disabled.includes('种稻')],
     ['④ 选完真的种下去了', r.sown.st === '苗' && !!r.sown.crop],
     ['⑤ 料不够的工具行是灰的', r.poorRow >= 3],
+    ['⑥a 手艺不够时打不了铁斧', /手艺/.test(r.lowSkillTool || '')],
     ['⑥ 打铁斧：扣木4·60文，进「家什」', r.axe.has && r.axe.wood === 4 &&
        r.axe.money === 60 && r.axe.names.includes('铁斧')],
     ['⑥ 打过的工具不再出现在清单里', r.axeGone],
-    ['⑦ 铁斧：伐木 2 → 3 根', r.axeEffect.gainWithout === 2 && r.axeEffect.gainWith === 3],
+    ['⑦ 铁斧：伐木 5 → 7 根', r.axeEffect.gainWithout === 5 && r.axeEffect.gainWith === 7],
     ['⑦ 铁斧：工时也短了', r.axeEffect.durWith < r.axeEffect.durWithout],
-    ['⑦ NPC 不吃工具（经济不被整体抬一档）', r.axeEffect.gainNpc === 2],
+    ['⑦ NPC 不吃工具（经济不被整体抬一档）', r.axeEffect.gainNpc === 5],
     ['⑧ 背篓：采集 2 → 3，NPC 不沾光', r.bag.noBag === 2 && r.bag.withBag === 3 &&
        r.bag.npcBag === 2],
     ['⑨ 鱼篓：空竿更少，NPC 不沾光', r.creel.missYes < r.creel.missNo &&

@@ -10,7 +10,7 @@
 //      而且宅子、私田、床的归属要跟着一起转手 —— 这是最容易漏的一环。
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
 
 (async () => {
   const browser = await chromium.launch();
@@ -53,6 +53,11 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
     out.ill = { got: !!A.ill, days: day - d0, sick, well };
 
     // ---- ④ 药草能治：榻上的「将养」（这是药草第一次真的有用）----
+    // 【改过】开局无家，玩家的榻要自己支 —— 先造一张再测「将养」
+    PC.inv.wood = 999; PC.money = 9999;
+    for (let y = PCHOME.y; y < PCHOME.y + HH && !OBJ.some(o => o.built && o.owner === PC.name); y++)
+      for (let x = PCHOME.x; x < PCHOME.x + HW; x++)
+        if (!buildCheck('榻', x, y)) { placeBuild('榻', x, y); break; }
     const myBed = OBJ.find(o => o.owner === PC.name && artOf(o) === 'bed');
     PC.ill = 1; PC.inv.herb = 0;
     const noHerb = menuList(myBed).find(v => v.heal);
@@ -116,9 +121,13 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
     homeowner: HOMEOWNER.slice(), gone: GONE.map(g => g.name),
     pcIsPlayer: !!PC.isPlayer, pcName: PC.name,
     // 继承来的宅子，主人用得了；别人用不了
-    ownOK: (() => { const b = OBJ.find(o => o.homeIdx === PC.home && artOf(o) === 'bed');
-                    const other = sims.find(s => s !== PC && s.name !== spouseOf(PC.name));
-                    return score(PC, b, true) != null && score(other, b, true) === null; })(),
+    // 【改过】原来查的是"玩家继承来的宅子"，而玩家那块地现在是空的、没有榻。
+    // 这条要守的是「有主的榻只有主人和配偶用得了」，跟是不是玩家无关 —— 改用邻居的。
+    ownOK: (() => { const owner = sims.find(s => !s.isPlayer && s.home != null);
+                    const b = OBJ.find(o => o.homeIdx === owner.home && artOf(o) === 'bed');
+                    const other = sims.find(s => s !== owner && s.name !== spouseOf(owner.name));
+                    return !!b && score(owner, b, true) != null
+                               && score(other, b, true) === null; })(),
     // ⑧ 终局：一局结束就是结束 —— 死后还自动存档的话，
     // pagehide 会把"死后的村子"存下去，重开时玩家会静默变成花名册里的第一个人。
     ending: (() => { running = false;

@@ -9,7 +9,7 @@
 // 如果换了字母行为不变，那这一轴就是死的，断言必须红。
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
 
 (async () => {
   const browser = await chromium.launch();
@@ -127,12 +127,16 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
     await p.evaluate(f => {
       wipeSave();
       for (const s of sims) s.mbti = f + s.mbti.slice(1);
+      // 【别去数 EVENTS 的尾巴】：那是 400 条的环形缓冲，四天下来早转满了，
+      // 尾巴里社交占多少跟 E/I 无关 —— 实测 E 和 I 数出来分毫不差（24:24）。
+      // 挂在 onEvent 上现场累加，才是真的"这一局发生了多少次社交"。
+      window.__soc = 0;
+      onEvent(e => { if (e.type.startsWith('social.') && e.type !== 'social.missed') window.__soc++; });
       autoPilot = true; speed = 60; running = true;
     }, first);
     await p.waitForFunction(() => day >= 4, null, { timeout: 240000, polling: 400 });
     const n = await p.evaluate(() => ({
-      social: EVENTS.filter(e => e.type && e.type.startsWith('social.') &&
-                                 e.type !== 'social.missed').length,
+      social: window.__soc,
       avgSoc: Math.round(sims.reduce((a, s) => a + s.need.social, 0) / sims.length),
     }));
     await p.close();

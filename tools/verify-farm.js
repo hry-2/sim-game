@@ -9,13 +9,15 @@ const path = require('path');
   const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  await page.goto('file://' + path.resolve(__dirname, '..', 'index.html'));
+  await page.goto('file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html'));
   await page.waitForTimeout(1400);
 
   // === 1. 四阶段循环必须闭合，且回到「耕」而不是「荒」 ===
   const cycle = await page.evaluate(() => {
     running = false;
-    const s = sims[1], o = OBJ.find(x => x.id === 'field1'), f = o.field;
+    // 【改过】field1 原是玩家那块私田。开局无家之后玩家的田要自己开，
+    // 这条测的是田的状态机本身，跟谁的田无关 —— 改用 sims[1] 自己那块（field2）。
+    const s = sims[1], o = OBJ.find(x => x.id === 'field2'), f = o.field;
     const seen = [];
     const snap = () => seen.push({ st: fieldStage(f), n: o.n, note: o.note, dur: o.dur });
     f.st = '荒'; f.grow = 0; f.wet = false; f.sower = null;
@@ -111,6 +113,10 @@ const path = require('path');
       otherBlind: score(sims[2], mineObj, true) === null,
       pubOpen: score(sims[1], pub, true) != null && score(sims[2], pub, true) != null,
       privCount: FIELDS.filter(f => f.owner).length,
+      // 【改过】原来的不变量是"私田人手一块"。开局无家之后，玩家那块地是空的、
+      // 田要自己开 —— 基准改成"除玩家外，每座有人的宅子自带一块私田"。
+      npcFields: FIELDS.filter(f => f.owner && f.owner !== PC.name).length,
+      npcHomes: HOMEOWNER.filter((n, i) => n && i !== PLOT0).length,
       pubCount: FIELDS.filter(f => !f.owner).length,
       people: sims.length,
       // 公田更肥，才值得跑那三十格
@@ -139,7 +145,7 @@ const path = require('path');
     ['⑪ 自收不结仇', theft.selfGrudge === 0],
     ['⑫ 不饿就不动别人的田', restraint.starving > restraint.full * 5],
     ['⑬ 闸门不误伤自己种的', own.mine > own.theirs * 5],
-    ['⑭ 私田人手一块', tenure.privCount === tenure.people],
+    ['⑭ 除玩家外每户一块私田', tenure.npcFields === tenure.npcHomes],
     ['⑮ 公田还在（抢收靠它）', tenure.pubCount >= 1],
     ['⑯ 私田只有主人看得见', tenure.ownerSees && tenure.otherBlind],
     ['⑰ 公田人人可用', tenure.pubOpen],
@@ -156,7 +162,7 @@ const path = require('path');
   const f2 = v => (v == null ? 'null' : v.toFixed(1));
   console.log(`  克制: 吃饱时打分 ${f2(restraint.full)} / 断粮时 ${f2(restraint.starving)}` +
               `（${restraint.ratio}×）　自己种的 ${f2(own.mine)} vs 别人种的 ${f2(own.theirs)}`);
-  console.log(`  田权: 私 ${tenure.privCount} 块 / 公 ${tenure.pubCount} 块　` +
+  console.log(`  田权: 邻 ${tenure.npcFields}/${tenure.npcHomes} 块 / 公 ${tenure.pubCount} 块　` +
               `收成 私${tenure.privYield} 斗 vs 公${tenure.pubYield} 斗`);
   if (errs.length) console.log('  报错:', errs.join(' | '));
   await browser.close();
