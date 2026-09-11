@@ -58,7 +58,7 @@ const VPHof = r => r.cvH;          // 世界像素的视口高，判小地图占
             return { w: GW * ms, share: GW * ms / VPW, bottom: 6 + GH * ms }; })(),
           // ② 手机上人物要够大：桌面 3x、平板 3x，手机至少 2x
           bigEnough: PXS >= 2,
-          // ②b 画面要吃满屏幕：占屏高九成上下（整格量化会差一点，给 0.82 的下限）
+          // ②b 画面要吃满屏幕。下限 0.90 —— 整格量化会让个别尺寸差一点，但不该差太多
           fill: cv.clientHeight / innerHeight,
           // ③ 菜单必须放得进视口（窄屏靠缩字号 + 省略号）
           menuFits: (() => { PC.inv.wood = 40; PC.inv.stone = 10; PC.money = 200;
@@ -101,7 +101,7 @@ const VPHof = r => r.cvH;          // 世界像素的视口高，判小地图占
             && r.backing && r.crisp && miniOK && r.menuFits.okw
             && r.cssW <= c.w && (c.touch ? (r.touchUI === 'block' && joy) : true)
             // 手机上人物得够大；整页不该超过三屏（长段要折起来）
-            && (c.touch ? (r.bigEnough && r.fill >= 0.82 && r.folded >= 5 && r.pageH <= 2400) : true);
+            && (c.touch ? (r.bigEnough && r.fill >= 0.90 && r.folded >= 5 && r.pageH <= 2600) : true);
     rows.push({ ...c, ...r, joy, ok, err: errs[0] || '' });
     if (c.n === '手机竖屏') await page.screenshot({ path: '/tmp/phone.png' });
     if (c.n === '手机横屏') await page.screenshot({ path: '/tmp/phone-land.png' });

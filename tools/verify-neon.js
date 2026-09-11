@@ -760,6 +760,24 @@ ok(VG.overheat === 1, '加时超过 12 秒，护盾过热');
 vb.hp = vh; NS.hurtMob(vb, 100, 0, 0, VP.x, VP.y);
 ok(vh - vb.hp > front * 3, `过热后正面能打进去了（${Math.round(front)} → ${Math.round(vh - vb.hp)}）`);
 ok(/G\.overheat = 0; \}/.test(html) || /overheat = 0/.test(html), '过关后过热状态要清掉，不能带进下一波');
+// 过热还要把残兵赶过来 —— 探针撞到过「预算 0、场上剩 2 只、过热已开，152 秒没推进」
+{
+  NS.setMode('free'); NS.start(6);
+  const OG = NS.G, OP = NS.P;
+  OG.phase = 'wave'; OG.budget = 0; OG.overheat = 0;
+  OG.mobs.length = 0; NS.spawn('drone');
+  const far = OG.mobs[0];
+  far.x = OP.x + 420; far.y = OP.y + 300;
+  const d0 = Math.hypot(far.x - OP.x, far.y - OP.y);
+  for (let i = 0; i < 90; i++) NS.update(1 / 60);
+  const d1 = Math.hypot(far.x - OP.x, far.y - OP.y);
+  OG.overheat = 1;
+  for (let i = 0; i < 90; i++) NS.update(1 / 60);
+  const d2 = Math.hypot(far.x - OP.x, far.y - OP.y);
+  ok(d0 - d2 > (d0 - d1) * 1.5, `过热后残兵冲得更快（不过热 1.5 秒走近 ${Math.round(d0 - d1)}px，过热后又近了 ${Math.round(d1 - d2)}px）`);
+  ok(/G\.overheat && !isBoss\(m\)/.test(html), 'BOSS 不受这条影响，它有自己的节奏');
+  ok(/!G\.overheat && G\.mobs\.length < targetMass/.test(html), '过热时 BOSS 也停止召唤，否则这波永远清不完');
+}
 // 铁壁的量得压住 —— 第 8 波三十只带盾的等于清不掉
 const wall = NS.MODS.find(m => m.id === 'wall');
 ok(wall.budget <= .5, `铁壁预算压到 ${wall.budget}（一屏全是盾就没有绕后的余地了）`);
@@ -928,12 +946,104 @@ console.log('曲线与终点');
   ok(NS.PROF.wins === 1, '通关次数记进档案');
   ok(byId('overTitle').textContent.replace(/ /g, '') === '撤离成功', `结算标题是「${byId('overTitle').textContent}」`);
   ok(byId('overSub').textContent.indexOf('拆解') < 0, '通关的小字不该写「被拆解」');
+  ok(byId('over').classList.contains('won'), '结算屏挂上 won —— 赢了不能跟死了一个颜色');
+  ok(/#over\.won h1\{color:var\(--tox\)/.test(html), '通关标题换成绿色，红色读起来就是失败');
   // 死亡那条路没被改坏
   NS.start(9); const DG = NS.G, DP = NS.P;
   DP.hp = 1; DP.inv = 0; DP.dashT = 0; DG.buffs = {};
   NS.hurtPlayer(50, 'grunt');
   ok(DG.state === 'over' && DG.won === false, '死了还是死了，won 为假');
   ok(byId('overTitle').textContent.replace(/ /g, '') === '连接中断', '死亡标题没被通关那套覆盖');
+  ok(!byId('over').classList.contains('won'), '死了要把 won 摘掉，不能留着上一局的绿色');
+}
+
+// ---- 21) 三种 BOSS ----
+// 原来六个 BOSS 波全是母体核心，打第四次时已经没有信息量了。
+console.log('BOSS');
+{
+  const kinds = Object.keys(NS.MOB).filter(k => NS.MOB[k].boss);
+  ok(kinds.length === 3, `有 ${kinds.length} 种 BOSS：${kinds.map(k => NS.MOB[k].nm).join('、')}`);
+  ok(kinds.every(k => NS.MOB[k].spr && NS.MOB[k].spr2 && NS.MOB[k].spr !== NS.MOB[k].spr2),
+    '每种都有两个形态的精灵，不是共用一张图');
+  ok(kinds.every(k => NS.GRID[NS.MOB[k].spr] && NS.GRID[NS.MOB[k].spr2]), '四张新网格都在 GRID 里，会被皮肤一起烤');
+  ok(new Set(kinds.map(k => NS.MOB[k].col)).size === 3, '三种 BOSS 颜色各不相同');
+  ok(new Set(kinds.map(k => NS.MOB[k].p2n)).size === 3, '二形态的横幅词也各不相同');
+  // 六个 BOSS 波不能全是同一个
+  const seq = [5, 10, 15, 20, 25, 30].map(w => NS.bossOf(w));
+  ok(new Set(seq).size >= 3, `六个 BOSS 波出场顺序：${seq.map(k => NS.MOB[k].nm).join(' → ')}`);
+  ok(NS.bossOf(5) !== NS.bossOf(10) && NS.bossOf(10) !== NS.bossOf(15), '连着的 BOSS 波不重复');
+  // 行为真的不一样：各跑几秒，看它们干了什么
+  const watch = (kind) => {
+    NS.setMode('free'); NS.start(4);
+    const G = NS.G, P = NS.P;
+    G.wave = 12; G.mobs.length = 0; G.ebullets.length = 0;
+    NS.spawn(kind);
+    const b = G.mobs[0];
+    b.x = P.x + 150; b.y = P.y;
+    let shots = 0, adds = 0, maxSpd = 0, still = 0;
+    for (let i = 0; i < 60 * 14; i++) {
+      const n0 = G.mobs.length, e0 = G.ebullets.length;
+      NS.update(1 / 60);
+      if (b.dead) break;
+      shots += Math.max(0, G.ebullets.length - e0);
+      adds += Math.max(0, G.mobs.length - n0);
+      maxSpd = Math.max(maxSpd, Math.hypot(b.vx, b.vy));
+      if (Math.hypot(b.vx, b.vy) < 1) still++;
+    }
+    return { shots, adds, maxSpd: Math.round(maxSpd), still };
+  };
+  const A = watch('boss'), B = watch('boss2'), C = watch('boss3');
+  ok(A.shots > 20, `母体核心靠弹幕（14 秒放了 ${A.shots} 发）`);
+  ok(B.maxSpd > A.maxSpd * 2, `拆解臂靠冲撞（峰值速度 ${B.maxSpd} 对母体核心的 ${A.maxSpd}）`);
+  ok(B.still > 30, `拆解臂会站定蓄力（站住了 ${B.still} 帧）—— 那就是预警`);
+  ok(C.adds > B.adds && C.adds > 4, `母巢靠吐兵（14 秒吐了 ${C.adds} 只，拆解臂 ${B.adds} 只）`);
+  ok(C.maxSpd < A.maxSpd, `母巢几乎不动（峰值 ${C.maxSpd}）—— 得自己冲过去拆`);
+  // 第 30 波：血更厚，而且半血叫帮手
+  NS.setMode('free'); NS.start(4);
+  const FG = NS.G;
+  FG.wave = NS.LAST_WAVE - 1; FG.phase = 'break'; FG.waveT = 0; FG.mobs.length = 0;
+  NS.nextWave();
+  const fb = FG.mobs.find(m => NS.isBoss(m));
+  ok(!!fb && fb.final === 1, '第 30 波的 BOSS 挂了 final');
+  ok(fb.max > NS.MOB[fb.type].hp, `最后一道闸血更厚（${Math.round(fb.max)} 对基础 ${NS.MOB[fb.type].hp}）`);
+  fb.hp = fb.max * .4;                                   // 压到半血以下
+  const n0 = FG.mobs.filter(m => NS.isBoss(m)).length;
+  for (let i = 0; i < 30; i++) NS.update(1 / 60);
+  ok(FG.mobs.filter(m => NS.isBoss(m)).length > n0, '最后一道闸半血时叫了一台拆解臂进场');
+}
+
+// ---- 22) 第一次遇见的应对提示 ----
+console.log('应对提示');
+{
+  ok(Object.keys(NS.TIPS).length >= 8, `${Object.keys(NS.TIPS).length} 种怪有应对提示`);
+  for (const k of ['shieldbot', 'bomber', 'relay']) {
+    ok(!!NS.TIPS[k], `${NS.MOB[k].nm} 有提示 —— 这三种存在的理由就是逼你改打法`);
+  }
+  // 提示得说「怎么办」，不能只说「它是什么」
+  const verbs = /绕|横|别|先|冲|躲|清/;
+  ok(Object.values(NS.TIPS).every(t => verbs.test(t[1])), '每条提示都在说怎么应对，不是在描述它长什么样');
+  NS.setMode('free'); NS.start(4);
+  const TG = NS.G;
+  ok(Object.keys(TG.seen).length === 0 && TG.tipQ.length === 0, '开局一条都没提示过');
+  TG.mobs.length = 0; NS.spawn('shieldbot');
+  ok(TG.seen.shieldbot === 1 && TG.tipQ.length === 1, '第一次刷出铁闸就排进提示队列');
+  NS.spawn('shieldbot'); NS.spawn('shieldbot');
+  ok(TG.tipQ.length === 1, '同一种只提示一次，不会每只都弹');
+  for (let i = 0; i < 60 * 4; i++) NS.update(1 / 60);
+  ok(TG.tipQ.length === 0, '排队等一会儿，提示自己会播出来');
+  // 提示的节奏不能挂在渲染上 —— 原来它看的是 bannerT，而 bannerT 在主循环里减
+  ok(!/tipQ\.length && bannerT/.test(html), '提示队列用自己的计时器，不读渲染循环的变量');
+  NS.start(4); const QG = NS.G;
+  QG.mobs.length = 0; QG.tipT = 0; NS.spawn('bomber'); NS.spawn('relay');
+  ok(QG.tipQ.length === 2, '两种新怪各排一条');
+  NS.update(1 / 60);
+  ok(QG.tipQ.length === 1, '先播一条，另一条还在队里');
+  for (let i = 0; i < 60 * 2; i++) NS.update(1 / 60);
+  ok(QG.tipQ.length === 1, '两秒内不播第二条 —— 两条叠在一起等于都没看见');
+  for (let i = 0; i < 60 * 2; i++) NS.update(1 / 60);
+  ok(QG.tipQ.length === 0, '隔开两秒多之后第二条才出');
+  NS.start(4);
+  ok(Object.keys(NS.G.seen).length === 0, '重开一局重新算 —— 提示是给这一局的新玩家看的');
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');

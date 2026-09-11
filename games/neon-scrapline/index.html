@@ -191,6 +191,9 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   }
   .btn:hover,.btn:focus-visible{background:var(--cyan);color:#04060c;outline:none}
   #over h1{color:var(--danger);text-shadow:0 0 24px rgba(255,59,92,.6)}
+  /* 赢了跟死了不该是同一个颜色 —— 红色读起来就是「失败」，哪怕字写的是撤离成功 */
+  #over.won h1{color:var(--tox);text-shadow:0 0 24px rgba(124,255,79,.55)}
+  #over.won .stats strong{color:var(--tox)}
   .stats{
     margin:22px 0 0;display:grid;grid-template-columns:repeat(3,minmax(96px,1fr));
     gap:1px;background:#1a2540;border:1px solid #1a2540;
@@ -1402,7 +1405,7 @@ const G = {
   combo: 0, comboT: 0,
   bullets: [], ebullets: [], mobs: [], parts: [], drops: [], beams: [], arcs: [], slashes: [],
   wepDmg: {}, deathBy: null, bossKills: 0, tankKills: 0, buffs: {}, mod: null, eliteKills: 0,
-  overheat: 0, won: false, seen: {}, tipQ: [],
+  overheat: 0, won: false, seen: {}, tipQ: [], tipT: 0,
   offer: [], stacks: {},
   cam: { x: 0, y: 0 }
 };
@@ -2360,8 +2363,11 @@ function update(dt) {
   G.t += dt;
   pollPad();
   for (const k in G.buffs) if (G.buffs[k] > 0) G.buffs[k] = Math.max(0, G.buffs[k] - dt);
-  // 提示排队等横幅空出来 —— 直接弹会把波次横幅盖掉
-  if (G.tipQ.length && bannerT <= .25) { const t = G.tipQ.shift(); banner(TIPS[t][0], TIPS[t][1]); }
+  // 提示排着队出，不直接弹 —— 直接弹会把波次横幅盖掉。
+  // 计时器是自己的：原来这里看 bannerT，而 bannerT 在主循环里减，
+  // 于是「提示什么时候出」悄悄依赖了「有没有人在画画」。状态的事归状态管。
+  G.tipT = Math.max(0, (G.tipT || 0) - dt);
+  if (G.tipQ.length && G.tipT <= 0) { const t = G.tipQ.shift(); banner(TIPS[t][0], TIPS[t][1]); }
 
   // 玩家
   let ix = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
@@ -2525,7 +2531,10 @@ function update(dt) {
         // 最后一道闸：母体核心半血时叫一台拆解臂进场
         if (m.final) { spawn('boss2'); banner('拆 解 臂 进 场', '它带了帮手'); }
       }
-      const room = () => G.mobs.length < targetMass(G.wave);   // BOSS 叫的增援也受密度上限管
+      // BOSS 叫的增援受密度上限管，而且【加时之后完全停掉】——
+      // 一直召唤的 BOSS 会让这一波永远清不完，那就不是难，是卡死。
+      // 泄压阀的职责本来就是解开僵局，不该只管护盾。
+      const room = () => !G.overheat && G.mobs.length < targetMass(G.wave);
       if (m.type === 'boss2') {
         // 拆解臂：不放弹幕，靠冲撞。蓄力时站定，冲的时候走直线 ——
         // 所以应对方式是【横着走】，跟母体核心的绕圈完全不一样。
@@ -2594,6 +2603,11 @@ function update(dt) {
         }
       }
     }
+
+    // 加时之后，剩下的怪一律直冲过来，不再绕、不再飘。
+    // 探针实测的卡死：预算 0、场上只剩 2 只、护盾都已过热，还是 152 秒没推进 ——
+    // 两只残兵在远处游荡，玩家得满场追。让它们自己送上来，这一波才收得掉。
+    if (G.overheat && !isBoss(m)) { m.vx = dx / d * m.spd * 1.4; m.vy = dy / d * m.spd * 1.4; }
 
     m.x = clamp(m.x + m.vx * dt, m.r, ARENA.w - m.r);
     m.y = clamp(m.y + m.vy * dt, m.r, ARENA.h - m.r);
@@ -2848,25 +2862,42 @@ function drawBoss(m) {
   if (m.flash > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; blit(spr, 0, 0); blit(spr, 0, 0); ctx.restore(); }
   else blit(spr, 0, 0);
   ctx.restore();
-  // 外面两圈反向转的光环：保留原来那点仪式感
+  // 光环。原来这两圈是写死的红色六边形，三种 BOSS 摆在一起全是「红色六边形」，
+  // 新精灵的区别被它盖掉了 —— 光环必须用这个 BOSS 自己的颜色。
+  const rgb = d.col.replace('#', '').match(/../g).map(h => parseInt(h, 16)).join(',');
+  const line = a => `rgba(${rgb},${a})`;
   ctx.save(); ctx.translate(x | 0, y | 0);
-  for (let k = 0; k < 2; k++) {
-    ctx.save(); ctx.rotate(-m.spin * (k ? 1.4 : .8) + k);
-    ctx.strokeStyle = p2 ? (k ? 'rgba(255,224,102,.5)' : 'rgba(255,47,79,.6)')
-                         : (k ? 'rgba(255,46,166,.45)' : 'rgba(255,47,79,.5)');
-    ctx.lineWidth = p2 ? 2 : 1.5;
-    ctx.beginPath();
-    const R = 22 - k * 5;
-    for (let i = 0; i < 6; i++) { const a = i * TAU / 6;
-      const px = Math.cos(a) * R, py = Math.sin(a) * R; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
-    ctx.closePath(); ctx.stroke(); ctx.restore();
+  if (d.dir) {
+    // 朝向型的不画自转的圈 —— 转起来会跟「它正对着哪」打架。
+    // 改成两道朝前的括弧，蓄力时张开，正好当预警用。
+    ctx.rotate(m.ang);
+    const open = m.wind > 0 ? 1.5 : m.chg > 0 ? .4 : 1;
+    ctx.strokeStyle = line(m.wind > 0 ? .95 : .6);
+    ctx.lineWidth = m.wind > 0 ? 2.5 : 1.5;
+    for (const sgn of [-1, 1]) {
+      ctx.beginPath();
+      ctx.arc(0, 0, 23, sgn * .34 * open, sgn * 1.16 * open, sgn < 0);
+      ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(19, 0); ctx.lineTo(29, 0); ctx.stroke();   // 前方指针
+  } else {
+    for (let k = 0; k < 2; k++) {
+      ctx.save(); ctx.rotate(-m.spin * (k ? 1.4 : .8) + k);
+      ctx.strokeStyle = line(p2 ? (k ? .5 : .65) : (k ? .4 : .55));
+      ctx.lineWidth = p2 ? 2 : 1.5;
+      ctx.beginPath();
+      const R = 22 - k * 5, n = d.spr === 'boss3_a' ? 6 : 6;
+      for (let i = 0; i < n; i++) { const a = i * TAU / n;
+        const px = Math.cos(a) * R, py = Math.sin(a) * R; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+      ctx.closePath(); ctx.stroke(); ctx.restore();
+    }
   }
   ctx.restore();
-  orb(x, y, p2 ? 42 : 34, p2 ? 'rgba(255,224,102,.4)' : 'rgba(255,47,79,.35)');
-  // 血条
+  orb(x, y, p2 ? 42 : 34, line(p2 ? .4 : .32));
+  // 血条：也用它自己的颜色，一眼看出在打谁
   const w = 46, hp = clamp(m.hp / m.max, 0, 1);
-  ctx.fillStyle = '#1a0b18'; ctx.fillRect(x - w / 2, y - 28, w, 3);
-  ctx.fillStyle = '#ff2f4f'; ctx.fillRect(x - w / 2, y - 28, w * hp, 3);
+  ctx.fillStyle = '#12101a'; ctx.fillRect(x - w / 2, y - 28, w, 3);
+  ctx.fillStyle = d.col; ctx.fillRect(x - w / 2, y - 28, w * hp, 3);
 }
 
 function render() {
@@ -3173,6 +3204,7 @@ function banner(main, sub) {
   b.innerHTML = main + (sub ? '<small>' + sub + '</small>' : '');
   b.style.opacity = 1;
   bannerT = 2;
+  G.tipT = 2.2;                                          // 任何横幅都把提示队列往后压一压
 }
 
 /* ================= 流程 ================= */
@@ -3199,7 +3231,7 @@ function start(seedOverride) {
     spawnT: 0, budget: 0, combo: 0, comboT: 0,
     bullets: [], ebullets: [], mobs: [], parts: [], drops: [], offer: [], stacks: {},
     beams: [], arcs: [], slashes: [], wepDmg: {}, deathBy: null, bossKills: 0, tankKills: 0,
-    buffs: {}, mod: null, eliteKills: 0, overheat: 0, won: false, seen: {}, tipQ: []
+    buffs: {}, mod: null, eliteKills: 0, overheat: 0, won: false, seen: {}, tipQ: [], tipT: 0
   });
   if (MODE === 'daily') {                               // 每日局：固定配置
     applySkin(dailySkin());                             // 涂装是外观，可以跟着当天换
@@ -3228,6 +3260,7 @@ function gameOver(won) {
   G.state = 'over';
   G.won = !!won;
   el('overTitle').textContent = won ? '撤 离 成 功' : '连 接 中 断';
+  el('over').classList.toggle('won', !!won);
   el('oScore').textContent = G.score;
   el('oWave').textContent = G.wave;
   el('oKills').textContent = G.kills;

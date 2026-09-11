@@ -70,8 +70,15 @@ function play(seed, maxWave) {
     t += D;
     hpLow = Math.min(hpLow, P.hp / P.maxhp);
     stall = G.wave === prevW ? stall + D : 0; prevW = G.wave;
-    if (stall > 180) return { seed, wave: G.wave, stalled: true, dead: false, t: Math.round(t),
-      lv: P.lv, elites, mods, log, hpLow: Math.round(hpLow * 100) };
+    if (stall > 180) {
+      // 卡住的时候必须说清是【为什么】卡住，否则「卡了」这个结论没法用
+      const boss = G.mobs.find(m => NS.isBoss(m));
+      const why = `预算剩 ${G.budget}，场上 ${G.mobs.length} 只`
+        + (boss ? `，${NS.MOB[boss.type].nm} 还有 ${Math.round(boss.hp / boss.max * 100)}% 血` : '，没有 BOSS')
+        + `，加时 ${(-G.waveT).toFixed(0)}s，过热=${G.overheat}`;
+      return { seed, wave: G.wave, stalled: true, why, dead: false, t: Math.round(t),
+        lv: P.lv, elites, mods, log, hpLow: Math.round(hpLow * 100) };
+    }
     if (G.wave !== lastWave) {
       log.push({ w: lastWave, hp: Math.round(P.hp / P.maxhp * 100), mod: G.mod ? G.mod.id : '' });
       lastWave = G.wave;
@@ -87,12 +94,13 @@ function play(seed, maxWave) {
 const MAXW = Number(process.argv[2] || 31);
 const seeds = [1, 20260910, 777, 424242, 9];
 console.log(`每个种子最多打 ${MAXW} 波，机器人只会瞄最近的 + 边打边退\n`);
-let reached = [];
+let reached = [], results = [];
 for (const s of seeds) {
   const r = play(s, MAXW);
-  reached.push(r.wave);
+  reached.push(r.wave); results.push(r);
   console.log(`种子 ${String(s).padEnd(9)} → 第 ${String(r.wave).padStart(2)} 波${r.won ? ' 撤离成功' : r.dead ? ` 死了（${r.by || '?'}）` : r.stalled ? ' 卡住了（三分钟没推进）' : ' 还活着'}`
     + `  等级 ${String(r.lv).padStart(2)}  用了 ${String(r.t).padStart(3)}s  见过 ${String(r.elites).padStart(2)} 个精英  血最低 ${r.hpLow}%`);
+  if (r.stalled) console.log(`             卡住原因：${r.why}`);
   if (r.mods.length) console.log(`             修饰波：${r.mods.join('  ')}`);
 }
 const avg = reached.reduce((a, b) => a + b, 0) / reached.length;
@@ -103,8 +111,15 @@ console.log(`\n平均到第 ${avg.toFixed(1)} 波（最差 ${Math.min(...reached
 // 一半翻车才是曲线有问题。
 console.log(early <= 1 ? `✓ ${seeds.length} 局里只有 ${early} 局没过第一个 BOSS —— 开局是能学的`
   : `✗ ${seeds.length} 局里有 ${early} 局连第 5 波都没过，开局太陡`);
-const wins = reached.filter((w, i) => w >= 30).length;
-console.log(`${wins} / ${seeds.length} 局打穿了 30 波。`);
-// 笨机器人的通关率就是这条曲线的下限：它全过说明太松，它全过不了说明太紧。
-console.log(wins <= seeds.length * .6 ? `✓ 笨机器人只打穿 ${wins} 局 —— 人有空间打得更好，也确实会输`
-  : `✗ 笨机器人打穿了 ${wins} 局，30 波对会玩的人没有威胁`);
+// 这里只报事实，不设合格线 —— 「笨机器人该有多高通关率」是个主观取舍，
+// 得靠人试玩来定，不该由我在这里编一个数字然后自己对着它调。
+// 机器人的作用是：给出一个可复现的下限，以及在改动前后做对比。
+const wins = results.filter(r => r.won).length;
+const deaths = results.filter(r => r.dead);
+const stalls = results.filter(r => r.stalled);
+console.log(`撤离成功 ${wins} 局，死亡 ${deaths.length} 局，卡住 ${stalls.length} 局。`);
+if (deaths.length) console.log(`  死在：${deaths.map(r => `第 ${r.wave} 波（${r.by || '?'}）`).join('，')}`);
+const floors = results.map(r => r.hpLow);
+console.log(`血量最低点：${floors.map(f => f + '%').join(' / ')} —— 越接近 0 说明真的被逼到了`);
+console.log(stalls.length ? '✗ 有局卡住了，上面写了原因 —— 这是 bug，不是难度'
+  : '✓ 没有卡住的局：每一波都收得掉');
