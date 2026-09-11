@@ -20,6 +20,20 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.htm
   await page.goto(URL);
   await page.waitForTimeout(1500);
   const c1 = await creating();
+
+  // ①b 捏人还没定下来就切后台 / 刷新 —— 不许写档。
+  // 手机上切个 App 就触发 visibilitychange，刷新触发 pagehide；只要存下去，
+  // 下次进来 loadGame() 就成功了，捏人页再也不出现，玩家静默拿到默认的六个人。
+  await page.evaluate(() => {
+    NEWS[CUR].name = '草稿甲'; creSync();
+    Object.defineProperty(document, 'visibilityState',
+      { value: 'hidden', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange', { bubbles: true }));
+  });
+  const draftSaved = await page.evaluate(() => hasSave());
+  await page.reload();
+  await page.waitForTimeout(1600);
+  const stillCre = await creating();
   await page.click('#cgo');
   await page.waitForTimeout(400);
   const c1off = !(await creating());
@@ -48,6 +62,8 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.htm
 
   const checks = [
     ['新局弹捏人页', c1, c1],
+    ['捏人期间切后台不写档', !draftSaved, draftSaved],
+    ['捏人期间刷新后还能捏', stillCre, stillCre],
     ['定下来就关掉', c1off, c1off],
     ['跑起来能存档', saved, saved],
     ['刷新续上原局', r.day >= 3 && r.has, `day${r.day}`],

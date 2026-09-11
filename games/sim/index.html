@@ -3445,8 +3445,12 @@ const BUILD={
   榻:{ n:'榻', wood:6, money:10, w:2, h:1, art:'bed',
     tip:'睡觉的地方。没有它你只能熬着 —— 开局第一件',
     make(x,y,id){
+      // 名字算出来，别写死第二人称 —— 邻居也会给自己盖榻，那张不叫「你的」。
+      // 用 getter 而不是在这儿定死：读档 replay 时花名册还没重建、玩家也可能改名，
+      // 当场算才不会错。
       return {id, art:'bed', built:1, owner:_builder.name, zone:'home', priv:1,
-              n:'你的榻', x, y, w:2, h:1, use:[[x,y+1]],
+              get n(){ return this.owner===PC.name ? '你的榻' : this.owner+'的榻'; },
+              x, y, w:2, h:1, use:[[x,y+1]],
               col:[BED,'#4a3628',BED2], adv:{energy:78}, dur:240 }; } },
 
   米缸:{ n:'米缸', wood:4, money:10, w:1, h:1, art:'jar',
@@ -5167,7 +5171,11 @@ function saveGame(){
   // 终局之后不再写档：否则 pagehide 会把"死后的村子"存下去，
   // 而那份档里没有 isPlayer，读回来玩家会静默变成花名册里的第一个人。
   // 要走的路上同理，而且更隐蔽，见 resetAndReload。
-  if(ending || _leaving) return false;
+  // 捏人还没落地时也不能存：那时候世界里站着的是默认的六个人。手机上切一下
+  // App 就会触发 visibilitychange，刷新会触发 pagehide —— 只要存下去，
+  // 下次进来 loadGame() 就成功了，捏人页再也不出现，玩家静默拿到默认村子。
+  // 用「那个面板还在不在」来判断，而不是再立一个标记 —— 不可能跟画面对不上。
+  if(ending || _leaving || creating()) return false;
   try{
     // 先刷一次关系再存。rel 是从记忆推导的，但只每 5 模拟分钟整表重算一次；
     // 不刷就会把"最多差一个刷新周期的衰减量"的旧值存进去，
@@ -5188,10 +5196,21 @@ function saveGame(){
       fields:FIELDS.map(f=>({st:f.st, grow:f.grow, wet:f.wet, sower:f.sower, crop:f.crop})),
       // 事件流留最近 200 条就够读了，全存会让存档无谓地胖
       events:EVENTS.slice(-200), evSeq,
+      // 【攒了一半的进度也得存】。这些都是按天累加的小数或计数器，
+      // 一天只走一点点，攒够了才兑现一次。不存就等于「读档清零」——
+      // 而且不报错、画面上也看不出来，只是那个功能悄悄不生效了。
+      // 实测：手里一份草药要攒 7 天才坏（0.16/天），每天读一次档就永远不坏，
+      // 「食物腐坏」整个功能等于没开。_builtAt 同理：读档后全村能在同一天
+      // 一起动土，置办家当的 6 天间隔形同虚设。
       sims:sims.map(s=>({ name:s.name, gx:s.gx, gy:s.gy, px:s.px, py:s.py, face:s.face,
         need:s.need, skill:s.skill, money:s.money, inv:s.inv, rel:s.rel, mem:s.mem,
         _gift:s._gift||null, _vent:s._vent||null, _fr:s._fr||null, _frT:s._frT||null,
-        _blockN:s._blockN||null, _crit:s._crit||null })) };
+        _blockN:s._blockN||null, _crit:s._crit||null,
+        _rot:s._rot||null,         // 腐坏攒到哪儿了
+        _builtAt:s._builtAt||null, // 上次置办家当是哪天
+        _made:s._made||null,       // 做过几件活（手艺出精品按这个数轮）
+        _co:s._co||null,           // 跟各人的摩擦/合作攒到哪儿了
+        _frDay:s._frDay||null })) };
     for(const k in MKT) data.mkt[k]=MKT[k].p;
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     return true;
@@ -5262,7 +5281,11 @@ function loadGame(){
       Object.assign(s, { gx:sd.gx, gy:sd.gy, px:sd.px, py:sd.py, face:sd.face,
         need:sd.need, skill:sd.skill, money:sd.money, inv:fixInv(sd.inv), rel:sd.rel, mem:sd.mem||{},
         _gift:sd._gift, _vent:sd._vent, _fr:sd._fr, _frT:sd._frT,
-        _blockN:sd._blockN, _crit:sd._crit });
+        _blockN:sd._blockN, _crit:sd._crit,
+        // 老存档没有这几样，读回来是 undefined —— 各处都有 ||{} / ||0 兜着，
+        // 所以不用抬 SAVE_VER 作废老档
+        _rot:sd._rot||{}, _builtAt:sd._builtAt||0, _made:sd._made||0,
+        _co:sd._co||{}, _frDay:sd._frDay||{} });
       // 行为状态一律重算：存下来的 act 指向的是上一局的物件
       s.act=null; s.path=[]; s.cands=[]; s.anim=0; s.ppx=s.px; s.ppy=s.py;
     }
@@ -5360,7 +5383,9 @@ function drawEnding(){
                 sp? ('身后留下'+sp) : '孑然一身',
                 kid? ('膝下 '+kid+' 个孩子') : '' ].filter(Boolean);
   lines.forEach((t,i)=>ctx.fillText(t, x+W/2, y+42+i*14));
-  ctx.fillStyle='#6f6659'; ctx.fillText('按任意键重开一局', x+W/2, y+H-10);
+  // 手机上没有键盘。点一下本来就管用（cv 的 click 里有 ending 分支），只是提示写错了
+  ctx.fillStyle='#6f6659';
+  ctx.fillText(isTouch?'点一下重开一局':'按任意键重开一局', x+W/2, y+H-10);
 }
 function drawDaily(){
   // 高度按内容算 —— 固定高度在内容少的日子会留一大块空
@@ -5522,6 +5547,8 @@ let started=false;
 //  每一项旁边都写清楚它到底改变什么，别做成纯换皮。
 // ==========================================================================
 const AUTO = new URLSearchParams(location.search).has('auto');
+// 捏人面板还开着 —— 这期间世界是「草稿」，不许写档，见 saveGame
+function creating(){ return !!document.getElementById('create'); }
 const CPAIRS=[['洁癖','邋遢'],['话痨','孤僻'],['吝啬','慷慨'],['急性子','慢性子']];
 const CMB=[['E','I'],['S','N'],['T','F'],['J','P']];
 const MBTIP={ E:'外向：交游掉得快，一场社交也回得多', I:'内向：耐得住清静',

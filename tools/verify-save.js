@@ -19,6 +19,14 @@ const SNAP = () => ({
   ev: EVENTS.length,
   built: BUILT.map(b => `${b.key}@${b.x},${b.y}`),
   mkt: Object.keys(MKT).map(k => Math.round(MKT[k].p)).join(','),
+  // 【攒了一半的进度】。这些按天累加、攒够才兑现的小数和计数器最容易漏存 ——
+  // 漏了不报错、画面上也看不出来，只是那个功能悄悄不生效了。实测过：一份草药
+  // 要攒 7 天才坏（0.16/天），_rot 不存的话每天读一次档就永远不坏。
+  acc: sims.map(s => `${s.name}:${JSON.stringify(s._rot || {})}`
+    + `|${s._builtAt || 0}|${s._made || 0}|${JSON.stringify(s._co || {})}`),
+  accN: sims.reduce((n, s) => n + Object.keys(s._rot || {}).length
+    + Object.keys(s._co || {}).length + (s._builtAt ? 1 : 0) + (s._made ? 1 : 0), 0),
+  built2: BUILT.map(b => `${b.key}@${b.x},${b.y}·${b.by || '?'}/${b.hm}`),
 });
 
 (async () => {
@@ -34,6 +42,15 @@ const SNAP = () => ({
   await p1.evaluate(() => { autoPilot = true; speed = 60; running = true; });
   await p1.waitForFunction(() => day >= 5, null, { timeout: 240000, polling: 400 });
 
+  // 把累积器坐实：全是 0 的话「存得下读得回」这条会空过
+  await p1.evaluate(() => {
+    sims.forEach((s, i) => {
+      s.inv.herb = 2; s.inv.meat = 1;
+      s._rot = { herb: 0.4 + i * 0.05, meat: 0.7 };
+      s._builtAt = Math.max(1, day - 2); s._made = 3 + i;
+      s._co = {}; for (const o of sims) if (o !== s) s._co[o.name] = 1 + i;
+    });
+  });
   const before = await p1.evaluate(`(() => { running = false; saveGame();
     const snap = ${SNAP.toString()};
     return { ...snap(), kb: Math.round(localStorage.getItem('sim-game-save').length / 1024) }; })()`);
@@ -95,6 +112,9 @@ const SNAP = () => ({
       before.rels.every((v, i) => Math.abs(v - after.rels[i]) < 0.001)],
     ['⑧ 市价', same('mkt')],
     ['⑧b 造过的东西还在（且不会重复长出来）', same('built')],
+    ['⑧c 是谁在哪户盖的也记得', same('built2')],
+    ['⑯ 攒了一半的进度存得下读得回', same('acc')],
+    ['⑯b 而且不是空过（累积器真的有内容）', before.accN > 0 && after.accN > 0],
     // 事件流有意只存最近 200 条 —— 全存会让存档无谓地胖，读起来也没人翻那么远
     ['⑨ 事件流按上限保留', after.ev === Math.min(before.ev, 200)],
     ['⑩ 读档后事件流真的渲染出来', feedRows > 3],
