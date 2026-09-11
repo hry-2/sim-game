@@ -889,5 +889,52 @@ console.log('换枪键');
   ok(!/#tc \.tbtns button\.lock/.test(html), '冲刺键不受影响');
 }
 
+// ---- 20) 曲线与终点 ----
+// 量出来的真因：刷怪速率封在 5.6 只/秒，而满词条玩家能杀 33 只/秒，
+// 于是第 32 波预算 164 只、场上同时只有 16 只 —— 场地永远是空的。
+// 所以改的是「场上同时多少只」，不是砍玩家。
+console.log('曲线与终点');
+{
+  ok(NS.LAST_WAVE === 30, `一局收在第 ${NS.LAST_WAVE} 波 —— 有终点才调得动曲线`);
+  ok(NS.tier(1) === 1 && NS.tier(11) === 2 && NS.tier(21) === 3, '每 10 波一个层级');
+  const m1 = NS.targetMass(1), m10 = NS.targetMass(10), m30 = NS.targetMass(30);
+  ok(m1 < m10 && m10 < m30, `场上目标数量一路涨（${m1} → ${m10} → ${m30}）`);
+  ok(m30 >= 60, `第 30 波场上要有 ${m30} 只，才压得住能杀 33 只/秒的玩家`);
+  ok(m1 <= 10, `第 1 波只有 ${m1} 只，开局不劝退`);
+  ok(NS.spawnGap(30) <= .1, `第 30 波补怪间隔 ${NS.spawnGap(30)}s，清空了能立刻补上`);
+  ok(NS.spawnGap(1) > NS.spawnGap(30), '早期慢、后期快');
+  // 顶到上限就不该再刷
+  NS.setMode('free'); NS.start(9);
+  const CG = NS.G;
+  CG.wave = 20; CG.phase = 'wave'; CG.budget = 500; CG.spawnT = 0; CG.mobs.length = 0; CG.mod = null;
+  for (let i = 0; i < 4000; i++) NS.waveSpawn(1 / 60);
+  ok(CG.mobs.length <= NS.targetMass(20) + 2, `刷到 ${CG.mobs.length} 只就停了，没把人埋死（上限 ${NS.targetMass(20)}）`);
+  ok(CG.mobs.length >= NS.targetMass(20) - 4, '也确实填到了上限，不是刷几只就不刷了');
+  ok(500 - CG.budget === CG.mobs.length, `预算只在真刷出怪时才扣（扣了 ${500 - CG.budget}，场上 ${CG.mobs.length}）`);
+  // 顶到上限的那条路不能消耗随机数，否则手快手慢的人在同一每日种子上会摇出不同的局
+  CG.mobs.length = 0; for (let i = 0; i < 200; i++) NS.spawn('grunt');
+  NS.seedRun(777); const r0 = NS.RNG.wave();
+  NS.seedRun(777); CG.budget = 50; CG.spawnT = 0;
+  for (let i = 0; i < 600; i++) NS.waveSpawn(1 / 60);
+  ok(NS.RNG.wave() === r0, '顶到上限时不摇随机数 —— 每日局不会因为手快手慢而分叉');
+  // 通关
+  NS.setMode('free'); NS.start(9);
+  const WG = NS.G;
+  NS.PROF.wins = 0;
+  WG.wave = NS.LAST_WAVE; WG.phase = 'break'; WG.waveT = 0; WG.mobs.length = 0;
+  NS.nextWave();
+  ok(WG.state === 'over' && WG.won === true, '打完第 30 波是撤离成功，不是继续第 31 波');
+  ok(WG.wave === NS.LAST_WAVE, `结算上写的是第 ${WG.wave} 波，没被加到 31`);
+  ok(NS.PROF.wins === 1, '通关次数记进档案');
+  ok(byId('overTitle').textContent.replace(/ /g, '') === '撤离成功', `结算标题是「${byId('overTitle').textContent}」`);
+  ok(byId('overSub').textContent.indexOf('拆解') < 0, '通关的小字不该写「被拆解」');
+  // 死亡那条路没被改坏
+  NS.start(9); const DG = NS.G, DP = NS.P;
+  DP.hp = 1; DP.inv = 0; DP.dashT = 0; DG.buffs = {};
+  NS.hurtPlayer(50, 'grunt');
+  ok(DG.state === 'over' && DG.won === false, '死了还是死了，won 为假');
+  ok(byId('overTitle').textContent.replace(/ /g, '') === '连接中断', '死亡标题没被通关那套覆盖');
+}
+
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');
 process.exit(fail ? 1 : 0);

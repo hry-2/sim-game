@@ -634,6 +634,122 @@ const GRID = {
       '.........................',
     ],
   ],
+  boss2_a: [
+    [
+      '...................KKKKKK',
+      '.................KKKSSYYY',
+      '..KKKKKKKKKKK....KSSYYYYY',
+      '.KKLLLLLLLLLK..KKKSYYYYSK',
+      '.KLLLLLLLLLLKKKKSSSYYYYKY',
+      '.KKBBBSSSSBBBKSSSLSSYYYYY',
+      '.KBBSSSSSSSSBBSLLLLSSYYYK',
+      'KKBSSSBBBSSSSBLLLSKKKKKKK',
+      'KBBSBBBBBBBSSBBSKKK......',
+      'KBSSBEEEEBBSSSBKK........',
+      'KBSBEEEEEEBBSSBK.........',
+      'KBSBEYYYYEBBSSBK.........',
+      'KBSBEYWWYEBBSSBK.........',
+      'KBSBEYYYYEBBSSBK.........',
+      'KBSBEEEEEEBBSSBK.........',
+      'KBSSBEEEEBBSSSBKK........',
+      'KBBSBBBBBBBSSBBLKKK......',
+      'KKBSSSBBBSSSSBLLLLKKKKKKK',
+      '.KBBSSSSSSSSBBLLLLLSSSYYY',
+      '.KKLLLLLLLLLBKKSLLSSYYYYY',
+      '.KLLLLLLLLLLKKKKKSSYYYYYY',
+      '.KKKKKBBBBKKK...KKSYYYYKK',
+      '.....KKKKKK......KSSYYYYY',
+      '.................KKKSSYYY',
+      '...................KKKKKK',
+    ],
+  ],
+  boss2_b: [
+    [
+      '...................KKKKKK',
+      '.................KKKKKEEE',
+      '..KKKKKKKKKKK....KKKEEEEE',
+      '.KKSSSSSSSSSK..KKKKEEEEKK',
+      '.KSSSSSSSSSSKKKKKKKEEEEKE',
+      '.KKSSSKKKKSSSKKKKSKKEEEEE',
+      '.KSSKKKKKKKKSSKSSSSKKEEEK',
+      'KKSKKKSSSKKKKSSSSKKKKKKKK',
+      'KSSKSSSSSSSKKSSKKKK......',
+      'KSKKSWWWWSSKKKSKK........',
+      'KSKSWWWWWWSSKKSK.........',
+      'KSKSWEEEEWSSKKSK.........',
+      'KSKSWEWWEWSSKKSK.........',
+      'KSKSWEEEEWSSKKSK.........',
+      'KSKSWWWWWWSSKKSK.........',
+      'KSKKSWWWWSSKKKSKK........',
+      'KSSKSSSSSSSKKSSSKKK......',
+      'KKSKKKSSSKKKKSSSSSKKKKKKK',
+      '.KSSKKKKKKKKSSSSSSSKKKEEE',
+      '.KKSSSSSSSSSSKKKSSKKEEEEE',
+      '.KSSSSSSSSSSKKKKKKKEEEEEE',
+      '.KKKKKSSSSKKK...KKKEEEEKK',
+      '.....KKKKKK......KKKEEEEE',
+      '.................KKKKKEEE',
+      '...................KKKKKK',
+    ],
+  ],
+  boss3_a: [
+    [
+      '.........................',
+      '.....KKKKKKKKKKKKKKK.....',
+      '....KKXXXXXXXXXXXXXKK....',
+      '....KXXDDKKXXXKKDDXXK....',
+      '....KXDDDDDDDDDDDDDXK....',
+      '...KXXDKKDDTTTDDKKDXXK...',
+      '...KXXDKKDDTTTDDKKDXXK...',
+      '..KKXDDDDDDDDDDDDDDDXKK..',
+      '.KKXXTTDDKKDDDKKDDTTXXKK.',
+      'KKXXDTTTDKTTTTTKDTTTDXXKK',
+      'KXXDDTTDDTTYYYTTDDTTDDXXK',
+      'KXDKDDDDKTYYYYYTKDDDDKDXK',
+      'KXDKKKKKKTYYYYYTKKKKKKDXK',
+      'KXDKDDDDKTYYYYYTKDDDDKDXK',
+      'KXXDDTTDDTTYYYTTDDTTDDXXK',
+      'KKXXDTTTDKTTTTTKDTTTDXXKK',
+      '.KKXXTTDDKKDDDKKDDTTXXKK.',
+      '..KKXDDDDDDDDDDDDDDDXKK..',
+      '...KXXDKKDDTTTDDKKDXXK...',
+      '...KXXDKKDDTTTDDKKDXXK...',
+      '....KXDDDDDDDDDDDDDXK....',
+      '....KXXDDKKXXXKKDDXXK....',
+      '....KKXXXXXXXXXXXXXKK....',
+      '.....KKKKKKKKKKKKKKK.....',
+      '.........................',
+    ],
+  ],
+  boss3_b: [
+    [
+      '.........................',
+      '.....KKKKKKKKKKKKKKK.....',
+      '....KKDDDDDDDDDDDDDKK....',
+      '....KDDNNKKDDDKKNNDDK....',
+      '....KDNNNNNNNNNNNNNDK....',
+      '...KDDNKKNNEEENNKKNDDK...',
+      '...KDDNKKNNEEENNKKNDDK...',
+      '..KKDNNNNNNNNNNNNNNNDKK..',
+      '.KKDDEENNKKNNNKKNNEEDDKK.',
+      'KKDDNEEENKTTTTTKNEEENDDKK',
+      'KDDNNEENNTTWWWTTNNEENNDDK',
+      'KDNKNNNNKTWWWWWTKNNNNKNDK',
+      'KDNKKKKKKTWWWWWTKKKKKKNDK',
+      'KDNKNNNNKTWWWWWTKNNNNKNDK',
+      'KDDNNEENNTTWWWTTNNEENNDDK',
+      'KKDDNEEENKTTTTTKNEEENDDKK',
+      '.KKDDEENNKKNNNKKNNEEDDKK.',
+      '..KKDNNNNNNNNNNNNNNNDKK..',
+      '...KDDNKKNNEEENNKKNDDK...',
+      '...KDDNKKNNEEENNKKNDDK...',
+      '....KDNNNNNNNNNNNNNDK....',
+      '....KDDNNKKDDDKKNNDDK....',
+      '....KKDDDDDDDDDDDDDKK....',
+      '.....KKKKKKKKKKKKKKK.....',
+      '.........................',
+    ],
+  ],
   gun_blade: [
     [
       '...KK.......',
@@ -1286,7 +1402,7 @@ const G = {
   combo: 0, comboT: 0,
   bullets: [], ebullets: [], mobs: [], parts: [], drops: [], beams: [], arcs: [], slashes: [],
   wepDmg: {}, deathBy: null, bossKills: 0, tankKills: 0, buffs: {}, mod: null, eliteKills: 0,
-  overheat: 0, won: false,
+  overheat: 0, won: false, seen: {}, tipQ: [],
   offer: [], stacks: {},
   cam: { x: 0, y: 0 }
 };
@@ -1302,7 +1418,7 @@ function newPlayer() {
   return Object.assign({
     x: ARENA.w / 2, y: ARENA.h / 2, vx: 0, vy: 0, ang: 0,
     hp: BASE.maxhp, fireT: 0, dashT: 0, dashCdT: 0, inv: 0,
-    lv: 1, xp: 0, need: 6, auraT: 0, walk: 0,
+    lv: 1, xp: 0, need: xpNeed(1), auraT: 0, walk: 0,
     wep: 'pulse', owned: ['pulse'], kind: 'bullet', wcol: '69,240,255',
     // 词条作用在倍率上，不直接改武器本身 —— 否则换枪就把强化清掉了
     mul: { rate: 1, dmg: 1, count: 0, spread: 0, bspd: 1, range: 1, pierce: 0 }
@@ -1426,12 +1542,41 @@ const MOB = {
     fuse:1, blast:34, bdmg:30 },                       // 靠近就炸，专治站着不动和贴身近战
   relay:  { nm:'信号中继',   spr:'relay',  r:6,  hp:46,  spd:18, dmg:8,  xp:4, sc:1, col:'#7cff4f',
     guard:78 },                                        // 给周围的加护盾，不打掉它别的都打不动
-  boss:   { nm:'母体核心',   spr:'boss_a', r:17, hp:620, spd:17, dmg:26, xp:26, sc:1, col:'#ff2f4f' }
+  // 三种 BOSS 轮着来。原来六个 BOSS 波全是母体核心，打第四次的时候已经没有信息量了。
+  // boss 标记让十几处 m.type === 'boss' 的特判变成 isBoss(m)，以后加 BOSS 不会漏。
+  boss:   { nm:'母体核心', spr:'boss_a',  spr2:'boss_b',  r:17, hp:620, spd:17, dmg:26, xp:26, sc:1,
+    col:'#ff2f4f', boss:1, p2n:'外 壳 崩 解' },        // 螺旋弹幕 + 叫增援
+  boss2:  { nm:'拆解臂',   spr:'boss2_a', spr2:'boss2_b', r:16, hp:690, spd:27, dmg:30, xp:26, sc:1,
+    col:'#ffe066', boss:1, dir:1, p2n:'液 压 超 压' },        // 蓄力后直线冲撞，逼你横着走
+  boss3:  { nm:'母 巢',    spr:'boss3_a', spr2:'boss3_b', r:17, hp:880, spd:7,  dmg:22, xp:26, sc:1,
+    col:'#7cff4f', boss:1, p2n:'巢 房 破 裂' },        // 几乎不动，一直吐无人机，逼你先清场再拆它
 };
+const isBoss = m => !!MOB[m.type].boss;
+// 第一次遇见某种怪，给一句【怎么应对】。
+// 「铁闸要绕后、爆囊别贴脸、中继先杀」是这游戏的设计核心，
+// 而原来的横幅只说它叫什么 —— 玩家只能靠死几次自己悟出来。
+// 不做教程关：一句话，出现在你第一次真的看见它的那一刻，比任何教程都准。
+const TIPS = {
+  rusher:    ['刀 锋 犬', '只会直线冲刺 —— 横着走就让开了'],
+  drone:     ['哨 戒 无 人 机', '会飞、会绕后，别一直背对同一个方向'],
+  shieldbot: ['铁 闸', '正面挡掉大半伤害。绕到侧后打，或者用爆炸 —— 爆炸没有方向'],
+  tank:      ['重 装 机 甲', '厚但慢。不用急着拆它，先清掉贴着你的'],
+  bomber:    ['爆 囊', '靠近就自爆。别站着跟它对打，近战尤其'],
+  relay:     ['信 号 中 继', '给周围挂护盾。先拆它，别的才打得动'],
+  boss:      ['母 体 核 心', '螺旋弹幕有缝，绕着圈走能一直躲'],
+  boss2:     ['拆 解 臂', '站定发亮就是要撞了，方向已经锁死 —— 横着走'],
+  boss3:     ['母 巢', '它不追你，但会一直吐无人机。冲过去先拆巢'],
+};
+// 哪一波出哪个。第 30 波是母体核心，但挂 final —— 血更厚，而且半血叫一台拆解臂来。
+const BOSS_AT = { 5: 'boss', 10: 'boss2', 15: 'boss3', 20: 'boss2', 25: 'boss3', 30: 'boss' };
+function bossOf(w) { return BOSS_AT[w] || 'boss'; }
 
 function spawn(type) {
   const d = MOB[type], w = G.wave;
-  const hpS  = 1 + w * .17;
+  // 线性 1+0.17w 到第 30 波只有 6.1 倍，而玩家 28 层词条打出 14 倍火力 ——
+  // 两边形状不一样，怎么调都会交叉然后永远拉开。改成二次：
+  // 第 5 波跟原来一样（1.87 对 1.85，开局手感不动），第 30 波 14.5 倍，追上玩家。
+  const hpS  = 1 + w * .12 + w * w * .011;
   const spdS = Math.min(1.5, 1 + w * .022);
   // 在视野外一圈生成，保证马上能打起来
   let x, y, tries = 0;
@@ -1449,7 +1594,8 @@ function spawn(type) {
     dashT: 0, spin: 0, p2: 0, sum: 0, guarded: 0, fz: -1, links: null, elite: 0
   };
   if (G.mod && G.mod.spd) m0.spd *= G.mod.spd;
-  if (type !== 'boss' && RNG.wave() < eliteChance()) makeElite(m0);
+  if (!MOB[type].boss && RNG.wave() < eliteChance()) makeElite(m0);
+  if (TIPS[type] && !G.seen[type]) { G.seen[type] = 1; G.tipQ.push(type); }
   G.mobs.push(m0);
 }
 
@@ -1881,9 +2027,18 @@ function nextWave() {
   if (G.wave > 1 && G.wave % 5 === 1) setArena(ARENA_I + 1, true);
   G.phase = 'wave';
   G.waveT = 18 + Math.min(10, G.wave);
-  G.budget = Math.round((9 + G.wave * 4) * (G.mod ? (G.mod.budget || 1) : 1));
+  // 预算要够撑满整整一波的高密度：上限 82 只而预算只有 129，
+  // 填满之后再杀 47 只这波就结束了，高压段只有几秒。
+  G.budget = Math.round((9 + G.wave * 5.5) * (G.mod ? (G.mod.budget || 1) : 1));
   G.spawnT = 0;
-  if (G.wave % 5 === 0) { spawn('boss'); banner((G.wave === LAST_WAVE ? '最 后 一 道 闸' : '母 体 核 心 接 入'), 'WAVE ' + G.wave + ' · BOSS'); }
+  if (G.wave % 5 === 0) {
+    const bt = bossOf(G.wave);
+    spawn(bt);
+    const bm = G.mobs[G.mobs.length - 1];
+    if (G.wave === LAST_WAVE) { bm.final = 1; bm.hp *= 1.5; bm.max *= 1.5; }
+    banner(G.wave === LAST_WAVE ? '最 后 一 道 闸' : MOB[bt].nm + ' 接 入',
+      'WAVE ' + G.wave + ' · BOSS');
+  }
   else if (G.mod) banner(G.mod.n, G.mod.d);
   else banner('WAVE ' + String(G.wave).padStart(2, '0'), ARENA.a.n + ' · ' + waveTitle());
   Sfx.wave();
@@ -1893,14 +2048,31 @@ function waveTitle() {
   const t = ['废钢清扫','拾荒者潮汐','哨戒巡逻','重装推进','裂隙泄漏','霓虹屠场','拆解流水线'];
   return t[(G.wave - 1) % t.length];
 }
+// 升级需求。原来是 4+等级*2（线性），而经验收入随场上密度一起涨（超线性），
+// 结果一局能升到 66 级 —— 正好把 65 层词条全拿满，第 20 波就封顶，之后再无变化。
+// 改成二次曲线，一局 30 波落在 29 级左右：65 层里只拿得到 28 层，
+// 每局都得在「专精一路」和「什么都来一点」之间选，局与局之间才会不一样。
+// 前 8 级跟老曲线一模一样 —— 开局连着升级的那股爽感是这类游戏的钩子，不能动。
+// 第 8 级之后急刹，一局 30 波落在 28 级：65 层词条只拿得到 28 层。
+function xpNeed(lv) {
+  return lv <= 8 ? 4 + lv * 2 : Math.round(20 + (lv - 8) * 7 + (lv - 8) * (lv - 8) * 1.1);
+}
+
 // 场上同时该有多少只。
 // 原来是「每 X 秒刷一只」，X 的下限锁在 0.18 → 最多 5.6 只/秒；
 // 而满词条的玩家能杀 33 只/秒，于是第 32 波预算 164 只、场上同时只有 16 只，
 // 一百多只怪以 5.6/s 喂进一台 33/s 的绞肉机，场地永远是空的 —— 这才是曲线平掉的真因，
 // 不是玩家太强。改成盯着「场上有多少只」刷：清得快就立刻补上，清得慢也不会被埋。
 // 附带的好处是难度跟着玩家水平走，强的人一直顶着上限打，弱的人不会雪崩。
-function targetMass(w) { return Math.round(Math.min(84, 4 + w * 2.6)); }
-function spawnGap(w) { return clamp(.5 - w * .015, .07, .5); }
+// 线性 4+2.6w 在第 5 波就摆 17 只，而老版本那时只有 5~6 只 —— 开局直接劝退。
+// 改成二次：早期贴着老版本，后期才压上来。
+function targetMass(w) { return Math.round(Math.min(84, 4 + w * .6 + w * w * .08)); }
+// 补怪速率直接写成【每秒几只】，而不是写成间隔 —— 写间隔的时候 1/间隔 是非线性的，
+// 结果「够快」只在最后几波才到，第 12 波还只有 3.2 只/秒。
+// 这条必须快过玩家的击杀速度（满词条约 17~33 只/秒），否则场上的密度是由刷怪管道
+// 决定的，而不是由设计决定的。快没有风险 —— targetMass 才是真正的安全阀。
+function spawnRate(w) { return Math.min(42, 1.2 + w * 1.5); }
+function spawnGap(w) { return 1 / spawnRate(w); }
 function waveSpawn(dt) {
   if (G.phase !== 'wave' || G.budget <= 0) return;
   G.spawnT -= dt;
@@ -2138,28 +2310,28 @@ function killMob(m) {
   if (m.type === 'bomber' && m.fz !== 0) { m.fz = 0; }   // 打死也会炸，只是不给伤害两次
   m.dead = true;
   const d = MOB[m.type];
-  G.score += (m.type === 'boss' ? 500 : d.xp * 12) * (1 + G.combo * .05) | 0;
+  G.score += (isBoss(m) ? 500 : d.xp * 12) * (1 + G.combo * .05) | 0;
   G.kills++;
-  if (m.type === 'boss') G.bossKills++;
+  if (isBoss(m)) G.bossKills++;
   if (m.type === 'tank') G.tankKills++;
   G.combo++; G.comboT = 2.4;
-  burstFx(m.x, m.y, m.type === 'boss' ? 60 : 14, d.col, m.type === 'boss' ? 300 : 150);
-  for (let i = 0; i < (m.type === 'boss' ? 14 : d.xp); i++) {
+  burstFx(m.x, m.y, isBoss(m) ? 60 : 14, d.col, isBoss(m) ? 300 : 150);
+  for (let i = 0; i < (isBoss(m) ? 14 : d.xp); i++) {
     const a = rnd(0, TAU);
     G.drops.push({ x: m.x, y: m.y, vx: Math.cos(a) * rnd(10, 50), vy: Math.sin(a) * rnd(10, 50),
       t: 0, kind: 'xp' });
   }
-  if (RNG.wave() < (m.type === 'tank' || m.type === 'boss' ? .9 : .06))
+  if (RNG.wave() < (m.type === 'tank' || isBoss(m) ? .9 : .06))
     G.drops.push({ x: m.x, y: m.y, vx: 0, vy: 0, t: 0, kind: 'hp' });
   // 精英必掉一个增益，普通怪极小概率 —— 所以看见精英就知道值得去打
-  if (m.elite || m.type === 'boss' || RNG.wave() < .015) {
+  if (m.elite || isBoss(m) || RNG.wave() < .015) {
     if (m.elite) G.eliteKills++;
     G.drops.push({ x: m.x, y: m.y, vx: 0, vy: 0, t: 0, kind: BUFF_IDS[(RNG.wave() * BUFF_IDS.length) | 0] });
   }
   if (P.lifesteal) P.hp = Math.min(P.maxhp, P.hp + P.lifesteal);
   if (P.explode) explode(m.x, m.y, 24 + 9 * P.explode, 12 * P.explode);
   else Sfx.kill();
-  if (m.type === 'boss') { G.shake = 10; banner('核 心 已 拆 解', '+500'); }
+  if (isBoss(m)) { G.shake = 10; banner(d.nm + ' 已 拆 解', '+500'); }
   syncHud();
 }
 function hurtPlayer(dmg, src) {
@@ -2188,6 +2360,8 @@ function update(dt) {
   G.t += dt;
   pollPad();
   for (const k in G.buffs) if (G.buffs[k] > 0) G.buffs[k] = Math.max(0, G.buffs[k] - dt);
+  // 提示排队等横幅空出来 —— 直接弹会把波次横幅盖掉
+  if (G.tipQ.length && bannerT <= .25) { const t = G.tipQ.shift(); banner(TIPS[t][0], TIPS[t][1]); }
 
   // 玩家
   let ix = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
@@ -2340,16 +2514,63 @@ function update(dt) {
       // 铁闸：正面推进，盾一直朝着你 —— 想打它就得自己绕过去
       m.vx = dx / d * m.spd * sl; m.vy = dy / d * m.spd * sl;
       m.ang += angDiff(Math.atan2(dy, dx), m.ang) * Math.min(1, dt * 2.2);   // 转身慢，所以绕得过来
-    } else if (m.type === 'boss') {
+    } else if (isBoss(m)) {
       m.spin += dt * (m.p2 ? 2.4 : 1.1);
-      // 掉到一半血：外壳崩解，进第二形态。打法整个变一次，比"血更多"有意思。
+      // 掉到一半血：进第二形态。打法整个变一次，比"血更多"有意思。
       if (!m.p2 && m.hp <= m.max * .5) {
         m.p2 = 1; m.spd *= 1.5; m.cd = .6;
         G.shake = 9; burstFx(m.x, m.y, 46, '#ffe066', 260);
-        banner('外 壳 崩 解', '母体核心 · 第二形态');
+        banner(d.p2n, d.nm + ' · 第二形态');
         Sfx.boom();
+        // 最后一道闸：母体核心半血时叫一台拆解臂进场
+        if (m.final) { spawn('boss2'); banner('拆 解 臂 进 场', '它带了帮手'); }
       }
-      if (m.p2) {
+      const room = () => G.mobs.length < targetMass(G.wave);   // BOSS 叫的增援也受密度上限管
+      if (m.type === 'boss2') {
+        // 拆解臂：不放弹幕，靠冲撞。蓄力时站定，冲的时候走直线 ——
+        // 所以应对方式是【横着走】，跟母体核心的绕圈完全不一样。
+        m.cd -= dt;
+        if (m.chg > 0) {
+          m.chg -= dt;
+          m.vx = Math.cos(m.cAng) * m.spd * 5.2; m.vy = Math.sin(m.cAng) * m.spd * 5.2;
+          if (m.chg <= 0) m.cd = m.p2 ? .5 : 1.1;
+        } else if (m.wind > 0) {
+          m.wind -= dt; m.vx = m.vy = 0; m.ang = m.cAng;       // 蓄力时方向锁死 —— 这就是预警
+          if (m.wind <= 0) { m.chg = m.p2 ? .55 : .45; Sfx.boom(); }
+        } else if (m.cd <= 0) {
+          m.cAng = Math.atan2(dy, dx); m.wind = m.p2 ? .38 : .55;   // 二形态预警更短
+          Sfx.fuse();
+        } else {
+          m.vx = dx / d * m.spd * sl; m.vy = dy / d * m.spd * sl;
+          m.ang += angDiff(Math.atan2(dy, dx), m.ang) * Math.min(1, dt * 3);
+        }
+        m.sum = (m.sum || 0) - dt;
+        if (m.sum <= 0) {
+          if (m.p2) { for (let i = -1; i <= 1; i++) eshoot(m, m.ang + i * .28, 120, m.dmg * .4); m.sum = 1.5; }
+          else { if (room()) spawn('shieldbot'); m.sum = rnd(4, 6); }
+        }
+      } else if (m.type === 'boss3') {
+        // 母巢：几乎不动，一直吐无人机。它本身不怎么威胁你，威胁是它吐出来的东西 ——
+        // 所以正确答案是【冲过去先拆巢】，而不是站在原地清场。
+        m.vx = dx / d * m.spd * sl * .5; m.vy = dy / d * m.spd * sl * .5;
+        m.cd -= dt;
+        if (m.cd <= 0) {
+          if (room()) spawn('drone');
+          if (m.p2 && room()) spawn('drone');
+          m.cd = m.p2 ? .9 : 1.6;
+        }
+        m.sum = (m.sum || 0) - dt;
+        if (m.sum <= 0) {
+          if (m.p2) {
+            for (let i = 0; i < 8; i++) eshoot(m, m.spin * 1.3 + i * TAU / 8, 84, m.dmg * .4);
+            if (room()) spawn('bomber');
+            m.sum = 2.2;
+          } else {
+            for (let i = -2; i <= 2; i++) eshoot(m, Math.atan2(dy, dx) + i * .16, 96, m.dmg * .45);
+            m.sum = 2.8;
+          }
+        }
+      } else if (m.p2) {
         // 第二形态：贴着追，喷螺旋弹幕，还会突进
         const push = d < 60 ? -.4 : 1;
         m.vx = dx / d * m.spd * push * sl; m.vy = dy / d * m.spd * push * sl;
@@ -2359,7 +2580,7 @@ function update(dt) {
           m.cd = .16;                                    // 连绵不断的螺旋，而不是一波一波
         }
         m.sum = (m.sum || 0) - dt;
-        if (m.sum <= 0) { spawn('rusher'); spawn('rusher'); m.sum = rnd(3.4, 4.6); }
+        if (m.sum <= 0) { if (room()) { spawn('rusher'); spawn('rusher'); } m.sum = rnd(3.4, 4.6); }
       } else {
         const want = 120;
         const push = d < want ? -.5 : 1;
@@ -2368,7 +2589,7 @@ function update(dt) {
         if (m.cd <= 0) {
           const n = 10;
           for (let i = 0; i < n; i++) eshoot(m, m.spin + i * TAU / n, 92, m.dmg * .5);
-          if (RNG.wave() < .6) { spawn('grunt'); spawn('rusher'); }
+          if (RNG.wave() < .6 && room()) { spawn('grunt'); spawn('rusher'); }
           m.cd = rnd(2.2, 3.2);
         }
       }
@@ -2483,7 +2704,7 @@ function update(dt) {
       else if (BUFFS[d.kind]) { grabBuff(d.kind); }
       else {
         P.xp++; Sfx.xp();
-        if (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = 4 + P.lv * 2; showLevelup(); }
+        if (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = xpNeed(P.lv); showLevelup(); }
       }
       syncHud();
     }
@@ -2588,7 +2809,7 @@ function drawOffscreenMarkers() {
     const a = Math.atan2(y - VH / 2, x - VW / 2);
     ctx.save();
     ctx.translate(cx, cy); ctx.rotate(a);
-    ctx.fillStyle = m.type === 'boss' ? '#ff2f4f' : MOB[m.type].col;
+    ctx.fillStyle = MOB[m.type].col;
     ctx.globalAlpha = .8;
     ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-3, 3); ctx.lineTo(-3, -3); ctx.closePath(); ctx.fill();
     ctx.restore();
@@ -2608,8 +2829,8 @@ function drawMinimap() {
   ctx.strokeStyle = 'rgba(120,150,200,.22)';
   ctx.strokeRect(ox + G.cam.x * sx, oy + G.cam.y * sy, VW * sx, VH * sy);
   for (const m of G.mobs) {
-    ctx.fillStyle = m.type === 'boss' ? '#ff2f4f' : MOB[m.type].col;
-    const s = m.type === 'boss' ? 3 : 1;
+    ctx.fillStyle = MOB[m.type].col;
+    const s = isBoss(m) ? 3 : 1;
     ctx.fillRect(ox + m.x * sx - s / 2, oy + m.y * sy - s / 2, s + 1, s + 1);
   }
   if (P) { ctx.fillStyle = SKIN.trail; ctx.fillRect(ox + P.x * sx - 1, oy + P.y * sy - 1, 2, 2); }
@@ -2617,12 +2838,13 @@ function drawMinimap() {
 
 function drawBoss(m) {
   const x = m.x - G.cam.x, y = m.y - G.cam.y;
-  const p2 = !!m.p2;
+  const p2 = !!m.p2, d = MOB[m.type];
   // 本体走精灵，和四种杂兵同一套画风（原来是程序化画的圆环，画风是断的）
-  const spr = SPR[p2 ? 'boss_b' : 'boss_a'][0];
+  const spr = SPR[p2 ? d.spr2 : d.spr][0];
   ctx.save();
   ctx.translate(x | 0, y | 0);
-  ctx.rotate(m.spin * (p2 ? .9 : .35));                 // 第二形态转得更快
+  // 拆解臂是朝向型的（本体+两根臂），转起来就散架了 —— 它按朝向摆，径向的才自转
+  ctx.rotate(d.dir ? m.ang : m.spin * (p2 ? .9 : .35));
   if (m.flash > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; blit(spr, 0, 0); blit(spr, 0, 0); ctx.restore(); }
   else blit(spr, 0, 0);
   ctx.restore();
@@ -2687,7 +2909,7 @@ function render() {
 
   // 敌人
   for (const m of G.mobs) {
-    if (m.type === 'boss') { drawBoss(m); continue; }
+    if (isBoss(m)) { drawBoss(m); continue; }
     const x = m.x - G.cam.x, y = m.y - G.cam.y;
     if (x < -30 || y < -30 || x > VW + 30 || y > VH + 30) continue;
     orb(x, y, m.r * 2.5, m.type === 'rusher' ? 'rgba(255,46,166,.24)' : m.type === 'drone' ? 'rgba(164,92,255,.24)' : 'rgba(255,140,50,.24)');
@@ -2977,7 +3199,7 @@ function start(seedOverride) {
     spawnT: 0, budget: 0, combo: 0, comboT: 0,
     bullets: [], ebullets: [], mobs: [], parts: [], drops: [], offer: [], stacks: {},
     beams: [], arcs: [], slashes: [], wepDmg: {}, deathBy: null, bossKills: 0, tankKills: 0,
-    buffs: {}, mod: null, eliteKills: 0, overheat: 0, won: false
+    buffs: {}, mod: null, eliteKills: 0, overheat: 0, won: false, seen: {}, tipQ: []
   });
   if (MODE === 'daily') {                               // 每日局：固定配置
     applySkin(dailySkin());                             // 涂装是外观，可以跟着当天换
@@ -3153,8 +3375,8 @@ window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
   OPT, setOpt, REDUCE, PAD, pollPad, updateBuffs, BUFF_EL,
   fit, cv, REF_W, REF_H, camAt, get VW() { return VW; }, get VH() { return VH; },
   loadDaily, saveDaily, DAILY_KEY, get MODE() { return MODE; }, get RUN_SEED() { return RUN_SEED; },
-  ARENAS, ARENA, setArena, nextWave, genScenery, LAST_WAVE, tier, TIERS, winRun, targetMass, spawnGap, get ARENA_I() { return ARENA_I; },
-  hurtMob, hurtPlayer, blowUp, killMob, waveSpawn, takeUpgrade, rollOffer, showLevelup, BUFFS, BUFF_IDS, grabBuff, MODS, rollMod, eliteChance, makeElite,
+  ARENAS, ARENA, setArena, nextWave, genScenery, LAST_WAVE, tier, TIERS, winRun, targetMass, spawnGap, spawnRate, xpNeed, get ARENA_I() { return ARENA_I; },
+  hurtMob, hurtPlayer, blowUp, killMob, waveSpawn, isBoss, TIPS, BOSS_AT, bossOf, takeUpgrade, rollOffer, showLevelup, BUFFS, BUFF_IDS, grabBuff, MODS, rollMod, eliteChance, makeElite,
   SKINS, SKIN_ORDER, GRID, applySkin, pickSkin, dailySkin, sprSet, DECAL, GUN_OF, drawPlayer,
   get SKIN() { return SKIN; }, get SPRACTIVE() { return SPR; },
   get isTouch() { return isTouch; } };

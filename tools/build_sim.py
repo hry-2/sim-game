@@ -164,14 +164,24 @@ const VMAXW=18, VMAXH=13, VMINW=9, VMINH=7;
 // 【原来的打分 w*h*sc 是"看得多"优先】—— 390 宽的手机上 1× 的 15×13（面积 195）
 // 永远赢过 2× 的 7×10（面积 140），于是手机拿 1×、平板 2×、桌面 3×，
 // 最该放大的那一档反而最小。触屏改成【取满足最低视野的最大倍率】。
-const TMINW=7, TMINH=6;
+// 触屏的视野上下限都跟桌面不一样：
+//   下限小一档（宁可少看两格，也要人物看得清）
+//   上限放宽 —— 桌面的 18×13 是为了"别一眼看完整张图"，
+//   但手机竖屏 7 格宽根本谈不上看得多，卡着 13 行只会让画面填不满屏
+const TMINW=7, TMINH=6, TMAXW=22, TMAXH=22;
+// 目标是画面占屏高九成。这里写 0.94 而不是 0.90 —— 视野是【整格】的，
+// 844 高的手机上 0.90 只给到 760，而 16 格要 768，于是被量化砍回 15 格（85%）。
+// 多给这 4 个点，正好够跨过那一格。
+const TFILL=0.94;
 function fit(){
   // 断点要和 CSS 的 @media 一致：面板在窄屏是【堆在下面】的，
   // 那就不该再给它预留横向空间。820px 的平板曾因此被算成"桌面"，
   // 800 的可用宽被砍成 468，视口缩到 9 格宽。
   const mob = innerWidth<=1000;
   // 横屏的手机没什么竖向空间，而面板本来就在下面要滚动的 —— 多分点高度给画面
-  const hRatio = !mob ? 1 : (innerWidth>innerHeight ? 0.78 : 0.62);
+  // 触屏就把屏幕让给画面：事件流和面板滚下去看。
+  // 非触屏的窄窗口（桌面拖窄）还是留着原来的分法 —— 那种情况鼠标能同时看两边。
+  const hRatio = !mob ? 1 : (isTouch ? TFILL : (innerWidth>innerHeight ? 0.78 : 0.62));
   const availW = Math.max(200, mob ? innerWidth-20 : innerWidth-352);
   const availH = Math.max(160, mob ? innerHeight*hRatio : innerHeight-64);
   // 先定缩放再算格数：手机上像素要够大才看得清人物
@@ -180,9 +190,10 @@ function fit(){
   // 【缩小】没关系，那是超采样，在高 DPI 屏上反而正好 1:1。
   // 所以 RS=3 时可选 1、2、3、6，4 档要被剔除。
   const minW = isTouch?TMINW:VMINW, minH = isTouch?TMINH:VMINH;
+  const maxW = isTouch?TMAXW:VMAXW, maxH = isTouch?TMAXH:VMAXH;
   for(const sc of [3,2,1]){
-    const w=Math.min(GW, VMAXW, Math.floor(availW/(T*sc)));
-    const h=Math.min(GH, VMAXH, Math.floor(availH/(T*sc)));
+    const w=Math.min(GW, maxW, Math.floor(availW/(T*sc)));
+    const h=Math.min(GH, maxH, Math.floor(availH/(T*sc)));
     if(w<minW||h<minH) continue;
     if(isTouch){ best={sc,w,h}; break; }                 // 触屏：够得着最低视野就用最大倍率
     const score=w*h*sc;                                  // 桌面：兼顾"看得清"和"看得到"

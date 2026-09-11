@@ -58,6 +58,8 @@ const VPHof = r => r.cvH;          // 世界像素的视口高，判小地图占
             return { w: GW * ms, share: GW * ms / VPW, bottom: 6 + GH * ms }; })(),
           // ② 手机上人物要够大：桌面 3x、平板 3x，手机至少 2x
           bigEnough: PXS >= 2,
+          // ②b 画面要吃满屏幕：占屏高九成上下（整格量化会差一点，给 0.82 的下限）
+          fill: cv.clientHeight / innerHeight,
           // ③ 菜单必须放得进视口（窄屏靠缩字号 + 省略号）
           menuFits: (() => { PC.inv.wood = 40; PC.inv.stone = 10; PC.money = 200;
             PC.skill = 30; openCraftMenu(); render();
@@ -99,7 +101,7 @@ const VPHof = r => r.cvH;          // 世界像素的视口高，判小地图占
             && r.backing && r.crisp && miniOK && r.menuFits.okw
             && r.cssW <= c.w && (c.touch ? (r.touchUI === 'block' && joy) : true)
             // 手机上人物得够大；整页不该超过三屏（长段要折起来）
-            && (c.touch ? (r.bigEnough && r.folded >= 5 && r.pageH <= 2400) : true);
+            && (c.touch ? (r.bigEnough && r.fill >= 0.82 && r.folded >= 5 && r.pageH <= 2400) : true);
     rows.push({ ...c, ...r, joy, ok, err: errs[0] || '' });
     if (c.n === '手机竖屏') await page.screenshot({ path: '/tmp/phone.png' });
     if (c.n === '手机横屏') await page.screenshot({ path: '/tmp/phone-land.png' });
@@ -114,7 +116,7 @@ const VPHof = r => r.cvH;          // 世界像素的视口高，判小地图占
     console.log(`  ${r.ok ? '✓' : '✗'} ${r.n.padEnd(5)} ${String(r.w).padStart(4)}×${r.h}` +
       `  视口 ${r.view} @${r.pxs}x/RS${r.rs} → ${r.cssW}×${r.cssH}px` +
       `  溢出 ${r.overflow}  ${r.inView ? '镜头跟上' : '主角出屏!'}` +
-      `  小地图${(r.mini.share * 100) | 0}%  菜单${r.menuFits.fs}px${r.menuFits.okw ? '' : '溢出!'}` +
+      `  占屏${(r.fill * 100) | 0}%  小地图${(r.mini.share * 100) | 0}%  菜单${r.menuFits.fs}px${r.menuFits.okw ? '' : '溢出!'}` +
       `  整页${r.pageH}px/折${r.folded}段` +
       `  ${r.touch ? (r.joy ? '摇杆可走' : '摇杆失灵!') : '键鼠'}` +
       (r.err ? '  报错:' + r.err : ''));

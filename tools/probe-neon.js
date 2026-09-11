@@ -80,18 +80,18 @@ function play(seed, maxWave) {
   }
   padOff();
   const picked = Object.keys(G.buffs).length;
-  return { seed, wave: G.wave, dead: G.state === 'over', by: G.deathBy, t: Math.round(t),
+  return { seed, wave: G.wave, dead: G.state === 'over' && !G.won, won: !!G.won, by: G.deathBy, t: Math.round(t),
     lv: P.lv, elites, mods, log, hpLow: Math.round(hpLow * 100), picked };
 }
 
-const MAXW = Number(process.argv[2] || 20);
+const MAXW = Number(process.argv[2] || 31);
 const seeds = [1, 20260910, 777, 424242, 9];
 console.log(`每个种子最多打 ${MAXW} 波，机器人只会瞄最近的 + 边打边退\n`);
 let reached = [];
 for (const s of seeds) {
   const r = play(s, MAXW);
   reached.push(r.wave);
-  console.log(`种子 ${String(s).padEnd(9)} → 第 ${String(r.wave).padStart(2)} 波${r.dead ? ` 死了（${r.by || '?'}）` : r.stalled ? ' 卡住了（三分钟没推进）' : ' 还活着'}`
+  console.log(`种子 ${String(s).padEnd(9)} → 第 ${String(r.wave).padStart(2)} 波${r.won ? ' 撤离成功' : r.dead ? ` 死了（${r.by || '?'}）` : r.stalled ? ' 卡住了（三分钟没推进）' : ' 还活着'}`
     + `  等级 ${String(r.lv).padStart(2)}  用了 ${String(r.t).padStart(3)}s  见过 ${String(r.elites).padStart(2)} 个精英  血最低 ${r.hpLow}%`);
   if (r.mods.length) console.log(`             修饰波：${r.mods.join('  ')}`);
 }
@@ -103,5 +103,8 @@ console.log(`\n平均到第 ${avg.toFixed(1)} 波（最差 ${Math.min(...reached
 // 一半翻车才是曲线有问题。
 console.log(early <= 1 ? `✓ ${seeds.length} 局里只有 ${early} 局没过第一个 BOSS —— 开局是能学的`
   : `✗ ${seeds.length} 局里有 ${early} 局连第 5 波都没过，开局太陡`);
-console.log(far < seeds.length ? `✓ ${seeds.length - far} 局在 ${MAXW} 波内被拦住了 —— 曲线没平掉`
-  : `✗ 全部撑到 ${MAXW} 波还没事，后期没压力`);
+const wins = reached.filter((w, i) => w >= 30).length;
+console.log(`${wins} / ${seeds.length} 局打穿了 30 波。`);
+// 笨机器人的通关率就是这条曲线的下限：它全过说明太松，它全过不了说明太紧。
+console.log(wins <= seeds.length * .6 ? `✓ 笨机器人只打穿 ${wins} 局 —— 人有空间打得更好，也确实会输`
+  : `✗ 笨机器人打穿了 ${wins} 局，30 波对会玩的人没有威胁`);
