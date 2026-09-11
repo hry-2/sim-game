@@ -704,7 +704,46 @@ UG.mod = null;
 // 修饰本身
 ok(NS.MODS.every(m => m.n && m.d && (m.bag || m.allElite)), '每个修饰都改了刷怪表，且横幅有话说');
 // 修饰不能比它用到的怪先出场 —— 探针在第 4 波撞见过 14 个精英，就是漏了这条
-const FIRST = { rusher: 2, drone: 3, shieldbot: 4, tank: 5, bomber: 6, relay: 9, grunt: 1 };
+const FIRST = { grunt: 1, rusher: 2, drone: 3, shieldbot: 4, tank: 5, bomber: 6,
+  splitter: 7, relay: 9, sniper: 11, hauler: 13 };
+// 这张表必须跟刷怪表对得上，否则上面那条门槛断言会因为 `|| 1` 而形同虚设
+{
+  const src = html.slice(html.indexOf("const bag = ['grunt'"), html.indexOf('const t = pickw(bag)'));
+  for (const k in FIRST) {
+    if (k === 'grunt') continue;
+    const re = new RegExp(`w >= (\\d+)\\) bag\\.push\\([^)]*'${k}'`);
+    const m = src.match(re);
+    ok(!!m && +m[1] === FIRST[k], m ? `${NS.MOB[k].nm} 第 ${m[1]} 波进池（表里记的 ${FIRST[k]}）`
+      : `${k} 在刷怪表里找不到，FIRST 表过期了`);
+  }
+}
+// 每一种「逼你改打法」的怪都得至少进一个修饰的刷怪表。
+// 修饰会整表替换刷怪表，而第 21~30 波有 80% 带修饰 ——
+// 漏了这一步的后果实测过：四种新怪在最后十波只占 16%，高潮段成了最单调的一段。
+{
+  const inMods = new Set();
+  NS.MODS.forEach(m => (m.bag || []).forEach(t => inMods.add(t)));
+  const force = Object.keys(NS.MOB).filter(k =>
+    k !== 'shard' && !NS.MOB[k].boss && k !== 'grunt' && k !== 'drone' && k !== 'tank' && k !== 'rusher');
+  const orphan = force.filter(k => !inMods.has(k));
+  ok(orphan.length === 0, orphan.length
+    ? `这些怪没进任何修饰的刷怪表，后段会消失：${orphan.map(k => NS.MOB[k].nm).join('、')}`
+    : `六种「逼你改打法」的怪都进了修饰池（${force.map(k => NS.MOB[k].nm).join('、')}）`);
+  ok(NS.MODS.length >= 6, `有 ${NS.MODS.length} 个修饰 —— 少了的话第三层每波都有修饰就会反复撞见同一个`);
+  ok(new Set(NS.MODS.map(m => (m.bag || ['*']).join())).size === NS.MODS.length, '没有两个修饰用同一张刷怪表');
+  // 远程怪的威胁随数量是乘性的：一屏四十个钉枪手就是每秒四十条弹线，
+  // 有预警也躲不过来。实测过：让它占半张表，探针 5 局里 3 局死在第 21~22 波。
+  // 所以远程怪不能当一波的主题，只能当点缀。
+  const ranged = ['sniper'];
+  for (const m of NS.MODS) {
+    if (!m.bag) continue;
+    for (const r of ranged) {
+      const share = m.bag.filter(t => t === r).length / m.bag.length;
+      ok(share <= 1 / 3 + 1e-9,
+        `${m.id} 里 ${NS.MOB[r].nm} 占 ${(share * 100).toFixed(0)}%（远程怪不能超过 1/3）`);
+    }
+  }
+}
 for (const m of NS.MODS) {
   const need = m.allElite ? 6 : Math.max(...m.bag.map(t => FIRST[t] || 1));
   ok(m.from >= need, `${m.id} 从第 ${m.from} 波才出现，不早于它用的怪（第 ${need} 波）`);
@@ -736,7 +775,16 @@ ok(hit.length >= 2, `20 波里摇出了 ${hit.length} 个修饰：${hit.join(' '
 // 第一层要留出平稳的波次做对比；第三层是故意每波都有的
 const plain1 = WS.filter((w, i) => NS.tier(w) === 1 && s1.split(',')[i] === '-');
 ok(plain1.length >= 2, `第一层有 ${plain1.length} 个平稳波次做对比，不是一上来就每波带修饰`);
-ok(WS.filter(w => NS.tier(w) === 3).every(w => NS.rollMod(w) !== null), '第三层每一波都带修饰（故意的）');
+// 第三层【大部分】波次带修饰，但不是每一波 —— 留一点喘息的节拍。
+// 原来这条要求「每一波都有」，那是 4 个修饰时代的决定；7 个修饰之后同一条规则
+// 把第 21 波变成了一道墙（探针 5 局有 4 局死在 21~22）。
+{
+  const t3 = [];
+  for (const seed of [1, 2, 3, 4, 5, 6]) { NS.seedRun(seed); for (let w = 21; w <= 30; w++) if (w % 5) t3.push(!!NS.rollMod(w)); }
+  const rate = t3.filter(Boolean).length / t3.length;
+  ok(rate > .6, `第三层 ${(rate * 100).toFixed(0)}% 的波次带修饰 —— 深层就该一直有花样`);
+  ok(rate < 1, `但不是每一波（${(rate * 100).toFixed(0)}%）—— 全是修饰就没有喘息的节拍`);
+}
 ok(s1 === s2, '同种子的修饰序列完全一致');
 ok(seq(20260911) !== s1, '换一天就不一样');
 // start(seed) 必须真的钉住整局 —— 探针一开始拿 seedRun 播种，
@@ -1008,7 +1056,10 @@ console.log('BOSS');
   const watch = (kind) => {
     NS.setMode('free'); NS.start(4);
     const G = NS.G, P = NS.P;
-    G.wave = 12; G.mobs.length = 0; G.ebullets.length = 0;
+    // 把正常刷怪关掉，只留 BOSS 自己召唤的。原来没关，这里数到的是
+    // 「BOSS 召唤 + 波次刷怪」两件事，之前靠巧合过关，改了刷怪表立刻翻。
+    G.wave = 12; G.phase = 'wave'; G.budget = 0; G.waveT = 999;
+    G.mobs.length = 0; G.ebullets.length = 0;
     NS.spawn(kind);
     const b = G.mobs[0];
     b.x = P.x + 150; b.y = P.y;
@@ -1048,12 +1099,20 @@ console.log('BOSS');
 console.log('应对提示');
 {
   ok(Object.keys(NS.TIPS).length >= 8, `${Object.keys(NS.TIPS).length} 种怪有应对提示`);
+  // 图鉴要完整：每一种会出现的怪都得有一条，缺了就是翻到一半没了
+  const spawnable = Object.keys(NS.MOB).filter(k => k !== 'shard');
+  const missing = spawnable.filter(k => !NS.TIPS[k]);
+  ok(missing.length === 0, missing.length ? `这些怪没有图鉴条目：${missing.join('、')}` : '每一种会出现的怪都有图鉴条目');
   for (const k of ['shieldbot', 'bomber', 'relay']) {
     ok(!!NS.TIPS[k], `${NS.MOB[k].nm} 有提示 —— 这三种存在的理由就是逼你改打法`);
   }
   // 提示得说「怎么办」，不能只说「它是什么」
-  const verbs = /绕|横|别|先|冲|躲|清/;
-  ok(Object.values(NS.TIPS).every(t => verbs.test(t[1])), '每条提示都在说怎么应对，不是在描述它长什么样');
+  // 「说怎么办」的判据：得出现一个动作。拾荒机兵那条是「对着打就行」——
+  // 也是动作（而且它的作用正是给后面「不能对着打」的几种做对比）
+  const verbs = /绕|横|别|先|冲|躲|清|对着打/;
+  const vague = Object.entries(NS.TIPS).filter(([k, t]) => !verbs.test(t[1]));
+  ok(vague.length === 0, vague.length ? `这几条只在描述不在指导：${vague.map(v => v[0]).join('、')}`
+    : '每条提示都在说怎么应对，不是在描述它长什么样');
   NS.setMode('free'); NS.start(4);
   const TG = NS.G;
   ok(Object.keys(TG.seen).length === 0 && TG.tipQ.length === 0, '开局一条都没提示过');
@@ -1066,7 +1125,13 @@ console.log('应对提示');
   // 提示的节奏不能挂在渲染上 —— 原来它看的是 bannerT，而 bannerT 在主循环里减
   ok(!/tipQ\.length && bannerT/.test(html), '提示队列用自己的计时器，不读渲染循环的变量');
   NS.start(4); const QG = NS.G;
-  QG.mobs.length = 0; QG.tipT = 0; NS.spawn('bomber'); NS.spawn('relay');
+  // 把刷怪关掉并把别的都标成见过 —— 否则循环里刷出的小兵会往队列里多塞一条，
+  // 这条断言就会红在一个不存在的问题上
+  QG.phase = 'break'; QG.budget = 0; QG.waveT = 999;
+  Object.keys(NS.TIPS).forEach(k => { QG.seen[k] = 1; });
+  delete QG.seen.bomber; delete QG.seen.relay;
+  QG.mobs.length = 0; QG.tipQ.length = 0; QG.tipT = 0;
+  NS.spawn('bomber'); NS.spawn('relay');
   ok(QG.tipQ.length === 2, '两种新怪各排一条');
   NS.update(1 / 60);
   ok(QG.tipQ.length === 1, '先播一条，另一条还在队里');
@@ -1124,7 +1189,13 @@ console.log('危险等级');
   ok(Math.abs(h1 - h0) < .01, `第 1 波归零档和标准档的小兵血量一样（${h0.toFixed(0)} vs ${h1.toFixed(0)}）`);
   NS.PROF.dangerMax = 3; NS.pickDanger(3); NS.G.wave = 20;
   ok(el1 > el0, `精英率 ${(el0 * 100).toFixed(0)}% → ${(el1 * 100).toFixed(0)}%`);
-  ok(NS.rollMod(5) !== null || NS.rollMod(10) !== null || NS.rollMod(15) !== null, '归零档 BOSS 波也会带修饰');
+  // 多摇几个种子再看。概率从 1.0 压到 0.82 之后，只看三个波次会时好时坏 ——
+  // 那是不稳定的测试，不是 bug。
+  {
+    let hit = 0, n = 0;
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) { NS.seedRun(seed); for (const w of [5, 10, 15, 20]) { n++; if (NS.rollMod(w)) hit++; } }
+    ok(hit > 0, `归零档 BOSS 波也会带修饰（${n} 次里 ${hit} 次）`);
+  }
   NS.pickDanger(1);
   ok(NS.rollMod(5) === null && NS.rollMod(10) === null, '高危档 BOSS 波仍然不带修饰');
   // 高档位绝对不能把还没解锁的修饰提前 —— 第一版就是这么写的，
@@ -1406,6 +1477,258 @@ console.log('手机 UI');
   // 六、菜单页不显示局内 HUD
   ok(/body\.menu #hud, body\.menu #buffs\{display:none\}/.test(html), '标题和结算页藏掉局内 HUD（占位的「整合度 100」会压在标题上）');
   NS.start(31);
+}
+
+// ---- 31) 分档记录 ----
+// 原来是单独一条，而比较顺序是「危险档 → 波次 → 分数」，
+// 于是通关高危之后，标准档那条 30 波的记录永远被顶掉：看不到，也没法再挑战。
+console.log('分档记录');
+{
+  const LSraw = () => JSON.parse(require('fs').existsSync('/dev/null') ? '{}' : '{}');
+  // 老存档迁移：单条 → 挂到它自己那一档
+  const mig = (() => {
+    global.localStorage.setItem(NS.SAVE_KEY, JSON.stringify({ wave: 12, score: 900, dg: 1, build: 'x' }));
+    return NS.loadBest();
+  })();
+  ok(mig[1] && mig[1].wave === 12, '老存档（单独一条）迁到它自己那一档，不凭空消失');
+  ok(!mig.wave, '迁完之后不再是那个扁平结构');
+  global.localStorage.removeItem(NS.SAVE_KEY);
+  // 前面几节的测试已经往 BEST 里写过东西了（危险等级那节通关过一次），
+  // 不清干净的话这里量到的是上一节的残留 —— 断言会红在一个不存在的问题上。
+  Object.keys(NS.BEST).forEach(k => { delete NS.BEST[k]; });
+  // 两档各存一条，互不覆盖
+  NS.setMode('free');
+  for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+  Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf();
+  const rec = (dgi, wave, score) => {
+    NS.PROF.dangerMax = 3; NS.pickDanger(dgi);
+    NS.start(40); NS.G.wave = wave; NS.G.score = score;
+    NS.G.wepDmg = { pulse: 1 }; NS.G.stacks = {};
+    NS.gameOver(false);
+  };
+  rec(0, 30, 50000);
+  rec(1, 18, 22000);
+  const b0 = NS.bestOf(0), b1 = NS.bestOf(1);
+  ok(b0 && b0.wave === 30, `标准档记着第 ${b0 && b0.wave} 波`);
+  ok(b1 && b1.wave === 18, `高危档记着第 ${b1 && b1.wave} 波 —— 没被标准档的 30 波盖掉`);
+  ok(b0.score === 50000 && b1.score === 22000, '两档的分数各自独立');
+  // 同档内打得更差不覆盖
+  rec(1, 9, 100);
+  ok(NS.bestOf(1).wave === 18, '同一档里打得更差不会覆盖');
+  // 同档内打得更好要覆盖
+  rec(1, 25, 30000);
+  ok(NS.bestOf(1).wave === 25, '同一档里打得更好就更新');
+  ok(NS.bestOf(0).wave === 30, '更新高危档不动标准档');
+  // 标题页把每一档都列出来
+  NS.pickDanger(0); NS.setMode('free');
+  const t = byId('titleBest').textContent;
+  ok(t.indexOf('标准') >= 0 && t.indexOf('高危') >= 0, `标题上四档各列一行（「${t}」）`);
+  ok(NS.bestOf(3) === null, '没打过的档位不显示假记录');
+}
+
+// ---- 32) 敌人图鉴 ----
+// 应对提示只在这一局第一次遇见时弹一次横幅，两秒就没了，而你当时正在躲。
+console.log('图鉴');
+{
+  NS.setMode('free'); NS.start(41);
+  NS.PROF.seen = {};
+  let h = NS.dexHTML();
+  ok((h.match(/class="drow lock"/g) || []).length === Object.keys(NS.TIPS).length,
+    '一开始全是锁住的');
+  ok(h.indexOf('？') >= 0, '没见过的不剧透，只露个问号');
+  ok(h.indexOf(NS.TIPS.shieldbot[1]) < 0, '没见过的连应对方法都不给 —— 自己撞上那一下才是学会');
+  // 遇到过就解锁，而且跨局记着
+  NS.G.mobs.length = 0; NS.spawn('shieldbot');
+  ok(NS.PROF.seen.shieldbot === 1, '遇见就记进档案（不是只记这一局）');
+  NS.start(41);
+  h = NS.dexHTML();
+  ok(h.indexOf(NS.TIPS.shieldbot[0]) >= 0 && h.indexOf(NS.TIPS.shieldbot[1]) >= 0,
+    '重开一局，图鉴里还留着 —— 这才是「之后能查」');
+  ok(h.indexOf(NS.TIPS.relay[1]) < 0, '没遇到过的仍然锁着');
+  // 暂停面板的两页
+  NS.G.state = 'play'; NS.setPaused(true);
+  ok(!byId('pauseBox').classList.contains('dex-on'), '每次暂停都先回到构筑页');
+  NS.showDex(true);
+  ok(byId('pauseBox').classList.contains('dex-on') && byId('dexPause').innerHTML.length > 40, '切到图鉴页');
+  ok(byId('tabDex').classList.contains('on') && !byId('tabBuild').classList.contains('on'), '页签跟着高亮');
+  NS.showDex(false);
+  ok(!byId('pauseBox').classList.contains('dex-on'), '能切回构筑页');
+  ok(/#pauseBox\.dex-on \.build\{display:none\}/.test(html), '两页互斥，不会叠在一起');
+  NS.setPaused(false);
+}
+
+// ---- 33) 三种新杂兵 ----
+// 每种都要逼你换一次打法，而不是换个数值。
+console.log('新杂兵');
+{
+  const D = 1 / 60;
+  for (const k of ['splitter', 'shard', 'sniper', 'hauler']) {
+    ok(!!NS.MOB[k] && !!NS.GRID[NS.MOB[k].spr], `${k} 有档案和精灵`);
+  }
+  for (const k of ['splitter', 'sniper', 'hauler']) {
+    ok(!!NS.TIPS[k] && /绕|横|别|先|冲|躲|清/.test(NS.TIPS[k][1]), `${NS.MOB[k].nm} 的提示在说怎么应对`);
+  }
+  // 裂解体：死在哪就裂在哪
+  NS.setMode('free'); NS.start(42);
+  const SG = NS.G;
+  SG.phase = 'break'; SG.budget = 0; SG.mod = null; SG.overheat = 0;
+  SG.mobs.length = 0; NS.spawn('splitter');
+  const sp = SG.mobs[0]; sp.x = 500; sp.y = 400; sp.elite = 0;
+  NS.killMob(sp);
+  const shards = SG.mobs.filter(m => m.type === 'shard' && !m.dead);
+  ok(shards.length === 2, `裂成了 ${shards.length} 只`);
+  ok(shards.every(m => Math.hypot(m.x - 500, m.y - 400) < 20),
+    `裂片就在它死的地方（最远 ${Math.round(Math.max(...shards.map(m => Math.hypot(m.x - 500, m.y - 400))))}px）—— 「在哪杀」才是个决定`);
+  ok(shards.every(m => !NS.MOB[m.type].split), '裂片自己不会再裂，否则会无限增殖');
+  ok(NS.MOB.shard.spd > NS.MOB.splitter.spd, '裂片比母体快，所以「就地杀」是有代价的');
+  // 过热（收尾阶段）不该再裂，否则一波永远清不完
+  SG.mobs.length = 0; NS.spawn('splitter');
+  SG.overheat = 1; NS.killMob(SG.mobs[0]);
+  ok(SG.mobs.filter(m => m.type === 'shard' && !m.dead).length === 0, '加时收尾时不再分裂 —— 否则清不掉');
+  SG.overheat = 0;
+  // 钉枪手：保持距离 + 锁方向蓄力 + 打直线
+  NS.start(42); const NG = NS.G, NP = NS.P;
+  NG.phase = 'break'; NG.budget = 0; NG.mobs.length = 0; NG.ebullets.length = 0;
+  NS.spawn('sniper');
+  const sn = NG.mobs[0]; sn.x = NP.x + 80; sn.y = NP.y;     // 故意放很近
+  for (let i = 0; i < 90; i++) NS.update(D);
+  ok(sn.x - NP.x > 85, `离得太近会往后退（80 → ${Math.round(sn.x - NP.x)}px）`);
+  sn.x = NP.x + 220; sn.y = NP.y; sn.cd = 0; sn.wind = 0;
+  let sawWind = false, shots = 0;
+  for (let i = 0; i < 60 * 6; i++) {
+    const e0 = NG.ebullets.length;
+    NS.update(D);
+    if (sn.wind > 0) sawWind = true;
+    shots += Math.max(0, NG.ebullets.length - e0);
+  }
+  ok(sawWind, '开火前有蓄力段 —— 那就是预警');
+  ok(shots > 0, `真的打出来了（${shots} 发）`);
+  ok(/m\.wind > 0 && m\.type === 'sniper'/.test(html), '蓄力时画出预警线，不然就是从屏幕外莫名挨一发');
+  // 拖曳者：把人往自己这边拽，冲刺能挣开
+  NS.start(42); const HG = NS.G, HP = NS.P;
+  HG.phase = 'break'; HG.budget = 0; HG.mobs.length = 0;
+  NS.spawn('hauler');
+  const hl = HG.mobs[0]; hl.x = HP.x + 200; hl.y = HP.y; hl.cd = 0;
+  const hx0 = HP.x;
+  for (let i = 0; i < 60 * 2 && !(hl.hook > 0); i++) NS.update(D);
+  ok(hl.hook > 0, '走到中距离就甩钩');
+  const xBefore = HP.x;
+  for (let i = 0; i < 40; i++) NS.update(D);
+  ok(HP.x > xBefore + 3, `钩上之后人被往它那边拽（${Math.round(HP.x - xBefore)}px）`);
+  HP.dashT = .2;
+  const xDash = HP.x;
+  for (let i = 0; i < 10; i++) { HP.dashT = .2; NS.update(D); }
+  ok(hl.hook === 0, '冲刺能挣开 —— 顺带给冲刺加了个新用途');
+  ok(/m\.hook > 0 && m\.type === 'hauler'/.test(html), '钩索画出来，否则玩家只觉得自己走歪了');
+  // 刷怪表：新怪按解锁波次进池，且第 16 波的表足够杂
+  // 取样要够。原来只刷到密度上限（约 70 只）就停，而拖曳者的权重只有 5%，
+  // 于是「第 16 波有拖曳者」这条断言时好时坏 —— 是条不稳定的测试，不是 bug。
+  // 每次刷完就清场，这样能一直刷下去，取到足够多的样本。
+  const bagAt = w => { NS.start(42); const g = NS.G; g.wave = w; g.phase = 'wave'; g.budget = 6000;
+    g.spawnT = 0; g.mobs.length = 0; g.mod = null;
+    const seen = new Set();
+    for (let i = 0; i < 6000; i++) {
+      g.spawnT = 0; NS.waveSpawn(D);
+      g.mobs.forEach(m => seen.add(m.type));
+      g.mobs.length = 0;
+    }
+    return seen; };
+  const b6 = bagAt(6), b16 = bagAt(16);
+  ok(!b6.has('splitter') && !b6.has('sniper') && !b6.has('hauler'), '第 6 波还不出这三种');
+  ok(b16.has('splitter') && b16.has('sniper') && b16.has('hauler'), `第 16 波三种都在（共 ${b16.size} 种）`);
+  ok(b16.size >= 9, `第 16 波的刷怪表有 ${b16.size} 种，不是只有一种打法`);
+  // 画得出来
+  NS.start(42); NS.G.mobs.length = 0;
+  for (const k of ['splitter', 'shard', 'sniper', 'hauler']) NS.spawn(k);
+  NS.G.mobs.forEach((m, i) => { m.x = NS.P.x + i * 30; m.y = NS.P.y; });
+  NS.G.mobs[2].wind = .5; NS.G.mobs[2].cAng = 1;
+  NS.G.mobs[3].hook = .8;
+  let threw = null;
+  try { NS.render(); } catch (e) { threw = e.message; }
+  ok(!threw, threw ? `render 抛错：${threw}` : '四种（含预警线和钩索）都画得出来');
+}
+
+// ---- 34) 钩索的频率不能跟密度走 ----
+// 实测过的坑：第 25 波场上 7~9 个拖曳者，它们轮着钩，
+// 84% 的时间被钩着（加了「同时一条」之后反而涨到 98%，因为一条松下一条立刻接上）。
+console.log('钩索节流');
+{
+  const D = 1 / 60;
+  ok(NS.HOOK_GAP >= 1.5, `两次钩索之间保证 ${NS.HOOK_GAP}s 空档`);
+  for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+  Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf();
+  NS.setMode('free'); NS.start(51);
+  const HG = NS.G, HP = NS.P;
+  HG.phase = 'break'; HG.budget = 0; HG.waveT = 999; HG.mobs.length = 0;
+  HP.hp = 1e9; HP.maxhp = 1e9;
+  for (let i = 0; i < 8; i++) NS.spawn('hauler');       // 故意摆一堆
+  HG.mobs.forEach((m, i) => { m.x = HP.x + Math.cos(i) * 170; m.y = HP.y + Math.sin(i) * 170; m.cd = 0; });
+  let hooked = 0, maxAtOnce = 0, t = 0;
+  for (let i = 0; i < 60 * 40; i++) {
+    NS.update(D); t += D;
+    const n = HG.mobs.filter(m => !m.dead && m.hook > 0).length;
+    maxAtOnce = Math.max(maxAtOnce, n);
+    if (n > 0) hooked += D;
+  }
+  const pct = hooked / t * 100;
+  ok(maxAtOnce === 1, `八个拖曳者同时在场，也只有 ${maxAtOnce} 条钩 —— 起钩时就占住冷却，不是等结束才设`);
+  ok(pct < 50, `被钩时间 ${pct.toFixed(0)}%（八个在场也一样）—— 频率跟场上有几个无关`);
+  ok(pct > 15, `也不是形同虚设（${pct.toFixed(0)}%）`);
+  // 拉力挂在玩家移速上：移速词条顺带成了抗拽
+  ok(/const pull = P\.speed \* \.55/.test(html), '拉力是玩家移速的 55%，能顶着走 —— 写死成 108 的话跟基础移速 82 差不多，等于直接拖走');
+  const spd = NS.UPGRADES.find(u => u.id === 'spd');
+  ok(!!spd, '移速词条存在，所以「抗拽」是真能练的');
+}
+
+// ---- 35) 经验点 / 敌方子弹 / 血量，三样都要「不看颜色也认得出」 ----
+// 实战反馈：「分不清经验点和敌人的子弹」「血条没看到」。
+// 原因是两样东西都画成「小光斑 + 2×2 白芯」，只有颜色不同 —— 而辉光会把颜色往白里洗。
+// 这跟当初五种敌人「圆角方块 + 亮中心、只有颜色不同」是同一个错。
+console.log('可读性');
+{
+  const D = 1 / 60;
+  // 从标记往后取固定长度。第一版用 indexOf(结束标记) 来切 ——
+  // 而「// 敌人」在文件里更早的地方就出现过一次，切出来是空串。
+  const grab = (from, n) => { const i = html.indexOf(from); return i < 0 ? '' : html.slice(i, i + n); };
+  const eb = grab('// 敌方子弹画成', 1100);
+  const xp = grab('// 经验点画成', 600);
+  const ring = grab('// 血量画在玩家身上', 1400);
+  ok(eb.length > 50 && xp.length > 50, '找到了两段绘制代码');
+  // 形状必须不一样，不能只换颜色
+  ok(/b\.vx \/ sp/.test(eb) && /moveTo[\s\S]*lineTo/.test(eb), '敌方子弹是沿速度方向的曳光（朝向就是它要去的地方）');
+  ok(/rotate\(G\.t/.test(xp) && /closePath\(\)/.test(xp), '经验点是慢慢转的多边形，轮廓是尖的');
+  ok(!/orb\(x, y, 6,/.test(eb), '敌方子弹不再是个圆光斑');
+  ok(!/fillRect\(x - 1, y - 1, 2, 2\)/.test(xp), '经验点不再是「2×2 白芯」—— 那正是跟子弹撞车的地方');
+  // 血量：满血不画，低血换色，而且不能跟低血红警同色
+  ok(/hf < \.999/.test(ring), '满血时不画血环，平时不糊一圈');
+  ok((ring.match(/rgba\(/g) || []).length >= 4, '按血量分档换色（绿 / 琥珀 / 危险）');
+  ok(/rgba\(255,231,236/.test(ring), '危险时用近白的粉');
+  ok(!/'rgba\(255,59,92,' \+ pulse/.test(ring),
+    '危险时不用纯红 —— 那时候全屏边缘已经压了红，同色的话血环正好在最需要读的时刻消失');
+  ok(/低血时四边压一层红/.test(html) && /P\.hp \/ P\.maxhp < \.34/.test(html), '低血时有全屏边缘警示，不用盯着看也知道');
+  // HUD 里的血条不能被挤没。实测过：这一轮把波次条加进顶行之后，
+  // 血条在 375 宽的手机上只剩 2px —— 用户说的「血条没看到」是字面意思。
+  // flex:1 的默认 basis 是 0，空间不够时会被直接压成 0 宽。
+  ok(/\.bar\{[\s\S]{0,120}min-width:\d+px/.test(html), 'HUD 的条有 min-width，挤不动它');
+  ok(/#hud \.row\.top\{flex-wrap:wrap/.test(html) || /#hud \.row\{flex-wrap:wrap/.test(html),
+    'HUD 行能换行 —— 挤不下就掉到下一行，而不是把谁压没');
+  ok(!/\.bar\{[\s\S]{0,80}flex:1;/.test(html), '不再用裸的 flex:1（basis 0 会被压扁）');
+  // 真的跑一遍：三种血量 × 场上同时有经验点和子弹
+  NS.setMode('free'); NS.start(60);
+  const RG = NS.G, RP = NS.P;
+  RG.drops.length = 0; RG.ebullets.length = 0;
+  for (let i = 0; i < 4; i++) RG.drops.push({ x: RP.x + i * 20, y: RP.y - 40, vx: 0, vy: 0, t: i * .3, kind: 'xp' });
+  for (let i = 0; i < 4; i++) RG.ebullets.push({ x: RP.x + i * 20, y: RP.y - 10, vx: 0, vy: 150, life: 3, dmg: 9, src: 'drone' });
+  let threw = null;
+  for (const f of [1, .5, .2, .05]) {
+    RP.hp = RP.maxhp * f;
+    try { NS.render(); } catch (e) { threw = `血量 ${f} 时抛错：${e.message}`; }
+  }
+  ok(!threw, threw || '满血 / 半血 / 低血 / 濒死 四种状态都画得出来');
+  // 速度为零的子弹不能把曳光算出 NaN
+  RG.ebullets.push({ x: RP.x, y: RP.y, vx: 0, vy: 0, life: 3, dmg: 1, src: 'drone' });
+  try { NS.render(); } catch (e) { threw = e.message; }
+  ok(!threw, threw ? `速度为零的子弹让绘制抛错：${threw}` : '速度为零的子弹也画得出来（不会除出 NaN）');
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');

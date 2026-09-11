@@ -135,11 +135,17 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   }
   #hud .row{display:flex;align-items:center;gap:10px}
   #hud .row.top{justify-content:space-between}
+  #hud .row{flex-wrap:wrap;row-gap:5px}
   .lbl{color:#5d6b8c;font-size:9px;letter-spacing:.18em;text-transform:uppercase}
   .bar{
-    position:relative;height:7px;flex:1;max-width:190px;
+    position:relative;height:7px;flex:1 1 auto;min-width:56px;max-width:190px;
     background:#0b1224;border:1px solid #1d2b4a;
   }
+  /* min-width 是必须的：flex:1 的默认 basis 是 0，空间不够时会直接被压成 0 宽。
+     实测这一轮把波次条加进顶行之后，血条在 375 宽的手机上只剩 2px ——
+     不是「没注意看」，是真的看不见了。
+     顶行还要能换行，挤不下就让它掉到下一行，而不是把谁压没。 */
+  #hud .row.top{flex-wrap:wrap;row-gap:5px}
   .bar > i{position:absolute;inset:0;width:0%;display:block;transition:width .12s linear}
   #hpFill{background:linear-gradient(90deg,#ff2ea6,#ff6b6b);box-shadow:0 0 10px rgba(255,46,166,.7)}
   #xpFill{background:linear-gradient(90deg,#45f0ff,#7cff4f);box-shadow:0 0 10px rgba(69,240,255,.7)}
@@ -1683,6 +1689,7 @@ const G = {
   bullets: [], ebullets: [], mobs: [], parts: [], drops: [], beams: [], arcs: [], slashes: [],
   wepDmg: {}, deathBy: null, bossKills: 0, coreKills: 0, tankKills: 0, buffs: {}, mod: null, eliteKills: 0,
   overheat: 0, won: false, seen: {}, tipQ: [], tipT: 0, unlockedDanger: null, waveMax: 0, rerolls: 0,
+  hookCd: 0,
   offer: [], stacks: {},
   cam: { x: 0, y: 0 }
 };
@@ -1970,6 +1977,9 @@ const isBoss = m => !!MOB[m.type].boss;
 // 而原来的横幅只说它叫什么 —— 玩家只能靠死几次自己悟出来。
 // 不做教程关：一句话，出现在你第一次真的看见它的那一刻，比任何教程都准。
 const TIPS = {
+  // 拾荒机兵也要有一条：图鉴缺了最基础的那种就不完整，
+  // 而且开局告诉玩家「这种直接打就行」，后面那些「不能直接打」才有对比
+  grunt:     ['拾 荒 机 兵', '最普通的一种，对着打就行 —— 后面的可没这么简单'],
   rusher:    ['刀 锋 犬', '只会直线冲刺 —— 横着走就让开了'],
   drone:     ['哨 戒 无 人 机', '会飞、会绕后，别一直背对同一个方向'],
   shieldbot: ['铁 闸', '正面挡掉大半伤害。绕到侧后打，或者用爆炸 —— 爆炸没有方向'],
@@ -2474,11 +2484,29 @@ function makeElite(m) {
 // from：这个修饰用到的怪自己得先在正常刷怪表里出现过。
 // 探针抓到的坑：不设 from 的话「精锐」能摇到第 4 波，
 // 于是一级角色正面撞上十几只 2.6 倍血的精英 —— 不是难，是没法打。
+// 修饰会【整表替换】刷怪表，所以每加一种新怪都得回头看这里 ——
+// 实测漏了这一步的后果：第 21~30 波有 80% 的波次带修饰，而这三张表是
+// 七种敌人时代写的，于是裂解体/钉枪手/拖曳者/中继四种「逼你改打法」的怪
+// 在最后十波只占 16%，刀锋犬一种反倒占了四分之一。
+// 高潮段成了全游戏最单调的一段。
 const MODS = [
-  { id: 'swarm', n: '兽 潮',  d: '只有刀锋犬，而且更快',   from: 4,  bag: ['rusher'], budget: 1.5, spd: 1.3 },
-  { id: 'wall',  n: '铁 壁',  d: '全是带盾和重装的',       from: 9,  bag: ['shieldbot', 'shieldbot', 'tank'], budget: .45 },
+  // 兽潮的预算原来是所有修饰里最高的（1.5），而它恰恰是最简单的一个 ——
+  // 一种怪、一条应对。最没花样的那个不该同时是量最大的那个。
+  { id: 'swarm', n: '兽 潮',  d: '只有刀锋犬，而且更快',   from: 4,  bag: ['rusher'], budget: 1, spd: 1.3 },
   { id: 'boom',  n: '引 爆',  d: '一半是爆囊',             from: 8,  bag: ['bomber', 'bomber', 'grunt', 'drone'], budget: 1.2 },
+  { id: 'wall',  n: '铁 壁',  d: '全是带盾和重装的',       from: 9,  bag: ['shieldbot', 'shieldbot', 'tank'], budget: .45 },
   { id: 'elite', n: '精 锐',  d: '全是精英，但数量少',     from: 11, allElite: 1, budget: .55 },
+  // 三个用新怪做的：每个都是一种打法被单独拎出来考
+  { id: 'fission', n: '裂 变', d: '全是裂解体，杀一只变两只', from: 7,
+    bag: ['splitter'], budget: .5 },                   // 一屏都在裂 —— 逼你退着清，别站中间
+  // 钉枪手只占四分之一。远程怪的威胁随数量是【乘性】的 ——
+  // 第一版让它占一半，第 21 波那张表刷出约 40 个，等于每秒 40 条弹线，
+  // 有预警也躲不过来：探针 5 局里 3 局死在第 21~22 波，凶手都是它。
+  // 它该是「盾墙后面有两个神枪手」里的那两个，不是一整波。
+  { id: 'line',  n: '封 锁 线', d: '盾墙后面架着钉枪手', from: 12,
+    bag: ['sniper', 'shieldbot', 'shieldbot', 'relay'], budget: .55 },
+  { id: 'net',   n: '拖 网',  d: '拖曳者拽住你，狗和爆囊扑上来', from: 14,
+    bag: ['hauler', 'rusher', 'bomber'], budget: .9 },  // 后退这条路被堵了
 ];
 function rollMod(w) {
   const g = DG();
@@ -2486,7 +2514,11 @@ function rollMod(w) {
   if (w < 4) return null;                               // 前三波先让人学会走位，任何档位都一样
   const pool = MODS.filter(m => w >= m.from);           // 内容的解锁门槛跟档位无关
   const r = RNG.wave(), i = RNG.wave();                 // 两次都摇，保证每波消耗的随机数一样多
-  let p = [0, .28, .55, 1][Math.min(3, tier(w) + (g.modTier || 0))];
+  // 第三层原来是 1.0（每波必带）。那是在只有 4 个修饰、8 种怪的时候定的 ——
+  // 现在 7 个修饰 10 种怪，同一条规则的强度完全不一样了：
+  // 探针 5 局有 4 局死在第 21~22 波，正好是第三层起点。
+  // 压到 0.82，五波里还能摊上一波平稳的，给人喘口气的节拍。
+  let p = [0, .28, .55, .82][Math.min(3, tier(w) + (g.modTier || 0))];
   // 两条封顶，都是探针撞出来的：
   // 1) 池子里只有一个修饰够门槛的时候，「每波都有」等于「每波都是同一个」——
   //    归零档第 4 波必定兽潮，4/5 局死在第 4~5 波，那是单调不是难度。
@@ -2549,6 +2581,7 @@ function xpNeed(lv) {
 // 附带的好处是难度跟着玩家水平走，强的人一直顶着上限打，弱的人不会雪崩。
 // 线性 4+2.6w 在第 5 波就摆 17 只，而老版本那时只有 5~6 只 —— 开局直接劝退。
 // 改成二次：早期贴着老版本，后期才压上来。
+const HOOK_GAP = 2.2;                                  // 两次钩索之间保证有这么久的空档
 function targetMass(w) { return Math.round(Math.min(84, 4 + w * .6 + w * w * .08) * dgMul(DG().mass, w)); }
 // 补怪速率直接写成【每秒几只】，而不是写成间隔 —— 写间隔的时候 1/间隔 是非线性的，
 // 结果「够快」只在最后几波才到，第 12 波还只有 3.2 只/秒。
@@ -2576,7 +2609,7 @@ function waveSpawn(dt) {
   if (w >= 9) bag.push('relay');                       // 逼你先打谁后打谁
   if (w >= 11) bag.push('sniper');                     // 逼你横着走或者冲上去
   if (w >= 13) bag.push('hauler', 'splitter');         // 逼你别光顾着后退
-  if (w >= 16) bag.push('sniper', 'hauler', 'relay');
+  if (w >= 16) bag.push('sniper', 'relay');           // 拖曳者不再加权 —— 它一个就够搅局了
   const t = pickw(bag);
   spawn(t);
   G.budget--;
@@ -2864,6 +2897,7 @@ function update(dt) {
   // 计时器是自己的：原来这里看 bannerT，而 bannerT 在主循环里减，
   // 于是「提示什么时候出」悄悄依赖了「有没有人在画画」。状态的事归状态管。
   G.tipT = Math.max(0, (G.tipT || 0) - dt);
+  G.hookCd = Math.max(0, (G.hookCd || 0) - dt);
   if (G.tipQ.length && G.tipT <= 0) { const t = G.tipQ.shift(); banner(TIPS[t][0], TIPS[t][1]); }
 
   // 玩家
@@ -3017,7 +3051,9 @@ function update(dt) {
       // 钉枪手：保持距离，锁定方向后蓄力，然后打一条直线。
       // 蓄力期间【方向锁死】—— 那就是预警，横着走一步就空了。
       m.ang += angDiff(Math.atan2(dy, dx), m.ang) * Math.min(1, dt * 4);
-      const so = d.standoff;
+      // 注意：这个循环里 d 是【距离】，不是怪物档案 —— 第一版写了 d.standoff，
+      // 结果是 undefined，钉枪手既不退也不蓄力，完全是块木头。
+      const so = MOB.sniper.standoff;
       const push = d < so - 40 ? -1 : d > so + 40 ? 1 : 0;   // 太近就退，太远才前进
       m.vx = dx / d * m.spd * push * sl; m.vy = dy / d * m.spd * push * sl;
       m.cd -= dt;
@@ -3040,14 +3076,24 @@ function update(dt) {
       m.cd -= dt;
       if (m.hook > 0) {
         m.hook -= dt;
-        if (P.dashT > 0) { m.hook = 0; m.cd = 1.6; }    // 冲刺挣开
+        if (P.dashT > 0) { m.hook = 0; m.cd = 1.6; G.hookCd = HOOK_GAP; }   // 冲刺挣开
         else {
-          P.x = clamp(P.x - dx / d * 108 * dt, P.r, ARENA.w - P.r);
-          P.y = clamp(P.y - dy / d * 108 * dt, P.r, ARENA.h - P.r);
+          // 拉力定在玩家当前移速的 55%：能顶着走，只是走得很慢 ——
+          // 写成固定 108 的话正好和基础移速 82 差不多，等于直接拖走。
+          // 挂在 P.speed 上还有个好处：义体伺服（移速词条）顺带成了「抗拽」。
+          const pull = P.speed * .55;
+          P.x = clamp(P.x - dx / d * pull * dt, P.r, ARENA.w - P.r);
+          P.y = clamp(P.y - dy / d * pull * dt, P.r, ARENA.h - P.r);
         }
         if (m.hook <= 0) m.cd = rnd(2.6, 3.8);
-      } else if (m.cd <= 0 && d < 240) {
-        m.hook = 1.2; Sfx.eshoot();
+      } else if (m.cd <= 0 && d < 240 && G.hookCd <= 0) {
+        // 钩索是【全场共享】一个冷却的。
+        // 只加「同时一条」不够：实测场上有 7~9 个拖曳者，它们轮着钩，
+        // 被钩时间从 84% 反而涨到 98% —— 一条刚松下一条立刻接上。
+        // 毛病在于「频率跟着密度走」，所以要让频率跟场上有几个【无关】。
+        // 冷却在【起钩时】就占住，不是等结束才设 —— 只在结束时设的话，
+        // 同一帧里所有冷却好了的拖曳者都会看到 hookCd<=0，一起起钩（实测同时 3 条）。
+        m.hook = 1.2; G.hookCd = 1.2 + HOOK_GAP; Sfx.eshoot();
       }
     } else if (m.type === 'shieldbot') {
       // 铁闸：正面推进，盾一直朝着你 —— 想打它就得自己绕过去
@@ -3465,16 +3511,36 @@ function render() {
       ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.strokeRect(-3.5, -3.5, 7, 7); ctx.restore();
       ctx.fillStyle = '#fff'; ctx.fillRect(x - 1, y - 1, 2, 2);
     } else {
-      orb(x, y, 4.5, 'rgba(124,255,79,.7)', b);
-      ctx.fillStyle = '#d7ffc4'; ctx.fillRect(x - 1, y - 1, 2, 2);
+      // 经验点画成慢慢转的菱形：轮廓是尖的、转得慢，跟又直又快的曳光完全两个东西
+      orb(x, y, 5, 'rgba(124,255,79,.45)', b);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(G.t * .9 + d.t);
+      ctx.fillStyle = '#7cff4f';
+      ctx.beginPath(); ctx.moveTo(0, -3.2); ctx.lineTo(3.2, 0); ctx.lineTo(0, 3.2); ctx.lineTo(-3.2, 0);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#eaffe0'; ctx.fillRect(-.5, -.5, 1, 1);
+      ctx.restore();
     }
   }
 
   // 敌人子弹
+  // 敌方子弹画成【沿速度方向的曳光】。
+  // 原来是「r=6 的橙色光斑 + 2×2 白芯」，而经验点是「r=4.5 的绿色光斑 + 2×2 白芯」——
+  // 辉光会把颜色往白里洗，于是两个都只是「带白心的小亮点」，玩家会去捡子弹。
+  // 这跟之前五种敌人「圆角方块 + 亮中心、只有颜色不同」是同一个错：
+  // 要靠【形状和运动】区分，不能只靠颜色。
   for (const b of G.ebullets) {
     const x = b.x - G.cam.x, y = b.y - G.cam.y;
-    orb(x, y, 6, 'rgba(255,157,61,.8)');
-    ctx.fillStyle = '#fff0c0'; ctx.fillRect(x - 1, y - 1, 2, 2);
+    const sp = len(b.vx, b.vy) || 1;
+    const ux = b.vx / sp, uy = b.vy / sp;
+    const tail = clamp(sp * .055, 5, 13);                // 越快拖得越长
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255,47,79,.28)'; ctx.lineWidth = 5;     // 外层暗红，不会被辉光洗白
+    ctx.beginPath(); ctx.moveTo(x - ux * tail, y - uy * tail); ctx.lineTo(x, y); ctx.stroke();
+    ctx.strokeStyle = '#ff2f4f'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - ux * tail * .8, y - uy * tail * .8); ctx.lineTo(x, y); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = '#ffe9ec'; ctx.fillRect(x - 1, y - 1, 2, 2);    // 弹头
   }
 
   // 敌人
@@ -3522,6 +3588,30 @@ function render() {
       // 头顶三格冠：静止的，混战里不跟着转也能认
       ctx.fillStyle = '#ffd640';
       for (let i = -1; i <= 1; i++) ctx.fillRect(x + i * 3 - 1, ey - r - (i === 0 ? 6 : 4), 2, i === 0 ? 4 : 2);
+    }
+    // 钉枪手的预警线。不画的话它就是「莫名从屏幕外挨一发」——
+    // 预警本身就是这只怪的全部玩法，没有它这设计不成立。
+    if (m.wind > 0 && m.type === 'sniper') {
+      const t = 1 - m.wind / .9;                        // 越接近开火越亮越实
+      ctx.save();
+      ctx.strokeStyle = `rgba(164,92,255,${.25 + t * .6})`;
+      ctx.lineWidth = 1 + t;
+      ctx.setLineDash([6, 4]); ctx.lineDashOffset = -G.t * 40;
+      ctx.beginPath(); ctx.moveTo(x, y + hov);
+      ctx.lineTo(x + Math.cos(m.cAng) * 420, y + hov + Math.sin(m.cAng) * 420);
+      ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+    }
+    // 拖曳者的钩索：一条绷着的线连到玩家，看得见才知道是被拽了而不是自己走歪了
+    if (m.hook > 0 && m.type === 'hauler') {
+      const px = P.x - G.cam.x, py = P.y - G.cam.y;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,46,166,.85)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x, y + hov);
+      const mx = (x + px) / 2 + Math.sin(G.t * 22) * 3, my = (y + hov + py) / 2 + Math.cos(G.t * 22) * 3;
+      ctx.quadraticCurveTo(mx, my, px, py);             // 抖一下，读起来像绷紧的索
+      ctx.stroke();
+      ctx.fillStyle = '#ffd0ec'; ctx.fillRect(px - 1.5, py - 1.5, 3, 3);
+      ctx.restore();
     }
     if (m.slowT > 0) orb(x, y, m.r * 2, 'rgba(69,240,255,.25)');
     if (m.guarded > 0) {                               // 被中继护着：套一层绿环，一眼看得出打不动
@@ -3589,6 +3679,33 @@ function render() {
     // 枪口指示
     const gx = x + Math.cos(P.ang) * 11, gy = y + Math.sin(P.ang) * 11;
     orb(gx, gy, 5, 'rgba(255,224,102,.5)');
+    // 血量画在玩家身上。HUD 左上角那条谁也不会看 —— 打起来眼睛一直在自己身上。
+    // 满血时不画，免得平时糊一圈；一掉血就出来，越低越显眼。
+    const hf = clamp(P.hp / P.maxhp, 0, 1);
+    if (hf < .999) {
+      const R = 15, low = hf < .34;
+      const pulse = low ? .75 + .25 * Math.sin(G.t * 9) : 1;
+      ctx.save();
+      ctx.lineCap = 'butt';
+      ctx.strokeStyle = 'rgba(6,9,18,.82)'; ctx.lineWidth = low ? 4.4 : 3.4;
+      ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.stroke();          // 底槽，保证在亮背景上也读得出
+      // 危险时用近白的粉，不用纯红：那时候全屏边缘已经压了一层红，
+      // 同色的话血环正好在最需要读它的时刻消失在背景里（实测就是这样）。
+      ctx.strokeStyle = hf > .6 ? 'rgba(124,255,79,' + pulse + ')'
+        : hf > .34 ? 'rgba(255,179,71,' + pulse + ')'
+        : 'rgba(255,231,236,' + pulse + ')';
+      ctx.lineWidth = low ? 3.2 : 2.4;
+      ctx.beginPath();
+      ctx.arc(x, y, R, -Math.PI / 2, -Math.PI / 2 + TAU * hf);          // 从正上方顺时针
+      ctx.stroke();
+      if (low) {                                                        // 外面再套一圈红边，认得出是血不是别的白圈
+        ctx.strokeStyle = 'rgba(255,59,92,' + (pulse * .9).toFixed(2) + ')';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(x, y, R + 2.4, -Math.PI / 2, -Math.PI / 2 + TAU * hf); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x, y, R - 2.4, -Math.PI / 2, -Math.PI / 2 + TAU * hf); ctx.stroke();
+      }
+      ctx.restore();
+    }
   }
 
   // 粒子
@@ -3650,6 +3767,18 @@ function render() {
   if (G.hitFlash > 0) {
     ctx.fillStyle = 'rgba(255,46,86,' + (G.hitFlash * .5).toFixed(3) + ')';
     ctx.fillRect(0, 0, VW, VH);
+  }
+
+  // 低血时四边压一层红。血环在身上，但激战时视线会跟着敌人跑 ——
+  // 需要一个「不用看也知道」的信号。压在 CRT 之前，所以它也吃扫描线，不出戏。
+  if (P && G.state === 'play' && P.hp / P.maxhp < .34) {
+    const k = 1 - (P.hp / P.maxhp) / .34;
+    const a = (.10 + .18 * k) * (.7 + .3 * Math.sin(G.t * 6));
+    const vg = ctx.createRadialGradient(VW / 2, VH / 2, Math.min(VW, VH) * .26,
+      VW / 2, VH / 2, Math.max(VW, VH) * .62);
+    vg.addColorStop(0, 'rgba(255,59,92,0)');
+    vg.addColorStop(1, 'rgba(255,59,92,' + a.toFixed(3) + ')');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, VW, VH);
   }
 
   // ---- CRT overlay ----
@@ -3769,7 +3898,7 @@ function start(seedOverride) {
     bullets: [], ebullets: [], mobs: [], parts: [], drops: [], offer: [], stacks: {},
     beams: [], arcs: [], slashes: [], wepDmg: {}, deathBy: null, bossKills: 0, coreKills: 0, tankKills: 0,
     buffs: {}, mod: null, eliteKills: 0, overheat: 0, won: false, seen: {}, tipQ: [], tipT: 0,
-    unlockedDanger: null, waveMax: 0, rerolls: REROLLS
+    unlockedDanger: null, waveMax: 0, rerolls: REROLLS, hookCd: 0
   });
   if (MODE === 'daily') {                               // 每日局：固定配置
     applySkin(dailySkin());                             // 涂装是外观，可以跟着当天换
@@ -3983,7 +4112,7 @@ window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
   OPT, setOpt, REDUCE, PAD, pollPad, updateBuffs, BUFF_EL,
   fit, cv, REF_W, REF_H, camAt, get VW() { return VW; }, get VH() { return VH; },
   loadDaily, saveDaily, DAILY_KEY, get MODE() { return MODE; }, get RUN_SEED() { return RUN_SEED; },
-  ARENAS, ARENA, setArena, nextWave, genScenery, LAST_WAVE, tier, TIERS, winRun, targetMass, spawnGap, spawnRate, xpNeed,
+  ARENAS, ARENA, setArena, nextWave, genScenery, LAST_WAVE, tier, TIERS, winRun, targetMass, spawnGap, spawnRate, xpNeed, HOOK_GAP,
   DANGER, dangerIdx, DG, dangerMax, pickDanger, dgRamp, dgMul, get ARENA_I() { return ARENA_I; },
   hurtMob, hurtPlayer, blowUp, killMob, waveSpawn, isBoss, TIPS, BOSS_AT, bossOf, waveLeft, syncWave,
   buildHTML, syncBuild, setPaused, armGiveup, doReroll, syncReroll, renderOffer, REROLLS, dexHTML, showDex, takeUpgrade, rollOffer, showLevelup, BUFFS, BUFF_IDS, grabBuff, MODS, rollMod, eliteChance, makeElite,

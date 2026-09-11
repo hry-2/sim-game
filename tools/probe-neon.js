@@ -62,13 +62,25 @@ function play(seed, maxWave, dg) {
     // 太远就追上去。原来机器人只会「退」和「捡东西」，从不主动靠近 ——
     // 于是一只站在远处的母巢能让它干等三分钟，报成「卡住了」。
     // 测量工具自己的缺陷会被当成游戏的 bug，这条比游戏里那条更值得记。
-    else if (tg && td > 150) { mx = (tg.x - P.x) / td; my = (tg.y - P.y) / td; }
+    // 追击的门槛压到 130：110~150 那段「不进不退」正好是最容易打空的距离
+    else if (tg && td > 130) { mx = (tg.x - P.x) / td; my = (tg.y - P.y) / td; }
     else if (dr) { mx = (dr.x - P.x) / (dd || 1); my = (dr.y - P.y) / (dd || 1); }
     // 后退时掺一点朝场中的分量：直着往后退会把自己顶到墙角里白送
     const cx = NS.ARENA.w / 2 - P.x, cy = NS.ARENA.h / 2 - P.y, cd = len(cx, cy) || 1;
     if (cd > Math.min(NS.ARENA.w, NS.ARENA.h) * .3) { mx += cx / cd * .8; my += cy / cd * .8; }
     const ml = len(mx, my); if (ml > 1) { mx /= ml; my /= ml; }
-    const ax = tg ? (tg.x - P.x) / td : 1, ay = tg ? (tg.y - P.y) / td : 0;
+    // 打提前量。原来瞄的是目标【当前】位置，而子弹飞 100px 要 0.37 秒，
+    // 期间怪走了 9px —— 而怪的半径只有 5px，于是一直擦过去。
+    // 后果是探针报了两次「卡住了」：场上剩几只慢怪，机器人全速开火 175 秒打不死。
+    // 人会本能地打提前量或者干脆走近，机器人不会 —— 这是量具的毛病，不是游戏的。
+    let ax = 1, ay = 0;
+    if (tg) {
+      const flight = td / Math.max(60, P.bspd || 265);
+      const px = tg.x + (tg.vx || 0) * flight - P.x;
+      const py = tg.y + (tg.vy || 0) * flight - P.y;
+      const pl = len(px, py) || 1;
+      ax = px / pl; ay = py / pl;
+    }
     // 冲刺一冷却好就用，方向就是要跑的方向
     pad(mx, my, ax, ay, (P.dashCdT === 0 && tg && td < 150) ? [1] : []);
     NS.update(D);
