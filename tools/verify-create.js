@@ -75,6 +75,65 @@ const BASE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.ht
     name: PC.name, row: PC.row, trait: PC.trait, tt: PC.tt.slice(), mbti: PC.mbti,
   }));
 
+  // ---- NPC 也能捏 / 全村随机 / 互相换名 ----
+  const c9 = await browser.newContext({ viewport: { width: 1100, height: 900 } });
+  const pn = await c9.newPage();
+  pn.on('pageerror', e => errs.push('npc: ' + e.message));
+  await pn.goto(BASE);
+  await pn.waitForTimeout(1600);
+  const npc = await pn.evaluate(() => {
+    const $ = s => document.querySelector(s);
+    const out = {};
+    out.tabs = document.querySelectorAll('#cwho b').length;
+
+    // 切到第 3 个人（NPC），把他整个换掉
+    $('#cwho b[data-who="2"]').click();
+    out.switched = NEWS && CUR === 2;
+    $('#create [data-t="耽乐"]').click();
+    $('#create [data-sex="别样"]').click();
+    for (const x of ['男', '女', '别样']) {          // 先清空再只留「别样」
+      const b = $(`#create [data-like="${x}"]`); if (b.classList.contains('on')) b.click(); }
+    $('#create [data-like="别样"]').click();
+    const nb = $('#cname'); nb.value = '阿荇'; nb.dispatchEvent(new Event('input'));
+    out.playerUntouched = NEWS[0].trait !== '耽乐';   // 改 NPC 不该动到玩家
+
+    // 【互相换名】：把 0 号和 1 号的名字对调，最容易出错的一种
+    const n0 = NEWS[0].name, n1 = NEWS[1].name;
+    $('#cwho b[data-who="0"]').click();
+    $('#cname').value = n1; $('#cname').dispatchEvent(new Event('input'));
+    $('#cwho b[data-who="1"]').click();
+    $('#cname').value = n0; $('#cname').dispatchEvent(new Event('input'));
+    out.swapPlan = [n0, n1];
+
+    $('#cgo').click();
+    out.npc = { name: sims[2].name, trait: sims[2].trait, sex: sims[2].sex,
+                likes: sims[2].likes.slice() };
+    out.swapped = sims[0].name === n1 && sims[1].name === n0;
+    // 换名之后，关系表的键必须还对得上（不对的话全村关系当场清零）
+    out.relOK = sims.every(a => sims.every(b => a === b || a.rel[b.name] !== undefined));
+    out.uniqueNames = new Set(sims.map(s => s.name)).size === sims.length;
+    out.uniqueRows = new Set(sims.map(s => s.row)).size === sims.length;
+    out.homeowner = HOMEOWNER.every(h => sims.some(s => s.name === h));
+    return out;
+  });
+  await c9.close();
+
+  // 全村随机：六个人都该被掷过，且不重名不重脸
+  const cA = await browser.newContext({ viewport: { width: 1100, height: 900 } });
+  const pa = await cA.newPage();
+  await pa.goto(BASE); await pa.waitForTimeout(1600);
+  const rollAll = await pa.evaluate(() => {
+    const before = NEWS.map(d => d.name + d.row + d.trait + d.mbti + d.sex);
+    document.querySelector('#crandall').click();
+    const after = NEWS.map(d => d.name + d.row + d.trait + d.mbti + d.sex);
+    const changed = before.filter((b, i) => b !== after[i]).length;
+    document.querySelector('#cgo').click();
+    return { changed, names: new Set(sims.map(s => s.name)).size,
+             rows: new Set(sims.map(s => s.row)).size, n: sims.length,
+             allHaveSex: sims.every(s => SEXES.includes(s.sex)) };
+  });
+  await cA.close();
+
   // ---- 各尺寸下这个框放不放得下 ----
   // 捏人是玩家看到的【第一屏】，在手机上要滚才看得全的话，第一印象就废了。
   const sizes = [];
@@ -129,6 +188,16 @@ const BASE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.ht
     ['⑨ 手机竖屏/小手机/桌面都一屏放得下',
       sizes.filter(s2 => s2.n !== '手机横屏').every(s2 => s2.shown && s2.fits)],
     ['⑨ 头像不至于小到点不准（≥40px）', sizes.every(s2 => s2.face >= 40)],
+    [`⑩ 花名册上 ${npc.tabs} 个人都能点开来捏`, npc.tabs === 6 && npc.switched],
+    ['⑩ 捏 NPC 真的落地，且不串到玩家身上',
+      npc.npc.name === '阿荇' && npc.npc.trait === '耽乐' && npc.npc.sex === '别样' &&
+      JSON.stringify(npc.npc.likes) === '["别样"]' && npc.playerUntouched],
+    ['⑪ 两个人对调名字不会错位', npc.swapped && npc.uniqueNames],
+    ['⑪ 换完名关系表的键还对得上（不对就全村关系清零）', npc.relOK && npc.homeowner],
+    ['⑪ 全村不重脸', npc.uniqueRows],
+    ['⑫ 全村随机：六个人都掷过，不重名不重脸',
+      rollAll.changed >= 5 && rollAll.names === rollAll.n &&
+      rollAll.rows === rollAll.n && rollAll.allHaveSex],
   ];
   const ok = errs.length === 0 && P.every(p => p[1]);
   console.log(ok ? 'PASS  捏人' : 'FAIL  捏人');

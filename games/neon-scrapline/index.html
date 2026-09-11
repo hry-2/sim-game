@@ -50,6 +50,13 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   #prof b{color:#45f0ff;font-weight:600;margin-right:8px}
   #prof .chip{font:inherit;color:#a9c0dc;background:rgba(12,22,38,.6);
     border:1px solid #223252;padding:3px 9px;cursor:pointer;letter-spacing:.04em}
+  /* 触屏上手指落点得够大。原来这些 chip 只有 22~28px 高，
+     苹果和安卓的指引都是 44px —— 按不中比按错更让人烦。 */
+  body.touch #prof .chip{min-height:40px;padding:8px 14px}
+  body.touch #prof .prow{gap:8px}
+  body.touch #pauseBox .chip,
+  body.touch #levelup .chip{min-height:44px;padding:12px 22px;font-size:11px}
+  body.touch #pauseBox .pbtns{gap:14px}
   #prof .chip:hover{border-color:#45f0ff;color:#eaf6ff}
   #prof .chip.on{color:#04060c;background:#45f0ff;border-color:#45f0ff}
   #prof .chip.lock{color:#3e4c63;border-color:#182541;cursor:not-allowed}
@@ -108,6 +115,9 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   @keyframes rot{0%{opacity:0}8%{opacity:1}72%{opacity:1}100%{opacity:0}}
 
   /* ---------- HUD ---------- */
+  /* 标题页和结算页上 HUD 显示的是占位值（整合度 100 / WAVE 01），
+     桌面上画布居中看不太出来，手机上铺满屏幕之后正好压在标题上。 */
+  body.menu #hud, body.menu #buffs{display:none}
   #hud{
     display:flex;flex-direction:column;gap:6px;
     padding:10px 12px;font-size:11px;letter-spacing:.06em;
@@ -182,6 +192,20 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     pointer-events:auto;text-align:center;padding:24px;
   }
   .screen.show{display:grid}
+  /* body 是 overflow:hidden，矮屏上标题页的内容会被直接切掉，
+     「接入神经索」这个唯一的开始按钮可能就够不到了。触屏上让它自己能滚。 */
+  body.touch .screen{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  body.touch .screen.show{place-content:start center;padding-top:14px;padding-bottom:14px}
+  /* 开始按钮吸底。标题页在小屏上要滚，而「接入神经索」是这一屏唯一的主动作 ——
+     让它掉到折叠线以下等于要求玩家先滚一段才能开始。
+     吸底栏必须是实底：按钮本身透明，后面一排排 chip 会透上来。 */
+  .startbar{display:contents}
+  body.touch .startbar{
+    display:block;position:sticky;bottom:-14px;z-index:2;
+    margin-top:10px;padding:12px 0 14px;width:100%;
+    background:linear-gradient(rgba(6,9,18,0),#060912 22%,#060912);
+  }
+  body.touch .startbar .btn{width:min(100%,320px)}
   h1{
     font-family:var(--disp);font-size:clamp(20px,4.2vw,40px);margin:0;
     color:#eaf6ff;letter-spacing:.02em;line-height:1.35;text-wrap:balance;
@@ -193,6 +217,10 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     font-size:12px;color:#8b9ac0;justify-content:center;
   }
   .keys b{color:var(--cyan);font-weight:400}
+  /* 手机上不该出现 WASD、空格、P 键这些它没有的东西 —— 四行全是废话还占地方 */
+  .keys.tc{display:none}
+  body.touch .keys.kb{display:none}
+  body.touch .keys.tc{display:grid}
   .btn{
     margin-top:28px;font-family:var(--disp);font-size:12px;
     background:transparent;color:var(--cyan);border:1px solid var(--cyan);
@@ -244,6 +272,40 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   /* 重摇。23 条词条里一局只拿 28 层，三张全是满级或全是不想要的时候
      这次升级等于白给 —— 有次数限制的重摇把「白给」变成「要不要花掉一次」。 */
   #levelup .rrow{margin-top:14px;pointer-events:auto}
+  /* 手机竖屏上三张牌是竖着排的，加上标题、重摇、构筑面板会超出一屏 ——
+     而 #levelup 不是 .screen，前面给 .screen 加的滚动没覆盖到它，
+     结果两头都被切掉：顶上的「义体升级」没了，底下的构筑面板露一半。
+     这一屏一局要看二十八次，是全游戏最不能出问题的地方。 */
+  body.touch #levelup.show{
+    place-content:start center;overflow-y:auto;
+    -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+    /* 顶上留出 HUD 两行的高度：升级时血量和波次要看得见（它们影响选哪张牌），
+       所以不能把 HUD 藏掉，只能让内容让开 */
+    padding:calc(52px + env(safe-area-inset-top,0px)) 14px 16px;
+  }
+  /* 横屏手机只有 375 高，三张牌并排放得下，但标题+牌+重摇+构筑面板一共 447 ——
+     构筑面板会掉到折叠线以下。这一屏的东西应该一眼全看见，不该要滚。 */
+  @media (max-height:430px){
+    body.touch #levelup.show{padding-top:calc(42px + env(safe-area-inset-top,0px));padding-bottom:10px}
+    body.touch .card{min-height:0;padding:10px 12px;gap:4px}
+    body.touch #levelup .head{font-size:11px;margin-bottom:1px}
+    body.touch #levelup .hint{margin-bottom:8px}
+    body.touch #levelup .rrow{margin-top:8px}
+    body.touch #levelup .build{margin-top:8px}
+    body.touch #levelup .chip{min-height:38px;padding:9px 18px}
+    body.touch #pauseBox.show{padding-top:calc(44px + env(safe-area-inset-top,0px))}
+    body.touch #pauseBox .head{margin-bottom:2px}
+    body.touch #pauseBox .hint{margin-bottom:8px}
+    body.touch #pauseBox .pbtns{margin-top:10px}
+  }
+  /* 同时把牌压扁一点：竖屏一行只放一张，172px 的最小高度纯属浪费 */
+  @media (max-width:560px){
+    body.touch #cards{gap:10px}
+    body.touch .card{width:100%;max-width:340px;min-height:0;padding:12px 14px;gap:5px}
+    body.touch #levelup .head{margin-bottom:2px}
+    body.touch #levelup .hint{margin-bottom:10px}
+    body.touch #levelup .build{margin-top:12px}
+  }
   #levelup .chip{font:inherit;font-size:10px;letter-spacing:.12em;color:#a9c0dc;
     background:rgba(12,22,38,.8);border:1px solid #223252;padding:6px 16px;cursor:pointer}
   #levelup .chip:hover{border-color:var(--tox);color:#eaf6ff}
@@ -257,11 +319,28 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     background:linear-gradient(rgba(4,6,12,.88),rgba(4,6,12,.96));padding:20px;pointer-events:none;
   }
   #pauseBox.show{display:grid}
+  /* 暂停面板同理：手机上也可能装不下，而且要让开 HUD */
+  body.touch #pauseBox{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  body.touch #pauseBox.show{place-content:start center;
+    padding:calc(56px + env(safe-area-inset-top,0px)) 14px 20px}
   #pauseBox .head{font-family:var(--disp);font-size:12px;color:var(--cyan);
     text-shadow:0 0 14px rgba(69,240,255,.6);margin-bottom:4px}
   #pauseBox .hint{font-size:10px;letter-spacing:.2em;color:#54648a;margin-bottom:16px}
   /* 原来暂停层是 pointer-events:none 的纯展示，于是一局打崩了只能等死或者关标签页。
      放弃照样结算废钢和里程碑 —— 不然玩家会为了不丢进度硬耗到死，那是惩罚不是选择。 */
+  #pauseBox .ptabs{margin-bottom:12px;display:flex;gap:8px;pointer-events:auto}
+  #pauseBox .ptabs .chip.on{color:#04060c;background:var(--cyan);border-color:var(--cyan)}
+  /* 图鉴。应对提示只在这一局第一次遇见时弹一次横幅，两秒就没了，
+     而你当时正在躲 —— 之后想查「这玩意儿怎么打」没有任何地方能看。
+     文案早就写在 TIPS 里了，缺的只是一个能翻的地方。 */
+  #pauseBox .dex{display:none;max-width:540px;font-family:var(--mono,monospace);font-size:10px}
+  #pauseBox.dex-on .build{display:none}
+  #pauseBox.dex-on .dex{display:block}
+  #pauseBox .dex .drow{display:flex;gap:8px;align-items:baseline;padding:5px 0;
+    border-bottom:1px solid #141d30;text-align:left}
+  #pauseBox .dex .dn{color:#cfe8ff;white-space:nowrap;min-width:72px}
+  #pauseBox .dex .dd{color:#8fa4c6;line-height:1.5}
+  #pauseBox .dex .drow.lock .dn,#pauseBox .dex .drow.lock .dd{color:#3e4c63}
   #pauseBox .pbtns{margin-top:16px;display:flex;gap:8px;pointer-events:auto}
   #pauseBox .chip{font:inherit;font-size:10px;letter-spacing:.12em;color:#a9c0dc;
     background:rgba(12,22,38,.8);border:1px solid #223252;padding:6px 14px;cursor:pointer}
@@ -342,14 +421,18 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   <div class="screen show" id="title">
     <h1>NEON <em>SCRAPLINE</em></h1>
     <p class="sub">下城区 · 废钢回收线 · 生存射击</p>
-    <div class="keys">
+    <div class="keys kb">
       <div><b>WASD</b> 移动</div><div><b>鼠标</b> 瞄准 / 左键开火</div>
       <div><b>空格</b> 相位冲刺</div><div><b>P</b> 暂停 · <b>M</b> 静音</div>
-      <div><b>手柄</b> 左摇杆移动 / 右摇杆瞄准开火</div><div><b>RT·B·X</b> 开火 / 冲刺 / 换枪</div>
+      <div><b>1-6</b> 直接换枪 · <b>Q</b> 循环</div><div><b>手柄</b> 双摇杆 · RT/B/X</div>
+    </div>
+    <div class="keys tc">
+      <div><b>左半屏</b> 拖动移动</div><div><b>右半屏</b> 拖动瞄准开火</div>
+      <div><b>冲刺</b> 右下圆键</div><div><b>枪</b> 右下圆键换武器</div>
     </div>
     <p class="sub" id="titleBest"></p>
     <div id="prof"></div>
-    <button class="btn" id="startBtn">接 入 神 经 索</button>
+    <div class="startbar"><button class="btn" id="startBtn">接 入 神 经 索</button></div>
   </div>
 
   <div id="levelup">
@@ -363,7 +446,12 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   <div id="pauseBox">
     <div class="head">已 暂 停</div>
     <div class="hint" id="pauseHint">按 P 继续</div>
+    <div class="ptabs">
+      <button class="chip on" id="tabBuild">构 筑</button>
+      <button class="chip" id="tabDex">图 鉴</button>
+    </div>
     <div class="build" id="buildPause"></div>
+    <div class="dex" id="dexPause"></div>
     <div class="pbtns">
       <button class="chip" id="resumeBtn">继 续</button>
       <button class="chip danger" id="giveupBtn">放 弃 这 局</button>
@@ -1067,6 +1155,110 @@ const GRID = {
       '...KKTTTKK...',
     ],
   ],
+  splitter: [
+    [
+      '...KKKKK...',
+      '..KTTTTTK..',
+      '.KTTNKNTTK.',
+      'KTTNKKKNTTK',
+      'KTNKKWKKNTK',
+      'KTTNKKKNTTK',
+      'KTTTNKNTTTK',
+      '.KTTTTTTTK.',
+      '..KKTTTKK..',
+      '...KKKKK...',
+      '....K.K....',
+    ],
+    [
+      '...KKKKK...',
+      '..KTTTTTK..',
+      '.KTTNKNTTK.',
+      'KTNKKKKKNTK',
+      'KNKKWWWKKNK',
+      'KTNKKKKKNTK',
+      'KTTNKKNTTTK',
+      '.KTTTTTTTK.',
+      '..KKTTTKK..',
+      '...KKKKK...',
+      '...K...K...',
+    ],
+  ],
+  shard: [
+    [
+      '..KKK..',
+      '.KTTTK.',
+      'KTNKNTK',
+      'KTKWKTK',
+      'KTNKNTK',
+      '.KTTTK.',
+      '..KKK..',
+    ],
+    [
+      '..KKK..',
+      '.KTTTK.',
+      'KTNKNTK',
+      'KNKWKNK',
+      'KTNKNTK',
+      '.KTTTK.',
+      '...K...',
+    ],
+  ],
+  sniper: [
+    [
+      '.......KKK.......',
+      '......KSSSK......',
+      '.....KSLLLSK.....',
+      '....KSLGGGLSK....',
+      '..KKSLGPPPGLSKKK.',
+      '.KSSSLGPPPGLSSSSK',
+      '..KKSLGGGGGLSKKK.',
+      '....KSLLLLLSK....',
+      '.....KSSSSSK.....',
+      '....KK.K.KK......',
+      '...KK..K..KK.....',
+      '..KK...K...KK....',
+    ],
+    [
+      '.......KKK.......',
+      '......KSSSK......',
+      '.....KSLLLSK.....',
+      '....KSLGGGLSK....',
+      '..KKSLGEEEGLSKKKK',
+      '.KSSSLGEWEGLSWWWW',
+      '..KKSLGEEEGLSKKKK',
+      '....KSLLLLLSK....',
+      '.....KSSSSSK.....',
+      '....KK.K.KK......',
+      '...KK..K..KK.....',
+      '..KK...K...KK....',
+    ],
+  ],
+  hauler: [
+    [
+      '...KKKKKK...',
+      '..KSSSSSSK..',
+      '.KSLLLLLLSK.',
+      'KSLMMKKMMLSK',
+      'KSLMKOOKMLSK',
+      'KSLMKOOKMLSK',
+      'KSLMMKKMMLSK',
+      '.KSLLLLLLSK.',
+      '..KSSSSSSK..',
+      '...KKKKKK...',
+    ],
+    [
+      '...KKKKKK...',
+      '..KSSSSSSK..',
+      '.KSLLLLLLSK.',
+      'KSLMMKKMMLSK',
+      'KSLMKMMKMLSK',
+      'KSLMKOOKMLSK',
+      'KSLMMKKMMLSK',
+      '.KSLLLLLLSK.',
+      '..KSSSSSSK..',
+      '...KKKKKK...',
+    ],
+  ],
   grunt: [
     [
       '...KK....KK...',
@@ -1362,6 +1554,7 @@ cv.addEventListener('contextmenu', e => e.preventDefault());
 let isTouch = matchMedia('(pointer:coarse)').matches;
 const TC = { on: isTouch, idL: null, idR: null, mx: 0, my: 0, ml: 0, ax: 0, ay: 0, al: 0 };
 if (isTouch) document.body.classList.add('touch');
+document.body.classList.add('menu');                    // 开局停在标题页，局内 HUD 先不显示
 function goTouch() {
   if (TC.on && isTouch) return;
   isTouch = true; TC.on = true;
@@ -1646,10 +1839,12 @@ function setPaused(on) {
   G.paused = !!on;
   if (on) syncBuild();
   giveupArm = false;
+  if (on) showDex(false);                              // 每次暂停都回到构筑页
   const gb = el('giveupBtn');
   if (gb) { gb.classList.remove('arm'); gb.textContent = '放 弃 这 局'; }
   const hint = el('pauseHint');
-  if (hint) hint.textContent = TC.on ? '点右上角继续' : PAD.on ? '按 START 继续' : '按 P 继续';
+  // 触屏这一屏上就摆着「继续」按钮，再让人去点右上角是多此一举
+  if (hint) hint.textContent = TC.on ? '点下面的按钮继续' : PAD.on ? '按 START 继续' : '按 P 继续';
   const b = el('pauseBox');
   if (b) b.classList.toggle('show', !!on);
 }
@@ -1678,7 +1873,10 @@ function syncReroll() {
   const left = G.rerolls | 0;
   b.textContent = left > 0 ? '重 摇 · 还剩 ' + left + ' 次' : '重 摇 · 用完了';
   b.classList.toggle('lock', left <= 0);
-  if (h) h.textContent = '选择一条改装 · 按 1 / 2 / 3' + (left > 0 ? ' · R 重摇' : '');
+  // 手机上写「按 1 / 2 / 3」是废话，它没有数字键
+  if (h) h.textContent = isTouch
+    ? '点一张改装' + (left > 0 ? ' · 或者重摇' : '')
+    : '选择一条改装 · 按 1 / 2 / 3' + (left > 0 ? ' · R 重摇' : '');
 }
 function doReroll() {
   if (G.state !== 'levelup' || (G.rerolls | 0) <= 0) return false;
@@ -1690,6 +1888,25 @@ function doReroll() {
   syncReroll();
   Sfx.swap();
   return true;
+}
+// 图鉴：没见过的条目只露名字，不剧透应对方法 —— 自己撞上去的那一下才是学会
+function dexHTML() {
+  const seen = PROF.seen || {};
+  return Object.keys(TIPS).map(k => {
+    const t = TIPS[k], got = !!seen[k] || !!G.seen[k];
+    return `<div class="drow${got ? '' : ' lock'}">`
+      + `<span class="dn">${got ? t[0] : '？ ？ ？'}</span>`
+      + `<span class="dd">${got ? t[1] : '还没遇到过'}</span></div>`;
+  }).join('');
+}
+function showDex(on) {
+  const b = el('pauseBox');
+  if (b) b.classList.toggle('dex-on', !!on);
+  const e = el('dexPause');
+  if (e && on) e.innerHTML = dexHTML();
+  const tb = el('tabBuild'), td = el('tabDex');
+  if (tb) tb.classList.toggle('on', !on);
+  if (td) td.classList.toggle('on', !!on);
 }
 function syncBuild() {
   if (!P) return;
@@ -1732,6 +1949,14 @@ const MOB = {
     guard:78 },                                        // 给周围的加护盾，不打掉它别的都打不动
   // 三种 BOSS 轮着来。原来六个 BOSS 波全是母体核心，打第四次的时候已经没有信息量了。
   // boss 标记让十几处 m.type === 'boss' 的特判变成 isBoss(m)，以后加 BOSS 不会漏。
+  // 再来三种，每种逼你换一次打法（而不是换个数值）：
+  splitter:{ nm:'裂解体',   spr:'splitter', r:6, hp:62, spd:21, dmg:14, xp:3, sc:1, col:'#7cff4f',
+    split:2 },                                         // 死了裂成两只小的 —— 逼你注意在哪杀
+  shard:  { nm:'裂片',      spr:'shard',   r:3, hp:15, spd:52, dmg:8,  xp:1, sc:1, col:'#7cff4f' },
+  sniper: { nm:'钉枪手',    spr:'sniper',  r:6, hp:40, spd:16, dmg:26, xp:4, sc:1, col:'#a45cff',
+    dir:1, standoff:220 },                             // 远处蓄力打直线 —— 逼你横着走或者冲上去
+  hauler: { nm:'拖曳者',    spr:'hauler',  r:7, hp:88, spd:19, dmg:12, xp:4, sc:1, col:'#ff2ea6',
+    tether:1 },                                        // 甩钩把你拽过去 —— 专治「边退边打」
   boss:   { nm:'母体核心', spr:'boss_a',  spr2:'boss_b',  r:17, hp:620, spd:17, dmg:26, xp:26, sc:1,
     col:'#ff2f4f', boss:1, p2n:'外 壳 崩 解' },        // 螺旋弹幕 + 叫增援
   boss2:  { nm:'拆解臂',   spr:'boss2_a', spr2:'boss2_b', r:16, hp:690, spd:27, dmg:30, xp:26, sc:1,
@@ -1751,6 +1976,9 @@ const TIPS = {
   tank:      ['重 装 机 甲', '厚但慢。不用急着拆它，先清掉贴着你的'],
   bomber:    ['爆 囊', '靠近就自爆。别站着跟它对打，近战尤其'],
   relay:     ['信 号 中 继', '给周围挂护盾。先拆它，别的才打得动'],
+  splitter:  ['裂 解 体', '死了会裂成两只小的 —— 别在自己脸上杀它'],
+  sniper:    ['钉 枪 手', '站远处蓄力，一条线打过来。横着走，或者冲上去贴它'],
+  hauler:    ['拖 曳 者', '甩钩把你往它那边拽。冲刺能挣开，或者先把它拆了'],
   boss:      ['母 体 核 心', '螺旋弹幕有缝，绕着圈走能一直躲'],
   boss2:     ['拆 解 臂', '站定发亮就是要撞了，方向已经锁死 —— 横着走'],
   boss3:     ['母 巢', '它不追你，但会一直吐无人机。冲过去先拆巢'],
@@ -1783,7 +2011,12 @@ function spawn(type) {
   };
   if (G.mod && G.mod.spd) m0.spd *= G.mod.spd;
   if (!MOB[type].boss && RNG.wave() < eliteChance()) makeElite(m0);
-  if (TIPS[type] && !G.seen[type]) { G.seen[type] = 1; G.tipQ.push(type); }
+  if (TIPS[type] && !G.seen[type]) {
+    G.seen[type] = 1; G.tipQ.push(type);
+    // 档案也记一笔：提示只播一次，之后要能在图鉴里翻回来
+    if (!PROF.seen) PROF.seen = {};
+    if (!PROF.seen[type]) { PROF.seen[type] = 1; saveProf(); }
+  }
   G.mobs.push(m0);
 }
 
@@ -1795,13 +2028,23 @@ function spawn(type) {
    都很小，但它们是"再来一局"的全部理由。 */
 const SAVE_KEY = 'ns.best';
 // 无痕模式下 localStorage 会直接抛，不能让它把游戏带崩
+// 记录按危险档分开存。原来是单独一条，而比较顺序是「危险档 → 波次 → 分数」——
+// 于是通关高危之后，标准档那条 30 波的记录就永远被顶掉了：看不到，也没法再挑战。
+// 一个靠刷自己记录驱动的游戏，四个档位就该有四条记录。
 function loadBest() {
-  try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || null; } catch (e) { return null; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (!raw) return {};
+    // 老存档是单独一条，迁移到它自己那一档上，别让人的旧记录凭空消失
+    if (raw.wave != null) { const o = {}; o[raw.dg | 0] = raw; return o; }
+    return raw;
+  } catch (e) { return {}; }
 }
 function saveBest(r) {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(r)); return true; } catch (e) { return false; }
 }
 let BEST = loadBest();
+const bestOf = i => BEST[i | 0] || null;
 
 // 这一局用哪把枪打出的伤害最多，就算哪把枪的局
 function topWeapon() {
@@ -1834,7 +2077,7 @@ function runReport() {
      ③ 底座：改变【这一局的性格】。三个底座都带代价，不是三档强度。
    ===================================================================== */
 const PROF_KEY = 'ns.prof';
-const PROF_DEF = { scrap: 0, scrapTotal: 0, kills: 0, runs: 0, bestWave: 0, wins: 0, coreKills: 0,
+const PROF_DEF = { scrap: 0, scrapTotal: 0, kills: 0, runs: 0, bestWave: 0, wins: 0, coreKills: 0, seen: {},
   danger: 0, dangerMax: 0,
   bossKills: 0, tankKills: 0, unlocked: {}, bought: {}, wep: 'pulse', chassis: 'std', skin: 'std' };
 function loadProf() {
@@ -2329,7 +2572,11 @@ function waveSpawn(dt) {
   if (w >= 5) bag.push('tank');
   if (w >= 6) bag.push('bomber', 'bomber');            // 逼你别贴着打
   if (w >= 8) bag.push('tank', 'drone', 'shieldbot');
+  if (w >= 7) bag.push('splitter');                    // 逼你注意在哪杀
   if (w >= 9) bag.push('relay');                       // 逼你先打谁后打谁
+  if (w >= 11) bag.push('sniper');                     // 逼你横着走或者冲上去
+  if (w >= 13) bag.push('hauler', 'splitter');         // 逼你别光顾着后退
+  if (w >= 16) bag.push('sniper', 'hauler', 'relay');
   const t = pickw(bag);
   spawn(t);
   G.budget--;
@@ -2554,6 +2801,19 @@ function killMob(m) {
   G.kills++;
   if (isBoss(m)) { G.bossKills++; if (m.type === 'boss') G.coreKills++; }
   if (m.type === 'tank') G.tankKills++;
+  // 分裂：在【它死的地方】裂出小的。spawn() 自己算位置，所以生成后挪过去 ——
+  // 这样「在哪杀它」才真的是个决定。
+  if (d.split && !G.overheat) {
+    for (let i = 0; i < d.split; i++) {
+      spawn('shard');
+      const sh = G.mobs[G.mobs.length - 1];
+      const a = i / d.split * TAU + m.ang;
+      sh.x = clamp(m.x + Math.cos(a) * 9, sh.r, ARENA.w - sh.r);
+      sh.y = clamp(m.y + Math.sin(a) * 9, sh.r, ARENA.h - sh.r);
+      sh.elite = m.elite;                              // 精英裂解体裂出来的也是精英
+      if (m.elite) { sh.hp *= 2.6; sh.max *= 2.6; }
+    }
+  }
   G.combo++; G.comboT = 2.4;
   burstFx(m.x, m.y, isBoss(m) ? 60 : 14, d.col, isBoss(m) ? 300 : 150);
   for (let i = 0; i < (isBoss(m) ? 14 : d.xp); i++) {
@@ -2752,6 +3012,42 @@ function update(dt) {
       for (const o of G.mobs) {
         if (o === m || o.dead || o.type === 'relay') continue;
         if (len(o.x - m.x, o.y - m.y) < MOB.relay.guard) { o.guarded = .3; m.links.push(o); }
+      }
+    } else if (m.type === 'sniper') {
+      // 钉枪手：保持距离，锁定方向后蓄力，然后打一条直线。
+      // 蓄力期间【方向锁死】—— 那就是预警，横着走一步就空了。
+      m.ang += angDiff(Math.atan2(dy, dx), m.ang) * Math.min(1, dt * 4);
+      const so = d.standoff;
+      const push = d < so - 40 ? -1 : d > so + 40 ? 1 : 0;   // 太近就退，太远才前进
+      m.vx = dx / d * m.spd * push * sl; m.vy = dy / d * m.spd * push * sl;
+      m.cd -= dt;
+      if (m.wind > 0) {
+        m.wind -= dt; m.vx = m.vy = 0; m.ang = m.cAng;
+        if (m.wind <= 0) {
+          eshoot(m, m.cAng, 300, m.dmg);
+          m.cd = rnd(2.2, 3.4);
+        }
+      } else if (m.cd <= 0 && d < so * 1.6) {
+        m.cAng = Math.atan2(dy, dx); m.wind = .9; Sfx.fuse();
+      }
+    } else if (m.type === 'hauler') {
+      // 拖曳者：走到中距离就甩钩，把你往它那边拽。
+      // 探针早就显示「边退边打」是支配策略，这一种就是专门来破它的。
+      // 冲刺能挣开 —— 所以它同时给了冲刺一个新用途。
+      m.ang += angDiff(Math.atan2(dy, dx), m.ang) * Math.min(1, dt * 3);
+      const push = d < 120 ? -.6 : d > 210 ? 1 : .15;
+      m.vx = dx / d * m.spd * push * sl; m.vy = dy / d * m.spd * push * sl;
+      m.cd -= dt;
+      if (m.hook > 0) {
+        m.hook -= dt;
+        if (P.dashT > 0) { m.hook = 0; m.cd = 1.6; }    // 冲刺挣开
+        else {
+          P.x = clamp(P.x - dx / d * 108 * dt, P.r, ARENA.w - P.r);
+          P.y = clamp(P.y - dy / d * 108 * dt, P.r, ARENA.h - P.r);
+        }
+        if (m.hook <= 0) m.cd = rnd(2.6, 3.8);
+      } else if (m.cd <= 0 && d < 240) {
+        m.hook = 1.2; Sfx.eshoot();
       }
     } else if (m.type === 'shieldbot') {
       // 铁闸：正面推进，盾一直朝着你 —— 想打它就得自己绕过去
@@ -3394,7 +3690,8 @@ function syncHud() {
   el('scoreTxt').textContent = G.score;
   el('waveTag').textContent = 'WAVE ' + String(Math.max(1, G.wave)).padStart(2, '0');
   const wt = el('wepTxt');
-  if (wt) wt.textContent = WEAPONS[P.wep].n + (P.owned.length > 1 ? '  Q▸' : '');
+  // Q▸ 是给键盘看的提示。触屏有专门的换枪圆键，写 Q 只会让人去找 Q 在哪
+  if (wt) wt.textContent = WEAPONS[P.wep].n + (!isTouch && P.owned.length > 1 ? '  Q▸' : '');
   const wb = el('btnWep');
   if (wb) {
     const W = WEAPONS[P.wep];
@@ -3488,6 +3785,7 @@ function start(seedOverride) {
   el('title').classList.remove('show');
   el('over').classList.remove('show');
   el('levelup').classList.remove('show');
+  document.body.classList.remove('menu');
   syncHud();
 }
 // 打完第 30 波 → 撤离。结算走同一条路，只是标题和小字不一样，
@@ -3544,38 +3842,51 @@ function gameOver(won) {
       el('overBest').textContent = '今日最好：第 ' + DAILY.wave + ' 波 ' + DAILY.score + ' 分 —— 差 '
         + Math.max(1, DAILY.wave - cur.wave) + ' 波';
     }
-  } else if (beats(cur, BEST)) {
-    const old = BEST;
-    el('overBest').textContent = old
-      ? '新纪录 · 上一个是第 ' + old.wave + ' 波 ' + old.score + ' 分'
-      : '第一条记录已存下';
-    BEST = cur; saveBest(BEST);
   } else {
-    const d = BEST.wave - cur.wave;
-    el('overBest').textContent = d > 0
-      ? '最好：第 ' + BEST.wave + ' 波 —— 差 ' + d + ' 波'
-      : '最好：第 ' + BEST.wave + ' 波 ' + BEST.score + ' 分 —— 差 ' + (BEST.score - cur.score) + ' 分';
+    // 只跟【同一档】的记录比。跨档比的话「高危 20 波」会盖掉「标准 30 波」，
+    // 而那两件事根本不是一回事。
+    const dgi = dangerIdx(), old = bestOf(dgi), dn = DANGER[dgi].n.replace(/ /g, '');
+    const better = !old || cur.wave > old.wave || (cur.wave === old.wave && cur.score > old.score);
+    if (better) {
+      el('overBest').textContent = old
+        ? dn + ' 新纪录 · 上一个是第 ' + old.wave + ' 波 ' + old.score + ' 分'
+        : dn + ' 第一条记录已存下';
+      BEST[dgi] = cur; saveBest(BEST);
+    } else {
+      const d = old.wave - cur.wave;
+      el('overBest').textContent = dn + ' 最好：' + (d > 0
+        ? '第 ' + old.wave + ' 波 —— 差 ' + d + ' 波'
+        : '第 ' + old.wave + ' 波 ' + old.score + ' 分 —— 差 ' + (old.score - cur.score) + ' 分');
+    }
   }
   syncBest();
   const bank = bankRun();
   el('overGain').textContent = '+' + bank.scrap + ' 废钢'
     + (bank.got.length ? ' · 解锁：' + bank.got.map(m => m.n).join('、') : '');
   syncProf();
+  document.body.classList.add('menu');
   el('over').classList.add('show');
   if (!won && G.deathBy !== 'giveup') explode(P.x, P.y, 40, 0);   // 通关和主动放弃都不该把自己炸了
 }
 function syncBest() {
   const t = el('titleBest');
   if (!t) return;
-  if (MODE === 'daily')
+  if (MODE === 'daily') {
     t.textContent = '每日局 ' + dayKey() + (DAILY ? ' · 今日最好：第 ' + DAILY.wave + ' 波 ' + DAILY.score + ' 分' : ' · 今天还没打');
-  else
-    t.textContent = (BEST ? '最好：' + (DANGER[BEST.dg | 0] || DANGER[0]).n.replace(/ /g, '')
-      + ' 第 ' + BEST.wave + ' 波 · ' + BEST.score + ' 分 · ' + BEST.build : '')
-      + (PROF.wins ? (BEST ? ' · ' : '') + '已撤离 ' + PROF.wins + ' 次' : '');
+  } else {
+    // 每个打过的档位都列一行 —— 四条记录各自可以挑战
+    const lines = DANGER.map((g, i) => {
+      const r = bestOf(i);
+      return r ? g.n.replace(/ /g, '') + ' 第 ' + r.wave + ' 波 · ' + r.score + ' 分' : null;
+    }).filter(Boolean);
+    t.textContent = (lines.length ? '最好：' + lines.join('　|　') : '')
+      + (PROF.wins ? (lines.length ? '　|　' : '') + '已撤离 ' + PROF.wins + ' 次' : '');
+  }
 }
 syncBest();
 syncProf();
+el('tabBuild').onclick = () => showDex(false);
+el('tabDex').onclick = () => showDex(true);
 el('resumeBtn').onclick = () => setPaused(false);
 el('giveupBtn').onclick = armGiveup;
 el('rerollBtn').onclick = doReroll;
@@ -3666,7 +3977,7 @@ fit();
 // 这里保持一致。只读内部状态，不影响玩法。
 window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
   update, render, WEAPONS, WEP_ORDER, SPR, MOB, UPGRADES, frame, TC, nearestMob,
-  gameOver, runReport, topWeapon, topUpgrades, loadBest, saveBest, SAVE_KEY, get BEST() { return BEST; },
+  gameOver, runReport, topWeapon, topUpgrades, loadBest, saveBest, SAVE_KEY, bestOf, get BEST() { return BEST; },
   PROF, PROF_DEF, PROF_KEY, MILES, CHASSIS, WEP_COST, checkMiles, nextMile, bankRun, buyWep, pickWep, pickChassis,
   loadProf, saveProf, rollOffer, syncProf, setMode, seedRun, strSeed, dayKey, RNG, mkRng,
   OPT, setOpt, REDUCE, PAD, pollPad, updateBuffs, BUFF_EL,
@@ -3675,7 +3986,7 @@ window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
   ARENAS, ARENA, setArena, nextWave, genScenery, LAST_WAVE, tier, TIERS, winRun, targetMass, spawnGap, spawnRate, xpNeed,
   DANGER, dangerIdx, DG, dangerMax, pickDanger, dgRamp, dgMul, get ARENA_I() { return ARENA_I; },
   hurtMob, hurtPlayer, blowUp, killMob, waveSpawn, isBoss, TIPS, BOSS_AT, bossOf, waveLeft, syncWave,
-  buildHTML, syncBuild, setPaused, armGiveup, doReroll, syncReroll, renderOffer, REROLLS, takeUpgrade, rollOffer, showLevelup, BUFFS, BUFF_IDS, grabBuff, MODS, rollMod, eliteChance, makeElite,
+  buildHTML, syncBuild, setPaused, armGiveup, doReroll, syncReroll, renderOffer, REROLLS, dexHTML, showDex, takeUpgrade, rollOffer, showLevelup, BUFFS, BUFF_IDS, grabBuff, MODS, rollMod, eliteChance, makeElite,
   SKINS, SKIN_ORDER, GRID, applySkin, pickSkin, dailySkin, sprSet, DECAL, GUN_OF, drawPlayer,
   get SKIN() { return SKIN; }, get SPRACTIVE() { return SPR; },
   get isTouch() { return isTouch; } };

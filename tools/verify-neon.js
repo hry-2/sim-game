@@ -158,15 +158,14 @@ NS.update(1 / 60);
 ok(RG.deathBy === 'tank', `记下了是谁打的最后一下（${RG.deathBy}）`);
 ok(RG.state === 'over', '血空了就结束');
 
-// 最好成绩要真的落盘，并且下一次读得回来
-const b1 = NS.loadBest();
+// 最好成绩要真的落盘，并且下一次读得回来。记录现在按危险档分开存。
+const b1 = NS.loadBest()[NS.dangerIdx()];
 ok(!!b1 && b1.wave === 7, `最好成绩落盘了（第 ${b1 && b1.wave} 波）`);
 ok(!!b1 && b1.build === '磁轨枪 + 穿甲钨芯 + 暴击回路', '记录里带着那一局的打法');
 // 打得更差不该覆盖
 NS.start(); NS.G.wave = 2; NS.G.score = 1; NS.G.wepDmg = { pulse: 1 }; NS.G.stacks = {};
 NS.gameOver();
-const b2 = NS.loadBest();
-ok(b2.wave === 7, '打得更差不会把记录覆盖掉');
+ok(NS.loadBest()[NS.dangerIdx()].wave === 7, '打得更差不会把记录覆盖掉');
 
 // ---- 8) 成长：解锁改变可能性，不是改变数值 ----
 console.log('成长系统');
@@ -431,7 +430,20 @@ ok(/tc\.classList\.toggle\('play', G\.state === 'play'\)/.test(html),
 // 暂停现在整个在 DOM 层（#pauseBox），画布上不再画 —— 两边都画会叠在一起
 ok(!/ctx\.fillText\([^)]*已 暂 停/.test(html), '画布上不再画暂停提示');
 ok((html.match(/id="pauseBox"/g) || []).length === 1, '只有一个暂停层');
-ok(/TC\.on \? '点右上角继续' : PAD\.on \? '按 START 继续'/.test(html), '提示按设备变：触屏 / 手柄 / 键盘');
+// 查意图不查字符串：三种设备给三种不同的提示，各自不提别的设备的按键。
+// 这条已经因为改文案红过两次了 —— 贴着实现写的断言就是会这样。
+{
+  const hintOf = (touch, padOn) => {
+    const N = touch ? NST : NS;
+    N.setMode('free'); N.start(2); N.PAD.on = padOn; N.setPaused(true);
+    const t = byId('pauseHint').textContent; N.setPaused(false); N.PAD.on = false;
+    return t;
+  };
+  const hKb = hintOf(false, false), hPad = hintOf(false, true), hTc = hintOf(true, false);
+  ok(new Set([hKb, hPad, hTc]).size === 3, `三种设备三种提示：「${hKb}」「${hPad}」「${hTc}」`);
+  ok(/\bP\b/.test(hKb) && !/\bP\b/.test(hTc), '只有键鼠那条提 P 键');
+  ok(/START/.test(hPad), '手柄那条提 START');
+}
 
 console.log('BOSS');
 ok(!!NS.GRID.boss_a && !!NS.GRID.boss_b, 'BOSS 有两套精灵（外壳完整 / 崩解）');
@@ -1236,7 +1248,7 @@ console.log('构筑面板');
   ok(NS.buildHTML().indexOf('还没有装载任何改装') >= 0, '新局的面板是空的，不带上一局的词条');
   // 触屏那份的提示不一样
   NST.setMode('free'); NST.start(12); NST.setPaused(true);
-  ok(byId('pauseHint').textContent.indexOf('右上角') >= 0, `触屏提示不提 P 键（「${byId('pauseHint').textContent}」）`);
+  ok(!/\bP\b/.test(byId('pauseHint').textContent), `触屏提示不提 P 键（「${byId('pauseHint').textContent}」）`);
   NST.setPaused(false);
 }
 
@@ -1350,6 +1362,50 @@ console.log('数字键换枪');
   key2('Digit2');
   ok(KP.wep === w, '选牌时数字键归选牌用，不会顺手把枪换了');
   NS.G.state = 'play';
+}
+
+// ---- 30) 手机 UI ----
+// 新加的四块 UI（波次条、暂停面板、构筑面板、重摇）都没在手机上验过。
+console.log('手机 UI');
+{
+  // 一、手机上不该出现它没有的按键
+  ok(/class="keys kb"/.test(html) && /class="keys tc"/.test(html), '操作说明分键鼠和触屏两套');
+  ok(/body\.touch \.keys\.kb\{display:none\}/.test(html), '触屏时把 WASD 那套藏起来 —— 四行全是它用不上的东西');
+  const tcBlock = html.slice(html.indexOf('class="keys tc"'), html.indexOf('class="keys tc"') + 400);
+  ok(!/WASD|空格|鼠标/.test(tcBlock), '触屏那套里没有 WASD / 空格 / 鼠标');
+  ok(/左半屏|右半屏/.test(tcBlock), '触屏那套讲的是左右半屏拖动');
+  // 二、Q▸ 只给键盘看
+  NST.setMode('free'); NST.start(31);
+  NST.PROF.unlocked.w_shot = 1; NST.equip('shot');
+  ok(byId('wepTxt').textContent.indexOf('Q') < 0, `触屏的武器标签不写 Q（「${byId('wepTxt').textContent}」）`);
+  NS.setMode('free'); NS.start(31);
+  NS.PROF.unlocked.w_shot = 1; NS.equip('shot');
+  ok(byId('wepTxt').textContent.indexOf('Q') >= 0, `键鼠的仍然提示 Q（「${byId('wepTxt').textContent}」）`);
+  // 三、升级页提示也分设备
+  NST.G.state = 'play'; NST.showLevelup();
+  const tcHint = byId('upHint').textContent;
+  NS.G.state = 'play'; NS.showLevelup();
+  const kbHint = byId('upHint').textContent;
+  ok(tcHint !== kbHint, `选牌提示分设备：「${tcHint}」/「${kbHint}」`);
+  ok(!/1 \/ 2 \/ 3|\bR\b/.test(tcHint), '触屏那条不提数字键和 R');
+  // 四、触摸目标要够大
+  ok(/body\.touch #prof \.chip\{[^}]*min-height:40px/.test(html), '标题页的 chip 在触屏上加高到 40px');
+  ok(/body\.touch #pauseBox \.chip,[\s\S]{0,60}min-height:44px/.test(html), '暂停和重摇按钮加高到 44px');
+  // 五、矮屏要能滚，否则开始按钮够不到
+  ok(/body\.touch \.screen\{[^}]*overflow-y:auto/.test(html), '触屏上标题页能滚 —— body 是 overflow:hidden，不滚就被切掉');
+  // #levelup 不是 .screen，给 .screen 加的滚动覆盖不到它
+  ok(/body\.touch #levelup\.show\{[\s\S]{0,200}overflow-y:auto/.test(html),
+    '升级页也能滚 —— 它不是 .screen，两头被切掉过（标题没了、构筑面板露一半）');
+  ok(/body\.touch \.card\{[^}]*min-height:0/.test(html), '窄屏上把牌压扁，172px 的最小高度在竖屏纯属浪费');
+  ok(/body\.touch \.screen\.show\{[^}]*place-content:start/.test(html), '能滚的时候内容要从顶上排，居中会把上半截顶出去');
+  ok(/body\.touch \.startbar\{[\s\S]{0,200}position:sticky/.test(html),
+    '开始按钮吸底 —— 它是这屏唯一的主动作，不能要求玩家先滚一段才能开始');
+  ok(/body\.touch \.startbar\{[\s\S]{0,240}background:linear-gradient/.test(html),
+    '吸底栏是实底的 —— 按钮本身透明，后面一排排 chip 会透上来');
+  ok(/\.startbar\{display:contents\}/.test(html), '桌面上这层壳不参与布局，视觉一点不变');
+  // 六、菜单页不显示局内 HUD
+  ok(/body\.menu #hud, body\.menu #buffs\{display:none\}/.test(html), '标题和结算页藏掉局内 HUD（占位的「整合度 100」会压在标题上）');
+  NS.start(31);
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');

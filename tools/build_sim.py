@@ -54,25 +54,31 @@ body.touch #feed{height:104px}
 }
 #create{position:fixed;inset:0;z-index:20;background:rgba(10,8,7,.95);
   display:flex;align-items:center;justify-content:center;overflow:auto;padding:10px}
-#create .cbox{width:100%;max-width:340px;background:#1b1815;border:2px solid #c9a86a;padding:12px}
-#create h3{color:#e8c169;font-size:13px;letter-spacing:.1em;margin-bottom:2px;text-align:center}
-#create .csub{color:#7d7263;font-size:10px;text-align:center;margin-bottom:9px}
+/* 纵向间距是抠出来的：加了花名册那一行之后，360×640 的小手机差 11px 就要滚。
+   捏人是第一屏，要滚就毁了第一印象 —— 所以这里的 padding / margin 都贴着下限走。 */
+#create .cbox{width:100%;max-width:340px;background:#1b1815;border:2px solid #c9a86a;padding:9px}
+#create h3{color:#e8c169;font-size:13px;letter-spacing:.1em;margin-bottom:1px;text-align:center}
+#create .csub{color:#7d7263;font-size:10px;text-align:center;margin-bottom:6px}
 /* 六列三行，不是四列四行 —— 四列时每张脸 75×97，光这一格就 388px 高，
    盒子顶到 729px，720 的屏就得滚。六列 49×64，三行 200px，小手机也放得下。 */
-#cfaces{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:9px}
+#cwho{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px}
+#cwho b{padding:3px 6px;background:#2a251f;border:1px solid #3d352c;cursor:pointer;
+  font-weight:400;font-size:11px;color:#a89c86}
+#cwho b.on{border-color:#ffd155;color:#ffd155;background:#332c22}
+#cfaces{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-bottom:7px}
 #cfaces canvas{width:100%;height:auto;image-rendering:pixelated;background:#241f1a;
   border:2px solid #2b2521;cursor:pointer;display:block}
 #cfaces canvas.on{border-color:#ffd155;background:#332c22}
-#create .crow{display:flex;align-items:flex-start;gap:6px;margin:5px 0;font-size:11px}
+#create .crow{display:flex;align-items:flex-start;gap:6px;margin:3px 0;font-size:11px}
 #create .crow>label{color:#7d7263;flex:0 0 30px;padding-top:4px}
 #create .crow>span{display:flex;flex-wrap:wrap;gap:3px;flex:1}
 #create button{padding:3px 7px;font:11px ui-monospace,monospace}
 #create button.on{background:#c9a86a;color:#1b1815;border-color:#c9a86a}
 #cname{width:78px;background:#2a251f;border:1px solid #3d352c;color:#e8dcc0;
   font:12px ui-monospace,monospace;padding:3px 6px}
-#ctip{color:#8a7f6d;font-size:10px;line-height:1.65;margin:8px 0 2px;min-height:46px}
-#create .cbtns{display:flex;gap:6px;margin-top:8px}
-#create .cbtns button{flex:1;padding:8px}
+#ctip{color:#8a7f6d;font-size:10px;line-height:1.6;margin:6px 0 2px}
+#create .cbtns{display:flex;gap:5px;margin-top:6px}
+#create .cbtns button{flex:1;padding:7px 2px}
 #cgo{background:#c9a86a;color:#1b1815;border-color:#c9a86a;font-weight:700}
 #err{display:none;position:fixed;left:0;right:0;top:0;z-index:9;background:#7a2b26;
   color:#fff;padding:8px 12px;font-size:12px;white-space:pre-wrap}
@@ -5428,55 +5434,78 @@ const MBTIP={ E:'外向：交游掉得快，一场社交也回得多', I:'内向
               S:'务实：只看眼前几步', N:'长远：愿意为远处的收成多跑',
               T:'就事论事：怨恨淡得快', F:'重情：恩和怨都记得深',
               J:'认死理：开了工就做完', P:'随性：想一出是一出' };
-let NEW={ row:0, name:NAMES[0], trait:TN[0], tt:TT[0].slice(), mbti:TM[0],
-          sex:SEX[0], likes:LIKES[0].slice() };
+// 【捏的是一村人，不是一个人】。六个人各自一份草稿，选谁改谁；
+// 全都落地之后才算数 —— 中途改名换脸都还在草稿里，不碰世界。
+let NEWS=[], CUR=0;
+function creDrafts(){
+  NEWS = sims.map(s=>({ row:s.row, name:s.name, trait:s.trait, tt:s.tt.slice(),
+                        mbti:s.mbti, sex:s.sex, likes:(s.likes||[]).slice() }));
+  CUR = Math.max(0, sims.indexOf(PC));
+}
+const cd = ()=>NEWS[CUR];
 
 function creTip(){
-  const w=TRAITS[NEW.trait];
+  const d=cd(), w=TRAITS[d.trait];
   const ws=Object.keys(w).map(k=>NEEDS[k].n+'×'+w[k]).join('　');
-  const tt=NEW.tt.length ? NEW.tt.map(t=>t+'（'+TRAIT[t].tip+'）').join('、') : '没什么脾气';
-  const mb=NEW.mbti.split('').map(c=>MBTIP[c]).join('；');
-  const li=NEW.likes.length ? '会看上'+NEW.likes.join('、')+'的人' : '谁也不慕，不谈情爱';
-  return `<b style="color:#c9a86a">${NEW.sex} · ${orientOf(NEW)}</b>　${li}<br>`
-       + `<b style="color:#c9a86a">${NEW.trait}</b>　${ws}<br>`
+  const tt=d.tt.length ? d.tt.map(t=>t+'（'+TRAIT[t].tip+'）').join('、') : '没什么脾气';
+  const mb=d.mbti.split('').map(c=>MBTIP[c]).join('；');
+  const li=d.likes.length ? '会看上'+d.likes.join('、')+'的人' : '谁也不慕，不谈情爱';
+  return `<b style="color:#c9a86a">${d.sex} · ${orientOf(d)}</b>　${li}<br>`
+       + `<b style="color:#c9a86a">${d.trait}</b>　${ws}<br>`
        + `<b style="color:#c9a86a">脾气</b>　${tt}<br>`
-       + `<b style="color:#c9a86a">${NEW.mbti}</b>　${mb}`;
+       + `<b style="color:#c9a86a">${d.mbti}</b>　${mb}`;
 }
 function creSync(){
+  const d=cd();
+  for(const b of document.querySelectorAll('#cwho b')){
+    b.classList.toggle('on', +b.dataset.who===CUR);
+    b.textContent = (+b.dataset.who===sims.indexOf(PC)?'★':'') + NEWS[+b.dataset.who].name;
+  }
   for(const c of document.querySelectorAll('#cfaces canvas'))
-    c.classList.toggle('on', +c.dataset.row===NEW.row);
+    c.classList.toggle('on', +c.dataset.row===d.row);
   for(const b of document.querySelectorAll('#create [data-sex]'))
-    b.classList.toggle('on', b.dataset.sex===NEW.sex);
+    b.classList.toggle('on', b.dataset.sex===d.sex);
   for(const b of document.querySelectorAll('#create [data-like]'))
-    b.classList.toggle('on', NEW.likes.includes(b.dataset.like));
+    b.classList.toggle('on', d.likes.includes(b.dataset.like));
   for(const b of document.querySelectorAll('#create [data-t]'))
-    b.classList.toggle('on', b.dataset.t===NEW.trait);
+    b.classList.toggle('on', b.dataset.t===d.trait);
   for(const b of document.querySelectorAll('#create [data-tt]'))
-    b.classList.toggle('on', NEW.tt.includes(b.dataset.tt));
+    b.classList.toggle('on', d.tt.includes(b.dataset.tt));
   for(const b of document.querySelectorAll('#create [data-mb]')){
     const [i,ch]=b.dataset.mb.split(':');
-    b.classList.toggle('on', NEW.mbti[+i]===ch);
+    b.classList.toggle('on', d.mbti[+i]===ch);
   }
-  document.getElementById('cname').value=NEW.name;
+  document.getElementById('cname').value=d.name;
   document.getElementById('ctip').innerHTML=creTip();
 }
-function creRandom(){
-  const h=n=>Math.floor(hash01(Date.now()%100000 + n*7919)*1e6);
-  NEW.row = h(1)%ATLAS_ROWS;
-  NEW.name = NAMEPOOL[h(2)%NAMEPOOL.length];
-  NEW.sex = SEXES[h(4)%SEXES.length];
-  NEW.likes = SEXES.filter((x,i)=>h(40+i)%2===0);
-  NEW.trait = Object.keys(TRAITS)[h(3)%4];
-  NEW.tt = CPAIRS.filter((p,i)=>h(10+i)%3!==0).map((p,i)=>p[h(20+i)%2]);
-  NEW.mbti = CMB.map((p,i)=>p[h(30+i)%2]).join('');
-  creSync();
+// 挑一张已经被别人占着的脸 → 两人对换。全村不许重样。
+function crePickRow(r){
+  const d=cd(), other=NEWS.find(x=>x!==d && x.row===r);
+  if(other) other.row=d.row;
+  d.row=r; creSync();
+}
+let _cseed=0;
+function creRoll(i){
+  const h=n=>hash01(Date.now()%100000 + (++_cseed)*7919 + n*131 + i*17);
+  const d=NEWS[i];
+  const id=rollIdentity(Math.floor(h(0)*1e6));
+  d.sex=id.sex; d.likes=id.likes;
+  d.trait=Object.keys(TRAITS)[Math.floor(h(3)*4)];
+  d.tt=CPAIRS.filter(()=>h(4)<0.66).map(p=>p[h(5)<0.5?0:1]);
+  d.mbti=CMB.map(p=>p[h(6)<0.5?0:1]).join('');
+  const taken=new Set(NEWS.filter(x=>x!==d).map(x=>x.name));
+  const pool=NAMEPOOL.concat(NAMES).filter(n=>!taken.has(n));
+  d.name=pool[Math.floor(h(7)*pool.length)]||d.name;
+  const free=[...Array(ATLAS_ROWS).keys()].filter(r=>!NEWS.some(x=>x!==d&&x.row===r));
+  d.row=free[Math.floor(h(8)*free.length)];
 }
 function openCreate(){
-  running=false;
+  running=false; creDrafts();
   const box=document.createElement('div'); box.id='create';
   box.innerHTML=`<div class="cbox">
-    <h3>捏 个 人</h3>
+    <h3>捏 一 村 人</h3>
     <div class="csub">这几样都不是换皮 —— 每一样都真的改变他怎么过日子</div>
+    <div id="cwho">${sims.map((s,i)=>`<b data-who="${i}"></b>`).join('')}</div>
     <div id="cfaces"></div>
     <div class="crow"><label>名字</label><span>
       <input id="cname" maxlength="4"><button id="cdice">换一个</button></span></div>
@@ -5494,7 +5523,8 @@ function openCreate(){
       CMB.map((p,i)=>p.map(c=>`<button data-mb="${i}:${c}">${c}</button>`).join('')).join(
         '<span style="color:#3d352c">|</span>')}</span></div>
     <div id="ctip"></div>
-    <div class="cbtns"><button id="crand">随机</button><button id="cgo">就这么定</button></div>
+    <div class="cbtns"><button id="crand">随机这个</button><button id="crandall">全村随机</button>
+      <button id="cgo">就这么定</button></div>
   </div>`;
   document.body.appendChild(box);
   const faces=box.querySelector('#cfaces');
@@ -5506,51 +5536,65 @@ function openCreate(){
     faces.appendChild(c);
   }
   box.addEventListener('click',e=>{
-    const t=e.target;
-    if(t.dataset.row!==undefined){ NEW.row=+t.dataset.row; creSync(); return; }
-    if(t.dataset.sex){ NEW.sex=t.dataset.sex; creSync(); return; }
+    const t=e.target, d=cd();
+    if(t.dataset.who!==undefined){ CUR=+t.dataset.who; creSync(); return; }
+    if(t.dataset.row!==undefined){ crePickRow(+t.dataset.row); return; }
+    if(t.dataset.sex){ d.sex=t.dataset.sex; creSync(); return; }
     if(t.dataset.like){ const x=t.dataset.like;   // 多选：再点一次取消
-      NEW.likes = NEW.likes.includes(x) ? NEW.likes.filter(y=>y!==x) : NEW.likes.concat(x);
+      d.likes = d.likes.includes(x) ? d.likes.filter(y=>y!==x) : d.likes.concat(x);
       creSync(); return; }
-    if(t.dataset.t){ NEW.trait=t.dataset.t; creSync(); return; }
-    if(t.dataset.tt){                       // 同一对里只能占一个；再点一次就取消
+    if(t.dataset.t){ d.trait=t.dataset.t; creSync(); return; }
+    if(t.dataset.tt){                       // 同一对里只能占一个；再点一次取消
       const tt=t.dataset.tt, opp=TRAIT[tt].opp;
-      NEW.tt = NEW.tt.filter(x=>x!==tt && x!==opp);
-      if(!t.classList.contains('on')) NEW.tt.push(tt);
+      d.tt = d.tt.filter(x=>x!==tt && x!==opp);
+      if(!t.classList.contains('on')) d.tt.push(tt);
       creSync(); return; }
     if(t.dataset.mb){ const [i,ch]=t.dataset.mb.split(':');
-      NEW.mbti = NEW.mbti.slice(0,+i)+ch+NEW.mbti.slice(+i+1); creSync(); return; }
-    if(t.id==='cdice'){ NEW.name=NAMEPOOL[Math.floor(hash01(Date.now()%99991)*NAMEPOOL.length)];
+      d.mbti = d.mbti.slice(0,+i)+ch+d.mbti.slice(+i+1); creSync(); return; }
+    if(t.id==='cdice'){ const taken=new Set(NEWS.filter(x=>x!==d).map(x=>x.name));
+      const pool=NAMEPOOL.filter(n=>!taken.has(n));
+      d.name=pool[Math.floor(hash01(Date.now()%99991+(++_cseed))*pool.length)]||d.name;
       creSync(); return; }
-    if(t.id==='crand'){ creRandom(); return; }
+    if(t.id==='crand'){ creRoll(CUR); creSync(); return; }
+    if(t.id==='crandall'){ for(let i=0;i<NEWS.length;i++) creRoll(i); creSync(); return; }
     if(t.id==='cgo'){ applyCreate(); return; }
   });
   box.querySelector('#cname').addEventListener('input',e=>{
-    NEW.name=e.target.value.trim().slice(0,4); });
+    cd().name=e.target.value.trim().slice(0,4); });
   creSync();
 }
-// 落到世界上。只在新局出现，所以要改的引用很有限：
-// 名字被【别人的 rel】和 HOMEOWNER 当键用，长相要跟撞脸的人换一下。
+// 落到世界上。
+// 【名字是当键用的】：s.rel、HOMEOWNER、NAMES 三处都存着它。
+// 六个人可能互相换名，所以不能一个一个改 —— 先把新名单定下来，
+// 再拿旧名单当索引把关系整张重挂，这样 A→B、B→A 这种对调也不会错位。
 function applyCreate(){
-  const old=PC.name;
-  let nm=(NEW.name||'').trim().slice(0,4) || old;
-  if(sims.some(s=>s!==PC && s.name===nm)) nm=old;       // 重名就退回原名
-  if(NEW.row!==PC.row){                                  // 撞脸就跟对方换一行
-    const other=sims.find(s=>s!==PC && s.row===NEW.row);
-    if(other) other.row=PC.row;
-    PC.row=NEW.row;
-  }
-  PC.trait=NEW.trait; PC.w=TRAITS[NEW.trait];
-  PC.tt=NEW.tt.slice();
-  PC.mbti=NEW.mbti;
-  PC.sex=NEW.sex; PC.likes=NEW.likes.slice();
-  if(nm!==old){
-    for(const s of sims) if(s!==PC && s.rel[old]!==undefined){
-      s.rel[nm]=s.rel[old]; delete s.rel[old];
-    }
-    const i=NAMES.indexOf(old); if(i>=0) NAMES[i]=nm;
-    for(let k=0;k<HOMEOWNER.length;k++) if(HOMEOWNER[k]===old) HOMEOWNER[k]=nm;
-    PC.name=nm;
+  const old = sims.map(s=>s.name);
+  // 名字：空的退回原名；重名的退回原名（前面的先占）
+  const neu = [];
+  NEWS.forEach((d,i)=>{
+    let nm=(d.name||'').trim().slice(0,4);
+    if(!nm || neu.includes(nm)) nm=old[i];
+    if(neu.includes(nm)) nm=old[i]+(i+1);
+    neu.push(nm);
+  });
+  // 长相：草稿里理论上已经不重样，兜一道底
+  const used=new Set();
+  NEWS.forEach((d,i)=>{ let r=d.row;
+    while(used.has(r)) r=(r+1)%ATLAS_ROWS;
+    used.add(r); sims[i].row=r; });
+  NEWS.forEach((d,i)=>{ const s=sims[i];
+    s.trait=d.trait; s.w=TRAITS[d.trait];
+    s.tt=d.tt.slice(); s.mbti=d.mbti;
+    s.sex=d.sex; s.likes=d.likes.slice();
+  });
+  // 关系整张重挂（开局都是 REL_BASE，但照样按旧名取，免得以后有初值时出错）
+  const rel = sims.map(a=>old.map(on=>a.rel[on]));
+  sims.forEach((s,i)=>{ s.name=neu[i]; });
+  sims.forEach((a,i)=>{ a.rel={};
+    neu.forEach((nn,j)=>{ if(i!==j) a.rel[nn]= rel[i][j]==null ? REL_BASE : rel[i][j]; }); });
+  NAMES.length=0; for(const n of neu) NAMES.push(n);
+  for(let k=0;k<HOMEOWNER.length;k++){
+    const j=old.indexOf(HOMEOWNER[k]); if(j>=0) HOMEOWNER[k]=neu[j];
   }
   const el=document.getElementById('create'); if(el) el.remove();
   running=true; _qAt=-1;
