@@ -2965,6 +2965,67 @@ function beastTick(dm){
 // ==========================================================================
 // 顺序是「先能吃上、再有地方睡、最后才讲究」：米缸最便宜（木4·10文）而且
 // 直接解决吃饭 —— 守着十几斗米没缸取，比没床睡要命得多。
+// ==========================================================================
+//  邻居也会置办家当
+//  在此之前村子是死的：六户人家开局什么样，一年后还是什么样 —— 只有玩家那块地在长。
+//  而 NPC 手里的钱越攒越多（木器兽皮卖了没处花），「置办家当」正好是那笔钱
+//  最该去的地方，也是村子自己会变的唯一出口。
+//  四条规矩：
+//    · 只在【自家院里】添 —— "草地随处可盖"是给没有院子的玩家的特权
+//    · 手里要有【余】钱余料，不能为了盖房把饭钱花光
+//    · 一户隔几天才添一样，村子是慢慢长起来的，不是一夜之间冒出来
+//    · 按"缺什么最要紧"排序：先是家门口的柴，再是吃的，最后才是讲究
+// ==========================================================================
+const NPC_WISH=[
+  ['树苗','tree'],    // 家门口的柴 —— 冬夜野物够不着，收益最直接
+  ['菜畦','vegbed'],  // 四季有野菜
+  ['腌坛','crock'],   // 山货换钱
+  ['新田','field'],   // 多一块地
+  ['药圃','herbbed'],
+  ['鸡棚','coop'],
+  ['工棚','bench'],   // 自家的木作坊
+];
+// 【要钱不要囤料】。实测 NPC 的柴峰值恰好卡在 6 —— 缺料传递只在灶下没柴时
+// 才把他们拉上山，砍一趟五根，回来做几顿就烧光了，永远攒不出盖房的料。
+// 而钱是富余的（28 天峰值 107~619）。所以请人把料运来，用钱换 ——
+// 这既绕开了"效用 AI 不会为以后囤东西"这个死结，也正好是那笔闲钱该去的地方。
+// 石料买不到（采石场实际上只有玩家会去），所以要石料的东西不列进愿望单。
+const WOOD_BUY=9;                      // 一根木料的行价
+const WISH_GAP=6;                      // 同一户两次置办至少隔这么多天
+// 买齐料一共要花多少钱；钱不够返回 -1
+function npcCost(s, d){
+  if((s.inv.stone|0) < (d.stone||0)) return -1;
+  const needW=Math.max(0, d.wood-(s.inv.wood|0));
+  const cost=d.money + needW*WOOD_BUY;
+  return s.money >= cost+40 ? cost : -1;      // 留 40 文过日子，别为了盖房把饭钱花光
+}
+function npcHasLike(s, art){
+  return OBJ.some(o=>o.built && o.owner===s.name &&
+                     (artOf(o)===art || (art==='tree' && artOf(o)==='sapling')));
+}
+function npcBuildTick(){
+  for(const s of sims){
+    if(s===PC || s.dead || s.home==null) continue;
+    if(day - (s._builtAt||0) < WISH_GAP) continue;
+    for(const [key, art] of NPC_WISH){
+      if(npcHasLike(s, art)) continue;
+      const d=BUILD[key];
+      if(d.lv && skillLv(s)<d.lv) continue;
+      if(npcCost(s,d) < 0) continue;
+      const h=HOME[s.home]; let done=false;
+      for(let y=h.y; y<h.y+HH && !done; y++)
+        for(let x=h.x; x<h.x+HW; x++){
+          // 先把料买齐再问 buildCheck —— 它查的是"手里有没有"，不是"买不买得起"
+          const needW=Math.max(0, d.wood-(s.inv.wood|0));
+          s.money-=needW*WOOD_BUY; s.inv.wood+=needW;
+          if(!buildCheck(key,x,y,s)){ placeBuild(key,x,y,false,day,s); done=true; break; }
+          s.inv.wood-=needW; s.money+=needW*WOOD_BUY;   // 这格不行，料退回去
+        }
+      if(done){ s._builtAt=day; break; }
+    }
+  }
+}
+
 const AUTO_HOME=[['米缸','jar'],['榻','bed'],['灶台','stove']];
 // 【每 5 模拟分钟问一次，不是每天问一次】——
 // 只在跨日时问的话，第 1 天买了米也没缸取：实测饥饱当天 17 点就见底了。
@@ -3272,7 +3333,7 @@ function step(dm){
     if(c.t>5) chips.splice(i,1); }
   clock+=dm;
   if(clock>=1440){ const wasSeason=seasonOf(day);
-    clock-=1440; day++; farmDayTick(); forageDayTick(); spoilTick(); dailyTick(); doleTick(); kidTick(); growTick(); lifeTick(); applyWeather();
+    clock-=1440; day++; npcBuildTick(); farmDayTick(); forageDayTick(); spoilTick(); dailyTick(); doleTick(); kidTick(); growTick(); lifeTick(); applyWeather();
     if(seasonOf(day)!==wasSeason) emit('season.turn',{who:'天', why:seasonOf(day), tags:['wx']});
     saveGame();
     if(!autoPilot) openDaily();      // 托管看戏时不打断
@@ -3350,13 +3411,13 @@ const BUILD={
   水渠:{ n:'水渠', wood:16, money:30, w:1, h:1, noSeat:1, art:'ditch',
     tip:'挨着的田每天自动浇灌',
     make(x,y,id){ DITCH.add(y*GW+x);
-      return {id, art:'ditch', built:1, owner:PC.name, zone:'home',
+      return {id, art:'ditch', built:1, owner:_builder.name, zone:'home',
               n:'水渠', x, y, w:1, h:1, use:[], note:'放水' }; } },
 
   腌坛:{ n:'腌坛', wood:8, money:20, w:1, h:1, art:'crock',
     tip:'山货×2 → 腌货×1（卖得比生货贵得多）',
     make(x,y,id){
-      return {id, art:'crock', built:1, owner:PC.name, zone:'home',
+      return {id, art:'crock', built:1, owner:_builder.name, zone:'home',
               n:'腌坛', x, y, w:1, h:1, use:[[x,y+1]],
               adv:{provision:40}, dur:60, cost:{energy:6},
               pre:s=>forageHave(s)>=2, why:s=>'要两样山货（现有 '+forageHave(s)+'）',
@@ -3367,7 +3428,7 @@ const BUILD={
   工棚:{ n:'工棚', wood:12, money:40, w:1, h:1, art:'bench',
     tip:'自家的木作坊，不用再跑镇上',
     make(x,y,id){
-      return {id, art:'bench', built:1, owner:PC.name, zone:'home',
+      return {id, art:'bench', built:1, owner:_builder.name, zone:'home',
               n:'工棚', x, y, w:1, h:1, use:[[x,y+1]],
               adv:{provision:44}, dur:120, cost:{energy:22}, skill:true, craft:1,
               mat:{wood:2}, matN:{wood:'木料'},   // 和镇上的木作坊一致，才吃得到缺料传递
@@ -3386,14 +3447,14 @@ const BUILD={
   榻:{ n:'榻', wood:6, money:10, w:2, h:1, art:'bed',
     tip:'睡觉的地方。没有它你只能熬着 —— 开局第一件',
     make(x,y,id){
-      return {id, art:'bed', built:1, owner:PC.name, zone:'home', priv:1,
+      return {id, art:'bed', built:1, owner:_builder.name, zone:'home', priv:1,
               n:'你的榻', x, y, w:2, h:1, use:[[x,y+1]],
               col:[BED,'#4a3628',BED2], adv:{energy:78}, dur:240 }; } },
 
   米缸:{ n:'米缸', wood:4, money:10, w:1, h:1, art:'jar',
     tip:'囤米，也能取口冷食（不用柴）',
     make(x,y,id){
-      return {id, art:'jar', built:1, owner:PC.name, zone:'home',
+      return {id, art:'jar', built:1, owner:_builder.name, zone:'home',
               n:'米缸', x, y, w:1, h:1, use:[[x,y+1]],
               col:['#8a9099','#5f666e','#aeb6bd'], adv:{hunger:38}, dur:15,
               pre:s=>s.inv.food>=1||s.inv.fruit>=1, why:'缸里没米，也没果子',
@@ -3403,7 +3464,7 @@ const BUILD={
   灶台:{ n:'灶台', wood:6, stone:3, money:20, w:1, h:1, art:'stove',
     tip:'生火做饭。饱腹 78 对冷食的 38 —— 立起它，日子才算有个样',
     make(x,y,id){
-      return {id, art:'stove', stove:1, built:1, owner:PC.name, zone:'home',
+      return {id, art:'stove', stove:1, built:1, owner:_builder.name, zone:'home',
               n:'灶台', x, y, w:1, h:1, use:[[x,y+1]],
               col:['#5a5048','#3a332d','#b8442f'], adv:{hunger:78, fun:8}, dur:50,
               mat:{wood:1}, plan:s=>bestRecipe(s),
@@ -3419,7 +3480,7 @@ const BUILD={
       const planted=_placeDay, GROW=6;        // 存档 replay 时会把当初那天传回来
       const up=()=>day-planted>=GROW;
       const left=()=>Math.max(0, GROW-(day-planted));
-      return {id, built:1, owner:PC.name, zone:'work', x, y, w:1, h:1, use:[[x,y+1]],
+      return {id, built:1, owner:_builder.name, zone:'work', x, y, w:1, h:1, use:[[x,y+1]],
               col:['#3d4a2c','#2b351f','#4a3628'],
               get art(){ return up()?'tree':'sapling'; },
               get n(){ return up()?'林地':'树苗'; },
@@ -3436,21 +3497,21 @@ const BUILD={
   茅厕:{ n:'茅厕', wood:6, money:20, w:1, h:1, art:'wc',
     tip:'自家院里，不用再跑镇上（内急掉得最快）',
     make(x,y,id){
-      return {id, art:'wc', built:1, owner:PC.name, zone:'home',
+      return {id, art:'wc', built:1, owner:_builder.name, zone:'home',
               n:'茅厕', x, y, w:1, h:1, use:[[x,y+1]],
               adv:{bladder:98}, dur:8 }; } },
 
   水井:{ n:'水井', wood:4, stone:6, money:30, w:1, h:1, art:'well',
     tip:'在家打水盥洗（比不上浴堂，胜在近）',
     make(x,y,id){
-      return {id, art:'well', built:1, owner:PC.name, zone:'home',
+      return {id, art:'well', built:1, owner:_builder.name, zone:'home',
               n:'水井', x, y, w:1, h:1, use:[[x,y+1]],
               adv:{hygiene:44}, dur:20, note:'打水盥洗' }; } },
 
   菜畦:{ n:'菜畦', wood:8, money:25, w:1, h:1, art:'vegbed',
     tip:'四季都采得到野菜（野外只有春天有）',
     make(x,y,id){ const sp={cap:1, left:1, built:1}; DAILY.push(sp);
-      return {id, art:'vegbed', built:1, owner:PC.name, zone:'home', daily:sp,
+      return {id, art:'vegbed', built:1, owner:_builder.name, zone:'home', daily:sp,
               n:'菜畦', x, y, w:1, h:1, use:[[x,y+1]],
               adv:{provision:20, fun:6}, dur:40, cost:{energy:6},
               pre:()=>sp.left>0, why:'今日已采过，明日再来',
@@ -3460,7 +3521,7 @@ const BUILD={
   鱼塘:{ n:'鱼塘', wood:10, stone:4, money:60, w:1, h:1, art:'fish',
     tip:'院里就能垂钓，不用跑镇东',
     make(x,y,id){ const spot=20+(MYPOND.n++);
-      return {id, art:'fish', built:1, owner:PC.name, zone:'home', fish:1,
+      return {id, art:'fish', built:1, owner:_builder.name, zone:'home', fish:1,
               n:'鱼塘', x, y, w:1, h:1, use:[[x,y+1]],
               adv:{provision:30, fun:30}, dur:60, cost:{energy:8}, skill:true,
               note:'垂钓', eff:s=>angle(s, spot) }; } },
@@ -3468,13 +3529,13 @@ const BUILD={
   书斋:{ n:'书斋', wood:10, money:45, w:1, h:1, art:'shelf',
     tip:'在家钻研，手艺涨得比镇上书塾还快',
     make(x,y,id){
-      return {id, art:'shelf', built:1, owner:PC.name, zone:'home',
+      return {id, art:'shelf', built:1, owner:_builder.name, zone:'home',
               n:'书斋', x, y, w:1, h:1, use:[[x,y+1]],
               adv:{fun:30}, dur:110, skill:true, note:'读书' }; } },
 
   新田:{ n:'新田', wood:6, money:25, w:1, h:1, art:'field',
     tip:'院里再开一块地',
-    make(x,y,id){ addField(id, x, y, [x,y+1], PC.name, PC.home);
+    make(x,y,id){ addField(id, x, y, [x,y+1], _builder.name, _builder.home);
       const o=OBJ[OBJ.length-1]; o.built=1; return o; } },
 
   // 药圃：药草本来只有冬天采得到（FORAGE 是按季轮的），
@@ -3482,7 +3543,7 @@ const BUILD={
   药圃:{ n:'药圃', wood:10, money:30, w:1, h:1, art:'herbbed',
     tip:'四季都采得到药草（野外只有冬天有）',
     make(x,y,id){ const sp={cap:1, left:1, built:1}; DAILY.push(sp);
-      return {id, art:'herbbed', built:1, owner:PC.name, zone:'home', daily:sp,
+      return {id, art:'herbbed', built:1, owner:_builder.name, zone:'home', daily:sp,
               n:'药圃', x, y, w:1, h:1, use:[[x,y+1]],
               adv:{provision:20, fun:8}, dur:40, cost:{energy:6},
               pre:()=>sp.left>0, why:'今日已采过，明日再来',
@@ -3494,7 +3555,7 @@ const BUILD={
   鸡棚:{ n:'鸡棚', wood:14, money:50, w:2, h:1, art:'coop',
     tip:'每天拾两枚蛋（蛋羹不费米）',
     make(x,y,id){ const sp={cap:2, left:2, built:1}; DAILY.push(sp);
-      return {id, art:'coop', built:1, owner:PC.name, zone:'home', daily:sp,
+      return {id, art:'coop', built:1, owner:_builder.name, zone:'home', daily:sp,
               n:'鸡棚', x, y, w:2, h:1, use:[[x,y+1],[x+1,y+1]],
               adv:{provision:26, fun:10}, dur:25, cost:{energy:4},
               pre:()=>sp.left>0, why:'今日的蛋拾完了',
@@ -3511,7 +3572,7 @@ const BUILD={
         if(dx<=2 && dy<=2) return true; } return false; },
     needWhy:'水车得挨着水渠',
     make(x,y,id){ MILL.add(y*GW+x);
-      return {id, art:'mill', built:1, owner:PC.name, zone:'home',
+      return {id, art:'mill', built:1, owner:_builder.name, zone:'home',
               n:'水车', x, y, w:2, h:2, use:[],
               note:'转着' }; } },
 
@@ -3521,7 +3582,7 @@ const BUILD={
   谷仓:{ n:'谷仓', wood:10, stone:10, money:70, w:2, h:2, art:'barn',
     tip:'存粮算得进家底的上限 60→90（米囤得住了）',
     make(x,y,id){ BARN.n++;
-      return {id, art:'barn', built:1, owner:PC.name, zone:'home',
+      return {id, art:'barn', built:1, owner:_builder.name, zone:'home',
               n:'谷仓', x, y, w:2, h:2, use:[[x,y+2],[x+1,y+2]],
               adv:{provision:18}, dur:20, note:'查点存粮' }; } },
 
@@ -3895,25 +3956,34 @@ function buildSeats(d,x,y){ if(d.noSeat) return [];
   const s=[]; for(let dx=0;dx<(d.w||1);dx++) s.push([x+dx, y+(d.h||1)]);
   return s; }
 
-function buildCheck(key, x, y){
+// 谁在哪儿盖得了：玩家没有院子，所以享有"草地随处可盖"；
+// 邻居有自家的院墙，就只在自家院里添东西 —— 各人的地界还是各人的。
+function buildZoneOK(who, a, b){
+  if(who===PC) return canBuildAt(a,b);
+  const h = who && who.home!=null && HOME[who.home];
+  return !!h && a>=h.x && a<h.x+HW && b>=h.y && b<h.y+HH && !inHouse(a,b);
+}
+function buildCheck(key, x, y, who){
+  who = who || PC;
   const d=BUILD[key]; if(!d) return '没有这样东西';
-  if(d.lv && skillLv(PC)<d.lv)       return '手艺不够（要 '+skillName(d.lv)+'）';
-  if(PC.inv.wood  < d.wood)          return '差 '+(d.wood-PC.inv.wood)+' 根木料';
-  if(PC.inv.stone < (d.stone||0))    return '差 '+(d.stone-PC.inv.stone)+' 块石料';
-  if(PC.money     < d.money)         return '差 '+Math.ceil(d.money-PC.money)+' 文';
-  const zoneOK = d.town ? inPlaza : canBuildAt;
+  if(d.lv && skillLv(who)<d.lv)       return '手艺不够（要 '+skillName(d.lv)+'）';
+  if(who.inv.wood  < d.wood)          return '差 '+(d.wood-who.inv.wood)+' 根木料';
+  if((who.inv.stone|0) < (d.stone||0))return '差 '+(d.stone-(who.inv.stone|0))+' 块石料';
+  if(who.money     < d.money)         return '差 '+Math.ceil(d.money-who.money)+' 文';
+  const zoneOK = d.town ? inPlaza : ((a,b)=>buildZoneOK(who,a,b));
   for(const [a,b] of buildCells(d,x,y)){
     if(a<1||b<1||a>=GW-1||b>=GH-1)         return '出界了';
     // 两种拒绝分开说：「这是别人家的院子」和「这儿不是草地」是两回事，
     // 合成一句话玩家不知道该往哪挪
     if(!zoneOK(a,b)) return d.town ? '只能建在镇中心广场'
+                          : who!==PC ? '只能添在自家院里'
                           : inNeighborYard(a,b) ? '这是别人家的院子' : '这儿不是草地';
     if(inHouse(a,b))                        return '屋里放不下';   // 屋顶下的地不是草地，这条现在够不着，留着当兜底
     if(solid[b][a]||OBJCELL.has(b*GW+a))    return '这儿已经有东西了';
   }
   for(const [a,b] of buildSeats(d,x,y)){
     if(a<1||b<1||a>=GW-1||b>=GH-1)          return '门前得留一格站人';
-    if(!d.town && inNeighborYard(a,b))      return '门前那格在别人家院里';
+    if(!d.town && who===PC && inNeighborYard(a,b)) return '门前那格在别人家院里';
     if(solid[b][a]||OBJCELL.has(b*GW+a))    return '门前那格被占了';
   }
   if(d.need && !d.need(x,y)) return d.needWhy;
@@ -3925,21 +3995,33 @@ function buildCheck(key, x, y){
 
 let buildSeq=0;
 let _placeDay=1;                       // make() 里读它 —— 树苗靠这个算长了几天
-function placeBuild(key, x, y, replay, dayAt){
+// 【谁在盖】。以前整套建造是写死 PC 的：make() 里 17 处 owner:PC.name、
+// placeBuild 从 PC 兜里扣料、buildCheck 查 PC 的手艺。
+// NPC 要能置办家当，这三处都得换成"当前这位建造者"。
+let _builder=null;
+// 这格属于第几户 —— 老存档没存 hm 时按坐标反查，答案本来就是唯一的
+function homeAt(x, y){
+  for(let i=0;i<HOME.length;i++){ const h=HOME[i];
+    if(x>=h.x && x<h.x+HW && y>=h.y && y<h.y+HH) return i; }
+  return null;
+}
+function placeBuild(key, x, y, replay, dayAt, who){
   const d=BUILD[key]; if(!d) return false;
   _placeDay = dayAt==null ? day : dayAt;
+  _builder  = who || PC;                       // make() 里的 owner 读的就是它
+  const s=_builder;
   const o=d.make(x, y, 'bd'+(++buildSeq));
   if(!OBJ.includes(o)) OBJ.push(o);
   for(let yy=o.y;yy<o.y+o.h;yy++) for(let xx=o.x;xx<o.x+o.w;xx++){
     solid[yy][xx]=1; OBJCELL.add(yy*GW+xx);
   }
   if(!replay){
-    PC.inv.wood-=d.wood; PC.inv.stone-=(d.stone||0); PC.money-=d.money;
-    BUILT.push({key, x, y, d:_placeDay});
-    emit('build.done',{who:PC.name, why:d.n, tags:['build','econ']});
-    fx(PC.rx||PC.px,(PC.ry||PC.py)-CH,
+    s.inv.wood-=d.wood; s.inv.stone=(s.inv.stone|0)-(d.stone||0); s.money-=d.money;
+    BUILT.push({key, x, y, d:_placeDay, by:s.name, hm:s.home});
+    emit('build.done',{who:s.name, why:d.n, tags:['build','econ']});
+    if(s===PC) fx(PC.rx||PC.px,(PC.ry||PC.py)-CH,
        '－'+d.wood+' 木料'+(d.stone?' －'+d.stone+' 石料':''), '#c9a86a');
-  } else BUILT.push({key, x, y, d:_placeDay});
+  } else BUILT.push({key, x, y, d:_placeDay, by:s.name, hm:s.home});
   return true;
 }
 // 读档前把上一局造的东西拆干净：它们落子时那几格一定是空的，所以还原是安全的
@@ -5094,7 +5176,7 @@ function saveGame(){
     // running 也要存：暂停着关掉页面，回来就该还是暂停的
     const data={ v:SAVE_VER, day, clock, autoPilot, speed, running, selIdx:sims.indexOf(sel),
       mkt:{}, shrine:SHRINE.done, forage:FORAGE_SPOT.map(s=>s.left),
-      built:BUILT.map(b=>({key:b.key, x:b.x, y:b.y, d:b.d||1})),
+      built:BUILT.map(b=>({key:b.key, x:b.x, y:b.y, d:b.d||1, by:b.by||null, hm:b.hm})),
       dole:DOLE.stock, daily:DAILY.map(d=>d.left), tools:Object.keys(TOOLS), qf:QF, qmax:_qMax,
       barn:BARN.n, pair:PAIR, kids:KIDS,
       // 花名册：谁还在、住哪座宅子、长什么样。人会死会来，六个人不再是常数。
@@ -5128,7 +5210,13 @@ function loadGame(){
     // 建造要【先】replay：田的状态按 FIELDS 下标存，新田会改变数组长度，
     // 顺序反了整片田的状态就会串位。
     wipeBuilt();
-    for(const b of (d.built||[])) placeBuild(b.key, b.x, b.y, true, b.d);
+    // by 要跟着存：不然读档之后邻居盖的东西全变成玩家的。
+    // 【别去花名册里找人】—— 这段 replay 跑在 sims 重建之【前】，查到的是上一局的
+    // 名册：后来出生、搬来的人查无此人，会被静默记到玩家头上；已故的老邻居同理。
+    // make() 只读 name 和 home 两样，给个替身就够，彻底不依赖名册。
+    for(const b of (d.built||[]))
+      placeBuild(b.key, b.x, b.y, true, b.d,
+        b.by ? {name:b.by, home:(b.hm!=null ? b.hm : homeAt(b.x, b.y))} : PC);
     DOLE.stock=d.dole||0;   // BARN.n / DOLE.n 由 replay 自己加回来
     for(const k in PAIR) delete PAIR[k];
     for(const k in (d.pair||{})) PAIR[k]=d.pair[k];
