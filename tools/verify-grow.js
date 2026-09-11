@@ -128,7 +128,13 @@ const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.ht
     // ---- ④ 血亲不通婚 ----
     if (kidSim) {
       delete PAIR[pkey(A.name, B.name)];
-      const D = sims.find(s => s !== kidSim && s !== A && s !== B && !s.parents);
+      // 【要挑一个互相看得上的】—— 这一条测的是"血亲不行、外人可以"，
+      // 拿个性向不合的当对照，卡住它的就成了性向而不是血缘，测了个寂寞。
+      let D = sims.find(s => s !== kidSim && s !== A && s !== B && !s.parents && mutualLike(kidSim, s));
+      if (!D) {                                   // 阵容里恰好没有就临时撮合一下
+        D = sims.find(s => s !== kidSim && s !== A && s !== B && !s.parents);
+        D.likes = [kidSim.sex]; kidSim.likes = [D.sex];
+      }
       for (let i = 0; i < 14; i++) { day++;
         for (const [x, y] of [[kidSim, A], [A, kidSim], [kidSim, D], [D, kidSim]]) {
           remember(x, y.name, 'social.深谈'); remember(x, y.name, 'social.馈赠'); } }

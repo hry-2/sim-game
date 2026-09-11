@@ -139,6 +139,16 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     border:1px solid currentColor;padding:2px 6px;color:#3d4d70;
   }
   #waveTag{color:var(--amber)}
+  /* 波次进度。刷怪从「按秒」改成「按场上密度」之后，一波还剩多久完全看不出来 ——
+     而「现在冲过去捡那个增益，还是再撑一会儿」这个决定全靠它。 */
+  #waveBar{position:relative;display:inline-block;width:52px;height:5px;
+    background:#160f08;border:1px solid #3a2a14;vertical-align:middle}
+  /* 宽度走 CSS 变量而不是去改子元素的 style：子元素是标记里写死的，
+     取 firstElementChild 既脆又不好验证。变量挂在自己身上，一目了然。 */
+  #waveBar > i{position:absolute;inset:0;display:block;width:var(--w,100%);background:var(--amber);
+    box-shadow:0 0 8px rgba(255,179,71,.55);transition:width .15s linear}
+  #waveBar.clear > i{background:var(--tox);box-shadow:0 0 8px rgba(124,255,79,.55)}
+  #hud .num.small{font-size:10px;color:#8fa4c6;min-width:22px}
   #dashPip{display:flex;gap:3px}
   #dashPip span{width:14px;height:5px;background:#16223c;border:1px solid #223252}
   #dashPip span.on{background:var(--cyan);box-shadow:0 0 8px var(--cyan);border-color:var(--cyan)}
@@ -206,7 +216,9 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   #levelup{
     position:absolute;inset:0;display:none;
     align-content:center;justify-items:center;
-    background:linear-gradient(rgba(4,6,12,.5),rgba(4,6,12,.88));
+    /* 压暗要够读得清。这屏现在除了三张牌还挂了构筑面板，
+       背后一屏发亮的敌人会把小字糊掉。 */
+    background:linear-gradient(rgba(4,6,12,.86),rgba(4,6,12,.95));
     pointer-events:auto;padding:20px;
   }
   #levelup.show{display:grid}
@@ -229,15 +241,34 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   .build .bi.now{border-color:#45f0ff;color:#eaf6ff}
   .build .none{color:#3e4c63}
   #levelup .build{margin-top:18px;max-width:560px}
+  /* 重摇。23 条词条里一局只拿 28 层，三张全是满级或全是不想要的时候
+     这次升级等于白给 —— 有次数限制的重摇把「白给」变成「要不要花掉一次」。 */
+  #levelup .rrow{margin-top:14px;pointer-events:auto}
+  #levelup .chip{font:inherit;font-size:10px;letter-spacing:.12em;color:#a9c0dc;
+    background:rgba(12,22,38,.8);border:1px solid #223252;padding:6px 16px;cursor:pointer}
+  #levelup .chip:hover{border-color:var(--tox);color:#eaf6ff}
+  #levelup .chip.lock{color:#3e4c63;border-color:#182541;cursor:not-allowed}
+  #levelup .chip.lock:hover{border-color:#182541;color:#3e4c63}
   /* 暂停时的面板：单独一层，不动画布上那行暂停提示 */
   #pauseBox{
     position:absolute;inset:0;display:none;align-content:center;justify-items:center;
-    background:linear-gradient(rgba(4,6,12,.45),rgba(4,6,12,.85));padding:20px;pointer-events:none;
+    /* 压暗要够。画布上原来还画了一层 rgba(4,6,12,.7)，搬到 DOM 之后只剩这层渐变，
+       结果一屏发亮的敌人全透上来，面板反而读不清了。 */
+    background:linear-gradient(rgba(4,6,12,.88),rgba(4,6,12,.96));padding:20px;pointer-events:none;
   }
   #pauseBox.show{display:grid}
   #pauseBox .head{font-family:var(--disp);font-size:12px;color:var(--cyan);
     text-shadow:0 0 14px rgba(69,240,255,.6);margin-bottom:4px}
   #pauseBox .hint{font-size:10px;letter-spacing:.2em;color:#54648a;margin-bottom:16px}
+  /* 原来暂停层是 pointer-events:none 的纯展示，于是一局打崩了只能等死或者关标签页。
+     放弃照样结算废钢和里程碑 —— 不然玩家会为了不丢进度硬耗到死，那是惩罚不是选择。 */
+  #pauseBox .pbtns{margin-top:16px;display:flex;gap:8px;pointer-events:auto}
+  #pauseBox .chip{font:inherit;font-size:10px;letter-spacing:.12em;color:#a9c0dc;
+    background:rgba(12,22,38,.8);border:1px solid #223252;padding:6px 14px;cursor:pointer}
+  #pauseBox .chip:hover{border-color:#45f0ff;color:#eaf6ff}
+  #pauseBox .chip.danger{color:#c98a9a;border-color:#47222e}
+  #pauseBox .chip.danger:hover{border-color:var(--danger);color:#ffd9e0}
+  #pauseBox .chip.danger.arm{color:#ffd9e0;border-color:var(--danger);background:rgba(60,14,24,.85)}
   #levelup .head{font-family:var(--disp);font-size:13px;color:var(--tox);text-shadow:0 0 14px rgba(124,255,79,.6);margin-bottom:4px}
   #levelup .hint{font-size:10px;letter-spacing:.2em;color:#54648a;margin-bottom:20px;text-transform:uppercase}
   #cards{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
@@ -280,6 +311,8 @@ img{max-width:100%}[hidden]{display:none!important}</style>
       </div>
       <div class="row">
         <span class="tag" id="waveTag">WAVE 01</span>
+        <span class="wbar" id="waveBar"><i></i></span>
+        <span class="num small" id="waveLeft">0</span>
         <span class="num" id="scoreTxt">0</span>
       </div>
     </div>
@@ -321,8 +354,9 @@ img{max-width:100%}[hidden]{display:none!important}</style>
 
   <div id="levelup">
     <div class="head">义 体 升 级</div>
-    <div class="hint">选择一条改装 · 按 1 / 2 / 3</div>
+    <div class="hint" id="upHint">选择一条改装 · 按 1 / 2 / 3</div>
     <div id="cards"></div>
+    <div class="rrow"><button class="chip" id="rerollBtn">重 摇</button></div>
     <div class="build" id="buildUp"></div>
   </div>
 
@@ -330,6 +364,10 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     <div class="head">已 暂 停</div>
     <div class="hint" id="pauseHint">按 P 继续</div>
     <div class="build" id="buildPause"></div>
+    <div class="pbtns">
+      <button class="chip" id="resumeBtn">继 续</button>
+      <button class="chip danger" id="giveupBtn">放 弃 这 局</button>
+    </div>
   </div>
 
   <div class="screen" id="over">
@@ -1288,7 +1326,14 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyM') { Sfx.musicOn = !Sfx.musicOn; if (Sfx.musicGain) Sfx.musicGain.gain.value = Sfx.musicOn ? .5 : 0; }
   if (e.code === 'KeyR' && G.state === 'over') start();
   if (e.code === 'KeyQ' && G.state === 'play') cycleWep();
+  // 数字键直连武器。带满六把的时候 Q 键要按五下才换到想要的那把，
+  // 在一屏八十只怪的时候这五下就是五次挨打。
+  if (G.state === 'play' && /^Digit[1-6]$/.test(e.code)) {
+    const id = P && P.owned[+e.code.slice(5) - 1];
+    if (id && id !== P.wep) { equip(id); Sfx.swap(); banner(WEAPONS[id].n, WEAPONS[id].d); }
+  }
   if (G.state === 'levelup') {
+    if (e.code === 'KeyR') doReroll();
     const i = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
     if (i >= 0 && G.offer[i]) takeUpgrade(G.offer[i]);
   }
@@ -1427,7 +1472,11 @@ function pollPad() {
   PAD.fire = btn(7) || btn(5) || btn(0) ? 1 : 0;        // 右扳机 / 右肩 / A 都能开火
   if (tap(1) || tap(10)) PAD.dash = 1;                  // B / 左摇杆键 冲刺
   if (tap(2) || tap(4)) cycleWep();                     // X / 左肩 换枪
-  if (tap(9)) { if (G.state === 'play') setPaused(!G.paused); }
+  if (tap(9) && G.state === 'play') setPaused(!G.paused);   // 暂停时 state 仍是 play，同一个键切回来
+  if (G.state === 'levelup') {                          // 升级页：A/B/X 选三张，Y 重摇
+    for (const [btn, i] of [[0, 0], [1, 1], [2, 2]]) if (tap(btn) && G.offer[i]) takeUpgrade(G.offer[i]);
+    if (tap(3)) doReroll();
+  }
   // 有任何输入就认为玩家在用手柄
   if (PAD.ix || PAD.iy || PAD.al > 0 || PAD.fire) PAD.on = true;
 }
@@ -1440,7 +1489,7 @@ const G = {
   combo: 0, comboT: 0,
   bullets: [], ebullets: [], mobs: [], parts: [], drops: [], beams: [], arcs: [], slashes: [],
   wepDmg: {}, deathBy: null, bossKills: 0, coreKills: 0, tankKills: 0, buffs: {}, mod: null, eliteKills: 0,
-  overheat: 0, won: false, seen: {}, tipQ: [], tipT: 0, unlockedDanger: null,
+  overheat: 0, won: false, seen: {}, tipQ: [], tipT: 0, unlockedDanger: null, waveMax: 0, rerolls: 0,
   offer: [], stacks: {},
   cam: { x: 0, y: 0 }
 };
@@ -1562,13 +1611,85 @@ function buildHTML() {
     + `<span class="blbl">等级</span>${item('', 'LV ' + P.lv, '')}</div>`;
   return h;
 }
+// 这一波还剩几只 = 还没刷出来的（预算）+ 场上活着的。
+// BOSS 不算进条里 —— 它自己有血条，而且「还剩 1 只」写的是 BOSS 时会误导。
+function waveLeft() {
+  let alive = 0;
+  for (const m of G.mobs) if (!m.dead && !isBoss(m)) alive++;
+  return Math.max(0, G.budget) + alive;
+}
+function syncWave() {
+  const bar = el('waveBar'), txt = el('waveLeft');
+  if (!bar || !txt) return;
+  const left = waveLeft();
+  G.waveMax = G.phase === 'wave' ? Math.max(G.waveMax || 0, left) : (G.waveMax || 0);
+  const frac = G.waveMax > 0 ? clamp(left / G.waveMax, 0, 1) : 0;
+  bar.style.setProperty('--w', (frac * 100).toFixed(1) + '%');
+  bar.classList.toggle('clear', left === 0);
+  txt.textContent = left;
+}
+// 放弃要按两下才生效：暂停界面上手滑点一下就丢掉一局太狠了
+let giveupArm = false;
+function armGiveup() {
+  const b = el('giveupBtn');
+  if (!giveupArm) {
+    giveupArm = true;
+    if (b) { b.classList.add('arm'); b.textContent = '再 按 一 次 确 认'; }
+    return;
+  }
+  giveupArm = false;
+  setPaused(false);
+  G.deathBy = 'giveup';
+  gameOver(false);                                     // 照常结算：废钢和里程碑都算
+}
 function setPaused(on) {
   G.paused = !!on;
   if (on) syncBuild();
+  giveupArm = false;
+  const gb = el('giveupBtn');
+  if (gb) { gb.classList.remove('arm'); gb.textContent = '放 弃 这 局'; }
   const hint = el('pauseHint');
   if (hint) hint.textContent = TC.on ? '点右上角继续' : PAD.on ? '按 START 继续' : '按 P 继续';
   const b = el('pauseBox');
   if (b) b.classList.toggle('show', !!on);
+}
+// 发牌单独抽出来，重摇才能复用同一段
+function renderOffer() {
+  const box = document.getElementById('cards');
+  box.innerHTML = '';
+  G.offer.forEach((u, i) => {
+    const e = document.createElement('button');
+    e.className = 'card' + (u.rare ? ' rare' : '');
+    const st = G.stacks[u.id] || 0;
+    e.innerHTML =
+      '<div class="k">MOD 0' + (i + 1) + '</div>' +
+      '<div class="icon">' + u.ic + '</div>' +
+      '<h3>' + u.n + '</h3>' +
+      '<p>' + u.d + '</p>' +
+      '<div class="stack">' + (st ? '已装载 ' + st + ' / ' + u.max : '未装载 · 上限 ' + u.max) + '</div>';
+    e.onclick = () => takeUpgrade(u);
+    box.appendChild(e);
+  });
+}
+const REROLLS = 3;                                     // 一局三次，够救几次空牌，又不至于总能挑到最优
+function syncReroll() {
+  const b = el('rerollBtn'), h = el('upHint');
+  if (!b) return;
+  const left = G.rerolls | 0;
+  b.textContent = left > 0 ? '重 摇 · 还剩 ' + left + ' 次' : '重 摇 · 用完了';
+  b.classList.toggle('lock', left <= 0);
+  if (h) h.textContent = '选择一条改装 · 按 1 / 2 / 3' + (left > 0 ? ' · R 重摇' : '');
+}
+function doReroll() {
+  if (G.state !== 'levelup' || (G.rerolls | 0) <= 0) return false;
+  const next = rollOffer();
+  if (!next.length) return false;                      // 牌池空了，重摇也变不出东西
+  G.rerolls--;
+  G.offer = next;
+  renderOffer();
+  syncReroll();
+  Sfx.swap();
+  return true;
 }
 function syncBuild() {
   if (!P) return;
@@ -1589,22 +1710,9 @@ function showLevelup() {
   }
   G.state = 'levelup';
   G.offer = offer;
-  const box = document.getElementById('cards');
-  box.innerHTML = '';
-  G.offer.forEach((u, i) => {
-    const el = document.createElement('button');
-    el.className = 'card' + (u.rare ? ' rare' : '');
-    const st = G.stacks[u.id] || 0;
-    el.innerHTML =
-      '<div class="k">MOD 0' + (i + 1) + '</div>' +
-      '<div class="icon">' + u.ic + '</div>' +
-      '<h3>' + u.n + '</h3>' +
-      '<p>' + u.d + '</p>' +
-      '<div class="stack">' + (st ? '已装载 ' + st + ' / ' + u.max : '未装载 · 上限 ' + u.max) + '</div>';
-    el.onclick = () => takeUpgrade(u);
-    box.appendChild(el);
-  });
+  renderOffer();
   syncBuild();                                   // 选牌时看得见已有的，才谈得上「选」
+  syncReroll();
   document.getElementById('levelup').classList.add('show');
   Sfx.levelup();
 }
@@ -2162,6 +2270,7 @@ function nextWave() {
   // 填满之后再杀 47 只这波就结束了，高压段只有几秒。
   G.budget = Math.round((9 + G.wave * 5.5) * (G.mod ? (G.mod.budget || 1) : 1));
   G.spawnT = 0;
+  G.waveMax = 0;                                       // 新的一波重新算满格
   if (G.wave % 5 === 0) {
     const bt = bossOf(G.wave);
     spawn(bt);
@@ -3323,6 +3432,7 @@ function updateBuffs() {
 function updateCombo() {
   updateDash();
   updateBuffs();
+  syncWave();          // 每帧走一次：挂在 syncHud 上的话，空档期没有击杀就不会刷新
   const w = el('comboWrap');
   if (G.combo >= 3) { w.style.opacity = 1; el('comboTxt').textContent = 'x' + G.combo + ' COMBO'; }
   else w.style.opacity = 0;
@@ -3362,7 +3472,7 @@ function start(seedOverride) {
     bullets: [], ebullets: [], mobs: [], parts: [], drops: [], offer: [], stacks: {},
     beams: [], arcs: [], slashes: [], wepDmg: {}, deathBy: null, bossKills: 0, coreKills: 0, tankKills: 0,
     buffs: {}, mod: null, eliteKills: 0, overheat: 0, won: false, seen: {}, tipQ: [], tipT: 0,
-    unlockedDanger: null
+    unlockedDanger: null, waveMax: 0, rerolls: REROLLS
   });
   if (MODE === 'daily') {                               // 每日局：固定配置
     applySkin(dailySkin());                             // 涂装是外观，可以跟着当天换
@@ -3405,10 +3515,13 @@ function gameOver(won) {
   el('oScore').textContent = G.score;
   el('oWave').textContent = G.wave;
   el('oKills').textContent = G.kills;
-  const by = G.deathBy === 'self' ? '自己的榴弹' : (MOB[G.deathBy] || {}).nm;
+  const by = G.deathBy === 'self' ? '自己的榴弹'
+    : G.deathBy === 'giveup' ? null : (MOB[G.deathBy] || {}).nm;
   el('overSub').textContent = (won
     ? '三十波打穿了，货梯在等着'
-    : '义体在第 ' + G.wave + ' 波被' + (by || '拆解队') + '拆解')
+    : G.deathBy === 'giveup'
+      ? '在第 ' + G.wave + ' 波主动断开了连接'
+      : '义体在第 ' + G.wave + ' 波被' + (by || '拆解队') + '拆解')
     + ' · ' + DANGER[dangerIdx()].n.replace(/ /g, '')
     + (G.unlockedDanger ? ' · 解锁了「' + G.unlockedDanger.replace(/ /g, '') + '」' : '');
   el('overBuild').textContent = '打法：' + runReport();
@@ -3449,7 +3562,7 @@ function gameOver(won) {
     + (bank.got.length ? ' · 解锁：' + bank.got.map(m => m.n).join('、') : '');
   syncProf();
   el('over').classList.add('show');
-  if (!won) explode(P.x, P.y, 40, 0);                  // 通关不该把自己炸了
+  if (!won && G.deathBy !== 'giveup') explode(P.x, P.y, 40, 0);   // 通关和主动放弃都不该把自己炸了
 }
 function syncBest() {
   const t = el('titleBest');
@@ -3463,6 +3576,9 @@ function syncBest() {
 }
 syncBest();
 syncProf();
+el('resumeBtn').onclick = () => setPaused(false);
+el('giveupBtn').onclick = armGiveup;
+el('rerollBtn').onclick = doReroll;
 el('startBtn').onclick = start;
 el('retryBtn').onclick = start;
 
@@ -3558,8 +3674,8 @@ window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
   loadDaily, saveDaily, DAILY_KEY, get MODE() { return MODE; }, get RUN_SEED() { return RUN_SEED; },
   ARENAS, ARENA, setArena, nextWave, genScenery, LAST_WAVE, tier, TIERS, winRun, targetMass, spawnGap, spawnRate, xpNeed,
   DANGER, dangerIdx, DG, dangerMax, pickDanger, dgRamp, dgMul, get ARENA_I() { return ARENA_I; },
-  hurtMob, hurtPlayer, blowUp, killMob, waveSpawn, isBoss, TIPS, BOSS_AT, bossOf,
-  buildHTML, syncBuild, setPaused, takeUpgrade, rollOffer, showLevelup, BUFFS, BUFF_IDS, grabBuff, MODS, rollMod, eliteChance, makeElite,
+  hurtMob, hurtPlayer, blowUp, killMob, waveSpawn, isBoss, TIPS, BOSS_AT, bossOf, waveLeft, syncWave,
+  buildHTML, syncBuild, setPaused, armGiveup, doReroll, syncReroll, renderOffer, REROLLS, takeUpgrade, rollOffer, showLevelup, BUFFS, BUFF_IDS, grabBuff, MODS, rollMod, eliteChance, makeElite,
   SKINS, SKIN_ORDER, GRID, applySkin, pickSkin, dailySkin, sprSet, DECAL, GUN_OF, drawPlayer,
   get SKIN() { return SKIN; }, get SPRACTIVE() { return SPR; },
   get isTouch() { return isTouch; } };

@@ -21,8 +21,9 @@ const ctxStub = new Proxy({}, {
 // 「按钮被置灰了没有」这类状态改动在离线环境里根本观察不到。
 const mkEl = () => {
   const cls = new Set();
+  let _text = '', _html = '';
   const el = {
-    width: 0, height: 0, textContent: '', innerHTML: '', children: [],
+    width: 0, height: 0, children: [],
     style: { setProperty(k, v) { this[k] = v; } },
     classList: {
       add: (...c) => c.forEach(x => cls.add(x)),
@@ -34,6 +35,17 @@ const mkEl = () => {
     appendChild(c) { el.children.push(c); if (!el.firstElementChild) el.firstElementChild = c; return c; },
     querySelectorAll: () => [], getBoundingClientRect: () => ({ left: 0, top: 0, width: 320, height: 180 }),
   };
+  // 真 DOM 会把 textContent 转成字符串，桩不转的话 `textContent === '10'`
+  // 这种断言会因为拿到数字 10 而假红。
+  Object.defineProperty(el, 'textContent', {
+    get: () => _text, set: v => { _text = v == null ? '' : String(v); },
+  });
+  // innerHTML = '' 在真 DOM 里会把子元素清掉。桩不清的话「重画了列表」
+  // 这种断言会数到旧的加新的。
+  Object.defineProperty(el, 'innerHTML', {
+    get: () => _html,
+    set: v => { _html = v == null ? '' : String(v); if (!_html) { el.children.length = 0; el.firstElementChild = null; } },
+  });
   Object.defineProperty(el, 'className', {
     get: () => [...cls].join(' '),
     set: v => { cls.clear(); String(v).split(/\s+/).filter(Boolean).forEach(x => cls.add(x)); },
@@ -42,8 +54,19 @@ const mkEl = () => {
 };
 let ELS = {};
 const byId = id => (ELS[id] || (ELS[id] = mkEl()));
-global.document = { createElement: mkEl, getElementById: byId, querySelector: mkEl, querySelectorAll: () => [], addEventListener() {}, body: mkEl() };
-global.window = global; global.addEventListener = () => {}; global.matchMedia = () => ({ matches: false });
+// 事件监听器要真的记下来。原来 addEventListener 是空实现，于是键位分支
+// 只能拿正则查源码 ——「源码里有这行」和「按下去真的有反应」是两件事。
+let LISTEN = {};
+const on = (t, f) => { (LISTEN[t] = LISTEN[t] || []).push(f); };
+const fire = (t, ev) => (LISTEN[t] || []).forEach(f => f(ev));
+// ns 指明打给哪一份构建；不传就打给最近一次 run() 的
+const key = (code, ns) => {
+  const L = (ns && ns.__ev) || LISTEN;
+  (L.keydown || []).forEach(f => f({ code, preventDefault() {} }));
+};
+global.document = { createElement: mkEl, getElementById: byId, querySelector: mkEl,
+  querySelectorAll: () => [], addEventListener: on, body: mkEl() };
+global.window = global; global.addEventListener = on; global.matchMedia = () => ({ matches: false });
 global.requestAnimationFrame = () => 0; global.performance = { now: () => 0 };
 global.location = { search: '', href: '' }; global.innerWidth = 1280; global.innerHeight = 720;
 const realTimeout = global.setTimeout; global.setTimeout = () => 0;
@@ -64,10 +87,14 @@ global.localStorage = { getItem: k => (k in LS ? LS[k] : null), setItem: (k, v) 
 function run(touch) {
   global.matchMedia = q => ({ matches: touch && /coarse/.test(q) });
   global.NS = undefined;
-  ELS = {};                       // 每次重跑都给一套干净的元素
+  ELS = {}; LISTEN = {};          // 每次重跑都给一套干净的元素和监听器
   global.document.body = mkEl();
   eval(js);
+  // 每份构建的监听器单独挂在它自己的 NS 上。共用一个 LISTEN 的话，
+  // 第二次 run() 会把第一份的监听器顶掉 —— 于是 key() 打到的是触屏那份，
+  // 而断言看的是桌面那份，表现为「按了没反应」。
+  if (global.NS) global.NS.__ev = LISTEN;
   return global.NS;
 }
 
-module.exports = { html, js, run, pad, padOff, FAKEPAD, realTimeout, byId };
+module.exports = { html, js, run, pad, padOff, FAKEPAD, realTimeout, byId, key, fire };

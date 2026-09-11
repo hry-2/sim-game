@@ -816,6 +816,53 @@ const MB={
 // 手工分配：四个轴各三比三，而且要和已有的特质对得上
 //（阿沅话痨慷慨 → ENFP；老莫端方洁癖吝啬 → ISTJ；梨娘话痨吝啬 → ENTP 爱说不落地）
 const TM=['ESTJ','ENFP','ISTJ','ISFP','INFJ','ENTP'];
+
+// ==========================================================================
+//  性别与性向
+//  【不存标签，存"会看上谁"】—— likes 是一个性别集合，直接就是那条机制本身。
+//  异/同/双/不慕四种说法都能从 (sex, likes) 推出来（见 orientOf），
+//  但推导只用来显示；判定一律走 likes。这样"别样"也不用被硬塞进某一档，
+//  加一个性别也不必回头改四处判断。
+//  村里的分配是手工的（和性格、特质、MBTI 一样），为的是可复现，
+//  也为了阵容里本来就存在各种组合 —— 不是靠玩家自己去凑。
+// ==========================================================================
+const SEXES=['男','女','别样'];
+const SEX  =['女','男','男','女','男','女'];
+const LIKES=[['男','女'],          // 小满（玩家默认，捏人时可改）
+             ['男','女'],          // 阿沅
+             ['男'],               // 老莫
+             ['女'],               // 芜青
+             ['女'],               // 阿柳
+             ['男']];              // 梨娘
+// 看得上看不上：一律问这里，别在别处再写一遍
+function likesSex(s, sex){ return (s.likes||[]).includes(sex); }
+function mutualLike(a,b){ return likesSex(a,b.sex) && likesSex(b,a.sex); }
+// 只为显示：把 (sex, likes) 说成一个词
+function orientOf(s){
+  const L=s.likes||[];
+  if(!L.length) return '不慕';
+  const same=L.includes(s.sex), other=L.some(x=>x!==s.sex);
+  return same&&other ? '双' : same ? '同' : '异';
+}
+// 生得出孩子吗 —— 生不出就抱养一个，两条路的机制完全一样，只是说法不同
+function canBear(a,b){
+  if(!a||!b) return false;
+  return (a.sex==='男'&&b.sex==='女') || (a.sex==='女'&&b.sex==='男');
+}
+// 新人（长大的孩子、迁入的外乡人）也得有自己的性别和性向。
+// 【不给就会按宅子序号抄一份 LIKES】—— 那是没道理的：住哪间屋跟喜欢谁没关系。
+// 走确定性哈希，重放一致（这个项目一律不用 Math.random）。
+function rollIdentity(seed){
+  const h=n=>hash01(seed*7919+n);
+  const a=h(1);
+  const sex = a<0.49 ? '男' : a<0.98 ? '女' : '别样';
+  const r=h(2);
+  const likes = r<0.70 ? SEXES.filter(x=>x!==sex)   // 异
+              : r<0.82 ? [sex]                      // 同
+              : r<0.94 ? SEXES.slice()              // 双
+                       : [];                        // 不慕
+  return {sex, likes};
+}
 const MBNAME={ ESTJ:'总管型', ENFP:'快活人', ISTJ:'老成型',
                ISFP:'随性子', INFJ:'心细型', ENTP:'点子多' };
 function mb(sim, key){                       // 取某个旋钮的值，缺省 1
@@ -1457,13 +1504,15 @@ function mkSim(nm, i, o){
     money:60, inv:{food:4, wood:5, goods:0, veg:0, fruit:0, mush:0, herb:0, fish:0,
                    pickle:0, egg:0, stone:0, meat:0, hide:0},
     mbti: o.mbti || TM[i%TM.length],
+    sex: o.sex || SEX[i%SEX.length],
+    likes: (o.likes || LIKES[i%LIKES.length]).slice(),
     age: o.age==null ? AGE0[i%AGE0.length] : o.age,
     vigor: 100, ill: 0,
     shift:[-0.6,0.4,-0.3,0.8,-0.9,0.2][i%6],          // 作息错开，别像上下班打卡
   };
 }
 const sims = NAMES.map((nm,i)=>{
-  const s = mkSim(nm, i, {trait:TN[i], tt:TT[i], mbti:TM[i], row:i,
+  const s = mkSim(nm, i, {trait:TN[i], tt:TT[i], mbti:TM[i], row:i, sex:SEX[i], likes:LIKES[i],
                           age:AGE0[i], isPlayer:i===0});
   s.vigor = vigorCap(s);
   return s;
@@ -1603,6 +1652,7 @@ function evText(e){
     case 'love.wed':        return `${w}与${t}结发成亲`;
     case 'love.jealous':    return `${w}听说${t}又和${e.why}凑在一处`;
     case 'family.child':    return `${w}和${t}有了孩子，取名${e.why}`;
+    case 'family.adopt':    return `${w}和${t}抱养了一个孩子，取名${e.why}`;
     case 'family.grown':    return `${w}长大了，成了${t}家的当家人（${e.why}）`;
     case 'family.leave':    return `${w}长大了，村里没有铺位，出外谋生去了`;
     case 'family.stay':     return `${w}长大了，住进${t}家的厢屋（${e.why}）`;
@@ -2334,6 +2384,7 @@ function bondOf(a, bName){
 function canWoo(a,b){
   if(pairOf(a.name)||pairOf(b.name)) return false;          // 已有对象
   if(typeof kin==='function' && kin(a,b)) return false;     // 血亲不通婚
+  if(!mutualLike(a,b)) return false;                        // 得互相看得上
   const ra=a.rel[b.name]||0, rb=b.rel[a.name]||0;
   return ra>=LOVE_REL && rb>=LOVE_REL
       && intimacy(a,b.name)>=LOVE_INT && intimacy(b,a.name)>=LOVE_INT;
@@ -2504,7 +2555,8 @@ function growTick(){
     const used=new Set(sims.map(x=>x.row));
     let row=6; while(row<ATLAS_ROWS && used.has(row)) row++;
     if(row>=ATLAS_ROWS) row=6;
-    const s=mkSim(kid.name, hi, {row, trait:g.trait, tt:g.tt, mbti:g.mbti, age:16});
+    const s=mkSim(kid.name, hi, Object.assign(
+      {row, trait:g.trait, tt:g.tt, mbti:g.mbti, age:16}, rollIdentity(kid.born*13+hi)));
     s.vigor=vigorCap(s); s.parents=[an,bn];
     sims.push(s);
     if(!stay) HOMEOWNER[hi]=kid.name;         // 住爹娘家的不是户主，睡厢屋的铺盖
@@ -2539,7 +2591,8 @@ function moveInTick(){
     trait: TN[Math.floor(hash01(sd+1)*TN.length)],
     tt:    TT[Math.floor(hash01(sd+2)*TT.length)],
     mbti:  TM[Math.floor(hash01(sd+3)*TM.length)],
-    age:   18 + Math.floor(hash01(sd+4)*34) });
+    age:   18 + Math.floor(hash01(sd+4)*34),
+    ...rollIdentity(sd) });                       // 迁入的外乡人同理，别抄宅子序号
   s.vigor = vigorCap(s);
   sims.push(s); HOMEOWNER[hi] = nm;
   syncBunks(); refreshRel(); panel();
@@ -2559,7 +2612,10 @@ function kidTick(){
     const nm=KIDNAMES.find(n=>!taken.has(n)) || ('小'+(++simSeq));
     const kid={key:k, born:day, fed:day, name:nm};
     KIDS.push(kid); makeCrib(kid);
-    emit('family.child',{who:a, whom:b, why:nm, tags:['love']});
+    // 生得出就生，生不出就抱养一个。【两条路的机制一模一样】——
+    // 一样的天数、一样要天天哄、一样长大成人。只有事件流里的说法不同。
+    const born = canBear(sims.find(x=>x.name===a), sims.find(x=>x.name===b));
+    emit(born?'family.child':'family.adopt',{who:a, whom:b, why:nm, tags:['love']});
   }
   for(const kid of KIDS){
     if(day-kid.fed<=1) continue;                 // 昨天哄过就行
@@ -4839,6 +4895,9 @@ function panel(){
     <div class="dim" style="font-size:10px;line-height:1.7">孩子满 ${GROW_UP} 日成年，
       到时才进花名册。一座宅子住得下 ${HOMECAP} 个成年人：没有空宅、爹娘家也满了，
       他就只能出外谋生。</div>`; })():''}
+  <div class="row"><span class="dim">性别</span><span><span class="tag">${sel.sex}</span>
+    <span class="dim" style="font-size:10px">${orientOf(sel)}　${
+      (sel.likes||[]).length ? '看得上'+sel.likes.join('、') : '不谈情爱'}</span></span></div>
   <div class="row"><span class="dim">性格</span><span class="tag">${sel.trait}</span></div>
   <div class="row"><span class="dim">特质</span><span>${sel.tt.map(t=>
     `<span class="tag" style="background:#3a2c40;color:#c9a3d8" title="${TRAIT[t].tip}">${t}</span>`).join(' ')}</span></div>
@@ -5034,6 +5093,7 @@ function saveGame(){
       barn:BARN.n, pair:PAIR, kids:KIDS,
       // 花名册：谁还在、住哪座宅子、长什么样。人会死会来，六个人不再是常数。
       roster:sims.map(s=>({name:s.name, home:s.home, row:s.row, trait:s.trait,
+                           sex:s.sex, likes:(s.likes||[]).slice(),
                            tt:s.tt, mbti:s.mbti, age:s.age, vigor:s.vigor, ill:s.ill,
                            isPlayer:!!s.isPlayer, parents:s.parents||null})),
       homeowner:HOMEOWNER.slice(), gone:GONE, moveInAt,
@@ -5089,6 +5149,9 @@ function loadGame(){
         const s = keep.get(rd.name) || mkSim(rd.name, rd.home, rd);
         s.home=rd.home; s.row=rd.row; s.trait=rd.trait; s.w=TRAITS[rd.trait];
         s.tt=(rd.tt||[]).slice(); s.mbti=rd.mbti;
+        // 老档没有这两个字段，mkSim 的默认值兜住（按花名册序号给）
+        if(rd.sex) s.sex=rd.sex;
+        if(rd.likes) s.likes=rd.likes.slice();
         s.age=rd.age; s.vigor=rd.vigor; s.ill=rd.ill||0; s.isPlayer=!!rd.isPlayer;
         if(rd.parents) s.parents=rd.parents.slice(); else delete s.parents;
         sims.push(s);
@@ -5365,20 +5428,27 @@ const MBTIP={ E:'外向：交游掉得快，一场社交也回得多', I:'内向
               S:'务实：只看眼前几步', N:'长远：愿意为远处的收成多跑',
               T:'就事论事：怨恨淡得快', F:'重情：恩和怨都记得深',
               J:'认死理：开了工就做完', P:'随性：想一出是一出' };
-let NEW={ row:0, name:NAMES[0], trait:TN[0], tt:TT[0].slice(), mbti:TM[0] };
+let NEW={ row:0, name:NAMES[0], trait:TN[0], tt:TT[0].slice(), mbti:TM[0],
+          sex:SEX[0], likes:LIKES[0].slice() };
 
 function creTip(){
   const w=TRAITS[NEW.trait];
   const ws=Object.keys(w).map(k=>NEEDS[k].n+'×'+w[k]).join('　');
   const tt=NEW.tt.length ? NEW.tt.map(t=>t+'（'+TRAIT[t].tip+'）').join('、') : '没什么脾气';
   const mb=NEW.mbti.split('').map(c=>MBTIP[c]).join('；');
-  return `<b style="color:#c9a86a">${NEW.trait}</b>　${ws}<br>`
+  const li=NEW.likes.length ? '会看上'+NEW.likes.join('、')+'的人' : '谁也不慕，不谈情爱';
+  return `<b style="color:#c9a86a">${NEW.sex} · ${orientOf(NEW)}</b>　${li}<br>`
+       + `<b style="color:#c9a86a">${NEW.trait}</b>　${ws}<br>`
        + `<b style="color:#c9a86a">脾气</b>　${tt}<br>`
        + `<b style="color:#c9a86a">${NEW.mbti}</b>　${mb}`;
 }
 function creSync(){
   for(const c of document.querySelectorAll('#cfaces canvas'))
     c.classList.toggle('on', +c.dataset.row===NEW.row);
+  for(const b of document.querySelectorAll('#create [data-sex]'))
+    b.classList.toggle('on', b.dataset.sex===NEW.sex);
+  for(const b of document.querySelectorAll('#create [data-like]'))
+    b.classList.toggle('on', NEW.likes.includes(b.dataset.like));
   for(const b of document.querySelectorAll('#create [data-t]'))
     b.classList.toggle('on', b.dataset.t===NEW.trait);
   for(const b of document.querySelectorAll('#create [data-tt]'))
@@ -5394,6 +5464,8 @@ function creRandom(){
   const h=n=>Math.floor(hash01(Date.now()%100000 + n*7919)*1e6);
   NEW.row = h(1)%ATLAS_ROWS;
   NEW.name = NAMEPOOL[h(2)%NAMEPOOL.length];
+  NEW.sex = SEXES[h(4)%SEXES.length];
+  NEW.likes = SEXES.filter((x,i)=>h(40+i)%2===0);
   NEW.trait = Object.keys(TRAITS)[h(3)%4];
   NEW.tt = CPAIRS.filter((p,i)=>h(10+i)%3!==0).map((p,i)=>p[h(20+i)%2]);
   NEW.mbti = CMB.map((p,i)=>p[h(30+i)%2]).join('');
@@ -5404,10 +5476,15 @@ function openCreate(){
   const box=document.createElement('div'); box.id='create';
   box.innerHTML=`<div class="cbox">
     <h3>捏 个 人</h3>
-    <div class="csub">这四样都不是换皮 —— 每一样都真的改变他怎么过日子</div>
+    <div class="csub">这几样都不是换皮 —— 每一样都真的改变他怎么过日子</div>
     <div id="cfaces"></div>
     <div class="crow"><label>名字</label><span>
       <input id="cname" maxlength="4"><button id="cdice">换一个</button></span></div>
+    <div class="crow"><label>性别</label><span>${
+      SEXES.map(x=>`<button data-sex="${x}">${x}</button>`).join('')}</span></div>
+    <div class="crow"><label>喜欢</label><span>${
+      SEXES.map(x=>`<button data-like="${x}">${x}</button>`).join('')
+      }<span class="dim" style="font-size:10px;align-self:center">　都不选＝不慕</span></span></div>
     <div class="crow"><label>性格</label><span>${
       Object.keys(TRAITS).map(t=>`<button data-t="${t}">${t}</button>`).join('')}</span></div>
     <div class="crow"><label>脾气</label><span>${
@@ -5431,6 +5508,10 @@ function openCreate(){
   box.addEventListener('click',e=>{
     const t=e.target;
     if(t.dataset.row!==undefined){ NEW.row=+t.dataset.row; creSync(); return; }
+    if(t.dataset.sex){ NEW.sex=t.dataset.sex; creSync(); return; }
+    if(t.dataset.like){ const x=t.dataset.like;   // 多选：再点一次取消
+      NEW.likes = NEW.likes.includes(x) ? NEW.likes.filter(y=>y!==x) : NEW.likes.concat(x);
+      creSync(); return; }
     if(t.dataset.t){ NEW.trait=t.dataset.t; creSync(); return; }
     if(t.dataset.tt){                       // 同一对里只能占一个；再点一次就取消
       const tt=t.dataset.tt, opp=TRAIT[tt].opp;
@@ -5462,6 +5543,7 @@ function applyCreate(){
   PC.trait=NEW.trait; PC.w=TRAITS[NEW.trait];
   PC.tt=NEW.tt.slice();
   PC.mbti=NEW.mbti;
+  PC.sex=NEW.sex; PC.likes=NEW.likes.slice();
   if(nm!==old){
     for(const s of sims) if(s!==PC && s.rel[old]!==undefined){
       s.rel[nm]=s.rel[old]; delete s.rel[old];

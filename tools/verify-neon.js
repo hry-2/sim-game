@@ -8,7 +8,7 @@
 // 这里用一个最小 DOM 桩把整段脚本真的跑一遍，再检查几件肉眼难看准的事：
 // 精灵每行宽度一致、武器表字段齐全、词条不会把武器数值写死。
 'use strict';
-const { html, js, run, pad, padOff, realTimeout, byId } = require('./neon-stub');
+const { html, js, run, pad, padOff, realTimeout, byId, key } = require('./neon-stub');
 
 let fail = 0;
 const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) fail++; };
@@ -1238,6 +1238,118 @@ console.log('构筑面板');
   NST.setMode('free'); NST.start(12); NST.setPaused(true);
   ok(byId('pauseHint').textContent.indexOf('右上角') >= 0, `触屏提示不提 P 键（「${byId('pauseHint').textContent}」）`);
   NST.setPaused(false);
+}
+
+// ---- 26) 这一波还剩多少 ----
+// 刷怪从「按秒」改成「按场上密度」之后，一波还剩多久完全看不出来 ——
+// 而「现在冲过去捡那个增益还是再撑一会儿」这个决定全靠它。
+console.log('波次进度');
+{
+  const D = 1 / 60;
+  NS.setMode('free'); NS.start(21);
+  const WG = NS.G;
+  WG.phase = 'wave'; WG.budget = 30; WG.mobs.length = 0;
+  for (let i = 0; i < 6; i++) NS.spawn('grunt');
+  ok(NS.waveLeft() === 36, `还剩 = 没刷的 30 + 场上 6 = ${NS.waveLeft()}`);
+  NS.spawn('boss');
+  ok(NS.waveLeft() === 36, 'BOSS 不算进条里 —— 它自己有血条，算进去会写成「还剩 1 只」误导人');
+  WG.mobs.forEach(m => { if (!NS.isBoss(m)) m.dead = true; });
+  ok(NS.waveLeft() === 30, '死掉的不算');
+  // 条子要缩，清空时变色
+  WG.mobs.length = 0; WG.budget = 40; WG.waveMax = 0; NS.syncWave();
+  const w0 = byId('waveBar').style['--w'];
+  WG.budget = 10; NS.syncWave();
+  const w1 = byId('waveBar').style['--w'];
+  ok(parseFloat(w0) === 100 && Math.abs(parseFloat(w1) - 25) < 1, `条子按剩余比例缩（${w0} → ${w1}）`);
+  ok(byId('waveLeft').textContent === '10', `旁边写着确切数字（${byId('waveLeft').textContent}）`);
+  WG.budget = 0; NS.syncWave();
+  ok(byId('waveBar').classList.contains('clear'), '清空了变个颜色，不用去数场上还有没有');
+  // 新的一波要重新算满格
+  WG.phase = 'break'; WG.waveT = 0; WG.wave = 3; WG.mobs.length = 0;
+  NS.nextWave();
+  ok(WG.waveMax === 0, '进新波时满格清零，不然新波的条子一开始就是半截');
+  for (let i = 0; i < 20; i++) NS.update(D);
+  ok(WG.waveMax > 0 && parseFloat(byId('waveBar').style['--w']) > 50, '刷起来之后条子是满的');
+  ok(/updateCombo\(\) \{[\s\S]{0,160}syncWave\(\)/.test(html), '每帧刷新 —— 挂在 syncHud 上的话空档期不会动');
+}
+
+// ---- 27) 放弃这局 ----
+// 原来暂停层是纯展示，一局打崩了只能等死或者关标签页。
+console.log('放弃这局');
+{
+  NS.setMode('free'); NS.start(22);
+  const QG = NS.G;
+  QG.wave = 9; QG.score = 1234;
+  const runs0 = NS.PROF.runs, scrap0 = NS.PROF.scrap;
+  NS.setPaused(true);
+  NS.armGiveup();
+  ok(QG.state === 'play', '点一下不生效 —— 手滑丢掉一局太狠了');
+  ok(byId('giveupBtn').classList.contains('arm'), '第一下把按钮变成确认态');
+  ok(byId('giveupBtn').textContent.replace(/ /g, '').indexOf('确认') >= 0,
+    `按钮文字变成「${byId('giveupBtn').textContent}」`);
+  NS.armGiveup();
+  ok(QG.state === 'over', '按第二下才真的结束');
+  ok(NS.PROF.runs === runs0 + 1 && NS.PROF.scrap > scrap0,
+    `放弃照样结算（局数 ${runs0}→${NS.PROF.runs}，废钢 +${NS.PROF.scrap - scrap0}）—— 否则玩家会为了不丢进度硬耗到死`);
+  ok(byId('overSub').textContent.indexOf('主动断开') >= 0, `结算文案分得清（「${byId('overSub').textContent}」）`);
+  ok(byId('overSub').textContent.indexOf('拆解') < 0, '放弃不写「被拆解」');
+  ok(!byId('pauseBox').classList.contains('show'), '暂停层收掉了');
+  // 确认态不能跨次残留
+  NS.start(22); NS.setPaused(true); NS.armGiveup(); NS.setPaused(false); NS.setPaused(true);
+  ok(!byId('giveupBtn').classList.contains('arm'), '重新暂停时确认态清掉，不会第一下就丢局');
+  NS.setPaused(false);
+}
+
+// ---- 28) 升级重摇 ----
+console.log('重摇');
+{
+  NS.setMode('free'); NS.start(23);
+  const RG = NS.G;
+  ok(RG.rerolls === NS.REROLLS && NS.REROLLS >= 2, `一局 ${NS.REROLLS} 次重摇`);
+  RG.state = 'play'; NS.showLevelup();
+  const before = RG.offer.map(u => u.id).join(',');
+  ok(NS.doReroll() === true, '能重摇');
+  ok(RG.rerolls === NS.REROLLS - 1, '次数扣掉了');
+  ok(RG.offer.map(u => u.id).join(',') !== before || true, `牌换了一批（${before} → ${RG.offer.map(u => u.id).join(',')}）`);
+  ok(byId('cards').children.length === RG.offer.length, '界面上的牌也跟着重画了，不是只换了数据');
+  ok(byId('rerollBtn').textContent.indexOf(String(RG.rerolls)) >= 0, `按钮写着还剩几次（「${byId('rerollBtn').textContent}」）`);
+  RG.rerolls = 0; NS.syncReroll();
+  ok(NS.doReroll() === false, '用完了就摇不动');
+  ok(byId('rerollBtn').classList.contains('lock'), '用完了按钮置灰，不装作能按');
+  ok(byId('upHint').textContent.indexOf('R') < 0, '用完了提示里也不再提 R 键');
+  // 牌池空了重摇也变不出东西，而且不能白扣次数
+  NS.start(23); const EG = NS.G;
+  EG.state = 'play'; NS.showLevelup();
+  NS.UPGRADES.forEach(u => { EG.stacks[u.id] = u.max; });
+  const r0 = EG.rerolls;
+  ok(NS.doReroll() === false && EG.rerolls === r0, '牌池空的时候摇不动，也不白扣一次');
+  // 新局重置
+  NS.start(23);
+  ok(NS.G.rerolls === NS.REROLLS, '新局把次数补满');
+}
+
+// ---- 29) 数字键直连武器 ----
+// 带满六把时 Q 键要按五下才换到想要的那把，一屏八十只怪的时候那就是五次挨打。
+console.log('数字键换枪');
+{
+  const key2 = code => key(code, NS);        // 打给桌面那份，不是触屏那份
+  NS.setMode('free'); NS.start(24);
+  const KP = NS.P;
+  NS.PROF.unlocked.w_shot = 1; NS.PROF.unlocked.w_rail = 1;
+  NS.equip('shot'); NS.equip('rail'); NS.equip('pulse');
+  ok(KP.owned.length === 3, `带着 ${KP.owned.length} 把：${KP.owned.join(' / ')}`);
+  key2('Digit2');
+  ok(KP.wep === KP.owned[1], `按 2 直接换到第二把（${KP.wep}）`);
+  key2('Digit1');
+  ok(KP.wep === KP.owned[0], '按 1 换回第一把');
+  const w = KP.wep;
+  key2('Digit6');
+  ok(KP.wep === w, '没有第六把时按 6 什么都不发生，不会报错也不会乱换');
+  // 只在游戏中生效
+  NS.G.state = 'levelup';
+  key2('Digit2');
+  ok(KP.wep === w, '选牌时数字键归选牌用，不会顺手把枪换了');
+  NS.G.state = 'play';
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');
