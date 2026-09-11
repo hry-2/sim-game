@@ -38,6 +38,11 @@ canvas{image-rendering:pixelated;background:#0e0c0a;box-shadow:0 0 0 2px #2b2521
   background:rgba(28,23,19,.5);border:2px solid rgba(201,168,106,.45);color:#e8c169}
 #tc .btns button.sm{width:44px;height:44px;font-size:11px;align-self:flex-end}
 body.touch #tc{display:block}
+/* 菜单/兴造开着时，摇杆和「合」「造」都用不上，收起来别压着菜单。
+   留下「✕」取消和「互动」确认 —— 那两个正是菜单的操作键。 */
+body.touch.menuing #tcpad,
+body.touch.menuing #tccraft,
+body.touch.menuing #tcbuild{display:none}
 body.touch #feed{height:104px}
 @media (max-width:1000px){
   #app{padding:6px;gap:6px}
@@ -153,26 +158,35 @@ if(isTouch) document.body.classList.add('touch');
 // 一是保证任何设备上的构图一致，二是"镜头跟着走"本身就是这类地图的观感。
 // 没有上限时平板会算出 9×23 这种又窄又高的畸形视口。
 const VMAXW=18, VMAXH=13, VMINW=9, VMINH=7;
+// 手机上的最低视野比桌面小一档：宁可少看两格，也要人物看得清。
+// 【原来的打分 w*h*sc 是"看得多"优先】—— 390 宽的手机上 1× 的 15×13（面积 195）
+// 永远赢过 2× 的 7×10（面积 140），于是手机拿 1×、平板 2×、桌面 3×，
+// 最该放大的那一档反而最小。触屏改成【取满足最低视野的最大倍率】。
+const TMINW=7, TMINH=6;
 function fit(){
   // 断点要和 CSS 的 @media 一致：面板在窄屏是【堆在下面】的，
   // 那就不该再给它预留横向空间。820px 的平板曾因此被算成"桌面"，
   // 800 的可用宽被砍成 468，视口缩到 9 格宽。
   const mob = innerWidth<=1000;
+  // 横屏的手机没什么竖向空间，而面板本来就在下面要滚动的 —— 多分点高度给画面
+  const hRatio = !mob ? 1 : (innerWidth>innerHeight ? 0.78 : 0.62);
   const availW = Math.max(200, mob ? innerWidth-20 : innerWidth-352);
-  const availH = Math.max(160, mob ? innerHeight*0.56 : innerHeight-64);
+  const availH = Math.max(160, mob ? innerHeight*hRatio : innerHeight-64);
   // 先定缩放再算格数：手机上像素要够大才看得清人物
   let best=null;
   // CSS 放大倍率 = PXS/RS。【放大】必须是整数，否则像素大小忽 1 忽 2，一眼就脏；
   // 【缩小】没关系，那是超采样，在高 DPI 屏上反而正好 1:1。
   // 所以 RS=3 时可选 1、2、3、6，4 档要被剔除。
+  const minW = isTouch?TMINW:VMINW, minH = isTouch?TMINH:VMINH;
   for(const sc of [3,2,1]){
     const w=Math.min(GW, VMAXW, Math.floor(availW/(T*sc)));
     const h=Math.min(GH, VMAXH, Math.floor(availH/(T*sc)));
-    if(w<VMINW||h<VMINH) continue;
-    const score=w*h*sc;                                  // 兼顾"看得清"和"看得到"
+    if(w<minW||h<minH) continue;
+    if(isTouch){ best={sc,w,h}; break; }                 // 触屏：够得着最低视野就用最大倍率
+    const score=w*h*sc;                                  // 桌面：兼顾"看得清"和"看得到"
     if(!best||score>best.score) best={sc,w,h,score};
   }
-  best = best || {sc:1, w:Math.min(GW,VMINW), h:Math.min(GH,VMINH)};
+  best = best || {sc:1, w:Math.min(GW,minW), h:Math.min(GH,minH)};
   PXS=best.sc; VIEWW=best.w; VIEWH=best.h;
   VPW=VIEWW*T; VPH=VIEWH*T;                       // 视口的【世界像素】尺寸，逻辑一律用它
   cv.width=VPW*RS; cv.height=VPH*RS;              // 画布后备存储放大 RS 倍
@@ -3992,22 +4006,30 @@ const miniBg=(()=>{
   }
   return c;
 })();
+// 小地图是【按视口比例】给尺寸的，不能写死。
+// MINI_S=2 在桌面的 432 宽上占 29%，搬到手机 7 格宽（168 世界像素）就占到 74% ——
+// 盖住大半个上屏，还正好压在触屏的「✕」键上。
+function miniScale(){
+  return Math.max(1, Math.min(MINI_S,
+    Math.floor(Math.min(VPW*0.36/GW, VPH*0.38/GH))));
+}
 function drawMini(cx,cy){
-  const w=GW*MINI_S, h=GH*MINI_S, ox=VPW-w-6, oy=6;
+  const ms=miniScale();
+  const w=GW*ms, h=GH*ms, ox=VPW-w-6, oy=6;
   ctx.globalAlpha=.82; ctx.fillStyle='#12100e'; ctx.fillRect(ox-2,oy-2,w+4,h+4);
   ctx.globalAlpha=1;
-  ctx.drawImage(miniBg, ox, oy);
+  ctx.drawImage(miniBg, ox, oy, w, h);           // 按比例缩，底图只烘一次
   ctx.strokeStyle='#c9a86a'; ctx.lineWidth=1;
-  ctx.strokeRect(ox+cx/T*MINI_S+.5, oy+cy/T*MINI_S+.5,
-                 VPW/T*MINI_S-1, VPH/T*MINI_S-1);
+  ctx.strokeRect(ox+cx/T*ms+.5, oy+cy/T*ms+.5,
+                 VPW/T*ms-1, VPH/T*ms-1);
   for(const s of sims){
     ctx.fillStyle = s.isPlayer ? '#ffd155' : '#e0917f';
-    const px=ox+(s.rx==null?s.px:s.rx)/T*MINI_S, py=oy+(s.ry==null?s.py:s.ry)/T*MINI_S;
+    const px=ox+(s.rx==null?s.px:s.rx)/T*ms, py=oy+(s.ry==null?s.py:s.ry)/T*ms;
     ctx.fillRect(px-1.5, py-1.5, 3, 3);
   }
   const sp=questSpot();                              // 差事指路：空心方块，和人的实心点分得开
   if(sp){ ctx.strokeStyle='#ffd155'; ctx.lineWidth=1;
-    ctx.strokeRect(ox+sp[0]*MINI_S-2.5, oy+sp[1]*MINI_S-2.5, 5, 5); }
+    ctx.strokeRect(ox+sp[0]*ms-2.5, oy+sp[1]*ms-2.5, 5, 5); }
   ctx.strokeStyle='#3d352c'; ctx.strokeRect(ox-2.5,oy-2.5,w+5,h+5);
 }
 
@@ -4307,11 +4329,23 @@ function drawMenu(cx,cy){
       : menu.kind==='craft'
         ? '合成　柴/木 '+PC.inv.wood+' · 石 '+(PC.inv.stone|0)+' · '+Math.round(PC.money)+' 文'
         : menu.target.n;
-  ctx.font='9px monospace'; ctx.textAlign='left';
-  let w=ctx.measureText(title).width;
-  items.forEach((it,i)=>{ w=Math.max(w, ctx.measureText(`${i+1}. ${it.label}`).width+14+
-                                        ctx.measureText(it.sub).width); });
-  w=Math.min(VPW-16, Math.max(150, w+26)); menu._w=w;
+  // 【窄屏要放得下】手机上视口只有 7 格 = 168 世界像素，菜单上限 152，
+  // 而"八宝饭（柴1·米2·野果1·菌子1·蛋1） | 缺 野果1、菌子1、蛋1"要 286 ——
+  // 原来只是把宽度夹到上限，文字照原样画，左边的名字和右边的说明会糊在一起。
+  // 改成两道：先缩字号（9→7），还放不下就省略号，而且【先省说明再省名字】。
+  ctx.textAlign='left';
+  const cap=VPW-16;
+  const need=fs=>{ ctx.font=fs+'px monospace';
+    let m=ctx.measureText(title).width;
+    items.forEach((it,i)=>{ m=Math.max(m, ctx.measureText(`${i+1}. ${it.label}`).width+14+
+                                          ctx.measureText(it.sub).width); });
+    return m+26; };
+  let fs=9; while(fs>7 && need(fs)>cap) fs--;
+  ctx.font=fs+'px monospace';
+  let w=Math.min(cap, Math.max(150, need(fs))); menu._w=w; menu._fs=fs;
+  const ell=(s,max)=>{ if(!s || ctx.measureText(s).width<=max) return s||'';
+    while(s.length>1 && ctx.measureText(s+'…').width>max) s=s.slice(0,-1);
+    return s+'…'; };
   const rowH=isTouch?22:17;
   // 滚动窗口：合成表有二十多条，一次全画会顶穿视口。
   // 只画光标周围的一屏，上下留箭头 —— 所有菜单共用这条逻辑。
@@ -4323,7 +4357,9 @@ function drawMenu(cx,cy){
   const view=items.slice(menu.top, menu.top+maxRows);
   const h=22+view.length*rowH+14;
   // 屏幕坐标：夹在当前视口里，而不是整张地图里
-  const x=Math.round(Math.max(6,Math.min(VPW -w-6, PC.rx-cx-w/2)));
+  // 触屏时右下角那列按钮是 DOM 浮层，菜单得给它让出 60css ÷ PXS 的世界像素
+  const rightPad = isTouch ? 6+Math.ceil(64/Math.max(1,PXS)) : 6;
+  const x=Math.round(Math.max(6,Math.min(VPW-w-rightPad, PC.rx-cx-w/2)));
   const y=Math.round(Math.max(6,Math.min(VPH-h-6, PC.ry-cy-CH-h-2)));
   menu._x=x; menu._y=y; menu._h=h; menu._rowH=rowH;
 
@@ -4335,12 +4371,16 @@ function drawMenu(cx,cy){
   view.forEach((it,vi)=>{
     const i=menu.top+vi, ry=y+22+vi*rowH;
     if(i===menu.idx){ ctx.fillStyle='rgba(201,168,106,.22)'; ctx.fillRect(x+4,ry-1,w-8,rowH-2); }
+    // 名字先占位，剩下多少才给说明；两边都放不下时名字也截 —— 但名字最后才截
+    const lbl=ell(`${i+1}. ${it.label}`, w-24);
+    const rest=w-24-ctx.measureText(lbl).width-6;
+    const sub=rest>12 ? ell(it.sub, rest) : '';
     ctx.textAlign='left';
     ctx.fillStyle = !it.ok ? '#5f574c' : (i===menu.idx?'#ffd97a':'#d6cab0');
-    ctx.fillText(`${i+1}. ${it.label}`, x+9, ry+11);
+    ctx.fillText(lbl, x+9, ry+11);
     ctx.textAlign='right';
     ctx.fillStyle = !it.ok ? '#4a443c' : '#877c6b';
-    ctx.fillText(it.sub, x+w-9, ry+11);
+    ctx.fillText(sub, x+w-9, ry+11);
   });
   ctx.textAlign='left'; ctx.fillStyle='#6f6659';
   const more = items.length>view.length
@@ -4486,6 +4526,7 @@ function render(){
   }
 
   ctx.restore();                                   // ← 以下全部是屏幕坐标
+  document.body.classList.toggle('menuing', !!(menu||bmode));
   drawMini(cx,cy);
   // 目标不在视野里：贴着屏幕边缘给一个箭头，别让人满图乱找
   if(_spot){
@@ -4493,7 +4534,7 @@ function render(){
     if(sx<8||sy<8||sx>VPW-8||sy>VPH-8){
       let ex=Math.max(14,Math.min(VPW-14,sx)), ey=Math.max(20,Math.min(VPH-14,sy));
       // 右上角是小地图，箭头别画上去 —— 会和地图上的点位糊成一团
-      const mw=GW*MINI_S, mh=GH*MINI_S;
+      const mw=GW*miniScale(), mh=GH*miniScale();
       if(ex>VPW-mw-12 && ey<mh+14) ey=mh+18;
       const a=Math.atan2(sy-VPH/2, sx-VPW/2);
       ctx.save(); ctx.translate(ex,ey); ctx.rotate(a);
@@ -4509,7 +4550,9 @@ function render(){
     const _q=questCur();
     if(_q){
       ctx.font='9px monospace'; ctx.textAlign='left';
-      const t='▸ '+_q.n+(_q.key?'　'+_q.key:'');
+      // 窄屏放不下"标题＋按键"，按键那截先舍 —— 标题才是"现在该干什么"
+      let t='▸ '+_q.n+(_q.key?'　'+_q.key:'');
+      if(ctx.measureText(t).width+16 > VPW-12) t='▸ '+_q.n;
       const w=Math.min(VPW-12, ctx.measureText(t).width+16);
       ctx.globalAlpha=.9; ctx.fillStyle='#12100e'; ctx.fillRect(6,4,w,15);
       ctx.globalAlpha=1; ctx.strokeStyle='#6a5a3c'; ctx.lineWidth=1;
@@ -4587,6 +4630,25 @@ function render(){
 const P=document.getElementById('panel');
 const pct=v=>Math.round(v);
 function hue(v){ return v<20?'#b8443f':v<45?'#c9803a':'#6f8f5a'; }
+// ---- 窄屏把长段折叠起来 ----
+// 手机上整页要滚两千多像素。差事、行囊、需求是每回合都要看的；
+// 家赀排名 / 祠堂 / 操作说明 / AI 打分 / 生产链 / 关系 是偶尔翻一次的 ——
+// 后者默认收起，点标题展开。
+// 【状态不能存在 DOM 里】：面板每 0.2 秒整个重画一次，
+// <details open> 会在你松手之后立刻自己合上。所以记在 PSEC 里。
+const PSEC={};                                   // {段名: 是否展开}，默认全收
+function foldPanel(){
+  if(innerWidth>1000) return;                    // 桌面不折，横着有的是地方
+  for(const h of P.querySelectorAll('h2[data-sec]')){
+    const open=!!PSEC[h.dataset.sec];
+    h.style.cursor='pointer';
+    h.insertAdjacentHTML('afterbegin', open?'▾ ':'▸ ');
+    if(open) continue;
+    for(let n=h.nextElementSibling; n && n.tagName!=='H2'; ){
+      const next=n.nextElementSibling; n.remove(); n=next;
+    }
+  }
+}
 function panel(){
   if(selKid && !KIDS.includes(selKid)) selKid=null;   // 长大了/夭折了，选中的那个已经不在
   if(!sims.includes(sel)) sel=PC||sims[0];
@@ -4667,14 +4729,14 @@ function panel(){
   ${BEASTS.length ? `<div class="row"><span class="dim">北山</span>
     <b style="color:#e0705a">野物 ${BEASTS.length} 只 · ${
       [...new Set(BEASTS.map(b=>b.n))].join('、')}</b></div>` : ''}
-  <h2>家赀排名</h2>
+  <h2 data-sec="rank">家赀排名</h2>
   ${sims.slice().sort((a,b)=>(b.money+b.inv.goods*MKT.furniture.p)-(a.money+a.inv.goods*MKT.furniture.p))
     .map((s,i)=>`<div class="row"><span class="${s===sel?'':'dim'}">${i+1}. ${s.isPlayer?'★ ':''}${s.name}</span>
       <span>${s.money|0} 文<span class="dim" style="font-size:10px"> · 米${s.inv.food} 柴${s.inv.wood} 器${s.inv.goods}${
         ['veg','fruit','mush','herb'].map(k=>s.inv[k]?' '+
           (Object.values(FORAGE).find(f=>f.key===k).n)+s.inv[k]:'').join('')
       }</span></span></div>`).join('')}
-  <h2>祠堂 <span class="dim" style="font-weight:400;font-size:10px">${
+  <h2 data-sec="shrine">祠堂 <span class="dim" style="font-weight:400;font-size:10px">${
     Object.keys(SHRINE.done).length}/4 · ${seasonOf(day)}供</span></h2>
   ${SEASONS.map(se=>{
     const of=OFFER[se], cur=se===seasonOf(day);
@@ -4686,7 +4748,7 @@ function panel(){
         `<span style="color:${x.ok?'#8fd08a':'#8a7f6d'}">${x.nm}${x.have}/${x.need}</span>`).join(' ')}</span></div>`;
   }).join('')}
 
-  <h2>操作</h2>
+  <h2 data-sec="keys">操作</h2>
   <div class="dim" style="font-size:10px;line-height:1.8">
     ${isTouch
       ? `<b style="color:#e8c169">左下摇杆</b> 移动 &nbsp;·&nbsp;
@@ -4790,7 +4852,7 @@ function panel(){
     <div class="row"><span class="dim">${NEEDS[k].n}</span><span>${pct(sel.need[k])}</span></div>
     <div class="bar"><i style="width:${sel.need[k]}%;background:${NEEDS[k].c}"></i></div>`).join('')}
 
-  <h2>${isPC?(autoPilot?'托管中 · AI 正在按此决策':'AI 建议 · 你可以无视'):'它的决策依据 · 效用打分'}</h2>
+  <h2 data-sec="ai">${isPC?(autoPilot?'托管中 · AI 正在按此决策':'AI 建议 · 你可以无视'):'它的决策依据 · 效用打分'}</h2>
   ${sel.cands.length? sel.cands.map((c,i)=>`
     <div class="cand ${i===0?'win':''}">
       <div class="t"><span>${i+1}. ${c.o.n}</span><span>${c.s.toFixed(1)}</span></div>
@@ -4802,14 +4864,14 @@ function panel(){
           :'这就是它下一步会去做的事。'}
   </div>
 
-  <h2>生产链 · 前置条件自动串联</h2>
+  <h2 data-sec="chain">生产链 · 前置条件自动串联</h2>
   <div class="dim" style="font-size:10px;line-height:1.7">
     林地(伐木) → 木作案(木×2→木器) → 市摊(木器→48文)<br>
     → 米铺(24文→米×3) → 灶台/米缸(米→饱腹)<br>
     条件不满足的物件直接不进候选，链条因此自然涌现。
   </div>
 
-  <h2>关系 · 以及为什么</h2>
+  <h2 data-sec="rel">关系 · 以及为什么</h2>
   ${sims.filter(s=>s!==sel).map(s=>{
     const list=((sel.mem&&sel.mem[s.name])||[]).slice().reverse();
     const top=list.map(e=>({e,v:memWeight(e)}))
@@ -4825,12 +4887,14 @@ function panel(){
         x.v>0?'#7fa86e':'#c07a72'}">${x.v>0?'+':''}${x.v.toFixed(1)}</span>`).join('<br>')}</div>`
       : '<div style="font-size:10px;color:#5f574c;margin:-2px 0 7px 4px">还没什么来往</div>'}`;
   }).join('')}`;
+  foldPanel();                                   // 窄屏折叠，必须在 innerHTML 之后
 }
 P.addEventListener('click',e=>{
   // 名字里现在套着 <span>（厢屋标记），点在标记上 e.target 就不是那个 <b> 了 ——
   // 得往上找一层，不然点到名字的一半会没反应。
-  const el=(e.target.closest&&e.target.closest('[data-i],[data-kid],[data-sp],[data-auto],[data-reset]'))
+  const el=(e.target.closest&&e.target.closest('[data-i],[data-kid],[data-sp],[data-auto],[data-reset],[data-sec]'))
            || e.target;
+  if(el.dataset.sec!==undefined){ PSEC[el.dataset.sec]=!PSEC[el.dataset.sec]; panel(); return; }
   const sp=el.dataset.sp, i=el.dataset.i, kd=el.dataset.kid;
   if(kd!==undefined){ selKid=KIDS[+kd]||null; panel(); return; }
   if(el.dataset.reset!==undefined){

@@ -17,13 +17,32 @@ const ctxStub = new Proxy({}, {
     return () => {};
   }, set: () => true,
 });
-const mkEl = () => ({
-  width: 0, height: 0, style: { setProperty() {} }, className: '', textContent: '', innerHTML: '',
-  classList: { add() {}, remove() {}, contains() { return false; }, toggle() {} },
-  firstElementChild: null, getContext: () => ctxStub, addEventListener() {}, appendChild() {}, remove() {},
-  querySelectorAll: () => [], getBoundingClientRect: () => ({ left: 0, top: 0, width: 320, height: 180 }),
-});
-global.document = { createElement: mkEl, getElementById: mkEl, querySelector: mkEl, querySelectorAll: () => [], addEventListener() {}, body: mkEl() };
+// classList 是真的（一个 Set），元素按 id 缓存 —— 否则 getElementById 每次返回新对象，
+// 「按钮被置灰了没有」这类状态改动在离线环境里根本观察不到。
+const mkEl = () => {
+  const cls = new Set();
+  const el = {
+    width: 0, height: 0, textContent: '', innerHTML: '', children: [],
+    style: { setProperty(k, v) { this[k] = v; } },
+    classList: {
+      add: (...c) => c.forEach(x => cls.add(x)),
+      remove: (...c) => c.forEach(x => cls.delete(x)),
+      contains: c => cls.has(c),
+      toggle: (c, on) => { const want = on === undefined ? !cls.has(c) : !!on; cls[want ? 'add' : 'delete'](c); return want; },
+    },
+    firstElementChild: null, getContext: () => ctxStub, addEventListener() {}, remove() {},
+    appendChild(c) { el.children.push(c); if (!el.firstElementChild) el.firstElementChild = c; return c; },
+    querySelectorAll: () => [], getBoundingClientRect: () => ({ left: 0, top: 0, width: 320, height: 180 }),
+  };
+  Object.defineProperty(el, 'className', {
+    get: () => [...cls].join(' '),
+    set: v => { cls.clear(); String(v).split(/\s+/).filter(Boolean).forEach(x => cls.add(x)); },
+  });
+  return el;
+};
+let ELS = {};
+const byId = id => (ELS[id] || (ELS[id] = mkEl()));
+global.document = { createElement: mkEl, getElementById: byId, querySelector: mkEl, querySelectorAll: () => [], addEventListener() {}, body: mkEl() };
 global.window = global; global.addEventListener = () => {}; global.matchMedia = () => ({ matches: false });
 global.requestAnimationFrame = () => 0; global.performance = { now: () => 0 };
 global.location = { search: '', href: '' }; global.innerWidth = 1280; global.innerHeight = 720;
@@ -45,8 +64,10 @@ global.localStorage = { getItem: k => (k in LS ? LS[k] : null), setItem: (k, v) 
 function run(touch) {
   global.matchMedia = q => ({ matches: touch && /coarse/.test(q) });
   global.NS = undefined;
+  ELS = {};                       // 每次重跑都给一套干净的元素
+  global.document.body = mkEl();
   eval(js);
   return global.NS;
 }
 
-module.exports = { html, js, run, pad, padOff, FAKEPAD, realTimeout };
+module.exports = { html, js, run, pad, padOff, FAKEPAD, realTimeout, byId };

@@ -87,6 +87,15 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     color:#cfe8ff;background:rgba(12,22,38,.62);border:1px solid rgba(69,240,255,.35);
     box-shadow:0 0 12px rgba(69,240,255,.12);-webkit-tap-highlight-color:transparent}
   #tc .tbtns button:active{background:rgba(69,240,255,.22)}
+  /* 换枪键染成当前武器的颜色，顺带兼任「现在拿的是哪把」的状态显示 ——
+     手机上顶栏那个武器名挤得很小，基本读不出来。 */
+  #tc #btnWep{color:rgb(var(--wc,69,240,255));border-color:rgba(var(--wc,69,240,255),.5);
+    box-shadow:0 0 12px rgba(var(--wc,69,240,255),.16)}
+  #tc #btnWep:active{background:rgba(var(--wc,69,240,255),.22)}
+  /* 只有一把枪时 cycleWep() 直接 return，按了什么都不会发生 ——
+     那就别让它看着像能按的。跟标题页里「未解锁」的芯片用同一套灰。 */
+  #tc #btnWep.lock{color:#3e4c63;border-color:#182541;box-shadow:none}
+  #tc #btnWep.lock:active{background:rgba(12,22,38,.62)}
   /* 竖屏原来只占屏幕中间一条，所以要催人横过来。现在竖屏也铺满、而且看得更高，
      催就没道理了 —— 改成只提一句「横屏更宽」，几秒后自己走。 */
   #rotHint{display:none}
@@ -286,7 +295,7 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   </div>
 
   <div class="screen" id="over">
-    <h1>连 接 中 断</h1>
+    <h1 id="overTitle">连 接 中 断</h1>
     <p class="sub" id="overSub">义体在第 1 波被拆解</p>
     <div class="stats">
       <div><span>得分</span><strong id="oScore">0</strong></div>
@@ -1277,6 +1286,7 @@ const G = {
   combo: 0, comboT: 0,
   bullets: [], ebullets: [], mobs: [], parts: [], drops: [], beams: [], arcs: [], slashes: [],
   wepDmg: {}, deathBy: null, bossKills: 0, tankKills: 0, buffs: {}, mod: null, eliteKills: 0,
+  overheat: 0, won: false,
   offer: [], stacks: {},
   cam: { x: 0, y: 0 }
 };
@@ -1303,19 +1313,19 @@ function newPlayer() {
    五把枪改的是【怎么打】，不是数值大小。词条还是词条，作用在倍率上，
    所以换枪不会把攒下来的强化清掉。 */
 const WEAPONS = {
-  pulse: { n:'脉冲步枪', ic:'>',  kind:'bullet', rate:4.2, dmg:11, count:1, spread:.05, bspd:265, range:1.05,
+  pulse: { n:'脉冲步枪', s:'脉冲', ic:'>',  kind:'bullet', rate:4.2, dmg:11, count:1, spread:.05, bspd:265, range:1.05,
     col:'69,240,255', d:'中速单发。没有短板，也没有长处' },
-  shot:  { n:'霰弹枪',   ic:'*',  kind:'bullet', rate:1.5, dmg:6,  count:7, spread:.34, bspd:230, range:.42,
+  shot:  { n:'霰弹枪',   s:'霰弹', ic:'*',  kind:'bullet', rate:1.5, dmg:6,  count:7, spread:.34, bspd:230, range:.42,
     col:'255,157,61', d:'一次七发扇形。贴脸撕开一片，远了什么都打不到' },
-  rail:  { n:'磁轨枪',   ic:'=',  kind:'rail',   rate:.62, dmg:44, reach:260,
+  rail:  { n:'磁轨枪',   s:'磁轨', ic:'=',  kind:'rail',   rate:.62, dmg:44, reach:260,
     col:'164,92,255', d:'一击穿透整条线上所有敌人。慢，要预判他们排队' },
-  arc:   { n:'电弧链',   ic:'~',  kind:'arc',    rate:2.8, dmg:7,  chain:3, reach:56,
+  arc:   { n:'电弧链',   s:'电弧', ic:'~',  kind:'arc',    rate:2.8, dmg:7,  chain:3, reach:56,
     col:'124,255,79', d:'自动跳到最近的敌人，连锁三次。不用瞄，但伤害低' },
-  nade:  { n:'榴弹',     ic:'o',  kind:'nade',   rate:1.05, dmg:15, splash:32, bspd:150, range:.9,
+  nade:  { n:'榴弹',     s:'榴弹', ic:'o',  kind:'nade',   rate:1.05, dmg:15, splash:32, bspd:150, range:.9,
     col:'255,224,102', d:'落地爆炸，能越过前排。站太近会炸到自己' },
   // 近战。不能只是"射程为 0 的枪"—— 敌人靠碰撞伤人，所以贴上去这件事本身有代价。
   // 补偿写进武器里：一刀砍一片、命中击退、命中回一点血。
-  blade: { n:'振动刀',   ic:'/',  kind:'melee',  rate:2.4, dmg:26, reach:42, arc:110, knock:150, heal:0.8,
+  blade: { n:'振动刀',   s:'振刀', ic:'/',  kind:'melee',  rate:2.4, dmg:26, reach:42, arc:110, knock:150, heal:0.8,
     col:'69,240,255', d:'身前扇形一刀砍一片，命中击退并回一点血。但你得贴上去' },
 };
 const WEP_ORDER = ['pulse', 'shot', 'rail', 'arc', 'nade', 'blade'];
@@ -1490,7 +1500,7 @@ function runReport() {
      ③ 底座：改变【这一局的性格】。三个底座都带代价，不是三档强度。
    ===================================================================== */
 const PROF_KEY = 'ns.prof';
-const PROF_DEF = { scrap: 0, scrapTotal: 0, kills: 0, runs: 0, bestWave: 0,
+const PROF_DEF = { scrap: 0, scrapTotal: 0, kills: 0, runs: 0, bestWave: 0, wins: 0,
   bossKills: 0, tankKills: 0, unlocked: {}, bought: {}, wep: 'pulse', chassis: 'std', skin: 'std' };
 function loadProf() {
   try { return Object.assign({}, PROF_DEF, JSON.parse(localStorage.getItem(PROF_KEY)) || {}); }
@@ -1816,11 +1826,25 @@ function grabBuff(id) {
   Sfx.buff();
 }
 
+/* ================= 层级 =================
+   一局收在 30 波。有终点这件事本身就是设计工具 ——
+   无界的曲线没法调，30 波的曲线可以。
+   每 10 波换一个层级，加的是【机制】不是数值：精英更多、修饰更频，
+   而不是把血条继续拉长。 */
+const LAST_WAVE = 30;
+function tier(w) { return w >= 21 ? 3 : w >= 11 ? 2 : 1; }
+const TIERS = {
+  2: { n: '第 二 层 · 深 井', d: '精英变多，波次修饰变频' },
+  3: { n: '第 三 层 · 熔 芯', d: '每一波都带修饰' },
+};
+
 /* ================= 精英与波次修饰 =================
    修线性堆血的正路是【换组合】，不是把血条拉长。 */
 function eliteChance() {
   if (G.mod && G.mod.allElite) return 1;
-  return G.wave >= 6 ? Math.min(.20, (G.wave - 5) * .02) : 0;
+  if (G.wave < 6) return 0;
+  const cap = [0, .20, .30, .42][tier(G.wave)];
+  return Math.min(cap, (G.wave - 5) * .03);
 }
 function makeElite(m) {
   m.elite = 1;
@@ -1840,20 +1864,26 @@ function rollMod(w) {
   if (w < 4 || w % 5 === 0) return null;                // BOSS 那一波不加修饰
   const pool = MODS.filter(m => w >= m.from);
   const r = RNG.wave(), i = RNG.wave();                 // 两次都摇，保证每波消耗的随机数一样多
-  return pool.length && r < .28 ? pool[(i * pool.length) | 0] : null;
+  const p = [0, .28, .55, 1][tier(w)];                  // 越深越常见，第三层每波都有
+  return pool.length && r < p ? pool[(i * pool.length) | 0] : null;
 }
 
 /* ================= 波次 ================= */
 function nextWave() {
+  if (G.wave >= LAST_WAVE) return winRun();            // 打完第 30 波就是撤离
   G.wave++;
   G.mod = rollMod(G.wave);
+  if (TIERS[tier(G.wave)] && tier(G.wave) !== tier(G.wave - 1)) {
+    const T = TIERS[tier(G.wave)];
+    banner(T.n, T.d);
+  }
   // BOSS 在第 5/10/15 波，所以下一波就换个地方 —— 打赢了就往前走
   if (G.wave > 1 && G.wave % 5 === 1) setArena(ARENA_I + 1, true);
   G.phase = 'wave';
   G.waveT = 18 + Math.min(10, G.wave);
   G.budget = Math.round((9 + G.wave * 4) * (G.mod ? (G.mod.budget || 1) : 1));
   G.spawnT = 0;
-  if (G.wave % 5 === 0) { spawn('boss'); banner('母 体 核 心 接 入', 'WAVE ' + G.wave + ' · BOSS'); }
+  if (G.wave % 5 === 0) { spawn('boss'); banner((G.wave === LAST_WAVE ? '最 后 一 道 闸' : '母 体 核 心 接 入'), 'WAVE ' + G.wave + ' · BOSS'); }
   else if (G.mod) banner(G.mod.n, G.mod.d);
   else banner('WAVE ' + String(G.wave).padStart(2, '0'), ARENA.a.n + ' · ' + waveTitle());
   Sfx.wave();
@@ -1863,12 +1893,23 @@ function waveTitle() {
   const t = ['废钢清扫','拾荒者潮汐','哨戒巡逻','重装推进','裂隙泄漏','霓虹屠场','拆解流水线'];
   return t[(G.wave - 1) % t.length];
 }
+// 场上同时该有多少只。
+// 原来是「每 X 秒刷一只」，X 的下限锁在 0.18 → 最多 5.6 只/秒；
+// 而满词条的玩家能杀 33 只/秒，于是第 32 波预算 164 只、场上同时只有 16 只，
+// 一百多只怪以 5.6/s 喂进一台 33/s 的绞肉机，场地永远是空的 —— 这才是曲线平掉的真因，
+// 不是玩家太强。改成盯着「场上有多少只」刷：清得快就立刻补上，清得慢也不会被埋。
+// 附带的好处是难度跟着玩家水平走，强的人一直顶着上限打，弱的人不会雪崩。
+function targetMass(w) { return Math.round(Math.min(84, 4 + w * 2.6)); }
+function spawnGap(w) { return clamp(.5 - w * .015, .07, .5); }
 function waveSpawn(dt) {
   if (G.phase !== 'wave' || G.budget <= 0) return;
   G.spawnT -= dt;
   if (G.spawnT > 0) return;
   const w = G.wave;
-  if (G.mod && G.mod.bag) { spawn(pickw(G.mod.bag)); G.budget--; G.spawnT = clamp(1.15 - w * .06, .18, 1.15) * rndw(.7, 1.3); return; }
+  // 顶到上限就等着，注意这条路【不消耗随机数】—— 每波摇的次数必须只跟预算有关，
+  // 否则手快手慢的人在同一个每日种子上会摇出不同的局。
+  if (G.mobs.length >= targetMass(w)) { G.spawnT = .1; return; }
+  if (G.mod && G.mod.bag) { spawn(pickw(G.mod.bag)); G.budget--; G.spawnT = spawnGap(w) * rndw(.7, 1.3); return; }
   const bag = ['grunt', 'grunt', 'grunt'];
   if (w >= 2) bag.push('rusher', 'rusher');
   if (w >= 3) bag.push('drone', 'drone');
@@ -1880,7 +1921,7 @@ function waveSpawn(dt) {
   const t = pickw(bag);
   spawn(t);
   G.budget--;
-  G.spawnT = clamp(1.15 - w * .06, .20, 1.15) * rndw(.7, 1.3);
+  G.spawnT = spawnGap(w) * rndw(.7, 1.3);
 }
 
 
@@ -2863,6 +2904,13 @@ function syncHud() {
   el('waveTag').textContent = 'WAVE ' + String(Math.max(1, G.wave)).padStart(2, '0');
   const wt = el('wepTxt');
   if (wt) wt.textContent = WEAPONS[P.wep].n + (P.owned.length > 1 ? '  Q▸' : '');
+  const wb = el('btnWep');
+  if (wb) {
+    const W = WEAPONS[P.wep];
+    wb.textContent = W.s || W.n;                       // 圆按钮只放得下两个字
+    wb.style.setProperty('--wc', W.col);
+    wb.classList.toggle('lock', P.owned.length < 2);   // 只有一把枪 → 置灰
+  }
 }
 function updateDash() {
   const pip = el('dashPip').firstElementChild;
@@ -2929,7 +2977,7 @@ function start(seedOverride) {
     spawnT: 0, budget: 0, combo: 0, comboT: 0,
     bullets: [], ebullets: [], mobs: [], parts: [], drops: [], offer: [], stacks: {},
     beams: [], arcs: [], slashes: [], wepDmg: {}, deathBy: null, bossKills: 0, tankKills: 0,
-    buffs: {}, mod: null, eliteKills: 0, overheat: 0, overheat: 0
+    buffs: {}, mod: null, eliteKills: 0, overheat: 0, won: false
   });
   if (MODE === 'daily') {                               // 每日局：固定配置
     applySkin(dailySkin());                             // 涂装是外观，可以跟着当天换
@@ -2947,17 +2995,28 @@ function start(seedOverride) {
   el('levelup').classList.remove('show');
   syncHud();
 }
-function gameOver() {
+// 打完第 30 波 → 撤离。结算走同一条路，只是标题和小字不一样，
+// 不然记录、废钢、里程碑三套逻辑要各写两份。
+function winRun() {
+  PROF.wins = (PROF.wins || 0) + 1;
+  saveProf();
+  gameOver(true);
+}
+function gameOver(won) {
   G.state = 'over';
+  G.won = !!won;
+  el('overTitle').textContent = won ? '撤 离 成 功' : '连 接 中 断';
   el('oScore').textContent = G.score;
   el('oWave').textContent = G.wave;
   el('oKills').textContent = G.kills;
   const by = G.deathBy === 'self' ? '自己的榴弹' : (MOB[G.deathBy] || {}).nm;
-  el('overSub').textContent = '义体在第 ' + G.wave + ' 波被' + (by || '拆解队') + '拆解';
+  el('overSub').textContent = won
+    ? '三十波打穿了，货梯在等着'
+    : '义体在第 ' + G.wave + ' 波被' + (by || '拆解队') + '拆解';
   el('overBuild').textContent = '打法：' + runReport();
 
   // 比法一样，比的对象不一样：自由局比历史最好，每日局比今天自己
-  const cur = { wave: G.wave, score: G.score, kills: G.kills, build: runReport(), at: Date.now() };
+  const cur = { wave: G.wave, score: G.score, kills: G.kills, build: runReport(), won: !!won, at: Date.now() };
   const beats = (a, b) => !b || a.wave > b.wave || (a.wave === b.wave && a.score > b.score);
   if (MODE === 'daily') {
     const rec = Object.assign({ day: dayKey() }, cur);
@@ -2988,7 +3047,7 @@ function gameOver() {
     + (bank.got.length ? ' · 解锁：' + bank.got.map(m => m.n).join('、') : '');
   syncProf();
   el('over').classList.add('show');
-  explode(P.x, P.y, 40, 0);
+  if (!won) explode(P.x, P.y, 40, 0);                  // 通关不该把自己炸了
 }
 function syncBest() {
   const t = el('titleBest');
@@ -2996,7 +3055,8 @@ function syncBest() {
   if (MODE === 'daily')
     t.textContent = '每日局 ' + dayKey() + (DAILY ? ' · 今日最好：第 ' + DAILY.wave + ' 波 ' + DAILY.score + ' 分' : ' · 今天还没打');
   else
-    t.textContent = BEST ? '最好：第 ' + BEST.wave + ' 波 · ' + BEST.score + ' 分 · ' + BEST.build : '';
+    t.textContent = (BEST ? '最好：第 ' + BEST.wave + ' 波 · ' + BEST.score + ' 分 · ' + BEST.build : '')
+      + (PROF.wins ? (BEST ? ' · ' : '') + '已撤离 ' + PROF.wins + ' 次' : '');
 }
 syncBest();
 syncProf();
@@ -3093,7 +3153,7 @@ window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
   OPT, setOpt, REDUCE, PAD, pollPad, updateBuffs, BUFF_EL,
   fit, cv, REF_W, REF_H, camAt, get VW() { return VW; }, get VH() { return VH; },
   loadDaily, saveDaily, DAILY_KEY, get MODE() { return MODE; }, get RUN_SEED() { return RUN_SEED; },
-  ARENAS, ARENA, setArena, nextWave, genScenery, get ARENA_I() { return ARENA_I; },
+  ARENAS, ARENA, setArena, nextWave, genScenery, LAST_WAVE, tier, TIERS, winRun, targetMass, spawnGap, get ARENA_I() { return ARENA_I; },
   hurtMob, hurtPlayer, blowUp, killMob, waveSpawn, takeUpgrade, rollOffer, showLevelup, BUFFS, BUFF_IDS, grabBuff, MODS, rollMod, eliteChance, makeElite,
   SKINS, SKIN_ORDER, GRID, applySkin, pickSkin, dailySkin, sprSet, DECAL, GUN_OF, drawPlayer,
   get SKIN() { return SKIN; }, get SPRACTIVE() { return SPR; },

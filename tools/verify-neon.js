@@ -8,7 +8,7 @@
 // 这里用一个最小 DOM 桩把整段脚本真的跑一遍，再检查几件肉眼难看准的事：
 // 精灵每行宽度一致、武器表字段齐全、词条不会把武器数值写死。
 'use strict';
-const { html, js, run, pad, padOff, realTimeout } = require('./neon-stub');
+const { html, js, run, pad, padOff, realTimeout, byId } = require('./neon-stub');
 
 let fail = 0;
 const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) fail++; };
@@ -674,7 +674,15 @@ ok(UG.eliteKills === 1, '精英击杀单独记数');
 UG.mod = null;
 UG.wave = 5; ok(NS.eliteChance() === 0, '第 5 波之前不出精英');
 UG.wave = 6; ok(NS.eliteChance() > 0, '第 6 波开始出精英');
-UG.wave = 40; ok(NS.eliteChance() <= .20 + 1e-9, `出现率封顶 ${(NS.eliteChance() * 100).toFixed(0)}%（不会整波都是精英）`);
+// 出现率按层级封顶，但任何一层都不能高到「整波都是精英」
+for (const [w, cap] of [[10, .20], [20, .30], [30, .42]]) {
+  UG.wave = w;
+  ok(NS.eliteChance() <= cap + 1e-9 && NS.eliteChance() <= .5,
+    `第 ${w} 波精英率 ${(NS.eliteChance() * 100).toFixed(0)}%，封在第 ${NS.tier(w)} 层的 ${(cap * 100).toFixed(0)}% 以内`);
+}
+UG.wave = 12; const ec2 = NS.eliteChance(); UG.wave = 22; const ec3 = NS.eliteChance();
+ok(ec3 > ec2, `越深精英越多（第 12 波 ${(ec2 * 100).toFixed(0)}% → 第 22 波 ${(ec3 * 100).toFixed(0)}%）`);
+UG.wave = 40;
 UG.mod = NS.MODS.find(m => m.allElite);
 ok(NS.eliteChance() === 1, '「精锐」波全是精英');
 UG.mod = null;
@@ -710,7 +718,10 @@ const s1 = seq(20260910), s2 = seq(20260910);
 // 先确认这个序列里真的摇出过修饰，否则「两边都是空的」也会让下面那条断言变绿
 const hit = s1.split(',').filter(x => x !== '-');
 ok(hit.length >= 2, `20 波里摇出了 ${hit.length} 个修饰：${hit.join(' ')}`);
-ok(hit.length <= WS.length * .5, '也不能每波都有修饰，得有平稳的波次做对比');
+// 第一层要留出平稳的波次做对比；第三层是故意每波都有的
+const plain1 = WS.filter((w, i) => NS.tier(w) === 1 && s1.split(',')[i] === '-');
+ok(plain1.length >= 2, `第一层有 ${plain1.length} 个平稳波次做对比，不是一上来就每波带修饰`);
+ok(WS.filter(w => NS.tier(w) === 3).every(w => NS.rollMod(w) !== null), '第三层每一波都带修饰（故意的）');
 ok(s1 === s2, '同种子的修饰序列完全一致');
 ok(seq(20260911) !== s1, '换一天就不一样');
 // start(seed) 必须真的钉住整局 —— 探针一开始拿 seedRun 播种，
@@ -851,6 +862,31 @@ console.log('铺满屏幕');
     || /right:calc\(14px \+ env\(safe-area-inset-right,0px\)\)/.test(html), '动作按钮本来就在右下并让开了安全区');
 
   setVP(1280, 720); NST.fit(); NS.fit();                    // 复原，别影响后面的断言
+}
+
+// ---- 19) 手机上的换枪键 ----
+// 它原来永远写着「枪」，而开局只有一把枪时 cycleWep() 第一行就 return ——
+// 不响不亮不提示，按钮看着就是坏的。
+console.log('换枪键');
+{
+  const wep = byId('btnWep');
+  ok(NS.WEP_ORDER.every(k => NS.WEAPONS[k].s && [...NS.WEAPONS[k].s].length === 2),
+    '每把枪都有两字简称（圆按钮放不下四个字）');
+  NST.setMode('free'); NST.start(7);
+  const TP = NST.P;
+  ok(TP.owned.length === 1, '开局只有一把枪，正是按了没反应的那种情况');
+  ok(wep.classList.contains('lock'), '这时候按钮是灰的，不装作能按');
+  ok(wep.textContent === NST.WEAPONS[TP.wep].s, `按钮写的是当前武器「${wep.textContent}」，不是笼统的「枪」`);
+  ok(wep.style['--wc'] === NST.WEAPONS[TP.wep].col, '按钮染成当前武器的颜色');
+  // 拿到第二把之后才真的能按
+  NST.equip('shot');
+  ok(TP.owned.length === 2 && !wep.classList.contains('lock'), '有第二把枪之后按钮点亮');
+  const before = wep.textContent, col0 = wep.style['--wc'];
+  NST.cycleWep();
+  ok(wep.textContent !== before, `按一下就换枪，按钮跟着改字（${before} → ${wep.textContent}）`);
+  ok(wep.style['--wc'] !== col0, '颜色也跟着换，一眼看出手里是哪把');
+  ok(/#tc #btnWep\.lock\{/.test(html), '灰掉的样式是给这个按钮单独写的，没连累冲刺键');
+  ok(!/#tc \.tbtns button\.lock/.test(html), '冲刺键不受影响');
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');
