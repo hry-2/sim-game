@@ -2929,10 +2929,23 @@ function beastBite(b, s){
 function beastTick(dm){
   const hr=(clock/60|0);
   if(hr!==_beastHour){ _beastHour=hr; beastSpawn(); }
+  // 【该退场的就退场】。原先 ttl 到点的判断写在下面「闲逛」那个分支里，
+  // 于是盯着人的野兽永远不走 —— 实测单只能活 0.8 天，ttl 本该 0.33 天。
+  // 而且 beastCap() 降了也没人清场：beastSpawn 只管不再生成，已经在场的照旧咬人，
+  // 于是上面那句「白天的春夏一只都没有」是空的 —— 实测 200 天里有 393 个
+  // 春夏白天的小时是有野兽在场的。这两件事一起放大了同一个后果：
+  // 野兽只追山上的人，而 NPC 上山砍柴没有还手之力（strike 是玩家专用的键盘动作），
+  // 200 天 12 人亡里 6 个是被咬死的，且专挑十几二十岁的。
+  let over = BEASTS.length - beastCap();
   for(let i=BEASTS.length-1;i>=0;i--){
     const b=BEASTS[i];
     b.ppx=b.px; b.ppy=b.py;
     b.ttl-=dm; b.cd=Math.max(0,b.cd-dm);
+    // 逛够了、或者时令上不该再有这么多 —— 回山里去，不管此刻是不是正追着人
+    if(b.ttl<=0 || over>0){
+      if(b.ttl>0) over--;                       // 超编的那几只按序退，ttl 到点的另算
+      BEASTS.splice(i,1); continue;
+    }
     let t=null, td=1e9;
     for(const s of sims){
       if(s.gy>=HILL_Y) continue;                 // 人一下山就不追了
@@ -2949,7 +2962,6 @@ function beastTick(dm){
       const a=hash01(b.id*733 + (clock/8|0))*Math.PI*2;
       beastGo(b, Math.cos(a), Math.sin(a), dm*0.4);
       b.anim += dm*2.4;
-      if(b.ttl<=0){ BEASTS.splice(i,1); }
     }
   }
 }
