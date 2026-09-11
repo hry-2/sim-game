@@ -1930,7 +1930,7 @@ addEventListener('keydown',e=>{
   if(['Space','KeyE','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
   // 长按 E 连抡是特意留的口子；但长按不该把终局屏/结算屏/菜单一路点穿
   if(e.repeat && (ending||daily||menu||bmode)) return;
-  if(ending){ wipeSave(); location.reload(); return; }   // 终局：重开一局
+  if(ending){ resetAndReload(); return; }   // 终局：重开一局
   if(daily){ closeDaily(); return; }               // 结算屏：任意键继续
   if(menu){                                          // 菜单打开时接管全部按键
     if(e.code==='ArrowUp')   menu.idx=(menu.idx-1+menu.items.length)%menu.items.length;
@@ -5078,14 +5078,14 @@ P.addEventListener('click',e=>{
   const sp=el.dataset.sp, i=el.dataset.i, kd=el.dataset.kid;
   if(kd!==undefined){ selKid=KIDS[+kd]||null; panel(); return; }
   if(el.dataset.reset!==undefined){
-    if(confirm('重开一局？当前村子的记忆、田地和账目都会清空。')){ wipeSave(); location.reload(); }
+    if(confirm('重开一局？当前村子的记忆、田地和账目都会清空。')){ resetAndReload(); }
     return; }
   if(el.dataset.auto!==undefined){ autoPilot=!autoPilot; PC.act=null; panel(); return; }
   if(sp!==undefined){ const v=+sp; if(v===0)running=false; else {running=true;speed=v;} panel(); }
   if(i!==undefined){ sel=sims[+i]; selKid=null; panel(); }
 });
 cv.addEventListener('click',e=>{
-  if(ending){ wipeSave(); location.reload(); return; }
+  if(ending){ resetAndReload(); return; }
   if(daily){ closeDaily(); return; }
   // 用实际渲染尺寸换算，别用 dataset.s —— 窄屏上 CSS 的 max-width 会再缩一次
   const r=cv.getBoundingClientRect();
@@ -5161,11 +5161,13 @@ FEED.addEventListener('click',ev=>{
 // 12→13：加了 qf/qmax、built 记了栽种日、inv 多了兽肉兽皮，
 // 而且玩家那块地从「自带屋子」变成了「空地」—— 老档读进来是半拉子世界，直接作废更干净
 const SAVE_KEY='sim-game-save', SAVE_VER=13;
+let _leaving=false;   // 要走了，封笔；见 resetAndReload
 
 function saveGame(){
   // 终局之后不再写档：否则 pagehide 会把"死后的村子"存下去，
   // 而那份档里没有 isPlayer，读回来玩家会静默变成花名册里的第一个人。
-  if(ending) return false;
+  // 要走的路上同理，而且更隐蔽，见 resetAndReload。
+  if(ending || _leaving) return false;
   try{
     // 先刷一次关系再存。rel 是从记忆推导的，但只每 5 模拟分钟整表重算一次；
     // 不刷就会把"最多差一个刷新周期的衰减量"的旧值存进去，
@@ -5274,6 +5276,12 @@ function loadGame(){
 }
 
 function wipeSave(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
+// 重开一局：擦档 + 重载。_leaving 必须【先】立起来 —— location.reload() 自己会触发
+// pagehide，而那上面挂着 saveGame，不封笔的话刚擦掉的档在那一瞬间被原样写回去：
+// 下一次加载 loadGame() 照样成功，于是点几次「重开一局」都是同一个村子，
+// 捏人页根本不出现。封笔只封这一条离场路径 —— wipeSave 本身不该有这个副作用，
+// 「清个场、重新存一遍」是回归测试天天在做的事。
+function resetAndReload(){ _leaving=true; wipeSave(); location.reload(); }
 function hasSave(){ try{ const r=localStorage.getItem(SAVE_KEY);
   return !!r && JSON.parse(r).v===SAVE_VER; }catch(e){ return false; } }
 
