@@ -62,6 +62,8 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   #prof .chip.lock{color:#3e4c63;border-color:#182541;cursor:not-allowed}
   #prof .chip.lock:hover{border-color:#182541;color:#3e4c63}
   #prof .next{color:#ffb03a;letter-spacing:.08em;margin-top:2px}
+  #prof .hint2{color:#5d7392;font-size:10px;line-height:1.5;max-width:460px;margin:-1px auto 2px}
+  #prof .hint2 b{color:#8fa4c6;font-weight:600}
 
   /* ---------- 触屏 ---------- */
   /* 盖满整个视口，不是只盖画布：竖屏时画布只占屏幕中间一条，
@@ -318,6 +320,50 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   #levelup .chip.lock{color:#3e4c63;border-color:#182541;cursor:not-allowed}
   #levelup .chip.lock:hover{border-color:#182541;color:#3e4c63}
   /* 暂停时的面板：单独一层，不动画布上那行暂停提示 */
+  /* 商店。只在波间出现，而且只在它真有东西给你的时候出现。
+     不做倒计时：手机上四个条目加价钱，读完就得好几秒，催人只会让人误触。 */
+  #shopBox{
+    position:absolute;inset:0;display:none;align-content:start;justify-items:center;
+    background:linear-gradient(rgba(4,6,12,.88),rgba(4,6,12,.96));
+    padding:calc(52px + env(safe-area-inset-top,0px)) 16px 20px;
+    pointer-events:auto;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  }
+  #shopBox.show{display:grid}
+  #shopBox .head{font-family:var(--disp);font-size:12px;color:var(--amber);
+    text-shadow:0 0 14px rgba(255,179,71,.55);margin-bottom:4px}
+  #shopBox .hint{font-size:10px;letter-spacing:.14em;color:#54648a;margin-bottom:14px}
+  #shopBox .hint b{color:var(--amber);font-weight:600;font-size:12px}
+  #shopBox .hint b.warn{color:#ffd9a0;font-size:10px;letter-spacing:.14em}
+  /* 这一行是回答「只在这局有效吗」的。两个时间尺度同用一种货币，
+     不写明白的话玩家会以为买的枪能带到下一局。 */
+  #shopBox .hint2b{font-size:10px;color:#5c513c;letter-spacing:.06em;margin:-8px 0 14px;
+    max-width:400px;line-height:1.5}
+  /* 四个条目排 2×2 比 3+1 整齐（170×2 + 10 的间距 = 350） */
+  #shopItems{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:360px}
+  .sitem{
+    width:170px;padding:11px 13px;cursor:pointer;text-align:left;
+    background:linear-gradient(160deg,#14100a,#0a0806);border:1px solid #4a3a18;
+    font-family:var(--mono);display:flex;flex-direction:column;gap:5px;
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%);
+  }
+  .sitem:hover,.sitem:focus-visible{border-color:var(--amber);outline:none}
+  .sitem .sn{font-family:var(--disp);font-size:10px;color:#ffd9a0;letter-spacing:.06em}
+  .sitem .sd{font-size:10px;color:#9c8f78;line-height:1.45}
+  .sitem .sc{font-size:10px;color:var(--amber);letter-spacing:.06em}
+  .sitem.lock{border-color:#241d10;cursor:not-allowed}
+  .sitem.lock .sn{color:#5c513c} .sitem.lock .sd{color:#453d2f} .sitem.lock .sc{color:#6b5426}
+  #shopBox .sbtns{margin-top:16px}
+  #shopBox .chip{font:inherit;font-size:10px;letter-spacing:.12em;color:#cfe8ff;
+    background:rgba(12,22,38,.8);border:1px solid #2c4260;padding:10px 24px;cursor:pointer}
+  #shopBox .chip:hover{border-color:var(--cyan)}
+  body.touch #shopBox .chip{min-height:44px;padding:13px 28px}
+  body.touch .sitem{width:100%;max-width:340px}
+  @media (max-height:430px){
+    body.touch #shopBox{padding-top:calc(42px + env(safe-area-inset-top,0px))}
+    body.touch .sitem{width:170px;padding:8px 11px;gap:3px}
+    #shopBox .head{margin-bottom:1px} #shopBox .hint{margin-bottom:8px}
+    #shopBox .sbtns{margin-top:10px}
+  }
   #pauseBox{
     position:absolute;inset:0;display:none;align-content:center;justify-items:center;
     /* 压暗要够。画布上原来还画了一层 rgba(4,6,12,.7)，搬到 DOM 之后只剩这层渐变，
@@ -409,6 +455,8 @@ img{max-width:100%}[hidden]{display:none!important}</style>
       <span id="dashPip"><span></span></span>
       <span class="lbl">武器</span>
       <span class="tag" id="wepTxt">脉冲步枪</span>
+      <span class="lbl">废钢</span>
+      <span class="num small" id="scrapTxt">0</span>
     </div>
   </div>
 
@@ -447,6 +495,14 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     <div id="cards"></div>
     <div class="rrow"><button class="chip" id="rerollBtn">重 摇</button></div>
     <div class="build" id="buildUp"></div>
+  </div>
+
+  <div id="shopBox">
+    <div class="head">废 钢 回 收 站</div>
+    <div class="hint">手上 <b id="shopScrap">0</b> 废钢 · 买的东西<b class="warn">只在这一局有效</b></div>
+    <div class="hint2b">没花完的会存进档案，在标题页花 150 买成永久的起手武器</div>
+    <div id="shopItems"></div>
+    <div class="sbtns"><button class="chip" id="shopGo">下 一 波</button></div>
   </div>
 
   <div id="pauseBox">
@@ -576,6 +632,7 @@ function setArena(i, announce) {
   genScenery();
   if (P) {
     G.mobs.length = 0; G.ebullets.length = 0; G.bullets.length = 0; G.drops.length = 0;
+    G.mines.length = 0; G.discs.length = 0;
     P.x = A.w / 2; P.y = A.h / 2;
     G.cam.x = camAt(P.x - VW / 2, A.w, VW);
     G.cam.y = camAt(P.y - VH / 2, A.h, VH);
@@ -931,6 +988,35 @@ const GRID = {
       '...KK.......',
     ],
   ],
+  gun_beam: [
+    [
+      '..KKKK...KK..',
+      'KKGGGGKKKCCK.',
+      'KGLLLLGCCCCCW',
+      'KKGGGGKKKCCK.',
+      '..KKKK...KK..',
+    ],
+  ],
+  gun_mine: [
+    [
+      '...KKKK....',
+      '..KOOOOK...',
+      '.KKOOOOKKK.',
+      'KKGGGGGGGKK',
+      'KGLLLLGGGGW',
+      'KKGGGGGGGKK',
+      '...KKKKKK..',
+    ],
+  ],
+  gun_disc: [
+    [
+      '..KKKK..TTT..',
+      'KKGGGGKTWWWT.',
+      'KGLLLLGTWKWTW',
+      'KKGGGGKTWWWT.',
+      '..KKKK..TTT..',
+    ],
+  ],
   d_rof: [
     [
       'KGGK',
@@ -1035,6 +1121,35 @@ const GRID = {
       'KYK',
       'YWY',
       'KYK',
+    ],
+  ],
+  // 四个新词条的外显。规格跟现有的一致：3×3，一眼能认出是"多了个东西"
+  d_bounce: [
+    [
+      'KTK',
+      'T.T',
+      'KTK',
+    ],
+  ],
+  d_charge: [
+    [
+      'KYK',
+      'YYY',
+      'KWK',
+    ],
+  ],
+  d_mark: [
+    [
+      'EKE',
+      'KWK',
+      'EKE',
+    ],
+  ],
+  d_salvage: [
+    [
+      'KHK',
+      'HYH',
+      'KHK',
     ],
   ],
   d_cap: [
@@ -1524,9 +1639,14 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyM') { Sfx.musicOn = !Sfx.musicOn; if (Sfx.musicGain) Sfx.musicGain.gain.value = Sfx.musicOn ? .5 : 0; }
   if (e.code === 'KeyR' && G.state === 'over') start();
   if (e.code === 'KeyQ' && G.state === 'play') cycleWep();
+  if (G.phase === 'shop' && G.state === 'play') {          // 商店：1-4 买，空格进下一波
+    if (e.code === 'Space') closeShop();
+    const si = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
+    if (si >= 0 && SHOP[si]) shopBuy(SHOP[si].id);
+  }
   // 数字键直连武器。带满六把的时候 Q 键要按五下才换到想要的那把，
   // 在一屏八十只怪的时候这五下就是五次挨打。
-  if (G.state === 'play' && /^Digit[1-6]$/.test(e.code)) {
+  if (G.state === 'play' && G.phase !== 'shop' && /^Digit[1-6]$/.test(e.code)) {
     const id = P && P.owned[+e.code.slice(5) - 1];
     if (id && id !== P.wep) { equip(id); Sfx.swap(); banner(WEAPONS[id].n, WEAPONS[id].d); }
   }
@@ -1672,6 +1792,10 @@ function pollPad() {
   if (tap(1) || tap(10)) PAD.dash = 1;                  // B / 左摇杆键 冲刺
   if (tap(2) || tap(4)) cycleWep();                     // X / 左肩 换枪
   if (tap(9) && G.state === 'play') setPaused(!G.paused);   // 暂停时 state 仍是 play，同一个键切回来
+  if (G.phase === 'shop' && G.state === 'play') {          // 商店：A/B/X/Y 买四样，START 进下一波
+    for (const [btn, i] of [[0, 0], [1, 1], [2, 2], [3, 3]]) if (tap(btn) && SHOP[i]) shopBuy(SHOP[i].id);
+    if (tap(9)) closeShop();
+  }
   if (G.state === 'levelup') {                          // 升级页：A/B/X 选三张，Y 重摇
     for (const [btn, i] of [[0, 0], [1, 1], [2, 2]]) if (tap(btn) && G.offer[i]) takeUpgrade(G.offer[i]);
     if (tap(3)) doReroll();
@@ -1687,8 +1811,10 @@ const G = {
   score: 0, kills: 0, wave: 0, waveT: 0, phase: 'break', spawnT: 0, budget: 0,
   combo: 0, comboT: 0,
   bullets: [], ebullets: [], mobs: [], parts: [], drops: [], beams: [], arcs: [], slashes: [],
+  mines: [], discs: [],
   wepDmg: {}, deathBy: null, bossKills: 0, coreKills: 0, tankKills: 0, buffs: {}, mod: null, eliteKills: 0,
   overheat: 0, won: false, seen: {}, tipQ: [], tipT: 0, unlockedDanger: null, waveMax: 0, rerolls: 0,
+  scrap: 0, scrapGot: 0, bought: 0,
   hookCd: 0,
   offer: [], stacks: {},
   cam: { x: 0, y: 0 }
@@ -1698,13 +1824,14 @@ let P = null;
 const BASE = {
   speed: 82, maxhp: 100, fireRate: 4.2, dmg: 11, pierce: 0, count: 1,
   spread: .05, bspd: 265, range: 1.05, pickR: 46, shield: 0, slow: 0,
-  explode: 0, lifesteal: 0, dashCd: 2.2, dashDmg: 0, aura: 0, crit: 0
+  explode: 0, lifesteal: 0, dashCd: 2.2, dashDmg: 0, aura: 0, crit: 0,
+  bounce: 0, charge: 0, mark: 0, salvage: 0
 };
 
 function newPlayer() {
   return Object.assign({
     x: ARENA.w / 2, y: ARENA.h / 2, vx: 0, vy: 0, ang: 0,
-    hp: BASE.maxhp, fireT: 0, dashT: 0, dashCdT: 0, inv: 0,
+    hp: BASE.maxhp, fireT: 0, dashT: 0, dashCdT: 0, inv: 0, idleT: 0,
     lv: 1, xp: 0, need: xpNeed(1), auraT: 0, walk: 0,
     wep: 'pulse', owned: ['pulse'], kind: 'bullet', wcol: '69,240,255',
     // 词条作用在倍率上，不直接改武器本身 —— 否则换枪就把强化清掉了
@@ -1728,10 +1855,20 @@ const WEAPONS = {
     col:'255,224,102', d:'落地爆炸，能越过前排。站太近会炸到自己' },
   // 近战。不能只是"射程为 0 的枪"—— 敌人靠碰撞伤人，所以贴上去这件事本身有代价。
   // 补偿写进武器里：一刀砍一片、命中击退、命中回一点血。
+  // 再来三把。每一把都改【打法】，不是改数值 ——
+  //   光束：单体最快，但必须一直跟住；成群最废
+  //   布雷：不用瞄，改成算他们会走哪
+  //   回旋：飞出去再飞回来，来回各穿一次，逼你把人站成一条线
+  beam:  { n:'熔切光束', s:'光束', ic:'|',  kind:'beam',   rate:16, dmg:4.2, reach:150,
+    col:'69,240,255', d:'按住就是一条线，只咬住最前面那一个。单体最快，成群最废' },
+  mine:  { n:'布雷器',   s:'布雷', ic:'#',  kind:'mine',   rate:1.1, dmg:40, splash:38,
+    col:'255,157,61', d:'脚下放雷，半秒后待发，踩到就炸。不用瞄，改成算他们会走哪' },
+  disc:  { n:'回旋刃',   s:'回旋', ic:'0',  kind:'disc',   rate:1.5, dmg:20, reach:170, bspd:235,
+    col:'124,255,79', d:'飞出去再飞回来，来回各穿一次。站得让他们排成一条线' },
   blade: { n:'振动刀',   s:'振刀', ic:'/',  kind:'melee',  rate:2.4, dmg:26, reach:42, arc:110, knock:150, heal:0.8,
     col:'69,240,255', d:'身前扇形一刀砍一片，命中击退并回一点血。但你得贴上去' },
 };
-const WEP_ORDER = ['pulse', 'shot', 'rail', 'arc', 'nade', 'blade'];
+const WEP_ORDER = ['pulse', 'shot', 'rail', 'arc', 'nade', 'blade', 'beam', 'mine', 'disc'];
 
 /* ================= 词条 ================= */
 const UPGRADES = [
@@ -1750,12 +1887,23 @@ const UPGRADES = [
   { id:'lens',  n:'弹幕透镜', ic:'=',  d:'弹速 +30%，射程 +25%', max:3, rare:0, f:p=>{p.mul.bspd*=1.3;p.mul.range*=1.25;equip(p.wep);} },
   { id:'aura',  n:'静电场',   ic:'#',  d:'身周持续放电伤害', max:3, rare:1, f:p=>p.aura+=9 },
   { id:'crit',  n:'暴击回路', ic:'!',  d:'15% 概率造成 3 倍伤害', max:3, rare:1, f:p=>p.crit+=.15 },
+  // 下面四条刻意都改【机制】而不是加数值 —— 数值那条线已经够长了，
+  // 再堆只会让选牌变成「哪个加得多」。
+  { id:'bounce',n:'折返弹',   ic:'<>', d:'子弹撞墙反弹一次', max:2, rare:1, from:5, f:p=>p.bounce+=1 },
+  { id:'charge',n:'蓄能枪机', ic:'^^', d:'停火 1 秒后的第一发造成 3 倍伤害', max:2, rare:1, from:6,
+    f:p=>{ p.charge += 1; } },
+  { id:'mark',  n:'拆解标记', ic:'x',  d:'击杀后，附近敌人 3 秒内多吃 25% 伤害', max:2, rare:1, from:7,
+    f:p=>p.mark+=1 },
+  { id:'salvage',n:'回收协议', ic:'$', d:'捡到废钢时回 3 点生命', max:3, rare:0, from:5, f:p=>p.salvage+=3 },
   // 换装卡：拿到就永久带着，Q 键在带着的枪之间切
   { id:'w_shot', n:'霰弹枪',   ic:'*', d:WEAPONS.shot.d, max:1, rare:1, wep:'shot', req:'w_shot', f:p=>equip('shot') },
   { id:'w_rail', n:'磁轨枪',   ic:'=', d:WEAPONS.rail.d, max:1, rare:1, wep:'rail', req:'w_rail', f:p=>equip('rail') },
   { id:'w_arc',  n:'电弧链',   ic:'~', d:WEAPONS.arc.d,  max:1, rare:1, wep:'arc', req:'w_arc',  f:p=>equip('arc') },
   { id:'w_nade', n:'榴弹',     ic:'o', d:WEAPONS.nade.d, max:1, rare:1, wep:'nade', req:'w_nade', f:p=>equip('nade') },
   { id:'w_blade',n:'振动刀',   ic:'/', d:WEAPONS.blade.d, max:1, rare:1, wep:'blade', req:'w_blade', f:p=>equip('blade') },
+  { id:'w_beam', n:'熔切光束', ic:'|', d:WEAPONS.beam.d,  max:1, rare:1, wep:'beam', req:'w_beam', f:p=>equip('beam') },
+  { id:'w_mine', n:'布雷器',   ic:'#', d:WEAPONS.mine.d,  max:1, rare:1, wep:'mine', req:'w_mine', f:p=>equip('mine') },
+  { id:'w_disc', n:'回旋刃',   ic:'0', d:WEAPONS.disc.d,  max:1, rare:1, wep:'disc', req:'w_disc', f:p=>equip('disc') },
   // 下面三条要先在档案里解锁才会进池。都带代价 —— 纯加强的卡不会被记住。
   { id:'u_cap',    n:'过载电容', ic:'!!', d:'射速 +45%，但生命上限 -15', max:3, rare:1, req:'u_cap',
     f:p=>{ p.mul.rate*=1.45; p.maxhp-=15; p.hp=Math.min(p.hp,p.maxhp); equip(p.wep); } },
@@ -1768,7 +1916,13 @@ const UPGRADES = [
 function rollOffer() {
   // 没解锁的卡不进池 —— 池子随着档案一点点变大，这才是「下一局会不一样」
   const open = MODE === 'daily';                  // 每日局全部词条开放，大家一样
-  const pool = UPGRADES.filter(u => (G.stacks[u.id] || 0) < u.max && (!u.req || open || PROF.unlocked[u.req]));
+  // from：有些词条要到一定波次才进池。
+  // 加牌有个副作用 —— 每加一张，任何一张【特定】的牌就更难抽到。
+  // 实测：词条从 18 条加到 22 条之后，开局抽不到伤害，5 局里 2 局第 5 波就死。
+  // 所以新加的那几条机制牌延后进池，让开局的牌池保持紧凑。
+  const pool = UPGRADES.filter(u => (G.stacks[u.id] || 0) < u.max
+    && (!u.req || open || PROF.unlocked[u.req])
+    && (!u.from || G.wave >= u.from));
   const out = [];
   while (out.length < 3 && pool.length) {
     const i = (RNG.card() * pool.length) | 0;
@@ -2168,6 +2322,9 @@ const MILES = [
   { id: 's_ghost', d: '打满 20 局',         n: '涂装：幽灵',   ok: p => p.runs >= 20 },
   // 游戏里最大的成就原来解锁不了任何东西。它的奖励就是下一档危险等级 ——
   // 也正好是「打穿之后玩什么」的答案。
+  { id: 'w_disc',  d: '活到第 15 波',       n: '回旋刃进卡池',   ok: p => p.bestWave >= 15 },
+  { id: 'w_mine',  d: '拆掉 40 台重装机甲', n: '布雷器进卡池',   ok: p => p.tankKills >= 40 },
+  { id: 'w_beam',  d: '拆掉 3 个 BOSS',     n: '熔切光束进卡池', ok: p => p.bossKills >= 3 },
   { id: 'd_two',   d: '打穿一次 30 波',     n: '危险等级：高危', ok: p => (p.wins | 0) >= 1 },
   { id: 'd_all',   d: '在高危以上打穿一次', n: '危险等级：熔毁 / 归零', ok: p => (p.dangerMax | 0) >= 2 },
 ];
@@ -2182,7 +2339,9 @@ function nextMile() { return MILES.find(m => !PROF.unlocked[m.id]) || null; }
 if (checkMiles().length) saveProf();          // 读档补发
 // 一局结束：把这一局的战绩折进档案，然后看解锁了什么
 function bankRun() {
-  const scrap = G.wave * 12 + G.kills;
+  // 局内没花完的废钢存进档案，外加一份波次奖励做底 ——
+  // 这样「全花光」不至于让这一局的元进度归零，而「一分不花」也确实攒得更多。
+  const scrap = G.wave * 12 + G.scrap;
   PROF.runs++; PROF.kills += G.kills;
   PROF.bestWave = Math.max(PROF.bestWave, G.wave);
   PROF.bossKills += G.bossKills; PROF.coreKills += G.coreKills; PROF.tankKills += G.tankKills;
@@ -2234,10 +2393,19 @@ function syncProf() {
   else for (const id of WEP_ORDER) {
     const unlocked = id === 'pulse' || PROF.unlocked['w_' + id];
     const bought = id === 'pulse' || PROF.bought[id];
-    const label = WEAPONS[id].n + (bought ? '' : unlocked ? ` ${WEP_COST}废钢` : ' 未解锁');
-    h += chip(label, PROF.wep === id, !unlocked, 'wep:' + id, WEAPONS[id].d);
+    // 「150废钢」原来读起来像「想用这把就得付钱」，而其实解锁之后它已经在局内
+    // 三选一的卡池里了 —— 买只是为了「开局就拿着」。这两件事得分开说。
+    const label = WEAPONS[id].n + (bought ? '' : unlocked ? ` 起手 ${WEP_COST}` : ' 未解锁');
+    const how = bought ? '已买下 · 点它设为起手武器'
+      : unlocked ? `已在局内卡池里，升级三选一会抽到；花 ${WEP_COST} 废钢可以买成起手武器`
+      : '还没解锁 —— 看下面那行「下一个解锁」';
+    h += chip(label, PROF.wep === id, !unlocked, 'wep:' + id, how + ' ｜ ' + WEAPONS[id].d);
   }
   h += '</div>';
+  // 这一行是回答「怎么获得新枪」的。两步：里程碑先把枪放进卡池，之后局内抽到或者花废钢买成起手。
+  h += '<div class="prow hint2">新枪先靠里程碑进卡池，之后<b>局内升级三选一</b>抽到就永久带着（'
+    + (isTouch ? '右下圆键' : '1-6 / Q') + ' 切换）；'
+    + `花 ${WEP_COST} 废钢可以买成<b>起手</b>武器。</div>`;
   h += '<div class="prow"><span class="plbl">涂装</span>';
   if (daily) h += `<span class="plbl">${SKINS[dailySkin()].n} · 今日主题</span>`;
   else for (const id of SKIN_ORDER) {
@@ -2332,7 +2500,7 @@ function dailySkin() { return SKIN_ORDER[strSeed('skin-' + dayKey()) % SKIN_ORDE
    所以这里：身体朝镜头（往左瞄就水平翻转），只有【枪】绕胸口的支点跟着准心转。
    道具升级了就往固定槽位上挂一片贴花 —— 枪上的挂枪上，背上的挂背上。 */
 const GUN_OF = { pulse: 'gun_pulse', shot: 'gun_shot', rail: 'gun_rail', arc: 'gun_arc', nade: 'gun_nade',
-  blade: 'gun_blade' };
+  blade: 'gun_blade', beam: 'gun_beam', mine: 'gun_mine', disc: 'gun_disc' };
 // on: 'gun' 跟着枪转 / 'body' 贴在身上 / 'back' 画在身体后面
 // x,y 是相对精灵中心的偏移（身体 16×20，枪的支点在它左端中央）
 const DECAL = {
@@ -2356,6 +2524,11 @@ const DECAL = {
   aura:     { g: 'd_aura',   on: 'body', x: -5, y: 5 },    // 腰侧电极
   spd:      { g: 'd_spd',    on: 'body', x: -4, y: 8 },    // 腿侧助推
   dash:     { g: 'd_dash',   on: 'body', x: 4,  y: 9 },    // 脚后尾翼
+  // 四条新词条的槽位。都挑了没被占的地方，叠满也不会互相糊住。
+  bounce:   { g: 'd_bounce', on: 'gun',  x: 7,  y: -4 },   // 枪身上的折返导片
+  charge:   { g: 'd_charge', on: 'gun',  x: 1,  y: 4 },    // 枪机后的蓄能块
+  mark:     { g: 'd_mark',   on: 'body', x: -6, y: -6 },   // 另一侧的标记目镜
+  salvage:  { g: 'd_salvage',on: 'back', x: -2, y: -3 },   // 背后的回收筐
 };
 // 左上角对齐地画一张（blit 是按中心对齐的，槽位算起来不直观）
 function blitAt(spr, dx, dy) {
@@ -2409,6 +2582,10 @@ const BUFFS = {
   ward:   { n: '护壁',  t: 4,  c: '#45f0ff', d: '完全免伤' },
   magnet: { n: '吸附',  t: 10, c: '#7cff4f', d: '拾取范围 ×4' },
   surge:  { n: '磁暴',  t: 0,  c: '#ff2ea6', d: '当场清一片' },   // t:0 = 即时生效
+  // 两个新的。时滞改的是「他们多快」，血偿改的是「杀得值不值」——
+  // 都不是给玩家直接加数值。
+  slow:   { n: '时滞',  t: 6,  c: '#a45cff', d: '全场敌人慢一半' },
+  vamp:   { n: '血偿',  t: 7,  c: '#ff6b6b', d: '这段时间里每次击杀回 9 血' },
 };
 const BUFF_IDS = Object.keys(BUFFS);
 function grabBuff(id) {
@@ -2581,6 +2758,80 @@ function xpNeed(lv) {
 // 附带的好处是难度跟着玩家水平走，强的人一直顶着上限打，弱的人不会雪崩。
 // 线性 4+2.6w 在第 5 波就摆 17 只，而老版本那时只有 5~6 只 —— 开局直接劝退。
 // 改成二次：早期贴着老版本，后期才压上来。
+/* ================= 波间商店 =================
+   刻意只卖【消耗品和内容】，不卖永久数值 ——
+   里程碑那条元断言守的就是这个：元进度给新东西，不给数值膨胀。
+   商店同理，否则它会变成「用废钢换伤害」，而伤害这条线已经由词条负责了。
+
+   定价按实测来：一局能捡 1500~3800 废钢（平均约 2800），
+   所以价钱是几百这个量级。凭感觉定成几十的话，商店等于免费。 */
+const SHOP = [
+  { id: 'fix',  n: '现 场 修 复', cost: 100, d: '立刻回 45% 整合度',
+    can: () => P.hp < P.maxhp * .98,
+    act: () => { P.hp = Math.min(P.maxhp, P.hp + P.maxhp * .45); Sfx.buff(); } },
+  { id: 'buff', n: '注 入 强 化', cost: 80,  d: '随机一个临时增益，立刻生效',
+    can: () => true,
+    act: () => grabBuff(BUFF_IDS[(RNG.card() * BUFF_IDS.length) | 0]) },
+  { id: 'rr',   n: '多 一 次 重 摇', cost: 120, d: '这一局的升级重摇 +1',
+    can: () => true,
+    act: () => { G.rerolls++; syncReroll(); Sfx.swap(); } },
+  // 头牌：把「等卡池抽到」变成「花钱现在就要」。
+  // 上一轮被问「怎么获得新枪」，这条正好给一条确定的路。
+  { id: 'gun',  n: '军 械 调 拨', cost: 300, d: '一把已解锁的枪，这一局带着',
+    can: () => shopGuns().length > 0,
+    act: () => {
+      const g = shopGuns();
+      const id = g[(RNG.card() * g.length) | 0];
+      equip(id); Sfx.swap(); banner(WEAPONS[id].n, WEAPONS[id].d);
+    } },
+];
+// 已解锁（或每日局全开）、但这一局还没带在身上的枪
+function shopGuns() {
+  const open = MODE === 'daily';
+  return WEP_ORDER.filter(id => id !== 'pulse'
+    && (open || PROF.unlocked['w_' + id])
+    && P.owned.indexOf(id) < 0);
+}
+function shopBuy(id) {
+  const it = SHOP.find(x => x.id === id);
+  if (!it || G.phase !== 'shop' || G.scrap < it.cost || !it.can()) return false;
+  G.scrap -= it.cost; G.bought++;
+  it.act();
+  syncShop(); syncHud();
+  return true;
+}
+// 商店只在「它真有东西给你」的时候才拦一下。买不起也没伤，就别打断节奏。
+function shopWorth() {
+  return SHOP.some(it => G.scrap >= it.cost && it.can());
+}
+function openShop() {
+  G.phase = 'shop';
+  syncShop();
+  const b = el('shopBox');
+  if (b) b.classList.add('show');
+}
+function closeShop() {
+  const b = el('shopBox');
+  if (b) b.classList.remove('show');
+  if (G.phase === 'shop') { G.phase = 'break'; G.waveT = .7; }
+}
+function syncShop() {
+  const box = el('shopItems');
+  if (!box) return;
+  box.innerHTML = SHOP.map(it => {
+    const ok2 = G.scrap >= it.cost && it.can();
+    const why = it.can() ? (ok2 ? '' : ' 废钢不够') : ' 用不上';
+    return `<button class="sitem${ok2 ? '' : ' lock'}" data-shop="${it.id}">`
+      + `<span class="sn">${it.n}</span>`
+      + `<span class="sd">${it.d}</span>`
+      + `<span class="sc">${it.cost} 废钢${why}</span></button>`;
+  }).join('');
+  const w = el('shopScrap');
+  if (w) w.textContent = G.scrap;
+  const g = el('shopGo');
+  if (g) g.textContent = isTouch ? '下 一 波' : '下 一 波  [空格]';
+}
+
 const HOOK_GAP = 2.2;                                  // 两次钩索之间保证有这么久的空档
 function targetMass(w) { return Math.round(Math.min(84, 4 + w * .6 + w * w * .08) * dgMul(DG().mass, w)); }
 // 补怪速率直接写成【每秒几只】，而不是写成间隔 —— 写间隔的时候 1/间隔 是非线性的，
@@ -2660,6 +2911,9 @@ function fire() {
   if (P.kind === 'rail') return fireRail(a0);
   if (P.kind === 'arc') return fireArc();
   if (P.kind === 'nade') return fireNade(a0);
+  if (P.kind === 'beam') return fireBeam(a0);
+  if (P.kind === 'mine') return fireMine(a0);
+  if (P.kind === 'disc') return fireDisc(a0);
   // 子弹类：脉冲和霰弹走同一条路，区别全在数值
   const spread = P.spread * (P.count > 1 ? P.count : 1);
   for (let i = 0; i < P.count; i++) {
@@ -2671,7 +2925,7 @@ function fire() {
       x: P.x + Math.cos(a) * 8, y: P.y + Math.sin(a) * 8,
       vx: Math.cos(a) * P.bspd * rnd(.92, 1.08), vy: Math.sin(a) * P.bspd * rnd(.92, 1.08),
       life: P.range, dmg: P.dmg * (crit ? 3 : 1), crit,
-      pierce: P.pierce, hits: [], px: 0, py: 0, col: P.wcol, wep: P.wep
+      pierce: P.pierce, hits: [], px: 0, py: 0, bounce: P.bounce, col: P.wcol, wep: P.wep
     });
   }
   muzzle(a0, P.kind === 'bullet' && P.count > 3 ? 7 : 3);
@@ -2754,12 +3008,64 @@ function fireNade(a) {
   G.bullets.push({
     x: P.x + Math.cos(a) * 8, y: P.y + Math.sin(a) * 8,
     vx: Math.cos(a) * P.bspd, vy: Math.sin(a) * P.bspd,
-    life: P.range, dmg: P.dmg, crit: false, pierce: 0, hits: [], px: 0, py: 0,
+    life: P.range, dmg: P.dmg, crit: false, pierce: 0, hits: [], px: 0, py: 0, bounce: P.bounce,
     col: P.wcol, nade: 1, splash: P.splash, wep: P.wep
   });
   muzzle(a, 4); G.shake = Math.max(G.shake, 1.8);
   Sfx.nade();
 }
+/* 熔切光束：一条线，只咬住【最前面】那一个。
+   刻意不穿透 —— 穿透的话它就成了「又快又能扫一排」，比谁都强。
+   它的代价是必须一直跟住，松一下伤害就断。 */
+function fireBeam(a0) {
+  const dx = Math.cos(a0), dy = Math.sin(a0);
+  let best = null, bd = P.reach;
+  for (const m of G.mobs) {
+    if (m.dead) continue;
+    const rx = m.x - P.x, ry = m.y - P.y;
+    const t = rx * dx + ry * dy;                        // 投影到射线上
+    if (t < 0 || t > P.reach) continue;
+    const perp = Math.abs(rx * dy - ry * dx);           // 到射线的垂距
+    if (perp > m.r + 3) continue;
+    if (t < bd) { bd = t; best = m; }
+  }
+  const len2 = best ? bd : P.reach;
+  G.beams.push({ x1: P.x + dx * 8, y1: P.y + dy * 8,
+    x2: P.x + dx * len2, y2: P.y + dy * len2, t: .09, col: P.wcol, thin: 1 });
+  if (best) {
+    const crit = RNG.fx() < P.crit;
+    hurtMob(best, P.dmg * (crit ? 3 : 1), dx * 4, dy * 4, P.x, P.y);
+    G.wepDmg.beam = (G.wepDmg.beam || 0) + P.dmg;
+    if (RNG.fx() < .3) burstFx(best.x, best.y, 2, 'rgb(' + P.wcol + ')', 70);
+  }
+  if (RNG.fx() < .25) Sfx.hit();
+}
+
+/* 布雷器：不用瞄。放在脚下，半秒后待发，敌人踩上去才炸。
+   场上最多 MINE_MAX 颗，超了就顶掉最旧的 —— 否则「一直放」会变成无脑最优解。 */
+const MINE_MAX = 6;
+function fireMine(a0) {
+  if (G.mines.length >= MINE_MAX) G.mines.shift();
+  G.mines.push({
+    x: clamp(P.x + Math.cos(a0) * 12, 8, ARENA.w - 8),
+    y: clamp(P.y + Math.sin(a0) * 12, 8, ARENA.h - 8),
+    arm: .5, dmg: P.dmg, r: P.splash || 38, t: 0,
+  });
+  Sfx.nade();
+}
+
+/* 回旋刃：飞出去再飞回来，来回各穿一次（回程会清掉命中名单，所以能再打一遍）。
+   奖励的是站位 —— 让他们排在一条线上。 */
+function fireDisc(a0) {
+  G.discs.push({
+    x: P.x + Math.cos(a0) * 8, y: P.y + Math.sin(a0) * 8,
+    ang: a0, out: 0, back: 0, dmg: P.dmg, hits: [], spin: 0,
+    crit: RNG.fx() < P.crit, reach: P.reach, spd: P.bspd || 235,
+  });
+  muzzle(a0, 3);
+  Sfx.swing(false);
+}
+
 function muzzle(a, n) {
   for (let i = 0; i < n; i++) {
     const d = a + rnd(-.5, .5);
@@ -2792,6 +3098,8 @@ function explode(x, y, r, dmg) {
   Sfx.boom();
 }
 function hurtMob(m, dmg, kx, ky, sx, sy) {
+  if (P && P.charged) dmg *= 1 + 2 * P.charge;         // 蓄能：停火后的第一发
+  if (m.markT > 0) dmg *= 1 + .25 * (m.markBy || 1);   // 拆解标记：被标记的多吃伤害
   const d = MOB[m.type];
   // 铁闸：正面来的伤害几乎全挡掉。爆炸不传来源，所以【爆炸无视盾】—— 榴弹和爆裂核心因此有了专属场合。
   if (d.shield && sx != null && !G.overheat) {
@@ -2834,6 +3142,14 @@ function killMob(m) {
   G.kills++;
   if (isBoss(m)) { G.bossKills++; if (m.type === 'boss') G.coreKills++; }
   if (m.type === 'tank') G.tankKills++;
+  // 拆解标记：死一个，周围的跟着倒霉
+  if (P.mark) {
+    for (const o of G.mobs) {
+      if (o.dead || o === m) continue;
+      if (len(o.x - m.x, o.y - m.y) > 46) continue;
+      o.markT = 3; o.markBy = P.mark;
+    }
+  }
   // 分裂：在【它死的地方】裂出小的。spawn() 自己算位置，所以生成后挪过去 ——
   // 这样「在哪杀它」才真的是个决定。
   if (d.split && !G.overheat) {
@@ -2854,6 +3170,19 @@ function killMob(m) {
     G.drops.push({ x: m.x, y: m.y, vx: Math.cos(a) * rnd(10, 50), vy: Math.sin(a) * rnd(10, 50),
       t: 0, kind: 'xp' });
   }
+  // 废钢掉落。刻意不引入第三种货币：掉的就是废钢，局内能花，
+  // 局末没花完的存进档案 —— 于是「现在买」和「留到下一局」是个真决定。
+  {
+    const t = m.type;
+    const chance = isBoss(m) ? 1 : t === 'tank' ? 1
+      : (t === 'shieldbot' || t === 'relay' || t === 'sniper' || t === 'hauler') ? .55
+      : (t === 'grunt' || t === 'shard') ? .25 : .35;
+    if (m.elite || RNG.wave() < chance) {
+      const v = isBoss(m) ? 25 : t === 'tank' ? 2 : 1;
+      G.drops.push({ x: m.x, y: m.y, vx: 0, vy: 0, t: 0, kind: 'coin',
+        v: v * (m.elite ? 3 : 1) });
+    }
+  }
   if (RNG.wave() < (m.type === 'tank' || isBoss(m) ? .9 : .06))
     G.drops.push({ x: m.x, y: m.y, vx: 0, vy: 0, t: 0, kind: 'hp' });
   // 精英必掉一个增益，普通怪极小概率 —— 所以看见精英就知道值得去打
@@ -2862,6 +3191,7 @@ function killMob(m) {
     G.drops.push({ x: m.x, y: m.y, vx: 0, vy: 0, t: 0, kind: BUFF_IDS[(RNG.wave() * BUFF_IDS.length) | 0] });
   }
   if (P.lifesteal) P.hp = Math.min(P.maxhp, P.hp + P.lifesteal);
+  if (G.buffs.vamp > 0) P.hp = Math.min(P.maxhp, P.hp + 9);   // 血偿：这段时间杀得回血
   if (P.explode) explode(m.x, m.y, 24 + 9 * P.explode, 12 * P.explode);
   else Sfx.kill();
   if (isBoss(m)) { G.shake = 10; banner(d.nm + ' 已 拆 解', '+500'); }
@@ -2951,7 +3281,14 @@ function update(dt) {
   }
 
   P.fireT -= dt;
-  if (shooting && P.fireT <= 0) { fire(); P.fireT = 1 / (P.fireRate * (G.buffs.rush > 0 ? 2 : 1)); }
+  // 蓄能枪机：记着停火多久了。停够 1 秒，下一发按 3 倍算。
+  P.idleT = shooting ? 0 : P.idleT + dt;
+  if (shooting && P.fireT <= 0) {
+    P.charged = P.charge > 0 && P.idleT >= 1;
+    fire();
+    P.charged = false;
+    P.fireT = 1 / (P.fireRate * (G.buffs.rush > 0 ? 2 : 1));
+  }
 
   // 静电场
   if (P.aura) {
@@ -2987,7 +3324,16 @@ function update(dt) {
       G.overheat = 1;
       banner('护 盾 过 热', '场上剩下的护盾全部失效');
     }
-    if (G.waveT <= 0 && G.budget <= 0 && G.mobs.length === 0) { G.phase = 'break'; G.waveT = 3.2; G.overheat = 0; }
+    if (G.waveT <= 0 && G.budget <= 0 && G.mobs.length === 0) {
+      G.overheat = 0;
+      // 商店只在它真有东西给你的时候才拦 —— 买不起就别打断节奏。
+      // 第 30 波打完是撤离，不进商店。
+      if (G.wave < LAST_WAVE && shopWorth()) openShop();
+      else { G.phase = 'break'; G.waveT = 3.2; }
+    }
+  } else if (G.phase === 'shop') {
+    /* 商店开着的时候不走计时 —— 等玩家自己按「下一波」。
+       不给倒计时是刻意的：手机上四个条目加价钱，读完就得好几秒。 */
   } else {
     G.waveT -= dt;
     if (G.waveT <= 0) nextWave();
@@ -2999,7 +3345,9 @@ function update(dt) {
     m.flash = Math.max(0, m.flash - dt);
     m.slowT = Math.max(0, m.slowT - dt);
     m.guarded = Math.max(0, (m.guarded || 0) - dt);   // 中继的护盾每帧衰减，中继一死马上失效
-    const sl = m.slowT > 0 ? (1 - P.slow) : 1;
+    if (m.markT > 0) m.markT -= dt;
+    // 时滞（临时增益）跟冷凝弹头（词条）乘在一起：一个是全场一段时间，一个是命中才有
+    const sl = (m.slowT > 0 ? (1 - P.slow) : 1) * (G.buffs.slow > 0 ? .5 : 1);
     const dx = P.x - m.x, dy = P.y - m.y, d = len(dx, dy) || 1;
     m.ang = Math.atan2(dy, dx);
 
@@ -3252,7 +3600,14 @@ function update(dt) {
     b.px = b.x; b.py = b.y;
     b.x += b.vx * dt; b.y += b.vy * dt;
     b.life -= dt;
-    if (b.x < 0 || b.y < 0 || b.x > ARENA.w || b.y > ARENA.h) b.life = 0;
+    if (b.x < 0 || b.y < 0 || b.x > ARENA.w || b.y > ARENA.h) {
+      // 折返弹：撞墙反弹，弹完记一次。给的是「打墙角」这个位置玩法，不是数值。
+      if (b.bounce > 0) {
+        if (b.x < 0 || b.x > ARENA.w) { b.vx = -b.vx; b.x = clamp(b.x, 1, ARENA.w - 1); }
+        if (b.y < 0 || b.y > ARENA.h) { b.vy = -b.vy; b.y = clamp(b.y, 1, ARENA.h - 1); }
+        b.bounce--; b.hits.length = 0;                 // 反弹后能再打同一个
+      } else b.life = 0;
+    }
     if (b.nade) {                                    // 榴弹不打直伤，只管炸
       let boom = b.life <= 0;
       if (!boom) for (const m of G.mobs) if (!m.dead && len(m.x - b.x, m.y - b.y) < m.r + 3) { boom = true; break; }
@@ -3277,6 +3632,51 @@ function update(dt) {
   }
   G.bullets = G.bullets.filter(b => b.life > 0);
   for (const x of G.beams) x.t -= dt; G.beams = G.beams.filter(x => x.t > 0);
+
+  // 雷：待发之后谁碰谁炸
+  for (const mn of G.mines) {
+    mn.t += dt;
+    if (mn.arm > 0) { mn.arm -= dt; continue; }
+    let hit = false;
+    for (const m of G.mobs) {
+      if (m.dead) continue;
+      if (len(m.x - mn.x, m.y - mn.y) < mn.r * .42 + m.r) { hit = true; break; }
+    }
+    if (hit) {
+      G.wepDmg.mine = (G.wepDmg.mine || 0) + mn.dmg;
+      explode(mn.x, mn.y, mn.r, mn.dmg);
+      mn.gone = 1;
+      G.shake = Math.max(G.shake, 3);
+      Sfx.boom();
+    }
+  }
+  G.mines = G.mines.filter(m => !m.gone);
+
+  // 回旋刃：飞到最远处折返，回程清一次命中名单，所以来回各能打一遍
+  for (const dc of G.discs) {
+    dc.spin += dt * 18;
+    if (!dc.back) {
+      const step = dc.spd * dt;
+      dc.out += step;
+      dc.x += Math.cos(dc.ang) * step; dc.y += Math.sin(dc.ang) * step;
+      if (dc.out >= dc.reach) { dc.back = 1; dc.hits.length = 0; }
+      if (dc.x < 4 || dc.y < 4 || dc.x > ARENA.w - 4 || dc.y > ARENA.h - 4) { dc.back = 1; dc.hits.length = 0; }
+    } else {
+      const tx = P.x - dc.x, ty = P.y - dc.y, td = len(tx, ty) || 1;
+      if (td < 12) { dc.gone = 1; continue; }
+      const step = Math.min(dc.spd * 1.15 * dt, td);
+      dc.x += tx / td * step; dc.y += ty / td * step;
+    }
+    for (const m of G.mobs) {
+      if (m.dead || dc.hits.indexOf(m) >= 0) continue;
+      if (len(m.x - dc.x, m.y - dc.y) > m.r + 5) continue;
+      dc.hits.push(m);
+      hurtMob(m, dc.dmg * (dc.crit ? 3 : 1), Math.cos(dc.ang) * 6, Math.sin(dc.ang) * 6, dc.x, dc.y);
+      G.wepDmg.disc = (G.wepDmg.disc || 0) + dc.dmg;
+      burstFx(dc.x, dc.y, 3, 'rgb(124,255,79)', 90);
+    }
+  }
+  G.discs = G.discs.filter(d => !d.gone);
   for (const x of G.arcs) x.t -= dt; G.arcs = G.arcs.filter(x => x.t > 0);
   for (const x of G.slashes) x.t -= dt; G.slashes = G.slashes.filter(x => x.t > 0);
 
@@ -3300,6 +3700,10 @@ function update(dt) {
     if (dd < 8) {
       d.gone = true;
       if (d.kind === 'hp') { P.hp = Math.min(P.maxhp, P.hp + 18); }
+      else if (d.kind === 'coin') {
+        G.scrap += d.v || 1; G.scrapGot += d.v || 1; Sfx.xp();
+        if (P.salvage) P.hp = Math.min(P.maxhp, P.hp + P.salvage);   // 回收协议：钱换血
+      }
       else if (BUFFS[d.kind]) { grabBuff(d.kind); }
       else {
         P.xp++; Sfx.xp();
@@ -3510,6 +3914,19 @@ function render() {
       ctx.save(); ctx.translate(x, y); ctx.rotate(G.t * 1.4);
       ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.strokeRect(-3.5, -3.5, 7, 7); ctx.restore();
       ctx.fillStyle = '#fff'; ctx.fillRect(x - 1, y - 1, 2, 2);
+    } else if (d.kind === 'coin') {
+      // 废钢画成金色的碟，绕竖轴转（宽度来回变）—— 全场最像「钱」的形状，
+      // 而且跟绿菱形、红曳光、品红十字、转方框没有一个撞的
+      const w = Math.abs(Math.cos(G.t * 2.6 + d.t * 4)) * 3.4 + .7;
+      orb(x, y, 6, 'rgba(255,179,71,.42)', b);
+      ctx.fillStyle = '#ffb347';
+      ctx.beginPath(); ctx.ellipse(x, y, w, 3.6, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#4a2f0c';
+      if (w > 1.6) { ctx.beginPath(); ctx.ellipse(x, y, w * .42, 1.5, 0, 0, TAU); ctx.fill(); }
+      if ((d.v || 1) > 2) {                            // 大额的套一圈亮边
+        ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.ellipse(x, y, w + 1.6, 5.2, 0, 0, TAU); ctx.stroke();
+      }
     } else {
       // 经验点画成慢慢转的菱形：轮廓是尖的、转得慢，跟又直又快的曳光完全两个东西
       orb(x, y, 5, 'rgba(124,255,79,.45)', b);
@@ -3523,6 +3940,37 @@ function render() {
   }
 
   // 敌人子弹
+  // 雷：待发前闪黄，待发后亮红并轻轻呼吸 —— 一眼看出哪颗已经能炸
+  for (const mn of G.mines) {
+    const x = mn.x - G.cam.x, y = mn.y - G.cam.y;
+    const armed = mn.arm <= 0;
+    const bl = armed ? .55 + .45 * Math.sin(G.t * 7) : (((G.t * 12) | 0) % 2 ? 1 : .25);
+    orb(x, y, armed ? 9 : 6, armed ? 'rgba(255,47,79,' + (.3 * bl).toFixed(2) + ')' : 'rgba(255,224,102,.28)');
+    ctx.fillStyle = '#2a2018';
+    ctx.beginPath(); ctx.ellipse(x, y + 1, 4.5, 2.4, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = armed ? '#ff2f4f' : '#ffe066';
+    ctx.globalAlpha = bl;
+    ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+    ctx.globalAlpha = 1;
+    if (armed) {                                       // 待发的画一圈作用范围，别踩自己的雷
+      ctx.strokeStyle = 'rgba(255,47,79,' + (.18 * bl).toFixed(2) + ')'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x, y, mn.r * .42, 0, TAU); ctx.stroke();
+    }
+  }
+  // 回旋刃：转着的绿环
+  for (const dc of G.discs) {
+    const x = dc.x - G.cam.x, y = dc.y - G.cam.y;
+    orb(x, y, 10, 'rgba(124,255,79,.35)');
+    ctx.save(); ctx.translate(x, y); ctx.rotate(dc.spin);
+    ctx.strokeStyle = '#7cff4f'; ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      const a0 = i * TAU / 3;
+      ctx.beginPath(); ctx.arc(0, 0, 5, a0, a0 + .75); ctx.stroke();
+    }
+    ctx.fillStyle = '#eaffe0'; ctx.fillRect(-1, -1, 2, 2);
+    ctx.restore();
+  }
+
   // 敌方子弹画成【沿速度方向的曳光】。
   // 原来是「r=6 的橙色光斑 + 2×2 白芯」，而经验点是「r=4.5 的绿色光斑 + 2×2 白芯」——
   // 辉光会把颜色往白里洗，于是两个都只是「带白心的小亮点」，玩家会去捡子弹。
@@ -3817,6 +4265,8 @@ function syncHud() {
   el('xpFill').style.width = (P.xp / P.need * 100) + '%';
   el('lvTxt').textContent = P.lv;
   el('scoreTxt').textContent = G.score;
+  const st = el('scrapTxt');
+  if (st) st.textContent = G.scrap;
   el('waveTag').textContent = 'WAVE ' + String(Math.max(1, G.wave)).padStart(2, '0');
   const wt = el('wepTxt');
   // Q▸ 是给键盘看的提示。触屏有专门的换枪圆键，写 Q 只会让人去找 Q 在哪
@@ -3891,14 +4341,17 @@ function start(seedOverride) {
   ARENA_I = 0; setArena(0);
   P = newPlayer();
   setPaused(false);                                      // 重开时把暂停层收掉
+  { const sb = el('shopBox'); if (sb) sb.classList.remove('show'); }
   Object.assign(G, {
     state: 'play', paused: false, t: 0, shake: 0, hitFlash: 0,
     score: 0, kills: 0, wave: 0, waveT: .8, phase: 'break',
     spawnT: 0, budget: 0, combo: 0, comboT: 0,
     bullets: [], ebullets: [], mobs: [], parts: [], drops: [], offer: [], stacks: {},
-    beams: [], arcs: [], slashes: [], wepDmg: {}, deathBy: null, bossKills: 0, coreKills: 0, tankKills: 0,
+    beams: [], arcs: [], slashes: [], mines: [], discs: [],
+    wepDmg: {}, deathBy: null, bossKills: 0, coreKills: 0, tankKills: 0,
     buffs: {}, mod: null, eliteKills: 0, overheat: 0, won: false, seen: {}, tipQ: [], tipT: 0,
-    unlockedDanger: null, waveMax: 0, rerolls: REROLLS, hookCd: 0
+    unlockedDanger: null, waveMax: 0, rerolls: REROLLS, hookCd: 0,
+    scrap: 0, scrapGot: 0, bought: 0
   });
   if (MODE === 'daily') {                               // 每日局：固定配置
     applySkin(dailySkin());                             // 涂装是外观，可以跟着当天换
@@ -4016,6 +4469,11 @@ syncBest();
 syncProf();
 el('tabBuild').onclick = () => showDex(false);
 el('tabDex').onclick = () => showDex(true);
+el('shopGo').onclick = closeShop;
+el('shopItems').onclick = e => {
+  const b = e.target.closest && e.target.closest('[data-shop]');
+  if (b) shopBuy(b.dataset.shop);
+};
 el('resumeBtn').onclick = () => setPaused(false);
 el('giveupBtn').onclick = armGiveup;
 el('rerollBtn').onclick = doReroll;
@@ -4115,7 +4573,9 @@ window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
   ARENAS, ARENA, setArena, nextWave, genScenery, LAST_WAVE, tier, TIERS, winRun, targetMass, spawnGap, spawnRate, xpNeed, HOOK_GAP,
   DANGER, dangerIdx, DG, dangerMax, pickDanger, dgRamp, dgMul, get ARENA_I() { return ARENA_I; },
   hurtMob, hurtPlayer, blowUp, killMob, waveSpawn, isBoss, TIPS, BOSS_AT, bossOf, waveLeft, syncWave,
-  buildHTML, syncBuild, setPaused, armGiveup, doReroll, syncReroll, renderOffer, REROLLS, dexHTML, showDex, takeUpgrade, rollOffer, showLevelup, BUFFS, BUFF_IDS, grabBuff, MODS, rollMod, eliteChance, makeElite,
+  fireBeam, fireMine, fireDisc, MINE_MAX,
+  buildHTML, syncBuild, setPaused, armGiveup, doReroll, syncReroll, renderOffer, REROLLS, dexHTML, showDex,
+  SHOP, shopGuns, shopBuy, shopWorth, openShop, closeShop, syncShop, takeUpgrade, rollOffer, showLevelup, BUFFS, BUFF_IDS, grabBuff, MODS, rollMod, eliteChance, makeElite,
   SKINS, SKIN_ORDER, GRID, applySkin, pickSkin, dailySkin, sprSet, DECAL, GUN_OF, drawPlayer,
   get SKIN() { return SKIN; }, get SPRACTIVE() { return SPR; },
   get isTouch() { return isTouch; } };

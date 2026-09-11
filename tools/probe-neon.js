@@ -31,9 +31,27 @@ function play(seed, maxWave, dg) {
   let lastWave = 1;
   let stall = 0, prevW = 1;
   while (G.state !== 'over' && G.wave <= maxWave && t < 60 * 40) {
+    // 商店：一个笨买家。优先级是「回血 → 新枪 → 重摇 → 增益」，
+    // 并且刻意留一半废钢不花 —— 全花光的话就量不出「留到下一局」这条路了。
+    if (G.phase === 'shop') {
+      const keep = G.scrapGot * .5;
+      for (const id of ['fix', 'rr', 'buff']) {       // 军械不买：可能买到布雷器，它用不了
+        while (G.scrap - (NS.SHOP.find(x => x.id === id) || {}).cost >= keep && NS.shopBuy(id)) { /* 能买就买 */ }
+      }
+      NS.closeShop();
+      continue;
+    }
     if (G.state === 'levelup') {
       // 按一个固定优先级拿牌。之前是无脑拿第一张，结果同一套数值下
       // 有的种子到 21 波、有的第 2 波就死 —— 那测的是运气不是曲线。
+      // 机器人不会用布雷器 —— 那把枪的本事是「算他们会走哪」，
+      // 而它只会瞄着打。换上去之后一发都打不死，直接卡住。
+      // 这是量具的能力边界，不是那把枪的问题：有些武器的技巧是位置性的，
+      // 机器人评估不了。所以让它跳过。
+      if (G.offer.length > 1) {
+        const usable = G.offer.filter(u => u.id !== 'w_mine');
+        if (usable.length) G.offer = usable;
+      }
       const pri = ['dmg', 'rof', 'hp', 'count', 'spd', 'pierce', 'leech', 'crit', 'mag', 'shield'];
       if (!G.offer.length) { NS.G.state = 'play'; continue; }   // 兜底，正常不该发生
       const pick = G.offer.slice().sort((a, b) => {
@@ -58,16 +76,26 @@ function play(seed, maxWave, dg) {
       if (q < dd) { dd = q; dr = d; }
     }
     let mx = 0, my = 0;
-    if (tg && td < 110) { mx = (P.x - tg.x) / td; my = (P.y - tg.y) / td; }   // 太近就退
-    // 太远就追上去。原来机器人只会「退」和「捡东西」，从不主动靠近 ——
-    // 于是一只站在远处的母巢能让它干等三分钟，报成「卡住了」。
-    // 测量工具自己的缺陷会被当成游戏的 bug，这条比游戏里那条更值得记。
-    // 追击的门槛压到 130：110~150 那段「不进不退」正好是最容易打空的距离
-    else if (tg && td > 130) { mx = (tg.x - P.x) / td; my = (tg.y - P.y) / td; }
+    // 交战距离跟着【周围有几只】走，不用固定阈值。固定阈值两头都不对：
+    //   定 110/130 → 它一直悬在打不动的带子上，一波磨 25 秒，最后触发
+    //     「三分钟没推进」报成假卡死；
+    //   定 75/95   → 贴太近，5 局里 2 局第 5 波前就死。
+    // 人的打法本来就是「人少贴上去、人多拉开」，那就照这个写。
+    // 另外它原来根本不会主动靠近（只会退和捡东西），一只站在远处的母巢
+    // 能让它干等三分钟 —— 量具自己的毛病比游戏里的更难发现。
+    let near = 0;
+    for (const m of G.mobs) if (!m.dead && len(m.x - P.x, m.y - P.y) < 145) near++;
+    const keepOut = Math.min(130, 70 + near * 9);
+    let chasing = false;
+    if (tg && td < keepOut) { mx = (P.x - tg.x) / td; my = (P.y - tg.y) / td; }
+    else if (tg && td > keepOut + 22) { mx = (tg.x - P.x) / td; my = (tg.y - P.y) / td; chasing = true; }
     else if (dr) { mx = (dr.x - P.x) / (dd || 1); my = (dr.y - P.y) / (dd || 1); }
-    // 后退时掺一点朝场中的分量：直着往后退会把自己顶到墙角里白送
+    // 后退时掺一点朝场中的分量：直着往后退会把自己顶到墙角里白送。
+    // 但【追击时不掺】—— 目标缩在角落的时候，朝场中的拉力正好把追击抵消掉，
+    // 两个向量打平，机器人就在原地打转。实测：剩一个中继在角落，152 秒不动。
+    // 已经决定要贴上去了，就别让位置启发式把这个决定撤销。
     const cx = NS.ARENA.w / 2 - P.x, cy = NS.ARENA.h / 2 - P.y, cd = len(cx, cy) || 1;
-    if (cd > Math.min(NS.ARENA.w, NS.ARENA.h) * .3) { mx += cx / cd * .8; my += cy / cd * .8; }
+    if (!chasing && cd > Math.min(NS.ARENA.w, NS.ARENA.h) * .3) { mx += cx / cd * .8; my += cy / cd * .8; }
     const ml = len(mx, my); if (ml > 1) { mx /= ml; my /= ml; }
     // 打提前量。原来瞄的是目标【当前】位置，而子弹飞 100px 要 0.37 秒，
     // 期间怪走了 9px —— 而怪的半径只有 5px，于是一直擦过去。
@@ -90,9 +118,12 @@ function play(seed, maxWave, dg) {
     if (stall > 180) {
       // 卡住的时候必须说清是【为什么】卡住，否则「卡了」这个结论没法用
       const boss = G.mobs.find(m => NS.isBoss(m));
-      const why = `预算剩 ${G.budget}，场上 ${G.mobs.length} 只`
+      const comp = {};
+      for (const m of G.mobs) if (!m.dead) comp[NS.MOB[m.type].nm] = (comp[NS.MOB[m.type].nm] || 0) + 1;
+      const why = `预算剩 ${G.budget}，场上 ${Object.entries(comp).map(([k, v]) => k + '×' + v).join(' ') || '空'}`
         + (boss ? `，${NS.MOB[boss.type].nm} 还有 ${Math.round(boss.hp / boss.max * 100)}% 血` : '，没有 BOSS')
-        + `，加时 ${(-G.waveT).toFixed(0)}s，过热=${G.overheat}`;
+        + `，加时 ${(-G.waveT).toFixed(0)}s，过热=${G.overheat}`
+        + `，最近的距离 ${Math.round(Math.min(...G.mobs.filter(m => !m.dead).map(m => len(m.x - P.x, m.y - P.y))))}px`;
       return { seed, wave: G.wave, stalled: true, why, dead: false, t: Math.round(t),
         lv: P.lv, elites, mods, log, hpLow: Math.round(hpLow * 100) };
     }
@@ -105,7 +136,8 @@ function play(seed, maxWave, dg) {
   padOff();
   const picked = Object.keys(G.buffs).length;
   return { seed, wave: G.wave, dead: G.state === 'over' && !G.won, won: !!G.won, by: G.deathBy, t: Math.round(t),
-    lv: P.lv, elites, mods, log, hpLow: Math.round(hpLow * 100), picked };
+    lv: P.lv, elites, mods, log, hpLow: Math.round(hpLow * 100), picked,
+    scrapGot: G.scrapGot, scrapLeft: G.scrap, bought: G.bought };
 }
 
 const MAXW = Number(process.argv[2] || 31);
@@ -119,6 +151,7 @@ for (const s of seeds) {
   reached.push(r.wave); results.push(r);
   console.log(`种子 ${String(s).padEnd(9)} → 第 ${String(r.wave).padStart(2)} 波${r.won ? ' 撤离成功' : r.dead ? ` 死了（${r.by || '?'}）` : r.stalled ? ' 卡住了（三分钟没推进）' : ' 还活着'}`
     + `  等级 ${String(r.lv).padStart(2)}  用了 ${String(r.t).padStart(3)}s  见过 ${String(r.elites).padStart(2)} 个精英  血最低 ${r.hpLow}%`);
+  if (r.scrapGot != null) console.log(`             捡到 ${r.scrapGot} 废钢，在商店买了 ${r.bought} 次，剩 ${r.scrapLeft} 存进档案`);
   if (r.stalled) console.log(`             卡住原因：${r.why}`);
   if (r.mods.length) console.log(`             修饰波：${r.mods.join('  ')}`);
 }

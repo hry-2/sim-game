@@ -191,10 +191,17 @@ ok(NS.rollOffer.call && (() => { for (let i = 0; i < 40; i++) if (NS.rollOffer()
 // 每一局都有产出，打崩的一局也不白打
 Object.assign(P0, { scrap: 0, scrapTotal: 0, runs: 0, kills: 0 });
 NS.start(); NS.G.wave = 3; NS.G.kills = 40; NS.G.bossKills = 0; NS.G.tankKills = 2;
+NS.G.scrap = 55;                                     // 局内捡到没花完的
 const bk = NS.bankRun();
-ok(bk.scrap === 3 * 12 + 40, `一局产出废钢 = 波次×12 + 击杀（${bk.scrap}）`);
+ok(bk.scrap === 3 * 12 + 55, `一局产出废钢 = 波次×12 + 局内没花完的（${bk.scrap}）`);
 ok(P0.runs === 1 && P0.kills === 40 && P0.tankKills === 2, '战绩折进了档案');
 ok(NS.loadProf().scrapTotal === bk.scrap, '档案落盘了');
+// 花掉的就不进档案 —— 这才叫「现在买还是留到下一局」。
+// 注意这一段要放在上面两条之后：bankRun() 会加一次局数，先跑会把它们顶掉。
+Object.assign(P0, { scrap: 0, scrapTotal: 0, runs: 0, kills: 0 });
+NS.start(); NS.G.wave = 3; NS.G.scrap = 5;
+ok(NS.bankRun().scrap === 3 * 12 + 5, '花光了只剩波次奖励做底，不至于让这一局的元进度归零');
+Object.assign(P0, { scrap: 0, scrapTotal: 0, runs: 0, kills: 0 });
 
 // 买起手武器：要先解锁，还要花废钢
 P0.scrap = 100; P0.unlocked.w_rail = 1;
@@ -1729,6 +1736,356 @@ console.log('可读性');
   RG.ebullets.push({ x: RP.x, y: RP.y, vx: 0, vy: 0, life: 3, dmg: 1, src: 'drone' });
   try { NS.render(); } catch (e) { threw = e.message; }
   ok(!threw, threw ? `速度为零的子弹让绘制抛错：${threw}` : '速度为零的子弹也画得出来（不会除出 NaN）');
+}
+
+// ---- 36) 「怎么获得新枪」说清楚了没有 ----
+// 玩家真的问了这个问题。查出来：标题页的 chip 只写「霰弹枪 150废钢」，
+// 读起来像「想用就得付 150」—— 完全没提它解锁之后已经在局内卡池里了。
+// 只有解锁那一瞬间的横幅写着「进卡池」，一闪就没。
+console.log('新枪的获得说明');
+{
+  NS.setMode('free');
+  for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+  Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf();
+  const h0 = byId('prof').innerHTML;
+  ok(/新枪先靠里程碑进卡池/.test(h0), '标题页有一行专门讲新枪怎么来');
+  ok(/升级三选一/.test(h0) && /起手/.test(h0), '两条路都写了：局内抽卡 / 花废钢买成起手');
+  // 三种状态的说明必须不一样
+  NS.PROF.unlocked.w_shot = 1; NS.PROF.scrap = 500; NS.syncProf();
+  const h1 = byId('prof').innerHTML;
+  ok(/已在局内卡池里/.test(h1), '已解锁未购买时，明说它已经在卡池里了');
+  ok(!/霰弹枪 150废钢/.test(h1), '不再只写一个价钱，那会被读成「解锁价」');
+  NS.buyWep('shot'); NS.syncProf();
+  const h2 = byId('prof').innerHTML;
+  ok(/已买下/.test(h2), '买下之后说法再变一次');
+  ok(new Set([/还没解锁/.test(h0), /已在局内卡池里/.test(h1), /已买下/.test(h2)]).size === 1
+    && /还没解锁/.test(h0), '未解锁 / 已进卡池 / 已买下，三种状态三种说法');
+  // 每一把枪都得有一条里程碑把它放进卡池，否则永远拿不到
+  const wepCards = NS.UPGRADES.filter(u => /^w_/.test(u.id));
+  for (const u of wepCards) {
+    ok(NS.MILES.some(m => m.id === u.req), `${u.n} 有对应的里程碑（${(NS.MILES.find(m => m.id === u.req) || {}).d}）`);
+  }
+  ok(wepCards.length === NS.WEP_ORDER.length - 1, `除了起手的脉冲步枪，其余 ${wepCards.length} 把都靠换装卡拿`);
+  // 换装卡必须真的能进池
+  NS.start(70);
+  NS.PROF.unlocked.w_rail = 1;
+  const pool = [];
+  for (let i = 0; i < 400; i++) { NS.seedRun(i); NS.G.stacks = {}; pool.push(...NS.rollOffer().map(u => u.id)); }
+  ok(pool.indexOf('w_rail') >= 0, '解锁之后，磁轨枪的换装卡确实会出现在三选一里');
+  ok(pool.indexOf('w_arc') < 0, '没解锁的不会出现');
+}
+
+// ---- 37) 掉落废钢 + 波间商店 ----
+console.log('废钢与商店');
+{
+  const D = 1 / 60;
+  // 一、废钢会掉、能捡、外观不跟别的撞
+  NS.setMode('free'); NS.start(80);
+  const SG = NS.G, SP = NS.P;
+  SG.phase = 'break'; SG.budget = 0; SG.mobs.length = 0; SG.drops.length = 0; SG.scrap = 0;
+  let coins = 0;
+  for (let i = 0; i < 60; i++) { NS.spawn('grunt'); const m = SG.mobs[SG.mobs.length - 1]; m.x = 900; m.y = 900; NS.killMob(m); }
+  coins = SG.drops.filter(d => d.kind === 'coin').length;
+  ok(coins > 5 && coins < 60, `60 只小兵掉了 ${coins} 枚废钢 —— 不是每只都掉，也不是几乎不掉`);
+  ok(SG.drops.every(d => d.kind !== 'coin' || d.v >= 1), '每枚都有面值');
+  // 精英和重装掉得多
+  SG.drops.length = 0; NS.spawn('tank');
+  const tk = SG.mobs[SG.mobs.length - 1]; NS.makeElite(tk); NS.killMob(tk);
+  const big = SG.drops.filter(d => d.kind === 'coin');
+  ok(big.length === 1 && big[0].v >= 6, `精英重装掉的那枚值 ${big[0] && big[0].v}（普通是 1）`);
+  // 捡起来进局内账户
+  SG.drops.length = 0; SG.scrap = 0;
+  SG.drops.push({ x: SP.x, y: SP.y, vx: 0, vy: 0, t: 0, kind: 'coin', v: 7 });
+  for (let i = 0; i < 20; i++) NS.update(D);
+  ok(SG.scrap === 7, `捡到就进局内账户（${SG.scrap}）`);
+  ok(byId('scrapTxt').textContent === '7', 'HUD 上看得见手上有多少');
+  // 外观：金碟，跟绿菱形 / 红曳光 / 品红十字 / 转方框都不一样
+  const cc = html.slice(html.indexOf('// 废钢画成金色的碟'), html.indexOf('// 废钢画成金色的碟') + 700);
+  ok(/ellipse\(x, y, w, 3\.6/.test(cc), '废钢是个椭圆碟，宽度随转动变化 —— 形状上就跟别的分开');
+  ok(!/moveTo[\s\S]{0,80}closePath/.test(cc), '不是菱形（那是经验点）');
+
+  // 二、商店只卖消耗品和内容，不卖永久数值
+  ok(NS.SHOP.length >= 3, `商店有 ${NS.SHOP.length} 样`);
+  ok(NS.SHOP.every(it => it.n && it.d && it.cost > 0 && typeof it.act === 'function'), '每样都有名字、说明、价钱和实际效果');
+  ok(!NS.SHOP.some(it => /伤害|射速|上限 ?\+|永久|\+\d+%/.test(it.d)),
+    '没有一样是卖永久数值的 —— 那条线由词条负责，商店插手就成了「用废钢换伤害」');
+  // 数值真的没被改动
+  NS.start(80);
+  const P2 = NS.P;
+  // 要守的是【倍率没被抬高】，不是「P.dmg 一个数都不许变」——
+  // 买枪当然会改 P.dmg，因为换了把枪本来就该是不同的数值。
+  // 真正的底线是 P.mul.*（词条攒出来的倍率）和 maxhp/移速/暴击不能被商店抬。
+  const before = JSON.stringify({ mul: P2.mul, maxhp: P2.maxhp, speed: P2.speed,
+    crit: P2.crit, shield: P2.shield, aura: P2.aura, leech: P2.lifesteal });
+  NS.G.phase = 'shop'; NS.G.scrap = 99999;
+  NS.PROF.unlocked.w_shot = 1; NS.PROF.unlocked.w_rail = 1;
+  for (const it of NS.SHOP) { NS.G.scrap = 99999; NS.shopBuy(it.id); }
+  const after = JSON.stringify({ mul: P2.mul, maxhp: P2.maxhp, speed: P2.speed,
+    crit: P2.crit, shield: P2.shield, aura: P2.aura, leech: P2.lifesteal });
+  ok(before === after, '逛一圈买光，词条倍率 / 生命上限 / 移速 / 暴击 / 护盾 / 静电场 / 汲取一个没动');
+  ok(P2.dmg !== undefined, '（伤害会随换枪变化，那是换枪该有的效果，不算数值膨胀）');
+
+  // 三、每一样都真的做了事
+  NS.start(80); const S3 = NS.G, P3 = NS.P;
+  S3.phase = 'shop'; S3.scrap = 5000;
+  P3.hp = P3.maxhp * .3;
+  ok(NS.shopBuy('fix') === true && P3.hp > P3.maxhp * .7, `修复真的回了血（到 ${Math.round(P3.hp / P3.maxhp * 100)}%）`);
+  P3.hp = P3.maxhp;
+  ok(NS.shopBuy('fix') === false, '满血时买不了修复 —— 不让人白花钱');
+  S3.buffs = {};
+  ok(NS.shopBuy('buff') === true && Object.keys(S3.buffs).length + (S3.parts.length > 0 ? 1 : 0) > 0, '强化真的给了一个增益');
+  const rr0 = S3.rerolls;
+  ok(NS.shopBuy('rr') === true && S3.rerolls === rr0 + 1, `重摇 +1（${rr0} → ${S3.rerolls}）`);
+  NS.PROF.unlocked.w_rail = 1;
+  const own0 = P3.owned.length;
+  ok(NS.shopGuns().length > 0, `军械里有 ${NS.shopGuns().length} 把可买`);
+  ok(NS.shopBuy('gun') === true && P3.owned.length > own0, `买到了新枪（带着 ${own0} → ${P3.owned.length} 把）`);
+  // 买过的枪不会再出现在军械里
+  ok(NS.shopGuns().indexOf(P3.owned[P3.owned.length - 1]) < 0, '已经带着的枪不再出现在军械里');
+  // 买不起就买不了，钱也不会扣成负数
+  S3.scrap = 10;
+  ok(NS.shopBuy('gun') === false && S3.scrap === 10, '买不起时不扣钱');
+
+  // 四、商店只在它真有东西给你的时候才拦
+  NS.start(80); const S4 = NS.G, P4 = NS.P;
+  S4.scrap = 0; P4.hp = P4.maxhp;
+  ok(NS.shopWorth() === false, '身无分文又满血：商店不值得开');
+  S4.scrap = 5000;
+  ok(NS.shopWorth() === true, '有钱就值得开');
+  // 波次结束时按这个决定开不开
+  S4.scrap = 0; P4.hp = P4.maxhp;
+  S4.wave = 3; S4.phase = 'wave'; S4.waveT = -1; S4.budget = 0; S4.mobs.length = 0;
+  NS.update(D);
+  ok(S4.phase === 'break', '买不起的时候直接进下一波，不打断节奏');
+  S4.scrap = 5000; S4.wave = 3; S4.phase = 'wave'; S4.waveT = -1; S4.budget = 0; S4.mobs.length = 0;
+  NS.update(D);
+  ok(S4.phase === 'shop', '有东西可买时才停下来');
+  ok(byId('shopBox').classList.contains('show'), '面板显示出来了');
+  // 商店开着的时候波次计时不走 —— 不给倒计时是刻意的
+  const wt = S4.waveT;
+  for (let i = 0; i < 120; i++) NS.update(D);
+  ok(S4.waveT === wt && S4.phase === 'shop', '商店开着就不走计时，不催人');
+  NS.closeShop();
+  ok(S4.phase === 'break' && !byId('shopBox').classList.contains('show'), '按下一波就收起来继续');
+  // 第 30 波打完是撤离，不进商店
+  S4.scrap = 5000; S4.wave = NS.LAST_WAVE; S4.phase = 'wave'; S4.waveT = -1; S4.budget = 0; S4.mobs.length = 0;
+  NS.update(D);
+  ok(S4.phase !== 'shop', '最后一波打完直接撤离，不再弹商店');
+  // 商店开着时数字键归商店用，不去换枪
+  ok(/G\.phase !== 'shop' && \/\^Digit\[1-6\]/.test(html), '商店开着时数字键不去换枪');
+
+  // 五、买的东西只在这一局有效 —— 玩家问过这个，所以既要真是这样，也要写在界面上
+  for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+  Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF)));
+  NS.PROF.unlocked.w_rail = 1; NS.PROF.unlocked.w_shot = 1; NS.syncProf();
+  NS.start(81);
+  const S5 = NS.G, P5 = NS.P;
+  S5.phase = 'shop'; P5.hp = P5.maxhp * .3;
+  const profBefore = JSON.stringify({ bought: NS.PROF.bought, wep: NS.PROF.wep });
+  for (const it of NS.SHOP) { S5.scrap = 9999; NS.shopBuy(it.id); }
+  ok(P5.owned.length > 1 && S5.rerolls > NS.REROLLS && P5.hp > P5.maxhp * .7, '这一局确实买到手了');
+  ok(JSON.stringify({ bought: NS.PROF.bought, wep: NS.PROF.wep }) === profBefore,
+    '档案里的「已买下的起手武器」一个没动 —— 商店买的枪不是永久的');
+  NS.start(81);
+  ok(NS.P.owned.length === 1 && NS.P.owned[0] === NS.PROF.wep,
+    `新一局回到只带起手那一把（${NS.P.owned.join('/')}）`);
+  ok(NS.G.rerolls === NS.REROLLS, '重摇次数也回到初始值');
+  ok(NS.P.hp === NS.P.maxhp && NS.G.scrap === 0, '血和局内废钢都重置');
+  // 界面上要写明白
+  NS.G.phase = 'shop'; NS.syncShop();
+  const shopTxt = byId('shopBox').innerHTML + html.slice(html.indexOf('id="shopBox"'), html.indexOf('id="shopBox"') + 700);
+  ok(/只在这一局有效/.test(shopTxt), '面板上写了「只在这一局有效」');
+  ok(/存进档案/.test(shopTxt) && /起手/.test(shopTxt), '也写了没花完的会存进档案换永久的起手武器');
+  ok(/这一局/.test(NS.SHOP.find(it => it.id === 'gun').d), `军械那条的说明里写了「这一局」（${NS.SHOP.find(it => it.id === 'gun').d}）`);
+}
+
+// ---- 38) 三把新武器 ----
+// 每一把都必须改【打法】，不是改数值 —— 不然就是同一把枪的九个数值版本。
+console.log('新武器');
+{
+  const D = 1 / 60;
+  for (const id of ['beam', 'mine', 'disc']) {
+    const W = NS.WEAPONS[id];
+    ok(!!W && !!NS.GRID[NS.GUN_OF[id]], `${id} 有定义和枪的精灵`);
+    ok(W.n && W.s && [...W.s].length === 2 && W.d, `${W.n} 有全名、两字简称和一句说明`);
+  }
+  ok(new Set(NS.WEP_ORDER.map(id => NS.WEAPONS[id].kind)).size >= 6,
+    `九把枪一共 ${new Set(NS.WEP_ORDER.map(id => NS.WEAPONS[id].kind)).size} 种开火方式 —— 不是一把枪的九个数值版本`);
+  ok(NS.WEP_ORDER.length === 9, `一共 ${NS.WEP_ORDER.length} 把`);
+
+  // 光束：只咬最前面那一个，不穿透 —— 这是它的代价
+  NS.setMode('free'); NS.start(90);
+  const BG = NS.G, BP = NS.P;
+  BG.phase = 'break'; BG.budget = 0; BG.mobs.length = 0;
+  NS.PROF.unlocked.w_beam = 1; NS.equip('beam');
+  NS.spawn('grunt'); NS.spawn('grunt'); NS.spawn('grunt');
+  BG.mobs.forEach((m, i) => { m.x = BP.x + 40 + i * 35; m.y = BP.y; m.hp = 999; m.max = 999; });
+  BP.ang = 0; BG.beams.length = 0;
+  NS.fire();
+  const hurt = BG.mobs.filter(m => m.hp < 999).length;
+  ok(hurt === 1, `一条线上有三只，只打到最前面那 ${hurt} 只 —— 穿透的话它就成了又快又能扫一排`);
+  ok(BG.beams.length === 1, '画出了一条光束');
+  ok(BG.beams[0].x2 !== undefined, '光束有终点，长度跟着最近的目标');
+  // 没目标时打满射程
+  BG.mobs.length = 0; BG.beams.length = 0; NS.fire();
+  const bl = Math.hypot(BG.beams[0].x2 - BG.beams[0].x1, BG.beams[0].y2 - BG.beams[0].y1);
+  ok(Math.abs(bl - (BP.reach - 8)) < 2, `空场时打满射程（${Math.round(bl)}px）`);
+
+  // 布雷：放在脚下、要待发、有上限、踩到才炸
+  NS.start(90); const MG = NS.G, MP = NS.P;
+  MG.phase = 'break'; MG.budget = 0; MG.mobs.length = 0;
+  NS.PROF.unlocked.w_mine = 1; NS.equip('mine');
+  MP.ang = 0; MG.mines.length = 0;
+  NS.fire();
+  ok(MG.mines.length === 1, '放下了一颗');
+  ok(Math.hypot(MG.mines[0].x - MP.x, MG.mines[0].y - MP.y) < 20, '就放在脚边 —— 不用瞄');
+  ok(MG.mines[0].arm > 0, '刚放下还没待发');
+  // 待发前踩不炸
+  NS.spawn('grunt'); const g1 = MG.mobs[0];
+  g1.x = MG.mines[0].x; g1.y = MG.mines[0].y; g1.hp = 999; g1.max = 999;
+  NS.update(D);
+  ok(MG.mines.length === 1 && g1.hp === 999, '待发之前踩上去不炸');
+  for (let i = 0; i < 40; i++) NS.update(D);
+  ok(MG.mines.length === 0 && g1.hp < 999, `待发之后踩上去炸了（掉了 ${Math.round(999 - g1.hp)} 血）`);
+  // 上限
+  MG.mines.length = 0;
+  for (let i = 0; i < NS.MINE_MAX + 4; i++) { MP.fireT = 0; NS.fire(); }
+  ok(MG.mines.length === NS.MINE_MAX, `场上最多 ${NS.MINE_MAX} 颗 —— 否则「一直放」就是无脑最优解`);
+
+  // 回旋：飞出去再飞回来，来回各打一次
+  NS.start(90); const DG = NS.G, DP = NS.P;
+  DG.phase = 'break'; DG.budget = 0; DG.mobs.length = 0;
+  NS.PROF.unlocked.w_disc = 1; NS.equip('disc');
+  NS.spawn('grunt'); const t1 = DG.mobs[0];
+  t1.x = DP.x + 60; t1.y = DP.y; t1.hp = 9999; t1.max = 9999;
+  DP.ang = 0; DG.discs.length = 0;
+  NS.fire();
+  ok(DG.discs.length === 1, '扔出去了');
+  let hits = 0, prevHp = t1.hp;
+  for (let i = 0; i < 300 && DG.discs.length; i++) {
+    NS.update(D);
+    if (t1.hp < prevHp) { hits++; prevHp = t1.hp; }
+  }
+  ok(hits === 2, `同一只被打了 ${hits} 次 —— 去程一次、回程一次`);
+  ok(DG.discs.length === 0, '回到手上就收了，不会一直留在场上');
+
+  // 九把枪都得有里程碑把它放进卡池
+  const wc = NS.UPGRADES.filter(u => /^w_/.test(u.id));
+  ok(wc.length === 8, `除起手那把，其余 ${wc.length} 把都有换装卡`);
+  for (const u of wc) ok(NS.MILES.some(m => m.id === u.req), `${u.n} 有里程碑`);
+}
+
+// ---- 39) 四条新词条都改机制，不加数值 ----
+console.log('新词条');
+{
+  const D = 1 / 60;
+  for (const id of ['bounce', 'charge', 'mark', 'salvage']) {
+    const u = NS.UPGRADES.find(x => x.id === id);
+    ok(!!u, `${id} 存在`);
+    ok(!!NS.DECAL[id] && !!NS.GRID[NS.DECAL[id].g], `${u.n} 在人身上有外显`);
+    ok(!/\+\d+%\s*(伤害|射速|移速)/.test(u.d), `${u.n} 的说明不是「某项 +x%」（${u.d}）`);
+  }
+  // 新词条要延后进池：每加一张牌，任何一张【特定】的牌就更难抽到
+  {
+    NS.setMode('free'); NS.start(93);
+    const EG = NS.G;
+    const poolAt = w => { EG.wave = w; EG.stacks = {}; const seen = new Set();
+      for (let i = 0; i < 400; i++) { NS.seedRun(i); NS.rollOffer().forEach(u => seen.add(u.id)); }
+      return seen; };
+    const p1 = poolAt(1), p9 = poolAt(9);
+    const late = ['bounce', 'charge', 'mark', 'salvage'];
+    ok(late.every(id => !p1.has(id)), `第 1 波抽不到这几条机制牌（${late.join(' ')}）`);
+    ok(late.every(id => p9.has(id)), '第 9 波都能抽到了');
+    ok(p1.size < p9.size, `开局牌池 ${p1.size} 条，第 9 波 ${p9.size} 条 —— 开局紧凑，后面才铺开`);
+    ok(/!u\.from \|\| G\.wave >= u\.from/.test(html), 'from 门槛是真的在筛，不是只写在数据里');
+  }
+  // 折返弹：撞墙反弹
+  NS.setMode('free'); NS.start(91);
+  const G1 = NS.G, P1 = NS.P;
+  G1.phase = 'break'; G1.budget = 0; G1.mobs.length = 0;
+  NS.equip('pulse');
+  NS.takeUpgrade(NS.UPGRADES.find(u => u.id === 'bounce'));
+  P1.x = 30; P1.y = 400; P1.ang = Math.PI;             // 朝左打，左边就是墙
+  G1.bullets.length = 0; P1.fireT = 0; NS.fire();
+  const b0 = G1.bullets[0];
+  ok(b0.bounce === 1, '子弹带着一次反弹机会');
+  const vx0 = b0.vx;
+  for (let i = 0; i < 60 && G1.bullets.length; i++) NS.update(D);
+  const b1 = G1.bullets[0];
+  ok(!b1 || b1.vx * vx0 < 0 || b1.bounce === 0, '撞到墙之后方向反了（或者已经用掉了反弹）');
+  // 蓄能：停火一秒后的第一发更狠
+  NS.start(91); const G2 = NS.G, P2 = NS.P;
+  G2.phase = 'break'; G2.budget = 0; G2.mobs.length = 0;
+  NS.equip('pulse');
+  NS.spawn('grunt'); const tg2 = G2.mobs[0];
+  tg2.x = P2.x + 25; tg2.y = P2.y; tg2.hp = 99999; tg2.max = 99999;
+  P2.ang = 0;
+  const shoot = () => { const h0 = tg2.hp; P2.fireT = 0; NS.fire();
+    for (let i = 0; i < 20; i++) NS.update(D); return h0 - tg2.hp; };
+  const plain = shoot();
+  NS.takeUpgrade(NS.UPGRADES.find(u => u.id === 'charge'));
+  P2.idleT = 2; P2.charged = true;
+  const h0 = tg2.hp; NS.fire(); for (let i = 0; i < 20; i++) NS.update(D);
+  const charged = h0 - tg2.hp;
+  P2.charged = false;
+  ok(charged > plain * 2.5, `蓄能那一发是平时的 ${(charged / plain).toFixed(1)} 倍`);
+  ok(/P\.idleT = shooting \? 0 : P\.idleT \+ dt/.test(html), '停火时间是真的在记，不是拍脑袋');
+  // 拆解标记：死一个，周围的多吃伤害
+  NS.start(91); const G3 = NS.G, P3 = NS.P;
+  G3.phase = 'break'; G3.budget = 0; G3.mobs.length = 0;
+  NS.takeUpgrade(NS.UPGRADES.find(u => u.id === 'mark'));
+  NS.spawn('grunt'); NS.spawn('grunt');
+  const dying = G3.mobs[0], near = G3.mobs[1];
+  dying.x = 600; dying.y = 600; near.x = 620; near.y = 600; near.hp = 99999; near.max = 99999;
+  NS.killMob(dying);
+  ok(near.markT > 0, '旁边那只被标记了');
+  const h1 = near.hp; NS.hurtMob(near, 100, 0, 0);
+  const marked = h1 - near.hp;
+  near.markT = 0;
+  const h2 = near.hp; NS.hurtMob(near, 100, 0, 0);
+  ok(marked > h2 - near.hp, `被标记时多吃伤害（${Math.round(marked)} 对 ${Math.round(h2 - near.hp)}）`);
+  // 回收协议：捡废钢回血
+  NS.start(91); const G4 = NS.G, P4 = NS.P;
+  G4.phase = 'break'; G4.budget = 0; G4.mobs.length = 0; G4.drops.length = 0;
+  NS.takeUpgrade(NS.UPGRADES.find(u => u.id === 'salvage'));
+  P4.hp = P4.maxhp * .5;
+  const hp0 = P4.hp;
+  G4.drops.push({ x: P4.x, y: P4.y, vx: 0, vy: 0, t: 0, kind: 'coin', v: 1 });
+  for (let i = 0; i < 20; i++) NS.update(D);
+  ok(P4.hp > hp0, `捡废钢回了 ${Math.round(P4.hp - hp0)} 血 —— 把经济和生存接起来`);
+}
+
+// ---- 40) 两种新增益 ----
+console.log('新增益');
+{
+  const D = 1 / 60;
+  ok(NS.BUFF_IDS.length >= 6, `一共 ${NS.BUFF_IDS.length} 种增益`);
+  for (const id of ['slow', 'vamp']) ok(!!NS.BUFFS[id] && NS.BUFFS[id].n && NS.BUFFS[id].d, `${id} 有名字和说明`);
+  ok(new Set(NS.BUFF_IDS.map(k => NS.BUFFS[k].c)).size === NS.BUFF_IDS.length, '每种增益的颜色都不重复 —— 掉落物要分得清');
+  // 时滞：敌人真的慢下来
+  NS.setMode('free'); NS.start(92);
+  const G5 = NS.G, P5 = NS.P;
+  G5.phase = 'break'; G5.budget = 0; G5.mobs.length = 0; G5.buffs = {};
+  NS.spawn('rusher'); const r1 = G5.mobs[0];
+  r1.x = P5.x + 300; r1.y = P5.y;
+  const d0 = r1.x - P5.x;
+  for (let i = 0; i < 60; i++) NS.update(D);
+  const moved0 = d0 - (r1.x - P5.x);
+  r1.x = P5.x + 300; G5.buffs.slow = 6;
+  for (let i = 0; i < 60; i++) NS.update(D);
+  const moved1 = d0 - (r1.x - P5.x);
+  ok(moved1 < moved0 * .7, `时滞期间敌人只走了 ${Math.round(moved1)}px（平时 ${Math.round(moved0)}px）`);
+  // 血偿：杀一个回血
+  NS.start(92); const G6 = NS.G, P6 = NS.P;
+  G6.phase = 'break'; G6.budget = 0; G6.mobs.length = 0; G6.buffs = {};
+  P6.hp = P6.maxhp * .4;
+  NS.spawn('grunt'); const v1 = G6.mobs[0]; v1.x = 700; v1.y = 700;
+  const vh0 = P6.hp; NS.killMob(v1);
+  ok(P6.hp === vh0, '没有血偿时，击杀不回血（汲取是另一条词条）');
+  G6.buffs.vamp = 7;
+  NS.spawn('grunt'); const v2 = G6.mobs[G6.mobs.length - 1]; v2.x = 700; v2.y = 700;
+  const vh1 = P6.hp; NS.killMob(v2);
+  ok(P6.hp > vh1, `血偿期间击杀回了 ${Math.round(P6.hp - vh1)} 血`);
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');
