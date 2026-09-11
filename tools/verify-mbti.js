@@ -9,7 +9,9 @@
 // 如果换了字母行为不变，那这一轴就是死的，断言必须红。
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
+// ?auto=1 跳过捏人：这些脚本一加载就假定游戏在跑。
+// 捏人本身由 verify-create.js 专门测。
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html') + '?auto=1';
 
 (async () => {
   const browser = await chromium.launch();

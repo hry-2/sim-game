@@ -11,7 +11,8 @@ async function run(gossipOn) {
   const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  await page.goto('file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html'));
+  // ?auto=1 跳过捏人（捏人由 verify-create.js 专门测）
+  await page.goto('file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html') + '?auto=1');
   await page.waitForTimeout(1200);
 
   await page.evaluate(on => {

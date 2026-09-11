@@ -2,7 +2,9 @@
 // 两者都只在真实视口下才暴露 —— 冒烟测试固定 1280×880，一辈子测不到。
 const { chromium, devices } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
+// ?auto=1 跳过捏人：这些脚本一加载就假定游戏在跑。
+// 捏人本身由 verify-create.js 专门测。
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html') + '?auto=1';
 
 const CASES = [
   { n: '手机竖屏', w: 390, h: 844, touch: true },

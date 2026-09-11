@@ -10,7 +10,8 @@ const path = require('path');
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 
-  await page.goto('file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html'));
+  // ?auto=1 跳过捏人（捏人由 verify-create.js 专门测）
+  await page.goto('file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html') + '?auto=1');
   await page.waitForTimeout(2000);
 
   const painted = await page.evaluate(() => {

@@ -10,7 +10,9 @@
 //      而且宅子、私田、床的归属要跟着一起转手 —— 这是最容易漏的一环。
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
+// ?auto=1 跳过捏人：这些脚本一加载就假定游戏在跑。
+// 捏人本身由 verify-create.js 专门测。
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html') + '?auto=1';
 
 (async () => {
   const browser = await chromium.launch();

@@ -3,7 +3,9 @@
 // 所以人口该在 6 和 12 之间自己找平衡 —— 既不清零，也不无限膨胀。
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
+// ?auto=1 跳过捏人：这些脚本一加载就假定游戏在跑。
+// 捏人本身由 verify-create.js 专门测。
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html') + '?auto=1';
 
 (async () => {
   const b = await chromium.launch();

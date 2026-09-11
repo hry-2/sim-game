@@ -5,7 +5,9 @@
 // 用同一个 browser context 开两个页面，才共享 localStorage（换 context 等于换浏览器）。
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
+// ?auto=1 跳过捏人：这些脚本一加载就假定游戏在跑。
+// 捏人本身由 verify-create.js 专门测。
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html') + '?auto=1';
 
 const SNAP = () => ({
   day, clock: Math.round(clock), running, speed, autoPilot,

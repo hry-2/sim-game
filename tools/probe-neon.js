@@ -21,8 +21,9 @@ function freshProf() {
   NS.syncProf();
 }
 
-function play(seed, maxWave) {
+function play(seed, maxWave, dg) {
   freshProf();
+  if (dg) { NS.PROF.dangerMax = dg; NS.pickDanger(dg); }   // 档位要在 start 之前定
   NS.setMode('free'); NS.start(seed);            // 种子必须传给 start —— 它自己会重新播种
   const G = NS.G, P = NS.P;
   const log = [];
@@ -58,6 +59,10 @@ function play(seed, maxWave) {
     }
     let mx = 0, my = 0;
     if (tg && td < 110) { mx = (P.x - tg.x) / td; my = (P.y - tg.y) / td; }   // 太近就退
+    // 太远就追上去。原来机器人只会「退」和「捡东西」，从不主动靠近 ——
+    // 于是一只站在远处的母巢能让它干等三分钟，报成「卡住了」。
+    // 测量工具自己的缺陷会被当成游戏的 bug，这条比游戏里那条更值得记。
+    else if (tg && td > 150) { mx = (tg.x - P.x) / td; my = (tg.y - P.y) / td; }
     else if (dr) { mx = (dr.x - P.x) / (dd || 1); my = (dr.y - P.y) / (dd || 1); }
     // 后退时掺一点朝场中的分量：直着往后退会把自己顶到墙角里白送
     const cx = NS.ARENA.w / 2 - P.x, cy = NS.ARENA.h / 2 - P.y, cd = len(cx, cy) || 1;
@@ -92,11 +97,13 @@ function play(seed, maxWave) {
 }
 
 const MAXW = Number(process.argv[2] || 31);
+const DG = Number(process.argv[3] || 0);
 const seeds = [1, 20260910, 777, 424242, 9];
-console.log(`每个种子最多打 ${MAXW} 波，机器人只会瞄最近的 + 边打边退\n`);
+console.log(`每个种子最多打 ${MAXW} 波 · 危险等级 ${NS.DANGER[DG].n.replace(/ /g, '')}`);
+console.log('机器人只会瞄最近的 + 边打边退，它到的波数是这条曲线的下限\n');
 let reached = [], results = [];
 for (const s of seeds) {
-  const r = play(s, MAXW);
+  const r = play(s, MAXW, DG);
   reached.push(r.wave); results.push(r);
   console.log(`种子 ${String(s).padEnd(9)} → 第 ${String(r.wave).padStart(2)} 波${r.won ? ' 撤离成功' : r.dead ? ` 死了（${r.by || '?'}）` : r.stalled ? ' 卡住了（三分钟没推进）' : ' 还活着'}`
     + `  等级 ${String(r.lv).padStart(2)}  用了 ${String(r.t).padStart(3)}s  见过 ${String(r.elites).padStart(2)} 个精英  血最低 ${r.hpLow}%`);

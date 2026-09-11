@@ -9,7 +9,8 @@ const path = require('path');
   const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  await page.goto('file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html'));
+  // ?auto=1 跳过捏人（捏人由 verify-create.js 专门测）
+  await page.goto('file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html') + '?auto=1');
   await page.waitForTimeout(1400);
 
   // === 1. 四阶段循环必须闭合，且回到「耕」而不是「荒」 ===

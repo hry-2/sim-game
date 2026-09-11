@@ -226,7 +226,11 @@ ok(NS.pickChassis('heavy') === false, '没解锁的底座选不了');
 P0.chassis = 'std';
 
 // 没有一条解锁是纯数值永久加成 —— 那会把前期削简单
-ok(NS.MILES.every(m => /卡池|词条|底座|涂装/.test(m.n)), '所有里程碑给的都是新东西，不是永久数值加成');
+// 里程碑只能给【新东西】，不能给永久数值加成 —— 否则元进度会变成数值跑步机，
+// 新号和老号打的不是同一个游戏。危险等级是更难的模式，比发新内容更贴这条本意。
+ok(NS.MILES.every(m => /卡池|词条|底座|涂装|危险等级/.test(m.n)),
+  '每条里程碑发的都是新内容或新难度档，没有一条是数值加成');
+ok(!NS.MILES.some(m => /\+\d|提升|加成|永久|上限 ?\+/.test(m.n)), '奖励文案里没有任何数值加成的字样');
 
 // ---- 涂装：必须是纯外观 ----
 console.log('涂装');
@@ -422,13 +426,12 @@ ok(/#tc\.paused \.stk,#tc\.paused \.tbtns\{display:none\}/.test(html),
   '暂停时收起摇杆和动作键');
 ok(/tc\.classList\.toggle\('play', G\.state === 'play'\)/.test(html),
   '暂停时触屏层还在 —— 否则暂停了就再也点不回来');
-ok(/TC\.on \? '- 已 暂 停 -  点右上角继续'/.test(html),
-  '暂停提示会区分键鼠和手机（手机上没有 P 键）');
 // 意图是「只有一处暂停提示」，不是「字符串只出现两次」——
 // 加手柄分支时这条红了，说明它当初写得太贴实现了
-ok((html.match(/ctx\.fillText\([^)]*已 暂 停/g) || []).length === 1, '只有一处画暂停提示的地方');
-ok(!/class="tpaused"/.test(html), '没有额外的 DOM 暂停层叠在上面');
-ok(/PAD\.on \? '- 已 暂 停 -  按 START/.test(html), '手柄接入时提示改成 START');
+// 暂停现在整个在 DOM 层（#pauseBox），画布上不再画 —— 两边都画会叠在一起
+ok(!/ctx\.fillText\([^)]*已 暂 停/.test(html), '画布上不再画暂停提示');
+ok((html.match(/id="pauseBox"/g) || []).length === 1, '只有一个暂停层');
+ok(/TC\.on \? '点右上角继续' : PAD\.on \? '按 START 继续'/.test(html), '提示按设备变：触屏 / 手柄 / 键盘');
 
 console.log('BOSS');
 ok(!!NS.GRID.boss_a && !!NS.GRID.boss_b, 'BOSS 有两套精灵（外壳完整 / 崩解）');
@@ -775,7 +778,24 @@ ok(/G\.overheat = 0; \}/.test(html) || /overheat = 0/.test(html), '过关后过�
   for (let i = 0; i < 90; i++) NS.update(1 / 60);
   const d2 = Math.hypot(far.x - OP.x, far.y - OP.y);
   ok(d0 - d2 > (d0 - d1) * 1.5, `过热后残兵冲得更快（不过热 1.5 秒走近 ${Math.round(d0 - d1)}px，过热后又近了 ${Math.round(d1 - d2)}px）`);
-  ok(/G\.overheat && !isBoss\(m\)/.test(html), 'BOSS 不受这条影响，它有自己的节奏');
+  // BOSS 在加时里也要过来，只是不加速 —— 母巢是唯一不会追人的 BOSS，
+  // 原来把 BOSS 全排除，它剩 10% 血站在原地就是个死局
+  {
+    NS.setMode('free'); NS.start(8);
+    const BG2 = NS.G, BP2 = NS.P;
+    BG2.phase = 'wave'; BG2.budget = 0; BG2.overheat = 0; BG2.mobs.length = 0;
+    NS.spawn('boss3');
+    const hv = BG2.mobs[0];
+    hv.x = BP2.x + 400; hv.y = BP2.y;
+    const q0 = hv.x - BP2.x;
+    for (let i = 0; i < 120; i++) NS.update(1 / 60);
+    const q1 = hv.x - BP2.x;
+    BG2.overheat = 1;
+    for (let i = 0; i < 120; i++) NS.update(1 / 60);
+    const q2 = hv.x - BP2.x;
+    ok(q1 - q2 > (q0 - q1) * 1.5, `过热后母巢会自己过来（不过热 2 秒走近 ${Math.round(q0 - q1)}px，过热后 ${Math.round(q1 - q2)}px）`);
+    ok(/m\.chg > 0 \|\| m\.wind > 0/.test(html), '蓄力和冲撞中的拆解臂不被打断 —— 那是它的预警');
+  }
   ok(/!G\.overheat && G\.mobs\.length < targetMass/.test(html), '过热时 BOSS 也停止召唤，否则这波永远清不完');
 }
 // 铁壁的量得压住 —— 第 8 波三十只带盾的等于清不掉
@@ -1044,6 +1064,180 @@ console.log('应对提示');
   ok(QG.tipQ.length === 0, '隔开两秒多之后第二条才出');
   NS.start(4);
   ok(Object.keys(NS.G.seen).length === 0, '重开一局重新算 —— 提示是给这一局的新玩家看的');
+}
+
+// ---- 23) 危险等级 ----
+// 局有终点之后，「打穿之后玩什么」是真问题。答案是把同一条 30 波曲线整体上抬一档。
+console.log('危险等级');
+{
+  const D = 1 / 60;
+  ok(NS.DANGER.length >= 3, `有 ${NS.DANGER.length} 档`);
+  ok(NS.DANGER.every(g => g.n && g.d), '每档都有名字和一句说明');
+  // 数值必须单调上升，而且不能离谱
+  for (let i = 1; i < NS.DANGER.length; i++) {
+    const a = NS.DANGER[i - 1], b = NS.DANGER[i];
+    ok(b.hp > a.hp && b.mass >= a.mass && b.sc > a.sc,
+      `${b.n.replace(/ /g, '')} 比上一档更难也更值分（血 ${a.hp}→${b.hp}，密度 ${a.mass}→${b.mass}，分 ${a.sc}→${b.sc}）`);
+  }
+  ok(NS.DANGER[NS.DANGER.length - 1].hp <= 3, '最高档血量没有膨胀到没法打');
+  ok(NS.DANGER[0].hp === 1 && NS.DANGER[0].mass === 1 && NS.DANGER[0].sc === 1, '第一档就是基准，不偷偷加料');
+  // 每一档除了数值还得改一条结构，否则四档只是同一局的四个滑块
+  ok(NS.DANGER.slice(1).every(g => g.modTier > 0 || g.modsOnBoss || g.elite > 1),
+    '每个高档位都至少改了一条结构（修饰更频 / BOSS 波带修饰 / 精英更多）');
+  ok(NS.DANGER[0].modTier === 0, '标准档不挪修饰概率');
+  // 解锁：默认只有第一档
+  for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+  Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf();
+  ok(NS.dangerMax() === 0 && NS.dangerIdx() === 0, '新档案只有标准档');
+  NS.pickDanger(2);
+  ok(NS.dangerIdx() === 0, `没解锁就选不了（想选 2，实际停在 ${NS.dangerIdx()}）`);
+  // 真的影响到局内
+  const mass0 = NS.targetMass(20);
+  NS.setMode('free'); NS.start(5);
+  // 精英会让血量再 ×2.6，量档位倍率的时候得把它除掉 ——
+  // 第一版没除，断言报「×6.24 而配的是 2.4」，错的是测试不是游戏。
+  const baseHp = () => { NS.G.mobs.length = 0; NS.spawn('grunt'); const m = NS.G.mobs[0]; return m.max / (m.elite ? 2.6 : 1); };
+  NS.G.wave = 20; const hp0 = baseHp(), el0 = NS.eliteChance();
+  NS.PROF.dangerMax = 3; NS.pickDanger(3);
+  const hp1 = baseHp(), mass1 = NS.targetMass(20), el1 = NS.eliteChance();
+  ok(Math.abs(hp1 / hp0 - NS.DANGER[3].hp) < .02, `第 20 波（倍率已满）小兵血量 ×${(hp1 / hp0).toFixed(2)}，配的是 ${NS.DANGER[3].hp}`);
+  ok(Math.abs(mass1 / mass0 - NS.DANGER[3].mass) < .05, `场上数量 ${mass0} → ${mass1} 只`);
+  // 倍率要在前八波渐进 —— 一上来就满档的话局还没开始就结束了
+  ok(NS.dgMul(2, 1) === 1, '第 1 波的倍率是 1，跟标准档完全一样');
+  ok(NS.dgMul(2, 4) > 1 && NS.dgMul(2, 4) < 2, `第 4 波爬到一半（×${NS.dgMul(2, 4).toFixed(2)}）`);
+  ok(NS.dgMul(2, 8) === 2, '第 8 波倍率给满');
+  ok(NS.dgMul(2, 30) === 2, '之后不再继续涨 —— 它是倍率不是斜率');
+  NS.G.wave = 1;
+  const h1 = baseHp(); NS.pickDanger(0); const h0 = baseHp();
+  ok(Math.abs(h1 - h0) < .01, `第 1 波归零档和标准档的小兵血量一样（${h0.toFixed(0)} vs ${h1.toFixed(0)}）`);
+  NS.PROF.dangerMax = 3; NS.pickDanger(3); NS.G.wave = 20;
+  ok(el1 > el0, `精英率 ${(el0 * 100).toFixed(0)}% → ${(el1 * 100).toFixed(0)}%`);
+  ok(NS.rollMod(5) !== null || NS.rollMod(10) !== null || NS.rollMod(15) !== null, '归零档 BOSS 波也会带修饰');
+  NS.pickDanger(1);
+  ok(NS.rollMod(5) === null && NS.rollMod(10) === null, '高危档 BOSS 波仍然不带修饰');
+  // 高档位绝对不能把还没解锁的修饰提前 —— 第一版就是这么写的，
+  // 结果「铁壁」能在第 2 波砸到一级角色身上
+  for (const dgi of [1, 2, 3]) {
+    NS.PROF.dangerMax = 3; NS.pickDanger(dgi);
+    ok([1, 2, 3].every(w => NS.rollMod(w) === null), `${NS.DANGER[dgi].n.replace(/ /g, '')} 档前三波仍然不带修饰`);
+    let bad = null;
+    for (let w = 4; w <= 30; w++) { const m = NS.rollMod(w); if (m && w < m.from) bad = `${m.id} 在第 ${w} 波就出了（它的门槛是 ${m.from}）`; }
+    ok(!bad, bad || `${NS.DANGER[dgi].n.replace(/ /g, '')} 档没有任何修饰早于它自己的解锁波次`);
+  }
+  // 高档位的效果是「更常摇到」
+  const rate = dgi => { NS.PROF.dangerMax = 3; NS.pickDanger(dgi); NS.seedRun(31337); let n = 0;
+    for (let w = 4; w <= 20; w++) if (w % 5 && NS.rollMod(w)) n++; return n; };
+  const r1 = rate(0), r2 = rate(1);
+  ok(r2 > r1, `高危档修饰更频（标准 ${r1} 次 → 高危 ${r2} 次，同一段波次）`);
+  // 池子只有一个修饰够门槛时不能每波都发 —— 那是「每波都是同一个」
+  for (const dgi of [0, 1, 2, 3]) {
+    NS.PROF.dangerMax = 3; NS.pickDanger(dgi);
+    let n = 0, tries = 0;
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) { NS.seedRun(seed); tries++; if (NS.rollMod(4)) n++; }
+    ok(n < tries, `${NS.DANGER[dgi].n.replace(/ /g, '')} 档第 4 波不是必定带修饰（10 个种子里 ${n} 个带）`);
+  }
+  NS.pickDanger(3);
+  const t1w = [4, 6, 7, 8, 9].filter(w => { NS.seedRun(w * 7); return NS.rollMod(w) === null; });
+  ok(t1w.length > 0, `归零档第一层也留得出平稳波次（${t1w.length} 个）`);
+  // 分数倍率
+  NS.pickDanger(0); NS.start(5);
+  NS.G.mobs.length = 0; NS.spawn('grunt'); NS.G.score = 0; NS.G.combo = 0;
+  NS.killMob(NS.G.mobs[0]); const sc0 = NS.G.score;
+  NS.pickDanger(3); NS.start(5);
+  NS.G.mobs.length = 0; NS.spawn('grunt'); NS.G.score = 0; NS.G.combo = 0;
+  NS.killMob(NS.G.mobs[0]); const sc1 = NS.G.score;
+  ok(sc1 > sc0, `高档位同一只怪给更多分（${sc0} → ${sc1}）—— 不然没人愿意上高危`);
+  // 每日局钉在标准档
+  NS.setMode('daily');
+  ok(NS.dangerIdx() === 0, '每日局固定标准档，不然大家的成绩没法比');
+  NS.setMode('free');
+  // 通关解锁下一档
+  for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+  Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf();
+  NS.start(5);
+  NS.G.wave = NS.LAST_WAVE; NS.G.phase = 'break'; NS.G.waveT = 0; NS.G.mobs.length = 0;
+  NS.nextWave();
+  ok(NS.PROF.dangerMax === 1, '打穿标准档解锁高危');
+  ok(byId('overSub').textContent.indexOf('解锁') >= 0, `结算上说了解锁：「${byId('overSub').textContent}」`);
+  NS.pickDanger(1); NS.start(5);
+  NS.G.wave = NS.LAST_WAVE; NS.G.phase = 'break'; NS.G.waveT = 0; NS.G.mobs.length = 0;
+  NS.nextWave();
+  ok(NS.PROF.dangerMax === 2, '再打穿高危解锁熔毁 —— 一档一档来，不能跳');
+  // 记录要带档位，否则高危打 20 波会被标准档的 30 波比下去
+  ok(/\(a\.dg \| 0\) > \(b\.dg \| 0\)/.test(html), '记录按「危险档 → 波次 → 分数」比');
+  ok(/dg: dangerIdx\(\)/.test(html), '记录里存了当时的档位');
+}
+
+// ---- 24) 里程碑的描述和判定要对得上 ----
+console.log('里程碑');
+{
+  ok(NS.MILES.some(m => /打穿/.test(m.d)), '有一条是给通关的 —— 游戏里最大的成就原来什么都不解锁');
+  // bossKills 在加了三种 BOSS 之后变成通用计数，写「母体核心」的那条得单独记
+  const core = NS.MILES.find(m => /母体核心/.test(m.d));
+  ok(!!core, '还有一条专认母体核心');
+  const fake = Object.assign({}, NS.PROF_DEF, { bossKills: 5, coreKills: 0 });
+  ok(core.ok(fake) === false, '只拆了别的 BOSS 不算「拆掉一个母体核心」');
+  ok(core.ok(Object.assign({}, fake, { coreKills: 1 })) === true, '真拆了母体核心才算');
+  const any = NS.MILES.find(m => /任意一个 BOSS/.test(m.d));
+  ok(!!any && any.ok(fake) === true, '写「任意 BOSS」的那条则认所有 BOSS');
+  // 局内也要分开记
+  NS.setMode('free'); NS.start(5);
+  NS.G.mobs.length = 0; NS.spawn('boss2');
+  NS.killMob(NS.G.mobs[0]);
+  ok(NS.G.bossKills === 1 && NS.G.coreKills === 0, '拆解臂只加 bossKills，不加 coreKills');
+  NS.G.mobs.length = 0; NS.spawn('boss');
+  NS.killMob(NS.G.mobs[0]);
+  ok(NS.G.coreKills === 1, '母体核心两个都加');
+}
+
+// ---- 25) 构筑面板 ----
+// 背包其实一直存在，只是看不见：G.stacks 存着这一局的全部词条，
+// 而玩家从头到尾只能在死亡结算看到一行「最常用武器 + 前两个词条」。
+console.log('构筑面板');
+{
+  NS.setMode('free'); NS.start(12);
+  const CG = NS.G, CP = NS.P;
+  let h = (NS.syncBuild(), NS.buildHTML());
+  ok(h.indexOf(NS.WEAPONS[CP.wep].n) >= 0, `开局就列出了手里的枪（${NS.WEAPONS[CP.wep].n}）`);
+  ok(h.indexOf('还没有装载任何改装') >= 0, '一条词条都没有时说清楚，而不是给一片空白');
+  // 拿几张牌，面板要跟着变
+  const dmg = NS.UPGRADES.find(u => u.id === 'dmg');
+  const rof = NS.UPGRADES.find(u => u.id === 'rof');
+  NS.takeUpgrade(dmg); NS.takeUpgrade(dmg); NS.takeUpgrade(rof);
+  h = NS.buildHTML();
+  ok(h.indexOf(dmg.n) >= 0 && h.indexOf(rof.n) >= 0, '拿过的词条都在面板上');
+  ok(h.indexOf('2/' + dmg.max) >= 0, `叠了几层写几层（${dmg.n} 2/${dmg.max}）`);
+  ok(h.indexOf(dmg.n) < h.indexOf(rof.n), '按层数排序，专精在哪一眼看得出（2 层的排在 1 层前面）');
+  ok(h.indexOf('3 / ') >= 0, '总层数也写出来 —— 一局只拿得到一半，这个数字是有意义的');
+  // 满级要标出来：满了就不会再进卡池，玩家得知道
+  for (let i = NS.G.stacks.dmg; i < dmg.max; i++) NS.takeUpgrade(dmg);
+  h = NS.buildHTML();
+  ok(/class="bi full"/.test(h), '满级的词条单独标出来（满了就不会再出现在卡池里）');
+  ok(/\.build \.bi\.full \.st\{color:var\(--tox\)\}/.test(html), '满级用不同颜色，不是只加个字');
+  // 武器：当前拿着的要标
+  NS.PROF.unlocked.w_shot = 1; NS.equip('shot');
+  h = NS.buildHTML();
+  ok(/class="bi now"/.test(h), '当前拿着的那把单独标出来');
+  ok(h.indexOf(NS.WEAPONS.pulse.n) >= 0 && h.indexOf(NS.WEAPONS.shot.n) >= 0, '带着的枪都列出来，不只列当前这把');
+  // 换装卡不该混进词条行（它们是武器，不是改装）
+  ok(h.indexOf('w_shot') < 0, '换装卡不重复出现在词条行里');
+  // 两个位置都要填：选牌时和暂停时
+  CG.state = 'play'; NS.showLevelup();
+  ok(byId('buildUp').innerHTML.length > 20, '选牌页带面板 —— 看不见已有的就谈不上「选」');
+  CG.state = 'play'; NS.setPaused(true);
+  ok(byId('buildPause').innerHTML.length > 20, '暂停页也带面板');
+  ok(byId('pauseBox').classList.contains('show'), '暂停层显示出来了');
+  ok(byId('pauseHint').textContent.indexOf('P') >= 0, `键鼠提示按 P（「${byId('pauseHint').textContent}」）`);
+  NS.setPaused(false);
+  ok(!byId('pauseBox').classList.contains('show'), '取消暂停就收起来');
+  // 重开一局要清干净
+  NS.setPaused(true); NS.start(12);
+  ok(!byId('pauseBox').classList.contains('show'), '重开时暂停层收掉，不会挂在新局上');
+  ok(NS.buildHTML().indexOf('还没有装载任何改装') >= 0, '新局的面板是空的，不带上一局的词条');
+  // 触屏那份的提示不一样
+  NST.setMode('free'); NST.start(12); NST.setPaused(true);
+  ok(byId('pauseHint').textContent.indexOf('右上角') >= 0, `触屏提示不提 P 键（「${byId('pauseHint').textContent}」）`);
+  NST.setPaused(false);
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');

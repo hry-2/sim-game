@@ -5,7 +5,9 @@
 // 这里最要紧的两条是⑦⑧（连通性闸门）和⑬（读档顺序），其余是常规回归。
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html');
+// ?auto=1 跳过捏人：这些脚本一加载就假定游戏在跑。
+// 捏人本身由 verify-create.js 专门测。
+const FILE = 'file://' + path.resolve(__dirname, '..', 'games', 'sim', 'index.html') + '?auto=1';
 
 (async () => {
   const browser = await chromium.launch();

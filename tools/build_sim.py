@@ -52,6 +52,28 @@ body.touch #feed{height:104px}
   #feed{height:112px}
   #feedhd b{font-size:10px}
 }
+#create{position:fixed;inset:0;z-index:20;background:rgba(10,8,7,.95);
+  display:flex;align-items:center;justify-content:center;overflow:auto;padding:10px}
+#create .cbox{width:100%;max-width:340px;background:#1b1815;border:2px solid #c9a86a;padding:12px}
+#create h3{color:#e8c169;font-size:13px;letter-spacing:.1em;margin-bottom:2px;text-align:center}
+#create .csub{color:#7d7263;font-size:10px;text-align:center;margin-bottom:9px}
+/* 六列三行，不是四列四行 —— 四列时每张脸 75×97，光这一格就 388px 高，
+   盒子顶到 729px，720 的屏就得滚。六列 49×64，三行 200px，小手机也放得下。 */
+#cfaces{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:9px}
+#cfaces canvas{width:100%;height:auto;image-rendering:pixelated;background:#241f1a;
+  border:2px solid #2b2521;cursor:pointer;display:block}
+#cfaces canvas.on{border-color:#ffd155;background:#332c22}
+#create .crow{display:flex;align-items:flex-start;gap:6px;margin:5px 0;font-size:11px}
+#create .crow>label{color:#7d7263;flex:0 0 30px;padding-top:4px}
+#create .crow>span{display:flex;flex-wrap:wrap;gap:3px;flex:1}
+#create button{padding:3px 7px;font:11px ui-monospace,monospace}
+#create button.on{background:#c9a86a;color:#1b1815;border-color:#c9a86a}
+#cname{width:78px;background:#2a251f;border:1px solid #3d352c;color:#e8dcc0;
+  font:12px ui-monospace,monospace;padding:3px 6px}
+#ctip{color:#8a7f6d;font-size:10px;line-height:1.65;margin:8px 0 2px;min-height:46px}
+#create .cbtns{display:flex;gap:6px;margin-top:8px}
+#create .cbtns button{flex:1;padding:8px}
+#cgo{background:#c9a86a;color:#1b1815;border-color:#c9a86a;font-weight:700}
 #err{display:none;position:fixed;left:0;right:0;top:0;z-index:9;background:#7a2b26;
   color:#fff;padding:8px 12px;font-size:12px;white-space:pre-wrap}
 #boot{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);color:#8a7f6d}
@@ -5326,9 +5348,138 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 let started=false;
+
+// ==========================================================================
+//  捏人：新开一局先把人捏出来
+//  只在【没有存档】时出现；带 ?auto=1 直接跳过（测试走的就是这条）。
+//  能捏的四样正好对着游戏里本来就有的三层人格 + 长相：
+//    长相 = 精灵表的行号    性格 = 需求权重（TRAITS）
+//    脾气 = 对立特质（TRAIT）心性 = MBTI（管"怎么做决定"）
+//  所以捏人不是新加一套数据，只是把已有的维度摊到台面上让人自己挑 ——
+//  每一项旁边都写清楚它到底改变什么，别做成纯换皮。
+// ==========================================================================
+const AUTO = new URLSearchParams(location.search).has('auto');
+const CPAIRS=[['洁癖','邋遢'],['话痨','孤僻'],['吝啬','慷慨'],['急性子','慢性子']];
+const CMB=[['E','I'],['S','N'],['T','F'],['J','P']];
+const MBTIP={ E:'外向：交游掉得快，一场社交也回得多', I:'内向：耐得住清静',
+              S:'务实：只看眼前几步', N:'长远：愿意为远处的收成多跑',
+              T:'就事论事：怨恨淡得快', F:'重情：恩和怨都记得深',
+              J:'认死理：开了工就做完', P:'随性：想一出是一出' };
+let NEW={ row:0, name:NAMES[0], trait:TN[0], tt:TT[0].slice(), mbti:TM[0] };
+
+function creTip(){
+  const w=TRAITS[NEW.trait];
+  const ws=Object.keys(w).map(k=>NEEDS[k].n+'×'+w[k]).join('　');
+  const tt=NEW.tt.length ? NEW.tt.map(t=>t+'（'+TRAIT[t].tip+'）').join('、') : '没什么脾气';
+  const mb=NEW.mbti.split('').map(c=>MBTIP[c]).join('；');
+  return `<b style="color:#c9a86a">${NEW.trait}</b>　${ws}<br>`
+       + `<b style="color:#c9a86a">脾气</b>　${tt}<br>`
+       + `<b style="color:#c9a86a">${NEW.mbti}</b>　${mb}`;
+}
+function creSync(){
+  for(const c of document.querySelectorAll('#cfaces canvas'))
+    c.classList.toggle('on', +c.dataset.row===NEW.row);
+  for(const b of document.querySelectorAll('#create [data-t]'))
+    b.classList.toggle('on', b.dataset.t===NEW.trait);
+  for(const b of document.querySelectorAll('#create [data-tt]'))
+    b.classList.toggle('on', NEW.tt.includes(b.dataset.tt));
+  for(const b of document.querySelectorAll('#create [data-mb]')){
+    const [i,ch]=b.dataset.mb.split(':');
+    b.classList.toggle('on', NEW.mbti[+i]===ch);
+  }
+  document.getElementById('cname').value=NEW.name;
+  document.getElementById('ctip').innerHTML=creTip();
+}
+function creRandom(){
+  const h=n=>Math.floor(hash01(Date.now()%100000 + n*7919)*1e6);
+  NEW.row = h(1)%ATLAS_ROWS;
+  NEW.name = NAMEPOOL[h(2)%NAMEPOOL.length];
+  NEW.trait = Object.keys(TRAITS)[h(3)%4];
+  NEW.tt = CPAIRS.filter((p,i)=>h(10+i)%3!==0).map((p,i)=>p[h(20+i)%2]);
+  NEW.mbti = CMB.map((p,i)=>p[h(30+i)%2]).join('');
+  creSync();
+}
+function openCreate(){
+  running=false;
+  const box=document.createElement('div'); box.id='create';
+  box.innerHTML=`<div class="cbox">
+    <h3>捏 个 人</h3>
+    <div class="csub">这四样都不是换皮 —— 每一样都真的改变他怎么过日子</div>
+    <div id="cfaces"></div>
+    <div class="crow"><label>名字</label><span>
+      <input id="cname" maxlength="4"><button id="cdice">换一个</button></span></div>
+    <div class="crow"><label>性格</label><span>${
+      Object.keys(TRAITS).map(t=>`<button data-t="${t}">${t}</button>`).join('')}</span></div>
+    <div class="crow"><label>脾气</label><span>${
+      CPAIRS.map(p=>p.map(t=>`<button data-tt="${t}">${t}</button>`).join('')).join(
+        '<span style="color:#3d352c">|</span>')}</span></div>
+    <div class="crow"><label>心性</label><span>${
+      CMB.map((p,i)=>p.map(c=>`<button data-mb="${i}:${c}">${c}</button>`).join('')).join(
+        '<span style="color:#3d352c">|</span>')}</span></div>
+    <div id="ctip"></div>
+    <div class="cbtns"><button id="crand">随机</button><button id="cgo">就这么定</button></div>
+  </div>`;
+  document.body.appendChild(box);
+  const faces=box.querySelector('#cfaces');
+  for(let r=0;r<ATLAS_ROWS;r++){
+    const c=document.createElement('canvas');
+    c.width=SW; c.height=SH; c.dataset.row=r;
+    const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+    if(spriteOK) g.drawImage(cast, 0, r*SH, SW, SH, 0, 0, SW, SH);
+    faces.appendChild(c);
+  }
+  box.addEventListener('click',e=>{
+    const t=e.target;
+    if(t.dataset.row!==undefined){ NEW.row=+t.dataset.row; creSync(); return; }
+    if(t.dataset.t){ NEW.trait=t.dataset.t; creSync(); return; }
+    if(t.dataset.tt){                       // 同一对里只能占一个；再点一次就取消
+      const tt=t.dataset.tt, opp=TRAIT[tt].opp;
+      NEW.tt = NEW.tt.filter(x=>x!==tt && x!==opp);
+      if(!t.classList.contains('on')) NEW.tt.push(tt);
+      creSync(); return; }
+    if(t.dataset.mb){ const [i,ch]=t.dataset.mb.split(':');
+      NEW.mbti = NEW.mbti.slice(0,+i)+ch+NEW.mbti.slice(+i+1); creSync(); return; }
+    if(t.id==='cdice'){ NEW.name=NAMEPOOL[Math.floor(hash01(Date.now()%99991)*NAMEPOOL.length)];
+      creSync(); return; }
+    if(t.id==='crand'){ creRandom(); return; }
+    if(t.id==='cgo'){ applyCreate(); return; }
+  });
+  box.querySelector('#cname').addEventListener('input',e=>{
+    NEW.name=e.target.value.trim().slice(0,4); });
+  creSync();
+}
+// 落到世界上。只在新局出现，所以要改的引用很有限：
+// 名字被【别人的 rel】和 HOMEOWNER 当键用，长相要跟撞脸的人换一下。
+function applyCreate(){
+  const old=PC.name;
+  let nm=(NEW.name||'').trim().slice(0,4) || old;
+  if(sims.some(s=>s!==PC && s.name===nm)) nm=old;       // 重名就退回原名
+  if(NEW.row!==PC.row){                                  // 撞脸就跟对方换一行
+    const other=sims.find(s=>s!==PC && s.row===NEW.row);
+    if(other) other.row=PC.row;
+    PC.row=NEW.row;
+  }
+  PC.trait=NEW.trait; PC.w=TRAITS[NEW.trait];
+  PC.tt=NEW.tt.slice();
+  PC.mbti=NEW.mbti;
+  if(nm!==old){
+    for(const s of sims) if(s!==PC && s.rel[old]!==undefined){
+      s.rel[nm]=s.rel[old]; delete s.rel[old];
+    }
+    const i=NAMES.indexOf(old); if(i>=0) NAMES[i]=nm;
+    for(let k=0;k<HOMEOWNER.length;k++) if(HOMEOWNER[k]===old) HOMEOWNER[k]=nm;
+    PC.name=nm;
+  }
+  const el=document.getElementById('create'); if(el) el.remove();
+  running=true; _qAt=-1;
+  emit('life.born',{who:PC.name, why:PC.trait+'·'+PC.mbti, tags:['life']});
+  panel(); renderFeed();
+}
+
 function boot(){ if(started) return; started=true;
   document.getElementById('boot').remove();
-  try{ loadGame(); panel(); renderFeed(); requestAnimationFrame(loop); }
+  try{ const loaded=loadGame(); panel(); renderFeed(); requestAnimationFrame(loop);
+       if(!loaded && !AUTO) openCreate(); }        // 新局先捏人；?auto=1 跳过
   catch(e){ fail(e.stack||e.message); } }
 </script></body></html>
 '''
