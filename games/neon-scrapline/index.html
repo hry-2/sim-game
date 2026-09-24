@@ -2339,7 +2339,7 @@ const G = {
   mines: [], discs: [],
   wepDmg: {}, deathBy: null, bossKills: 0, coreKills: 0, tankKills: 0, buffs: {}, mod: null, eliteKills: 0,
   overheat: 0, won: false, seen: {}, seenAff: {}, tipQ: [], tipT: 0, unlockedDanger: null, waveMax: 0, rerolls: 0,
-  pityDone: 0, pet: null, escorts: [],
+  pityDone: 0, pet: null, escorts: [], lvQ: 0,
   scrap: 0, scrapGot: 0, bought: 0, loot: {},
   hookCd: 0,
   offer: [], stacks: {},
@@ -2465,6 +2465,20 @@ function takeUpgrade(u) {
   document.getElementById('levelup').classList.remove('show');
   G.state = 'play';
   syncHud();
+  pumpLevel();                                         // 还欠着的等级接着发牌
+}
+// 经验统一从这儿进。原来是「捡一颗判一次」，一次只可能升一级 ——
+// 但自动回收会一口气进账十几颗，跨两级的话第二级就白升了（takeUpgrade 直接回 play）。
+// 记个账，选完一张接着弹下一张。
+function gainXp(n) {
+  P.xp += n;
+  while (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = xpNeed(P.lv); G.lvQ++; }
+  pumpLevel();
+}
+function pumpLevel() {
+  // showLevelup 在词条全满时会直接返回（不进 levelup 状态），
+  // 那种情况下这个循环会把欠的等级一次结清 —— 每级给一次回血和分数，正确。
+  while (G.lvQ > 0 && G.state === 'play') { G.lvQ--; showLevelup(); }
 }
 /* 构筑面板：把这一局已经拿到的东西摊开。
    只读，没有任何交互 —— 所以鼠标、触屏、手柄三套输入一行都不用写。 */
@@ -3617,6 +3631,39 @@ function rollMod(w) {
   return pool.length && r < p ? pool[(i * pool.length) | 0] : null;
 }
 
+/* 换场地之前把地上剩的全部收走。
+   setArena 会 G.drops.length = 0 —— 不扫这一遍的话，BOSS 掉的 25 废钢、
+   必掉的核心碎片（全场最值钱的零件）就这么凭空没了，而且一声不响。
+   BOSS 一死场上一片狼藉，指望玩家在补给间隙里一颗不漏地捡完是不现实的。 */
+function sweepDrops() {
+  if (!P || !G.drops.length) return null;
+  const got = { xp: 0, scrap: 0, hp: 0, parts: [], buffs: 0 };
+  for (const d of G.drops) {
+    if (d.gone) continue;
+    if (d.kind === 'hp') { P.hp = Math.min(P.maxhp, P.hp + 18); got.hp++; }
+    else if (d.kind === 'part') { G.loot[d.pk] = (G.loot[d.pk] || 0) + 1; got.parts.push(d.pk); }
+    else if (d.kind === 'coin') { const v = d.v || 1; G.scrap += v; G.scrapGot += v; got.scrap += v; }
+    else if (BUFFS[d.kind]) { grabBuff(d.kind); got.buffs++; }
+    else got.xp++;
+  }
+  G.drops.length = 0;
+  if (got.xp) gainXp(got.xp);                          // 可能一口气跨两级，gainXp 记着账
+  syncHud();
+  return got;
+}
+// 扫到的东西得说出来，否则玩家只看到「东西没了」。
+function sweepNote(got) {
+  if (!got) return '';
+  const bits = [];
+  if (got.scrap) bits.push('+' + got.scrap + ' 废钢');
+  const kinds = {};
+  for (const k of got.parts) kinds[k] = (kinds[k] | 0) + 1;
+  for (const k in kinds) bits.push(PART[k].n.replace(/ /g, '') + '×' + kinds[k]);
+  if (got.xp) bits.push(got.xp + ' 点经验');
+  if (got.hp) bits.push('回血');
+  return bits.join(' · ');                               // 「自动回收」四个字在横幅标题上，这里别再说一遍
+}
+
 /* ================= 波次 ================= */
 function nextWave() {
   if (G.wave >= LAST_WAVE) return winRun();            // 打完第 30 波就是撤离
@@ -3626,8 +3673,17 @@ function nextWave() {
     const T = TIERS[tier(G.wave)];
     banner(T.n, T.d);
   }
-  // BOSS 在第 5/10/15 波，所以下一波就换个地方 —— 打赢了就往前走
-  if (G.wave > 1 && G.wave % 5 === 1) setArena(ARENA_I + 1, true);
+  // BOSS 在第 5/10/15 波，所以下一波就换个地方 —— 打赢了就往前走。
+  // 换之前先把地上剩的收走，顺便把收到了什么写进场地横幅的副标题 ——
+  // 单独再弹一条会被场地那条盖掉（banner 是直接覆盖，不排队）。
+  if (G.wave > 1 && G.wave % 5 === 1) {
+    const note = sweepNote(sweepDrops());
+    setArena(ARENA_I + 1, false);          // 这里不弹：nextWave 末尾的波次横幅会直接把它盖掉
+    // 走提示队列。banner() 是覆盖式的，而 tipQ 会等上一条播完再出下一条 ——
+    // 顺带修好了「场地横幅从来没人见过」：它一直在换场地那一波被波次横幅盖掉。
+    G.tipQ.push({ n: '场 地 · ' + ARENA.a.n, d: ARENA.w + ' × ' + ARENA.h });
+    if (note) G.tipQ.push({ n: '自 动 回 收', d: note });
+  }
   G.phase = 'wave';
   G.waveT = 18 + Math.min(10, G.wave);
   // 预算要够撑满整整一波的高密度：上限 82 只而预算只有 129，
@@ -4267,7 +4323,8 @@ function update(dt) {
   for (const e of G.escorts) if (e.fx > 0) e.fx -= dt;
   if (G.tipQ.length && G.tipT <= 0) {
     const t = G.tipQ.shift();
-    if (t.indexOf('aff:') === 0) { const a = AFFIX[t.slice(4)]; banner('精英 · ' + a.n, a.d); }
+    if (typeof t === 'object') banner(t.n, t.d);       // 自由文本（场地 / 自动回收）
+    else if (t.indexOf('aff:') === 0) { const a = AFFIX[t.slice(4)]; banner('精英 · ' + a.n, a.d); }
     else if (t.indexOf('ht:') === 0) { const w = HOWTO[t.slice(3)]; banner(w[0], w[1]); }
     else banner(TIPS[t][0], TIPS[t][1]);
   }
@@ -4815,10 +4872,7 @@ function update(dt) {
         if (P.salvage) P.hp = Math.min(P.maxhp, P.hp + P.salvage);   // 回收协议：钱换血
       }
       else if (BUFFS[d.kind]) { grabBuff(d.kind); firstTime('buff'); }
-      else {
-        P.xp++; Sfx.xp();
-        if (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = xpNeed(P.lv); showLevelup(); }
-      }
+      else { gainXp(1); Sfx.xp(); }
       syncHud();
     }
   }
@@ -6225,6 +6279,7 @@ window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
   syncHQ, showHQ, syncPity, togglePity, syncPet, syncStore, renderStoreLog, chainText, chainSteps, shopList, shopCost, intelText,
   showTab, bagHTML, syncTags,
   HOWTO, firstTime, howToHTML, showHow,
+  sweepDrops, sweepNote, gainXp,
   WRIG,
   backToTitle, armGiveup,
   syncTC,

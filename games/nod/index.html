@@ -65,6 +65,9 @@
     font-weight:700;line-height:1.08;text-align:center;
     max-width:100%;word-break:break-word;padding:0 2vw;
   }
+  #speak{
+    margin-top:2.2vh;color:#6f7a8a;font-size:clamp(11px,2.4vh,15px);letter-spacing:.06em;
+  }
   #tally{
     position:fixed;left:calc(10px + var(--safe-l));bottom:calc(8px + var(--safe-b));
     color:var(--dim);font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:.05em;
@@ -127,7 +130,9 @@
     <h1>点头</h1>
     <div class="sub">
       一个人横着举起手机、<b>屏幕朝外</b>，另一个人看词比划。<br>
-      猜对了把手机<b>往下翻</b>，比划不出来就<b>往上翻</b>。
+      猜对了把手机<b>往下翻</b>，比划不出来就<b>往上翻</b>。<br>
+      比划的人全程不许出声 —— 只有标了「可说」的三个知识包例外，
+      那里可以说话，但<b>不能说词里的字</b>。
     </div>
   </div>
 
@@ -152,6 +157,7 @@
 <div class="screen" id="play">
   <div id="bar"></div>
   <div id="word">—</div>
+  <div id="speak"></div>
   <div id="tally"></div>
   <div id="clock"></div>
 </div>
@@ -297,10 +303,10 @@
       '塞尔达传说 魂斗罗 坦克大战 冒险岛 跑跑卡丁车 穿越火线 地下城与勇士 梦幻西游 魔兽世界 星际争霸 ' +
       '红色警戒 帝国时代 三国杀 狼人杀 剧本杀 密室逃脱 开心消消乐 保卫萝卜 节奏大师 舞力全开 ' +
       '健身环 动物森友会 路易吉 库巴 林克 初音未来 洛天依 手办 猫耳 女仆装 ' +
-      '角色扮演 漫展 弹幕 声优 番剧 本命 中二病 御宅族 抱枕 立牌 ' +
-      '徽章 扭蛋 景品 痛车 热血 后宫 治愈 燃向 泡面番 轻小说 ' +
-      '同人 二创 魔法少女小圆 紫罗兰永恒花园 化物语 凉宫春日 轻音少女 冰菓 龙与虎 崩坏3 ' +
-      '光遇 炉石传说 守望先锋 贪吃蛇 扫雷 连连看 应援色 角色歌 手速').split(/\s+/),
+      '角色扮演 漫展 弹幕 中二病 抱枕 立牌 徽章 扭蛋 痛车 魔法少女小圆 ' +
+      '紫罗兰永恒花园 化物语 凉宫春日 轻音少女 冰菓 龙与虎 崩坏3 光遇 炉石传说 守望先锋 ' +
+      '贪吃蛇 扫雷 连连看 螺旋丸 写轮眼 龟派气功 影分身 精灵球 记忆面包 缩小灯 ' +
+      '泡泡堂 大富翁 打砖块 推箱子 斗地主 跳一跳 羊了个羊 合成大西瓜 漫画书').split(/\s+/),
 
     成语: ('画蛇添足 守株待兔 对牛弹琴 亡羊补牢 掩耳盗铃 井底之蛙 刻舟求剑 拔苗助长 南辕北辙 自相矛盾 ' +
       '滥竽充数 狐假虎威 画龙点睛 惊弓之鸟 杯弓蛇影 望梅止渴 塞翁失马 愚公移山 精卫填海 夸父逐日 ' +
@@ -436,7 +442,18 @@
       '复活节岛石像 尼亚加拉瀑布 黄石公园 科罗拉多大峡谷 苏伊士运河 巴拿马运河 直布罗陀 火山 地震 海啸 ' +
       '台风 龙卷风 极光 绿洲 冰川 瀑布 峡谷 岛屿 半岛 海峡 ' +
       '地球仪 经纬度 时区 季风 洋流 潮汐 珊瑚礁').split(/\s+/),
-  };;;
+  };;;;
+
+  // 开口包：允许表演人出声的三个包。它们装的是【知识】，而知识没有对应的动作 ——
+  // 「郡县制」「凡尔赛条约」「瑞典」不是难，是在默演规则下根本传不出去（见 ADR-0005）。
+  // 规矩只有一条：可以说，但【词里出现过的字一个都不能说】，那些字叫禁字。
+  const SPEAK = ['中国史', '世界史', '地理'];
+  const isSpeak = p => SPEAK.indexOf(p) >= 0;
+  // 词 -> 所属词包。跨包零重复是量具钉死的，所以这张反查表不会有歧义。
+  // 随机包需要它：一局里可能混着开口词和比划词，屏幕要逐词告诉表演人这次能不能张嘴。
+  const OF = {};
+
+  for (const p of PACKS) for (const w of WORDS[p]) OF[w] = p;
 
   const SECS = [60, 120, 180];
   // 法线竖直分量的门限。判定 45°（sin45=.707），中位 20°（sin20=.342）。
@@ -498,6 +515,7 @@
     if (!st.order.length) { st.word = null; return null; }
     if (st.i >= st.order.length) { st.order = shuffle(st.base, st.rnd); st.i = 0; st.cycles++; }
     st.word = st.order[st.i++];
+    st.speak = isSpeak(OF[st.word]);     // 随机包里逐词变，所以记在词上不记在局上
     return st.word;
   }
 
@@ -699,6 +717,8 @@
         lastWord = st.word;
         $('word').textContent = st.word || '—';
         $('word').style.fontSize = fitWord(st.word);
+        // 这行字只服务表演人 —— 猜的人自始至终看不见屏幕
+        $('speak').textContent = st.speak ? '可以说话 · 但不能说词里的字' : '';
       }
       const p = Math.max(0, st.left / st.total);
       $('bar').style.width = (p * 100).toFixed(2) + '%';
@@ -762,6 +782,7 @@
       // 六包现在都满了，这条走不到；留着是因为清空一个包就该让它在菜单上变灰，
       // 而不是让人点进去开一局没有词的局（start() 那头还有一道空池兜底）
       if (!enabled) { b.disabled = true; const s = document.createElement('small'); s.textContent = '待补'; b.appendChild(s); }
+      else if (isSpeak(name)) { const s = document.createElement('small'); s.textContent = '可说'; b.appendChild(s); }
       b.setAttribute('aria-checked', String(pick.pack === name));
       b.addEventListener('click', () => {
         if (!enabled) return;
@@ -846,7 +867,9 @@
   const NOD = {
     PACKS, WORDS, SECS, TH, PAINT_PATHS,
     start, ready, tick, verdict, release, feedNormal, feedTap, amend,
-    render, paint, normalZ, pace,
+    render, paint, normalZ, pace, SPEAK,
+    packOf: w => OF[w] || null,
+    canSpeak: () => !!(st && st.state === '进行' && st.speak),
     word: () => (st && st.state === '进行' ? st.word : null),
     left: () => (st ? st.left : 0),
     usedMs: () => (st ? st.total - st.left : 0),
@@ -860,7 +883,7 @@
       if (!st) return { kind: '无' };
       if (st.portrait && PLAYING(st.state)) return { kind: '竖屏' };
       if (st.state === '起手') return { kind: '倒数', n: Math.ceil(st.readyLeft / 1000) };
-      if (st.state === '进行') return { kind: '词', word: st.word };
+      if (st.state === '进行') return { kind: '词', word: st.word, speak: !!st.speak };
       if (st.state === '确认') return { kind: '确认', verdict: st.last };
       return { kind: '总结' };
     },

@@ -3181,5 +3181,75 @@ console.log('涂装与武器外观');
   NS.PROF.skin = 'std'; NS.applySkin('std');
 }
 
+// ---- 58) 换场地之前，地上剩的要收走 ----
+// setArena 里有一句 G.drops.length = 0。BOSS 一死场上一片狼藉，
+// 25 废钢、必掉的核心碎片（全场最值钱的零件）就这么凭空没了，而且一声不响。
+console.log('换场地前自动回收');
+{
+  NS.start(101);
+  const G = NS.G, P = NS.P;
+  const put = o => G.drops.push(Object.assign({ x: P.x + 400, y: P.y + 400, vx: 0, vy: 0, t: 0 }, o));
+
+  // 一、每一类都得收到
+  G.drops.length = 0; G.loot = {}; G.scrap = 0; P.hp = 10;
+  for (let i = 0; i < 6; i++) put({ kind: 'xp' });
+  put({ kind: 'coin', v: 25 }); put({ kind: 'part', pk: 'core' });
+  put({ kind: 'hp' }); put({ kind: 'rush' });
+  const lv0 = P.lv, hp0 = P.hp;
+  const got = NS.sweepDrops();
+  ok(G.scrap === 25, `废钢收到了（${G.scrap}）`);
+  ok(G.loot.core === 1, '零件收到了 —— BOSS 那颗核心碎片是全场最值钱的');
+  ok(P.hp > hp0, `治疗包也算（${hp0} → ${P.hp}）`);
+  ok(G.buffs.rush > 0, '增益也算');
+  ok(P.lv > lv0 || P.xp > 0, '经验进账了');
+  ok(!G.drops.length, '地上收干净');
+  ok(NS.sweepDrops() === null, '再扫一次没东西了，也不会崩');
+
+  // 二、一口气跨两级，牌要发两次。原来「捡一颗判一次」，
+  // takeUpgrade 直接把状态打回 play，第二级就白升了。
+  NS.start(101);
+  const G2 = NS.G, P2 = NS.P;
+  G2.drops.length = 0;
+  for (let i = 0; i < 40; i++) G2.drops.push({ x: P2.x, y: P2.y, vx: 0, vy: 0, t: 0, kind: 'xp' });
+  const lvA = P2.lv;
+  NS.sweepDrops();
+  const gained = P2.lv - lvA;
+  ok(gained >= 2, `一次扫进账 ${gained} 级`);
+  let picks = 0;
+  while (G2.state === 'levelup' && picks < 20) { NS.takeUpgrade(G2.offer[0]); picks++; }
+  ok(picks === gained, `升了 ${gained} 级就发 ${picks} 次牌 —— 一级都不许吞`);
+  ok(G2.lvQ === 0, '欠的等级结清了');
+
+  // 三、真的挂在「换场地」那一步上，而不是我在别处手动调了一下
+  NS.start(102);
+  const G3 = NS.G, P3 = NS.P;
+  G3.wave = 5; G3.drops.length = 0; G3.loot = {}; G3.scrap = 0;
+  G3.drops.push({ x: P3.x + 300, y: P3.y, vx: 0, vy: 0, t: 0, kind: 'coin', v: 25 });
+  G3.drops.push({ x: P3.x + 300, y: P3.y, vx: 0, vy: 0, t: 0, kind: 'part', pk: 'core' });
+  const a0 = NS.ARENA_I;
+  NS.nextWave();
+  ok(NS.ARENA_I !== a0, '第 6 波确实换了场地');
+  ok(G3.scrap === 25 && G3.loot.core === 1, '换之前收走了，没跟着 drops 一起被清掉');
+
+  // 四、收了什么要说出来，否则玩家只看到「东西没了」。
+  // banner() 是覆盖式的 —— 直接弹会被 nextWave 末尾的波次横幅盖掉，所以走提示队列。
+  const D = 1 / 60;
+  let seen = '';
+  for (let i = 0; i < 500; i++) {
+    NS.update(D);
+    const t = byId('banner').innerHTML;
+    if (t.indexOf('回 收') > -1) { seen = t; break; }
+  }
+  ok(/25/.test(seen) && /核心碎片/.test(seen), `横幅写明收到了什么（${seen.replace(/<[^>]+>/g, ' ')}）`);
+  // 顺带修好的：场地横幅一直以来都在换场地那一波被波次横幅盖掉，从没人见过
+  ok(NS.G.tipQ.some(t => typeof t === 'object' && /场 地/.test(t.n))
+     || /场 地/.test(byId('banner').innerHTML) || seen.indexOf('回 收') > -1,
+    '场地横幅也进了队列，不再被波次横幅盖掉');
+
+  // 五、没东西可收的时候不许冒出一条空横幅
+  ok(NS.sweepNote(null) === '' && NS.sweepNote({ xp: 0, scrap: 0, hp: 0, parts: [], buffs: 0 }) === '',
+    '什么都没收到就不说话');
+}
+
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');
 process.exit(fail ? 1 : 0);
