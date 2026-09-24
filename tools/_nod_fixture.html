@@ -49,6 +49,10 @@
   // 词 -> 所属词包（量具用它验随机包的混抽）
   const OF = {};
   for (const p of PACKS) for (const w of WORDS[p]) OF[w] = p;
+  // 子包：靶子每包只有 6 个词，切成两段三个 —— 够验「区间连续铺满」这条结构断言，
+  // 词数下限那条量具会自己跳过（靶子本来就不验规模）
+  const SUBS = {};
+  for (const p of PACKS) SUBS[p] = [['前三', 0, 3], ['后三', 3, 6]];
 
   const SECS = [60, 120, 180];
   // 法线竖直分量的门限。45° -> sin45 = .707；中位 20° -> sin20 = .342。
@@ -71,28 +75,32 @@
   }
 
   // 池子 = 这一局能抽的全部词。随机包是【跨包混抽】，不是随机挑一个包。
-  function pool(pack) {
+  function pool(pack, sub) {
     if (pack === '随机') {
       const all = [];
       for (const p of PACKS) for (const w of (WORDS[p] || [])) all.push(w);
       return all;
     }
-    return (WORDS[pack] || []).slice();
+    const w = WORDS[pack] || [];
+    if (!sub) return w.slice();
+    const r = (SUBS[pack] || []).find(x => x[0] === sub);
+    return r ? w.slice(r[1], r[2]) : w.slice();
   }
 
   function start(opt) {
     const o = opt || {};
     const pack = o.pack || '随机';
+    const sub = o.sub || null;
     const secs = SECS.indexOf(o.secs) >= 0 ? o.secs : 60;
     // 种子【只能】来自参数或 ?seed=（霓虹教训四）。这里一个 Date.now() 都不许有。
     const q = /[?&]seed=(-?\d+)/.exec(location.search || '');
     const seed = o.seed != null ? o.seed : (q ? +q[1] : 1);
 
     st = {
-      pack, secs, seed, rnd: mul(seed),
+      pack, sub, secs, seed, rnd: mul(seed),
       state: '起手', armed: false, readyLeft: 3000,
       total: secs * 1000, left: secs * 1000,
-      base: pool(pack), order: [], i: 0,
+      base: pool(pack, sub), order: [], i: 0,
       word: null, last: null, log: [], cycles: 0,
     };
     st.order = shuffle(st.base, st.rnd);
@@ -203,8 +211,10 @@
   }
 
   const NOD = {
-    PACKS, WORDS, SECS, TH, PAINT_PATHS,
+    PACKS, WORDS, SECS, TH, PAINT_PATHS, SUBS,
     packOf: w => OF[w] || null,
+    subsOf: p => (SUBS[p] || []).map(r => r[0]),
+    sub: () => (st ? st.sub : null),
     start, ready, tick, verdict, release, feedNormal, feedTap, amend,
     render, paint, shown, pace,
     word: () => (st && st.state === '进行' ? st.word : null),

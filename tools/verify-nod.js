@@ -53,7 +53,8 @@ const NOD = run({});
 
   const need = ['PACKS', 'WORDS', 'SECS', 'TH', 'start', 'ready', 'tick',
     'verdict', 'release', 'feedNormal', 'feedTap', 'amend',
-    'word', 'left', 'score', 'log', 'usedMs', 'pace', 'shown', 'state', 'packOf'];
+    'word', 'left', 'score', 'log', 'usedMs', 'pace', 'shown', 'state', 'packOf',
+    'SUBS', 'subsOf', 'sub'];
   const miss = need.filter(k => NOD[k] === undefined);
   ok(miss.length === 0, `契约 ${need.length} 项，缺 ${miss.length} 项${miss.length ? '：' + miss.join(' ') : ''}`);
 
@@ -235,6 +236,61 @@ sec('词包归属');
   // 所以契约里不该再有 SPEAK / canSpeak —— 它们回来了就说明规则又被拆开了
   ok(NOD.SPEAK === undefined && NOD.canSpeak === undefined,
     '契约里没有按包分规则的残留（SPEAK / canSpeak 都不在）');
+}
+
+// ---- 6d) 子包：区间必须连续、无缝、铺满整个包 -------------------------
+sec('子包');
+{
+  // 子包是 WORDS[包] 上的一段下标区间，不复制词。所以「有没有漏词、有没有重叠」
+  // 不靠人眼核对，靠这一条断言证明：首段从 0 起、段段首尾相接、末段正好到包尾。
+  let bad = [], nsub = 0, minSize = 1e9, minName = '';
+  for (const p of NOD.PACKS) {
+    const rs = NOD.SUBS[p] || [];
+    if (!rs.length) { bad.push(p + ' 没有子包'); continue; }
+    nsub += rs.length;
+    let cur = 0;
+    const seen = new Set();
+    for (const [name, a, b] of rs) {
+      if (a !== cur) bad.push(`${p}/${name} 起点 ${a} 接不上上一段的 ${cur}`);
+      if (b <= a) bad.push(`${p}/${name} 区间空或反了 [${a},${b})`);
+      if (seen.has(name)) bad.push(`${p} 里有两个子包都叫「${name}」`);
+      seen.add(name); cur = b;
+      if (b - a < minSize) { minSize = b - a; minName = p + '/' + name; }
+    }
+    if (cur !== NOD.WORDS[p].length) bad.push(`${p} 末段到 ${cur}，但包里有 ${NOD.WORDS[p].length} 个词`);
+  }
+  ok(bad.length === 0,
+    `${NOD.PACKS.length} 个包共 ${nsub} 个子包，区间连续无缝铺满${bad.length ? '；出问题 ' + bad.length + ' 处：' + bad[0] : ''}`);
+
+  const counts = NOD.PACKS.map(p => (NOD.SUBS[p] || []).length);
+  ok(counts.every(c => c >= 2 && c <= 8), `每个包 ${Math.min(...counts)}~${Math.max(...counts)} 个子包`);
+
+  if (isFixture) {
+    console.log(`  – 靶子不验子包规模（每包只有 ${NOD.WORDS[NOD.PACKS[0]].length} 个词）`);
+  } else {
+    // 60 秒档约翻 13 个词、120 档 27、180 档 40。下限 28 保住前两档不撞词，
+    // 180 档在最小的子包上会绕回去 —— 这是记在代码注释里的那笔交易。
+    ok(minSize >= 28, `最小的子包是 ${minName}，${minSize} 词`);
+  }
+
+  // 选了子包，这一局就【只能】抽到这个子包里的词
+  const p0 = '动物', s0 = NOD.subsOf(p0)[1];
+  const r0 = NOD.SUBS[p0].find(x => x[0] === s0);
+  const inside = new Set(NOD.WORDS[p0].slice(r0[1], r0[2]));
+  NOD.start({ pack: p0, sub: s0, secs: 180, seed: 71 });
+  NOD.feedNormal(0); NOD.ready(3000);
+  ok(NOD.poolSize() === inside.size, `选「${p0} / ${s0}」后池子 ${NOD.poolSize()} 个词，正好是这个子包的 ${inside.size}`);
+  ok(NOD.sub() === s0, `sub() 报的是「${NOD.sub()}」`);
+  let out = 0;
+  for (let i = 0; i < inside.size; i++) { if (!inside.has(NOD.word())) out++; NOD.verdict('猜中'); NOD.release(); }
+  ok(out === 0, `抽满一轮 ${inside.size} 个词，跑到子包外面的 ${out} 个`);
+
+  // 不给 sub = 整个大类；给个不存在的名字也退回整个大类，不许抽空
+  NOD.start({ pack: p0, secs: 180, seed: 71 });
+  ok(NOD.poolSize() === NOD.WORDS[p0].length && NOD.sub() === null,
+    `不给子包时是整个大类：${NOD.poolSize()} 个词，sub() 是 ${NOD.sub()}`);
+  NOD.start({ pack: p0, sub: '这个子包不存在', secs: 180, seed: 71 });
+  ok(NOD.poolSize() === NOD.WORDS[p0].length, `给一个不存在的子包名，退回整个大类而不是抽空（${NOD.poolSize()} 个词）`);
 }
 
 // ---- 7) 阅后即焚 -----------------------------------------------------
