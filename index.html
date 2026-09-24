@@ -20,6 +20,8 @@
     --sim:#7dd18a;
     --neon:#ff2ea6;
     --harbor:#45f0ff;
+    --street:#d2e24a;
+    --nod:#5fd39a;
     --cjk:'Noto Sans SC',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
     --disp:'Chakra Petch','Noto Sans SC',system-ui,sans-serif;
     --pix:'Silkscreen','Chakra Petch',ui-monospace,monospace;
@@ -171,12 +173,12 @@
   <header>
     <div class="marquee">
       <h1>游戏柜</h1>
-      <span class="en">arcade cabinet / 3 titles</span>
+      <span class="en">arcade cabinet / 5 titles</span>
     </div>
     <div class="rule"></div>
     <div class="rule"></div>
     <p class="lede">
-      三个自己写的网页游戏。都是 <b>单个 HTML 文件</b>——没有构建步骤、没有 npm 依赖、
+      五个自己写的网页游戏。都是 <b>单个 HTML 文件</b>——没有构建步骤、没有 npm 依赖、
       美术和音效全部由代码生成，双击就能跑，扔到任何静态托管上也一样。
       挑一个开始玩。
     </p>
@@ -215,12 +217,19 @@
           熔切光束只咬最前面那一个、布雷器不用瞄改成算他们会走哪、回旋刃飞出去再飞回来来回各穿一次。
           十一种敌人里有六种逼你改打法：正面挡伤的铁闸、靠近就炸的爆囊、给同伴加护盾的中继、死了裂成两只的裂解体、远处蓄力打直线的钉枪手、甩钩把你拽过去的拖曳者。
           第一次遇见都会给一句该怎么应对，之后在暂停界面的图鉴里随时能翻回来。
-          三种 BOSS 轮着来，各自要换一套打法：母体核心绕着圈躲螺旋弹幕，拆解臂站定发亮就是要直线撞过来、得横着走，母巢不追你但一直吐无人机、得冲过去先拆巢。每个掉到一半血都换形态。三张场地轮转，每十波加一层新机制。每次升级三选一，22 条改装词条可叠加，后期才铺开的几条改的是机制不是数值：折返弹撞墙反弹、蓄能枪机奖励点射、拆解标记让死人旁边的跟着倒霉、回收协议把废钢换成血。九个里程碑解锁新枪与新词条，废钢买起手武器，
+          三种 BOSS 轮着来，各自要换一套打法：母体核心绕着圈躲螺旋弹幕，拆解臂站定发亮就是要直线撞过来、得横着走，母巢不追你但一直吐无人机、得冲过去先拆巢。每个掉到一半血都换形态。三张场地各有自己的地形：回收线上的传送带推着所有人走、熔渣池的池子站上去就烧（敌人也一样，可以把带盾的引进去）、冷却塔的冷凝罐打爆炸一片。每十波加一层新机制。每次升级三选一，23 条改装词条可叠加，后期才铺开的几条改的是机制不是数值：折返弹撞墙反弹、蓄能枪机奖励点射、拆解标记让死人旁边的跟着倒霉、回收协议把废钢换成血、护航无人机绕着你转自己找目标。九个里程碑解锁新枪与新词条，废钢买起手武器，
           敌人会掉废钢，波间开一次回收站：现场修复、注入强化、多一次重摇、军械调拨（直接买一把已解锁的枪）。
           刻意只卖消耗品和内容，不卖永久数值——那条线归词条管。没花完的废钢存进档案，所以「现在买」和「留到下一局」是个真选择。
+          敌人还掉具体的零件，而且跟你打了谁绑定——重装机甲掉伺服马达、无人机掉光学镜组、拖曳者掉绞盘齿轮。
+          捡回来在据点摆摊卖：每种零件有看不见的心理价位带，你出价，客人一个个来，嫌贵会走、走多了砸名声；
+          每局的行情还不一样，两种缺货一种积压，所以「今天该打谁」每局都在变。
+          档案那头是一座据点：精炼炉把废钢炼成精炼钢，装配台用精炼钢给九把枪各装一个改装件——点射管拿射速换穿透、散焦透镜拿单体伤害换扫一片、遥爆模块让雷改成手动引爆。
+          每个改装件都是交换不是升级，弹药库、情报站、义体车间给的也只是「多一格货」「多知道一点」「指定一条保底」，没有一栋建筑加战斗数值。
+          做够生意还能养一只：拾荒犬让你今天指定的那一种零件掉率翻倍、账房猫开门多来三位客人、信鸦多看几波情报——
+          三只都只管经营，跟着你跑的那只不参与战斗，战斗力那条线归词条管。
           三个底座各带代价——开局只有一把枪，其余都要打出来。还有每日局与六套涂装：种子取当天日期，全世界今天同一局。
           场上会掉六种临时增益，超频、护壁、吸附、磁暴、时滞、血偿，都只有几秒，值不值得冒险跑过去捡是当场的决定。
-          精英怪带一圈标记、个头大一号、掉双倍好处；每隔几波还会摇到一个波次修饰——七种组合：只有刀锋犬但速度翻倍、
+          精英怪带一圈标记、个头大一号、掉双倍好处，而且各带一个词缀——自愈要一口气打掉、护盾要绕后、殉爆别贴着收尾、呼叫得优先拆，环的颜色就是它的身份；每隔几波还会摇到一个波次修饰——七种组合：只有刀锋犬但速度翻倍、
           全是带盾的、一半是爆囊、一屏都在裂、盾墙后面架着钉枪手、拖曳者拽住你让狗扑上来——用组合换难度，不是把血条拉长。
           打穿一次解锁下一档危险等级，四档一路上抬同一条三十波曲线，高档位分数也更高。
         </p>
@@ -249,6 +258,56 @@
         <div class="spec">
           <div><span class="k">操作</span><span class="v"><kbd>WASD</kbd><kbd>MOUSE</kbd><kbd>CTRL</kbd><kbd>E</kbd> 移动 / 瞄准 / 蹲伏 / 处决交互</span></div>
           <div><span class="k">看点</span><span class="v">看不看那块硬盘，第二天街坊说的话不一样</span></div>
+        </div>
+        <div class="go">进入</div>
+      </div>
+    </a>
+
+    <a class="cart" href="games/quiet-street/index.html" style="--accent:var(--street)">
+      <canvas class="shot" id="shotStreet" width="192" height="108"></canvas>
+      <div class="body">
+        <div class="kicker">生存 · 日志 · 在做</div>
+        <h3>静 街<span class="sub">QUIET STREET · POST-OUTBREAK SURVIVAL LOG</span></h3>
+        <p>
+          疫后小镇里的一个普通人。没有终局，只有一份写到你死那天的日志——
+          而你的死因，总是三天前你自己做的某个决定。
+          引擎不是饥饿，是<b>噪音</b>：每个有产出的动作都在出声，钉一下木板 10 格、一枪 40 格，
+          而全镇三百二十只僵尸是<b>固定存量</b>，不刷怪，只在六个街区之间跟着噪音迁移。
+          你把它们引到东边，西边就真的空了；清出来的街，七天不回流。
+          死了不是从头开始：镇子还在，你钉的板、种的田、翻空的柜子都在，
+          而上一个你几小时后会站起来，穿着你上一局的全套装备——想拿回自己的斧头，得先杀掉自己。
+          现在做到 T1：镇子生成器（96×80、六街区、32 栋房、131 个容器，四层表全部可复现）。
+        </p>
+        <div class="spec">
+          <div><span class="k">操作</span><span class="v"><kbd>WASD</kbd><kbd>SHIFT</kbd><kbd>CTRL</kbd><kbd>E</kbd> 走 / 跑 / 蹲 / 互动 · <kbd>J</kbd> 日志</span></div>
+          <div><span class="k">看点</span><span class="v">死亡屏不给分数，给因果：死于什么 / 什么时候种下的 / 当时怎么做才对</span></div>
+          <div><span class="k">种子</span><span class="v"><code>?seed=</code> 钉死整座镇，同一个种子的镇一模一样</span></div>
+        </div>
+        <div class="go">进入</div>
+      </div>
+    </a>
+
+    <a class="cart" href="games/nod/index.html" style="--accent:var(--nod)">
+      <canvas class="shot" id="shotNod" width="192" height="108"></canvas>
+      <div class="body">
+        <div class="kicker">聚会 · 两个人 · 比划猜词</div>
+        <h3>点 头<span class="sub">NOD · TILT-TO-SCORE CHARADES</span></h3>
+        <p>
+          柜子里唯一一款<b>两个人面对面</b>的游戏，也是唯一一款你得站起来玩的。
+          一个人横着把手机举到额头、<b>屏幕朝外</b>，另一个人看着词比划；
+          举手机的人猜中了就把手机<b>往下翻</b>，比划不出来<b>往上翻</b>跳过。
+          因为屏幕朝外，举手机的那个人<b>自始至终看不见屏幕</b>——
+          这一条决定了其余所有设计：反馈只走声音，跳过不设次数上限（看不见的资源不该让人管理），
+          过程里也不报比分。判定门限 45°，翻过去先出确认画面，<b>转回来才亮下一个词</b>，
+          于是一次大幅翻转不会连判两次——去抖是靠一个你本来就要做的动作。
+          时间到了给总结：猜中、跳过、平均每词几秒，以及按顺序排开的整局词表；
+          <b>点一条能改判</b>——传感器抖一下不该让你丢分。关掉就没了，不存档。
+        </p>
+        <div class="spec">
+          <div><span class="k">操作</span><span class="v">手机往下翻 = 猜中 · 往上翻 = 跳过 · 没有陀螺仪时点屏幕下半 / 上半，桌面上 <kbd>↓</kbd><kbd>↑</kbd></span></div>
+          <div><span class="k">看点</span><span class="v">猜的人全程看不见屏幕，整局只靠声音判断自己刚才对没对</span></div>
+          <div><span class="k">一局</span><span class="v">60 / 120 / 180 秒三档 · 六个词包 + 跨包混抽的「随机」</span></div>
+          <div><span class="k">真机</span><span class="v">iOS 要 HTTPS 才给陀螺仪，局域网 http 上会静默退到点击</span></div>
         </div>
         <div class="go">进入</div>
       </div>
@@ -494,13 +553,147 @@
     for (let y = 0; y < H; y += 2) nh.fillRect(0, y, W, 1);
   }
 
+  // 4) 静街：夜里的街口。签名画面就两样——黑暗里的几点眼睛，和扩散开的噪音圈
+  const stCv = document.getElementById('shotStreet'), st = stCv.getContext('2d');
+  const eyes = [
+    { x: 26, y: 30, s: 3.1, ph: 0 }, { x: 170, y: 40, s: -2.6, ph: 1.7 },
+    { x: 150, y: 92, s: -3.4, ph: .8 }, { x: 54, y: 96, s: 2.4, ph: 2.6 },
+    { x: 12, y: 66, s: 2.8, ph: 4.1 },
+  ];
+  function stHouse(x, y, w, h, boards) {
+    st.fillStyle = '#6c5e4a'; st.fillRect(x, y, w, h);              // 室内地板
+    st.fillStyle = '#3b3833'; st.fillRect(x, y, w, 3);              // 墙：压暗
+    st.fillRect(x, y + h - 3, w, 3); st.fillRect(x, y, 3, h); st.fillRect(x + w - 3, y, 3, h);
+    st.fillStyle = '#524d45'; st.fillRect(x, y, w, 1);
+    for (let i = 0; i < 3; i++) {                                   // 柜子：亮顶的一条是"没翻过"
+      const cx = x + 8 + i * 14, cy = y + h - 11;
+      st.fillStyle = '#7a6a52'; st.fillRect(cx, cy, 8, 7);
+      st.fillStyle = '#9a8a6c'; st.fillRect(cx + 1, cy + 1, 6, 1);
+    }
+    if (boards) { st.fillStyle = '#7a6448';                          // 钉上木板的窗
+      st.fillRect(x + w - 3, y + 8, 3, 4); st.fillRect(x + w - 5, y + 7, 7, 2);
+      st.fillRect(x + w - 5, y + 12, 7, 2); }
+    else { st.fillStyle = '#7f9aa6'; st.fillRect(x + w - 3, y + 8, 3, 6); }
+  }
+  function drawStreet(t) {
+    st.fillStyle = '#3e4836'; st.fillRect(0, 0, W, H);
+    for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) {  // 地面颗粒：弱，不是花纹
+      const h = ((x * 73856093) ^ (y * 19349663)) >>> 8;
+      st.fillStyle = (h & 3) ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.04)';
+      st.fillRect(x, y, 3, 3);
+    }
+    st.fillStyle = '#4e4e4a'; st.fillRect(0, 48, W, 16);             // 横街
+    st.fillRect(88, 0, 14, H);                                      // 主街
+    stHouse(10, 6, 64, 34, true);
+    stHouse(116, 8, 64, 32, false);
+    stHouse(20, 74, 56, 28, false);
+    // 玩家站在街口
+    const px = 95, py = 56;
+    st.fillStyle = '#1b1c18'; st.fillRect(px - 3, py - 9, 6, 11);
+    st.fillStyle = '#c8bfae'; st.fillRect(px - 3, py - 9, 6, 4);
+    // 夜：一张径向的暗，亮的只有脚下（和游戏里 1/3 分辨率的乘算层同一个意思）
+    const g = st.createRadialGradient(px, py, 8, px, py, 104);
+    g.addColorStop(0, 'rgba(6,8,14,0)'); g.addColorStop(.45, 'rgba(6,8,14,.30)');
+    g.addColorStop(1, 'rgba(6,8,14,.74)');
+    st.fillStyle = g; st.fillRect(0, 0, W, H);
+    // 手电：扫一个来回
+    const ang = -Math.PI / 2 + Math.sin(t * .5) * 1.15;
+    st.save(); st.beginPath(); st.moveTo(px, py);
+    st.arc(px, py, 62, ang - .30, ang + .30); st.closePath();
+    const cg = st.createRadialGradient(px, py, 4, px, py, 62);
+    cg.addColorStop(0, 'rgba(255,238,200,.42)'); cg.addColorStop(1, 'rgba(255,238,200,0)');
+    st.fillStyle = cg; st.fill(); st.restore();
+    // 眼睛：黑暗里先看见的是它们，然后才是轮廓
+    for (const e of eyes) {
+      const dx = px - e.x, dy = py - e.y, d = Math.hypot(dx, dy) || 1;
+      const ex = e.x + dx / d * (Math.sin(t * .35 + e.ph) * 9 + 9);
+      const ey = e.y + dy / d * (Math.sin(t * .35 + e.ph) * 9 + 9);
+      const lit = Math.abs(((Math.atan2(ey - py, ex - px) - ang + Math.PI * 3) % (Math.PI * 2)) - Math.PI) > Math.PI - .34;
+      if (lit) { st.fillStyle = 'rgba(78,84,80,.85)'; st.fillRect(ex - 3, ey - 9, 6, 11); }
+      st.fillStyle = '#d2e24a';
+      st.fillRect(ex - 2, ey - 6, 2, 2); st.fillRect(ex + 1, ey - 6, 2, 2);
+    }
+    // 噪音圈：一下一下地扩出去，白色虚线 —— UI 用高饱和硬边，场景低饱和
+    const period = 2.6, k = (t % period) / period;
+    st.strokeStyle = `rgba(240,240,232,${(.34 * (1 - k)).toFixed(3)})`;
+    st.setLineDash([3, 5]); st.lineWidth = 1;
+    st.beginPath(); st.arc(px, py, 8 + k * 74, 0, Math.PI * 2); st.stroke();
+    st.setLineDash([]);
+    // 热度小地图：同色相四档明度
+    const lv = [0, 1, 2, 3].map(i => Math.floor(1.6 + 1.4 * Math.sin(t * .4 + i)) & 3);
+    st.fillStyle = 'rgba(10,12,14,.8)'; st.fillRect(160, 84, 26, 18);
+    for (let i = 0; i < 4; i++) {
+      st.fillStyle = ['#243038', '#3c5462', '#6d94a6', '#cfe4ee'][lv[i]];
+      st.fillRect(162 + (i % 2) * 12, 86 + ((i / 2) | 0) * 8, 10, 6);
+    }
+    const cold = st.createLinearGradient(0, 0, 0, H);
+    cold.addColorStop(0, 'rgba(120,150,170,.05)'); cold.addColorStop(1, 'rgba(10,14,20,.16)');
+    st.fillStyle = cold; st.fillRect(0, 0, W, H);
+  }
+
+  // 5) 点头：一台横屏手机绕横轴来回翻。下翻转绿、上翻转黄、回中转白 ——
+  //    不写一个字，光看动画就知道这游戏怎么玩
+  const noCv = document.getElementById('shotNod'), no = noCv.getContext('2d');
+  const ease = x => x * x * (3 - 2 * x);
+  function drawNod(t) {
+    // 中位停一拍 -> 下翻 -> 回中 -> 停一拍 -> 上翻 -> 回中
+    const p = (t % 4.6) / 4.6;
+    const seg = (a, b) => (p - a) / (b - a);
+    let ang = 0;
+    if (p < .16) ang = 0;
+    else if (p < .32) ang = -ease(seg(.16, .32)) * 62;
+    else if (p < .46) ang = -(1 - ease(seg(.32, .46))) * 62;
+    else if (p < .62) ang = 0;
+    else if (p < .78) ang = ease(seg(.62, .78)) * 62;
+    else ang = (1 - ease(seg(.78, .92))) * 62;
+    if (p >= .92) ang = 0;
+
+    const k = Math.min(1, Math.abs(ang) / 62);
+    const down = ang < 0;
+    // 底色：翻到哪边就往哪个颜色压
+    no.fillStyle = '#0d1014'; no.fillRect(0, 0, W, H);
+    if (k > .01) {
+      no.fillStyle = down ? 'rgba(31,157,85,' + (k * .85).toFixed(3) + ')'
+                          : 'rgba(195,134,42,' + (k * .85).toFixed(3) + ')';
+      no.fillRect(0, 0, W, H);
+    }
+    // 横轴：它绕着转的那根线
+    no.fillStyle = 'rgba(255,255,255,.10)'; no.fillRect(18, 54, W - 36, 1);
+
+    // 手机：横屏，绕横轴翻转 -> 高度按 cos 压扁，边缘露出机身厚度
+    const cx = W / 2, cy = 54, bw = 98;
+    const c = Math.cos(ang * Math.PI / 180);
+    const bh = Math.max(3, 44 * Math.abs(c));
+    const x = cx - bw / 2, y = cy - bh / 2;
+    no.fillStyle = 'rgba(0,0,0,.35)'; no.fillRect(x + 3, y + 4, bw, bh);   // 影子
+    no.fillStyle = '#1a1f27'; no.fillRect(x - 3, y - 3, bw + 6, bh + 6);   // 机身
+    no.fillStyle = k > .92 ? '#2a3038' : '#e9ecef';                        // 屏幕（翻到底看不见）
+    no.fillRect(x, y, bw, bh);
+    // 机身厚度：翻下去露下沿，翻上去露上沿
+    no.fillStyle = '#11151b';
+    no.fillRect(x - 3, down ? y + bh + 1 : y - 3 - 2, bw + 6, 4 * k + 1);
+    // 屏幕上那个词：正着的时候才看得清
+    const vis = Math.max(0, 1 - k * 2.1);
+    if (vis > .02 && bh > 12) {
+      no.fillStyle = 'rgba(13,16,20,' + vis.toFixed(3) + ')';
+      const bwr = 13, gap = 5, n = 3, tot = n * bwr + (n - 1) * gap;
+      for (let i = 0; i < n; i++) no.fillRect(cx - tot / 2 + i * (bwr + gap), cy - bh * .27, bwr, bh * .54);
+    }
+    // 扫描线，跟另外四张卡带一个路子
+    no.fillStyle = 'rgba(0,0,0,.20)';
+    for (let yy = 0; yy < H; yy += 2) no.fillRect(0, yy, W, 1);
+  }
+
   let t0 = performance.now();
   function frame(now) {
     const t = (now - t0) / 1000;
-    drawSim(t); drawNeon(t); drawHarbor(t);
+    drawSim(t); drawNeon(t); drawHarbor(t); drawStreet(t); drawNod(t);
     if (!reduce) requestAnimationFrame(frame);
   }
-  requestAnimationFrame(frame);
+  // 首帧【同步】画一次，别等 rAF：页面在后台标签里打开时浏览器根本不触发 rAF，
+  // 五张卡带就全是空白的，等切回来才突然出现。
+  frame(t0);
+  if (!reduce) requestAnimationFrame(frame);
 })();
 </script>
 </body>

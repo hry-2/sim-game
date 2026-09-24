@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b0d10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>点头</title>
+<style>
+  :root{
+    --bg:#0b0d10; --ink:#e9ecef; --dim:#8b93a1; --line:#232832;
+    --ok:#1f9d55; --pass:#c3862a; --hot:#e0564a;
+    --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+    --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hidden}
+  body{
+    font:16px/1.5 system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    user-select:none;-webkit-user-select:none;touch-action:manipulation;overscroll-behavior:none;
+  }
+  .screen{
+    position:fixed;inset:0;display:none;flex-direction:column;
+    align-items:center;justify-content:center;
+    padding:calc(12px + var(--safe-t)) calc(12px + var(--safe-r)) calc(12px + var(--safe-b)) calc(12px + var(--safe-l));
+  }
+  .screen.on{display:flex}
+
+  /* ---------- 菜单 ---------- */
+  #menu{justify-content:space-between;padding-top:calc(18px + var(--safe-t))}
+  #menu h1{
+    margin:0;font-size:clamp(28px,7vh,44px);letter-spacing:.4em;
+    text-indent:.4em;font-weight:600;
+  }
+  #menu .sub{color:var(--dim);font-size:13px;margin-top:6px;text-align:center;line-height:1.7}
+  #menu .sub b{color:var(--ink);font-weight:600}
+  .rows{width:100%;max-width:640px;display:flex;flex-direction:column;gap:10px}
+  .row{display:flex;align-items:center;gap:8px}
+  .row .lab{flex:0 0 3.2em;color:var(--dim);font-size:12px;letter-spacing:.1em}
+  .chips{flex:1;display:flex;flex-wrap:wrap;gap:6px}
+  .chip{
+    flex:1 1 auto;min-width:4.6em;padding:9px 10px;border:1px solid var(--line);border-radius:10px;
+    background:#12151b;color:var(--dim);font-size:14px;text-align:center;cursor:pointer;
+  }
+  .chip[aria-checked=true]{background:var(--ink);color:#0b0d10;border-color:var(--ink);font-weight:600}
+  .chip[disabled]{opacity:.32;cursor:default}
+  .chip small{display:block;font-size:10px;opacity:.7;letter-spacing:0}
+  #go{
+    width:100%;max-width:640px;padding:16px;border:0;border-radius:12px;
+    background:var(--ink);color:#0b0d10;font-size:19px;font-weight:700;letter-spacing:.3em;
+    text-indent:.3em;cursor:pointer;font-family:inherit;
+  }
+
+  /* ---------- 起手 ---------- */
+  #ready .big{font-size:min(38vh,38vw);font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  #ready .hint{color:var(--dim);margin-top:18px;font-size:clamp(14px,3.4vh,20px);text-align:center}
+
+  /* ---------- 进行 ---------- */
+  #play{justify-content:center}
+  #bar{position:fixed;top:0;left:0;height:4px;background:var(--ink);width:100%;transition:background .2s}
+  #bar.hot{background:var(--hot)}
+  #word{
+    font-weight:700;line-height:1.08;text-align:center;
+    max-width:100%;word-break:break-word;padding:0 2vw;
+  }
+  #tally{
+    position:fixed;left:calc(10px + var(--safe-l));bottom:calc(8px + var(--safe-b));
+    color:var(--dim);font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:.05em;
+  }
+  #clock{
+    position:fixed;right:calc(10px + var(--safe-r));bottom:calc(8px + var(--safe-b));
+    color:var(--dim);font-size:13px;font-variant-numeric:tabular-nums;
+  }
+
+  /* ---------- 确认 ---------- */
+  #confirm{color:#fff}
+  #confirm.ok{background:var(--ok)}
+  #confirm.pass{background:var(--pass)}
+  #confirm .k{font-size:min(20vh,18vw);font-weight:700;letter-spacing:.2em;text-indent:.2em}
+  #confirm .w{font-size:clamp(16px,4vh,26px);opacity:.85;margin-top:6px}
+  #confirm .back{margin-top:22px;font-size:clamp(13px,2.6vh,17px);opacity:.75}
+
+  /* ---------- 总结 ---------- */
+  #over{justify-content:flex-start;gap:12px}
+  .nums{display:flex;gap:10px;width:100%;max-width:720px;margin-top:4px}
+  .num{
+    flex:1;border:1px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center;background:#12151b;
+  }
+  .num b{display:block;font-size:clamp(26px,7vh,40px);line-height:1.1;font-variant-numeric:tabular-nums}
+  .num span{color:var(--dim);font-size:11px;letter-spacing:.14em}
+  .num.ok b{color:#5fd39a} .num.pass b{color:#e4b768}
+  #list{
+    width:100%;max-width:720px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    border-top:1px solid var(--line);margin-top:2px;
+  }
+  #list .it{
+    display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid var(--line);
+    cursor:pointer;font-size:15px;
+  }
+  #list .it .n{color:#4a5262;font-size:11px;width:2em;font-variant-numeric:tabular-nums}
+  #list .it .w{flex:1}
+  #list .it .v{font-size:12px;padding:2px 8px;border-radius:99px;letter-spacing:.08em}
+  #list .it.ok .v{background:rgba(31,157,85,.18);color:#5fd39a}
+  #list .it.pass .v{background:rgba(195,134,42,.18);color:#e4b768}
+  #list .it.pass .w{color:var(--dim)}
+  #over .foot{display:flex;gap:8px;width:100%;max-width:720px;padding-bottom:2px}
+  #over .foot button{
+    flex:1;padding:13px;border:1px solid var(--line);border-radius:11px;background:#12151b;
+    color:var(--ink);font-size:15px;cursor:pointer;font-family:inherit;
+  }
+  #over .foot button.pri{background:var(--ink);color:#0b0d10;border-color:var(--ink);font-weight:700}
+  #over .tip{color:#4a5262;font-size:11px;text-align:center}
+
+  /* ---------- 竖屏盖层 ---------- */
+  #portrait{background:var(--bg);z-index:9}
+  #portrait .rot{font-size:64px;margin-bottom:14px;display:block;transform:rotate(0);animation:tw 1.6s ease-in-out infinite}
+  @keyframes tw{0%,100%{transform:rotate(0)}50%{transform:rotate(90deg)}}
+  #portrait .t{font-size:20px;font-weight:600}
+  #portrait .s{color:var(--dim);font-size:13px;margin-top:8px}
+</style>
+
+<!-- ================= 菜单 ================= -->
+<div class="screen on" id="menu">
+  <div style="text-align:center">
+    <h1>点头</h1>
+    <div class="sub">
+      一个人横着举起手机、<b>屏幕朝外</b>，另一个人看词比划。<br>
+      猜对了把手机<b>往下翻</b>，比划不出来就<b>往上翻</b>。
+    </div>
+  </div>
+
+  <div class="rows">
+    <div class="row"><div class="lab">词包</div><div class="chips" id="packs"></div></div>
+    <div class="row"><div class="lab">时长</div><div class="chips" id="secs"></div></div>
+  </div>
+
+  <div class="rows">
+    <button id="go">开 始</button>
+    <div class="sub" id="mode" style="margin-top:2px"></div>
+  </div>
+</div>
+
+<!-- ================= 起手 ================= -->
+<div class="screen" id="ready">
+  <div class="big" id="cd">3</div>
+  <div class="hint" id="cdhint">把手机举到额头前，屏幕对着比划的人</div>
+</div>
+
+<!-- ================= 进行 ================= -->
+<div class="screen" id="play">
+  <div id="bar"></div>
+  <div id="word">—</div>
+  <div id="tally"></div>
+  <div id="clock"></div>
+</div>
+
+<!-- ================= 确认 ================= -->
+<div class="screen" id="confirm">
+  <div class="k" id="ck">猜中</div>
+  <div class="w" id="cw"></div>
+  <div class="back" id="cb">转回来，继续</div>
+</div>
+
+<!-- ================= 总结 ================= -->
+<div class="screen" id="over">
+  <div class="nums">
+    <div class="num ok"><b id="nOk">0</b><span>猜 中</span></div>
+    <div class="num pass"><b id="nPass">0</b><span>跳 过</span></div>
+    <div class="num"><b id="nPace">—</b><span>每 词</span></div>
+  </div>
+  <div id="list"></div>
+  <div class="tip">点一条可以改判 —— 传感器抖了一下不该让你丢分</div>
+  <div class="foot">
+    <button id="again" class="pri">再来一局</button>
+    <button id="back">换词包</button>
+  </div>
+</div>
+
+<!-- ================= 竖屏 ================= -->
+<div class="screen" id="portrait">
+  <span class="rot">▯</span>
+  <div class="t">把手机横过来</div>
+  <div class="s">竖着没法玩 —— 计时已经暂停</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ===================================================================
+  // 点头 —— 单文件，零依赖。
+  //
+  // 结构照 ADR-0004 分三层，【下面这层不知道上面那层存在】：
+  //   判定层  verdict/release/tick —— 只认「猜中 / 跳过」，不知道有传感器
+  //   输入层  feedNormal/feedTap  —— 把姿态或点击翻译成判定
+  //   视图层  render              —— 只读状态，不写状态
+  // 量具（tools/verify-nod.js）只驱动前两层，所以桌面上也能全量验收。
+  // ===================================================================
+
+  // ---- 随机：种子只从 start({seed}) 或 ?seed= 来（仓库规矩：不用 Math.random）----
+  const mul = s => () => (s = s + 0x6D2B79F5 | 0, ((h => (h ^ h >>> 15) >>> 0)(
+    (Math.imul((s ^ s >>> 15) | 1, 1 | s) ^ Math.imul(s, 61)) >>> 0)) / 4294967296);
+
+  // ---- 词包 ---------------------------------------------------------
+  // 六个分类钉在 CONTEXT.md 里，名字不许飘。目前只填了两包 ——
+  // 先用最好比划、文化依赖最低的两包把手感跑通，剩下四包手感对了再扩。
+  const PACKS = ['动物', '日常动作', '影视动画', '成语', '食物', '名人'];
+  const WORDS = {
+    动物: ('大象 老虎 狮子 豹子 猎豹 美洲豹 雪豹 熊猫 棕熊 北极熊 黑熊 狼 狐狸 狗 猫 老鼠 仓鼠 松鼠 花栗鼠 土拨鼠 ' +
+      '刺猬 兔子 袋鼠 考拉 树懒 穿山甲 犀牛 河马 长颈鹿 斑马 马 驴 骡子 骆驼 羊驼 绵羊 山羊 奶牛 水牛 牦牛 ' +
+      '猪 野猪 鹿 梅花鹿 驯鹿 麋鹿 羚羊 猴子 猩猩 大猩猩 黑猩猩 狒狒 长臂猿 金丝猴 蝙蝠 鼹鼠 獾 黄鼠狼 水獭 浣熊 ' +
+      '臭鼬 豪猪 食蚁兽 犰狳 狐獴 鬣狗 野牛 海狸 鲸鱼 海豚 虎鲸 鲨鱼 海豹 海狮 海象 海獭 儒艮 章鱼 鱿鱼 墨鱼 ' +
+      '水母 海星 海胆 海马 螃蟹 龙虾 小龙虾 皮皮虾 扇贝 牡蛎 珊瑚 海葵 金鱼 鲤鱼 鲫鱼 草鱼 带鱼 沙丁鱼 金枪鱼 比目鱼 ' +
+      '河豚 鳗鱼 泥鳅 娃娃鱼 电鳗 飞鱼 剑鱼 企鹅 鸵鸟 孔雀 天鹅 大雁 野鸭 鸳鸯 鹈鹕 火烈鸟 白鹭 仙鹤 丹顶鹤 老鹰 ' +
+      '秃鹫 猫头鹰 啄木鸟 喜鹊 乌鸦 麻雀 燕子 黄鹂 画眉 百灵鸟 八哥 鹦鹉 蜂鸟 翠鸟 布谷鸟 知更鸟 海鸥 信天翁 鸽子 公鸡 ' +
+      '母鸡 小鸡 鸭子 鹅 火鸡 珍珠鸡 乌龟 海龟 陆龟 鳄鱼 蜥蜴 壁虎 变色龙 蛇 眼镜蛇 响尾蛇 蟒蛇 青蛙 牛蛙 树蛙 ' +
+      '蟾蜍 蝌蚪 蝾螈 蚂蚁 蜜蜂 黄蜂 蝴蝶 飞蛾 蜻蜓 螳螂 蟋蟀 蚂蚱 蝗虫 知了 瓢虫 萤火虫 屎壳郎 蜘蛛 蝎子 蜈蚣 ' +
+      '蚯蚓 蜗牛 跳蚤 虱子 苍蝇 蚊子 甲虫 独角仙 竹节虫 白蚁 恐龙 霸王龙 三角龙 剑龙 翼龙 猛犸象 剑齿虎 渡渡鸟 龙 凤凰 ' +
+      '麒麟 独角兽 美人鱼').split(/\s+/),
+
+    日常动作: ('刷牙 洗脸 洗澡 洗手 梳头 吹头发 剃胡子 化妆 涂口红 剪指甲 掏耳朵 抠鼻子 打喷嚏 打哈欠 打嗝 咳嗽 擤鼻涕 叹气 深呼吸 伸懒腰 ' +
+      '揉眼睛 揉肩膀 捶背 挠痒痒 跺脚 搓手 哈气 吹口哨 鼓掌 招手 挥手 握手 拥抱 鞠躬 摇头 耸肩 竖大拇指 比心 敬礼 捂嘴 ' +
+      '瞪眼 皱眉 踮脚 咬指甲 翻跟头 系鞋带 穿袜子 穿外套 拉拉链 扣扣子 系领带 戴帽子 戴眼镜 摘眼镜 戴手表 戴耳机 系皮带 穿裙子 脱鞋 换衣服 ' +
+      '打伞 围围巾 戴手套 吃面条 吃火锅 啃骨头 剥橘子 剥鸡蛋 剥瓜子 吐鱼刺 喝汤 喝奶茶 吹凉 咬苹果 舔冰淇淋 嚼口香糖 吹蜡烛 干杯 倒水 拧瓶盖 ' +
+      '开易拉罐 用筷子 切菜 扫地 拖地 擦桌子 擦玻璃 洗碗 晾衣服 叠衣服 收衣服 换灯泡 倒垃圾 铺床 叠被子 浇花 喂猫 遛狗 织毛衣 缝扣子 ' +
+      '钉钉子 拧螺丝 修水管 爬楼梯 下楼梯 坐电梯 挤地铁 等红灯 过马路 打车 骑自行车 骑电动车 开车 倒车 系安全带 推门 拉门 敲门 按门铃 开锁 ' +
+      '跑步 快走 打字 接电话 挂电话 写字 翻书 举手 画画 剪纸 折纸 拍照 自拍 刷手机 充电 插插头 拔插头 按遥控器 调音量 抢红包 ' +
+      '排队 签名 打篮球 踢足球 打羽毛球 打乒乓球 游泳 跳绳 举重 俯卧撑 仰卧起坐 打拳 跳舞 唱歌 弹吉他 弹钢琴 打鼓 吹笛子 拉二胡 下棋 ' +
+      '打牌 钓鱼 打呼噜 赖床 关闹钟 盖被子 做梦 说梦话 磨牙 踢被子 翻身 打电话 发消息 扫码 付钱 数钱 撕快递 拆包裹 搬箱子 拎袋子 ' +
+      '抱孩子 哄孩子 推婴儿车 量体温 吃药 打针 贴创可贴 擦汗 扇扇子 搓麻将 掰手腕 猜拳 抛硬币 扎头发 拔草 摘果子 擦鞋 照镜子 称体重 量身高').split(/\s+/),
+
+    影视动画: [],
+    成语: [],
+    食物: [],
+    名人: [],
+  };
+
+  const SECS = [60, 120, 180];
+  // 法线竖直分量的门限。判定 45°（sin45=.707），中位 20°（sin20=.342）。
+  // 为什么不直接判 gamma：手机横着竖直举起来时 gamma 正落在 ±90°，那是它的奇点。
+  const TH = { 判定: Math.sin(45 * Math.PI / 180), 中位: Math.sin(20 * Math.PI / 180) };
+  const READY_MS = 3000;
+  const HOT_MS = 10000;                 // 最后十秒：每秒一响 + 进度条变色
+  const PAINT_PATHS = ['菜单', '倒数', '词', '确认', '总结', '竖屏盖层'];
+
+  // ===================================================================
+  // 判定层
+  // ===================================================================
+  let st = null;
+  const painted = new Set();
+
+  function shuffle(a, rnd) {
+    a = a.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  // 随机包是【跨包混抽】，不是随机挑一个包。空包自然不贡献词。
+  function pool(pack) {
+    if (pack === '随机') {
+      const all = [];
+      for (const p of PACKS) for (const w of WORDS[p]) all.push(w);
+      return all;
+    }
+    return (WORDS[pack] || []).slice();
+  }
+
+  function start(opt) {
+    const o = opt || {};
+    let pack = o.pack || '随机';
+    const secs = SECS.indexOf(o.secs) >= 0 ? o.secs : 60;
+    // 种子只有这两个来源，start 里一个 Date.now() 都不许有（霓虹教训四）。
+    const q = /[?&]seed=(-?\d+)/.exec((location && location.search) || '');
+    const seed = o.seed != null ? o.seed : (q ? +q[1] : 1);
+
+    let base = pool(pack);
+    if (!base.length) { pack = '随机'; base = pool(pack); }   // 空包兜底，别让 draw() 转死
+
+    const rnd = mul(seed);
+    st = {
+      pack, secs, seed, rnd,
+      state: '起手', armed: false, readyLeft: READY_MS,
+      total: secs * 1000, left: secs * 1000,
+      base, order: shuffle(base, rnd), i: 0,
+      word: null, last: null, log: [], portrait: false, cycles: 0,
+      beeped: -1,
+    };
+    return NOD;
+  }
+
+  function draw() {
+    if (!st.order.length) { st.word = null; return null; }
+    if (st.i >= st.order.length) { st.order = shuffle(st.base, st.rnd); st.i = 0; st.cycles++; }
+    st.word = st.order[st.i++];
+    return st.word;
+  }
+
+  // 起手不消耗局时 —— 这是「防止猜词人提前瞄到第一个词」的直接后果。
+  function ready(ms) {
+    if (!st || st.state !== '起手' || !st.armed) return;
+    const was = Math.ceil(st.readyLeft / 1000);
+    st.readyLeft -= ms;
+    const now = Math.ceil(st.readyLeft / 1000);
+    if (now !== was && now > 0) sfx('cd');
+    if (st.readyLeft <= 0) { st.readyLeft = 0; st.state = '进行'; draw(); sfx('go'); }
+  }
+
+  function tick(ms) {
+    if (!st) return;
+    if (st.state !== '进行' && st.state !== '确认') return;
+    if (st.portrait) return;                       // 竖屏暂停计时
+    st.left -= ms;
+    if (st.left <= HOT_MS && st.left > 0) {        // 最后十秒每秒一响
+      const s = Math.ceil(st.left / 1000);
+      if (s !== st.beeped) { st.beeped = s; sfx('tick'); }
+    }
+    if (st.left <= 0) { st.left = 0; st.state = '总结'; st.word = null; sfx('end'); }
+  }
+
+  function verdict(v) {
+    if (!st || st.state !== '进行') return false;
+    if (v !== '猜中' && v !== '跳过') return false;
+    st.log.push({ word: st.word, verdict: v });
+    st.last = v;
+    st.state = '确认';
+    sfx(v === '猜中' ? 'ok' : 'pass');
+    return true;
+  }
+
+  function release() {
+    if (!st || st.state !== '确认') return false;
+    st.state = '进行';
+    draw();
+    return true;
+  }
+
+  function amend(i) {
+    if (!st || !st.log[i]) return false;
+    st.log[i].verdict = st.log[i].verdict === '猜中' ? '跳过' : '猜中';
+    return true;
+  }
+
+  function score() {
+    let a = 0, b = 0;
+    for (const e of st ? st.log : []) (e.verdict === '猜中' ? a++ : b++);
+    return { 猜中: a, 跳过: b };
+  }
+
+  // 节奏：平均每个词花了几秒。总结页第三个数用它，【不用「实际用时」】——
+  // 一局总是跑满时间，所以「实际用时」永远等于你选的档位，是个不携带信息的数。
+  function pace() {
+    if (!st || !st.log.length) return 0;
+    return (st.total - st.left) / 1000 / st.log.length;
+  }
+
+  // ===================================================================
+  // 输入层 —— 姿态 / 点击 翻译成判定。这一层【不碰传感器】，
+  // 它只接收一个已经算好的数；那个数怎么来的是下面 sensor() 的事。
+  // ===================================================================
+  function feedNormal(z) {
+    if (!st) return;
+    const a = Math.abs(z);
+    if (st.state === '起手') { if (a < TH.中位) st.armed = true; return; }
+    if (st.state === '确认') { if (a < TH.中位) release(); return; }   // 回中才放行
+    if (st.state !== '进行') return;
+    if (z <= -TH.判定) verdict('猜中');        // 下翻
+    else if (z >= TH.判定) verdict('跳过');    // 上翻
+  }
+
+  // 点击兜底：没有中位可回，所以一次点击同时提交和放行 —— 一个词一次点击。
+  function feedTap(y, h) {
+    if (!st) return;
+    if (st.state === '起手') { st.armed = true; return; }
+    if (st.state === '确认') { release(); return; }
+    if (st.state !== '进行') return;
+    verdict(y > h / 2 ? '猜中' : '跳过');      // 下半屏 = 猜中
+    release();
+  }
+
+  // ===================================================================
+  // 传感器 —— 量具验不到这一段（见 ADR-0004 的能力边界）
+  // ===================================================================
+  // sensorGranted：权限拿到了。sensorLive：【真的收到过读数】。
+  // 两者要分开 —— 桌面 Chrome 有 DeviceOrientationEvent 却没有陀螺仪，
+  // 只看 API 在不在，起手那一屏就会叫人「把手机举到额头前」，而他坐在电脑前。
+  let sensorGranted = false, sensorLive = false, smooth = null;
+
+  // 屏幕法线在世界坐标里的竖直分量 = 旋转矩阵的 (2,2) 元 = cos(β)·cos(γ)。
+  // 它在横屏 / 竖屏都成立，而且在 gamma 的奇点上也不跳 —— 那儿 cos(β)≈0，稳稳压在中位。
+  function normalZ(beta, gamma) {
+    const r = Math.PI / 180;
+    return Math.cos(beta * r) * Math.cos(gamma * r);
+  }
+
+  function onOrient(e) {
+    if (e.beta == null || e.gamma == null) return;   // 没有硬件时 Chrome 发的就是一串 null
+    sensorLive = true;
+    const z = normalZ(e.beta, e.gamma);
+    smooth = smooth == null ? z : smooth + (z - smooth) * 0.35;   // 低通，压手抖
+    feedNormal(smooth);
+  }
+
+  // iOS 13+ 要在【用户手势里】求权限，而且页面必须是 HTTPS。
+  // 拿不到就静默退到点击那条路 —— 不弹错误框，派对上没人想读报错。
+  function askSensor() {
+    try {
+      const D = window.DeviceOrientationEvent;
+      if (!D) return Promise.resolve(false);
+      if (typeof D.requestPermission === 'function') {
+        return D.requestPermission().then(r => {
+          if (r !== 'granted') return false;
+          window.addEventListener('deviceorientation', onOrient);
+          return true;
+        }).catch(() => false);
+      }
+      window.addEventListener('deviceorientation', onOrient);
+      return Promise.resolve(true);
+    } catch (_) { return Promise.resolve(false); }
+  }
+
+  // ===================================================================
+  // 音效 —— 猜词人看不见屏幕，声音是他唯一的反馈（不做震动）
+  // ===================================================================
+  let AC = null;
+  function ac() {
+    if (AC) return AC;
+    try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) { AC = null; }
+    return AC;
+  }
+  function tone(f0, f1, dur, type, gain) {
+    const c = ac(); if (!c) return;
+    try {
+      const o = c.createOscillator(), g = c.createGain(), t = c.currentTime;
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(f0, t);
+      if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+      g.gain.setValueAtTime(gain == null ? 0.22 : gain, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(c.destination);
+      o.start(t); o.stop(t + dur + 0.02);
+    } catch (_) {}
+  }
+  function sfx(k) {
+    if (k === 'ok') { tone(660, 990, 0.12, 'triangle', 0.3); setTimeout(() => tone(990, 1320, 0.1, 'triangle', 0.26), 70); }
+    else if (k === 'pass') tone(420, 300, 0.2, 'sawtooth', 0.16);
+    else if (k === 'cd') tone(760, 760, 0.09, 'sine', 0.2);
+    else if (k === 'go') tone(1240, 1240, 0.16, 'sine', 0.26);
+    else if (k === 'tick') tone(1500, 1500, 0.045, 'square', 0.1);
+    else if (k === 'end') { tone(300, 160, 1.1, 'sawtooth', 0.3); setTimeout(() => tone(220, 120, 1.0, 'triangle', 0.22), 90); }
+  }
+
+  // ===================================================================
+  // 视图层 —— 只读状态，不写状态
+  // ===================================================================
+  const $ = id => document.getElementById(id);
+  const S = {};
+  ['menu', 'ready', 'play', 'confirm', 'over', 'portrait'].forEach(k => (S[k] = $(k)));
+  let scr = 'menu';
+  function show(k) {
+    if (scr === k) return;
+    scr = k;
+    for (const n in S) S[n].classList.toggle('on', n === k);
+  }
+  function paint(n) { painted.add(n); }
+
+  // 词越长字越小 —— 桩里的 measureText 也是按这个规律做的，所以这条能被量到
+  function fitWord(w) {
+    const n = (w || '').length;
+    const vw = n <= 2 ? 26 : n <= 3 ? 21 : n <= 4 ? 17 : n <= 5 ? 14 : n <= 7 ? 11 : 9;
+    return 'min(' + vw + 'vw, ' + (n <= 4 ? 34 : 24) + 'vh)';
+  }
+
+  let lastWord = null, lastOver = -1;
+  // 竖屏盖层只在【玩的时候】盖。菜单和总结页竖着看反而更顺 ——
+  // 而且盖层上写着「计时已暂停」，扣在一个已经结束的局上纯属胡说。
+  const PLAYING = s => s === '起手' || s === '进行' || s === '确认';
+  function render() {
+    if (!st) { paint('菜单'); show('menu'); return; }
+    if (st.portrait && PLAYING(st.state)) { paint('竖屏盖层'); show('portrait'); return; }
+
+    if (st.state === '起手') {
+      paint('倒数'); show('ready');
+      $('cd').textContent = st.armed ? String(Math.max(1, Math.ceil(st.readyLeft / 1000))) : '·';
+      $('cdhint').textContent = st.armed ? '别偷看'
+        : sensorLive ? '把手机举到额头前，屏幕对着比划的人'
+        : '举到额头前，或者点一下屏幕开始';
+      return;
+    }
+
+    if (st.state === '进行') {
+      paint('词'); show('play');
+      if (st.word !== lastWord) {
+        lastWord = st.word;
+        $('word').textContent = st.word || '—';
+        $('word').style.fontSize = fitWord(st.word);
+      }
+      const p = Math.max(0, st.left / st.total);
+      $('bar').style.width = (p * 100).toFixed(2) + '%';
+      $('bar').classList.toggle('hot', st.left <= HOT_MS);
+      const sc = score();
+      $('tally').textContent = '猜中 ' + sc.猜中 + ' · 跳过 ' + sc.跳过;
+      $('clock').textContent = Math.ceil(st.left / 1000) + '"';
+      return;
+    }
+
+    if (st.state === '确认') {
+      paint('确认'); show('confirm');
+      const ok = st.last === '猜中';
+      S.confirm.classList.toggle('ok', ok);
+      S.confirm.classList.toggle('pass', !ok);
+      $('ck').textContent = st.last;
+      $('cw').textContent = (st.log[st.log.length - 1] || {}).word || '';
+      $('cb').textContent = sensorLive ? '转回来，继续' : '点一下继续';
+      lastWord = null;
+      return;
+    }
+
+    // 总结
+    paint('总结'); show('over');
+    const sc = score();
+    if (lastOver !== st.log.length + sc.猜中 * 1000) {
+      lastOver = st.log.length + sc.猜中 * 1000;
+      $('nOk').textContent = sc.猜中;
+      $('nPass').textContent = sc.跳过;
+      $('nPace').textContent = st.log.length ? pace().toFixed(1) + '"' : '—';
+      const box = $('list');
+      box.innerHTML = '';
+      st.log.forEach((e, i) => {
+        const d = document.createElement('div');
+        d.className = 'it ' + (e.verdict === '猜中' ? 'ok' : 'pass');
+        const cell = (cls, txt) => {
+          const x = document.createElement('span');
+          x.className = cls; x.textContent = txt; d.appendChild(x);
+        };
+        cell('n', String(i + 1));
+        cell('w', e.word);
+        cell('v', e.verdict);
+        d.addEventListener('click', () => { amend(i); lastOver = -1; render(); });
+        box.appendChild(d);
+      });
+    }
+  }
+
+  // ===================================================================
+  // 接线
+  // ===================================================================
+  let pick = { pack: '随机', secs: 60 };
+
+  function buildMenu() {
+    const pb = $('packs');
+    const mk = (name, enabled) => {
+      const b = document.createElement('button');
+      b.className = 'chip';
+      b.type = 'button';
+      b.textContent = name;
+      if (!enabled) { b.disabled = true; const s = document.createElement('small'); s.textContent = '待补'; b.appendChild(s); }
+      b.setAttribute('aria-checked', String(pick.pack === name));
+      b.addEventListener('click', () => {
+        if (!enabled) return;
+        pick.pack = name;
+        [...pb.children].forEach(c => c.setAttribute('aria-checked', String(c.firstChild.textContent === name)));
+      });
+      pb.appendChild(b);
+    };
+    mk('随机', true);
+    PACKS.forEach(p => mk(p, WORDS[p].length > 0));
+
+    const sb = $('secs');
+    SECS.forEach(s => {
+      const b = document.createElement('button');
+      b.className = 'chip'; b.type = 'button'; b.textContent = s + '秒';
+      b.setAttribute('aria-checked', String(pick.secs === s));
+      b.addEventListener('click', () => {
+        pick.secs = s;
+        [...sb.children].forEach(c => c.setAttribute('aria-checked', String(c.textContent === s + '秒')));
+      });
+      sb.appendChild(b);
+    });
+  }
+
+  function setPortrait() {
+    const p = window.innerHeight > window.innerWidth;
+    if (st) st.portrait = p;
+    render();
+  }
+
+  function beginRound() {
+    try { const c = ac(); if (c && c.resume) c.resume(); } catch (_) {}   // 手势里解锁音频
+    // ?seed= 在的时候不覆盖它 —— 调试要钉得死；平时每局换一颗种子
+    const pinned = /[?&]seed=(-?\d+)/.test(location.search || '');
+    start(pinned ? { pack: pick.pack, secs: pick.secs }
+                 : { pack: pick.pack, secs: pick.secs, seed: (Date.now() & 0x7fffffff) });
+    setPortrait();
+    askSensor().then(on => { sensorGranted = on; smooth = null; render(); });
+    render();
+  }
+
+  function boot() {
+    buildMenu();
+    $('go').addEventListener('click', beginRound);
+    $('again').addEventListener('click', beginRound);
+    $('back').addEventListener('click', () => { st = null; lastWord = null; lastOver = -1; render(); });
+
+    // 点击兜底：总结页和菜单不吃，别把「改判」误判成「跳过」
+    document.addEventListener('pointerdown', e => {
+      if (!st || st.state === '总结' || st.portrait) return;
+      feedTap(e.clientY, window.innerHeight || 1);
+      render();
+    });
+    // 桌面上也能玩：↓ 猜中、↑ 跳过、空格放行
+    window.addEventListener('keydown', e => {
+      if (!st) return;
+      if (e.code === 'ArrowDown') feedNormal(-1);
+      else if (e.code === 'ArrowUp') feedNormal(1);
+      else if (e.code === 'Space') { feedNormal(0); e.preventDefault(); }
+      else return;
+      render();
+    });
+
+    window.addEventListener('resize', setPortrait);
+    window.addEventListener('orientationchange', setPortrait);
+    setPortrait();
+
+    // 主循环。桌面 / 手机都靠它，量具则直接调 tick/ready —— 两条路推同一个状态机。
+    let t0 = 0;
+    const loop = t => {
+      const dt = t0 ? Math.min(250, t - t0) : 0;
+      t0 = t;
+      if (st) { if (st.state === '起手') ready(dt); else tick(dt); }
+      render();
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+    render();
+  }
+
+  // ---- 契约（tools/nod-stub.js 里定稿的那一份）----------------------
+  const NOD = {
+    PACKS, WORDS, SECS, TH, PAINT_PATHS,
+    start, ready, tick, verdict, release, feedNormal, feedTap, amend,
+    render, paint, normalZ, pace,
+    word: () => (st && st.state === '进行' ? st.word : null),
+    left: () => (st ? st.left : 0),
+    usedMs: () => (st ? st.total - st.left : 0),
+    log: () => (st ? st.log.slice() : []),
+    score,
+    state: () => (st ? st.state : null),
+    portrait(on) { if (st) { st.portrait = !!on; } },
+    cycles: () => (st ? st.cycles : 0),
+    poolSize: () => (st ? st.base.length : 0),
+    shown() {
+      if (!st) return { kind: '无' };
+      if (st.portrait && PLAYING(st.state)) return { kind: '竖屏' };
+      if (st.state === '起手') return { kind: '倒数', n: Math.ceil(st.readyLeft / 1000) };
+      if (st.state === '进行') return { kind: '词', word: st.word };
+      if (st.state === '确认') return { kind: '确认', verdict: st.last };
+      return { kind: '总结' };
+    },
+    __painted: painted,
+  };
+  window.NOD = NOD;
+
+  if (document.getElementById('menu')) boot();
+})();
+</script>
+</html>

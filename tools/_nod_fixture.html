@@ -1,0 +1,208 @@
+<!doctype html><meta charset="utf-8"><title>点头 · 量具自检靶子</title>
+<div id="app"></div>
+<!--
+  这不是游戏，是【量具的靶子】。
+  verify-nod.js 是在游戏本体之前写的；量具自己也会有 bug，而量具的 bug 会被当成
+  游戏的 bug（霓虹教训十九、二十三）。所以这里放一份已知正确的最小实现：
+  它实现了 nod-stub.js 里那份钩子契约的全部不变量，量具跑它必须全绿。
+  游戏本体出现在 games/nod/index.html 之后，桩会自动改用真的那份。
+
+  【别往这里加玩法】—— 没有音效、没有版面、没有动画，词库每包只有 6 个词。
+  这里只回答一个问题：量具的断言写对了没有。
+-->
+<script>
+(function () {
+  'use strict';
+
+  // 不用 Math.random（仓库规矩）。mulberry32，和静街靶子同一份。
+  const mul = s => () => (s = s + 0x6D2B79F5 | 0, ((h => (h ^ h >>> 15) >>> 0)(
+    (Math.imul((s ^ s >>> 15) | 1, 1 | s) ^ Math.imul(s, 61)) >>> 0)) / 4294967296);
+
+  // ---- 词包 --------------------------------------------------------
+  // 六个名字必须和 CONTEXT.md 里钉的一致。靶子每包只放 6 个词：
+  // 「不重复」和「抽空重置」这两条，词少反而更容易在断言里跑到边界。
+  const PACKS = ['动物', '日常动作', '影视动画', '成语', '食物', '名人'];
+  const WORDS = {
+    动物:     ['大象', '企鹅', '长颈鹿', '蝙蝠', '袋鼠', '乌龟'],
+    日常动作: ['刷牙', '系鞋带', '打喷嚏', '拧瓶盖', '爬楼梯', '打哈欠'],
+    影视动画: ['西游记', '哆啦A梦', '泰坦尼克号', '猫和老鼠', '葫芦娃', '侏罗纪公园'],
+    成语:     ['画蛇添足', '守株待兔', '对牛弹琴', '亡羊补牢', '掩耳盗铃', '井底之蛙'],
+    食物:     ['火锅', '煎饼', '棉花糖', '小笼包', '西瓜', '螺蛳粉'],
+    名人:     ['孙悟空', '爱因斯坦', '包公', '卓别林', '嫦娥', '鲁班'],
+  };
+
+  const SECS = [60, 120, 180];
+  // 法线竖直分量的门限。45° -> sin45 = .707；中位 20° -> sin20 = .342。
+  // z 的符号：0 = 屏幕朝前（中位），负 = 屏幕朝下（下翻），正 = 屏幕朝上（上翻）。
+  const TH = { 判定: Math.sin(45 * Math.PI / 180), 中位: Math.sin(20 * Math.PI / 180) };
+
+  const PAINT_PATHS = ['菜单', '倒数', '词', '确认', '总结', '竖屏盖层'];
+
+  // ---- 局状态 ------------------------------------------------------
+  let st = null;
+  const painted = new Set();
+
+  function shuffle(arr, rnd) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  // 池子 = 这一局能抽的全部词。随机包是【跨包混抽】，不是随机挑一个包。
+  function pool(pack) {
+    if (pack === '随机') {
+      const all = [];
+      for (const p of PACKS) for (const w of (WORDS[p] || [])) all.push(w);
+      return all;
+    }
+    return (WORDS[pack] || []).slice();
+  }
+
+  function start(opt) {
+    const o = opt || {};
+    const pack = o.pack || '随机';
+    const secs = SECS.indexOf(o.secs) >= 0 ? o.secs : 60;
+    // 种子【只能】来自参数或 ?seed=（霓虹教训四）。这里一个 Date.now() 都不许有。
+    const q = /[?&]seed=(-?\d+)/.exec(location.search || '');
+    const seed = o.seed != null ? o.seed : (q ? +q[1] : 1);
+
+    st = {
+      pack, secs, seed, rnd: mul(seed),
+      state: '起手', armed: false, readyLeft: 3000,
+      total: secs * 1000, left: secs * 1000,
+      base: pool(pack), order: [], i: 0,
+      word: null, last: null, log: [], portrait: false, cycles: 0,
+    };
+    st.order = shuffle(st.base, st.rnd);
+    return NOD;
+  }
+
+  // 抽下一个词。池子抽空了才重置 —— 这就是「不重复」的全部含义。
+  function draw() {
+    if (st.i >= st.order.length) {
+      st.order = shuffle(st.base, st.rnd);
+      st.i = 0; st.cycles++;
+    }
+    st.word = st.order[st.i++];
+    return st.word;
+  }
+
+  // ---- 推进 --------------------------------------------------------
+  // 起手【不消耗局时】—— 这是 Q14 那条「防止猜词人提前瞄词」的直接后果。
+  function ready(ms) {
+    if (!st || st.state !== '起手') return;
+    if (!st.armed) return;              // 没举到中位就不开始数
+    st.readyLeft -= ms;
+    if (st.readyLeft <= 0) { st.readyLeft = 0; st.state = '进行'; draw(); }
+  }
+
+  function tick(ms) {
+    if (!st) return;
+    if (st.state !== '进行' && st.state !== '确认') return;
+    if (st.portrait) return;            // 竖屏盖提示层并【暂停计时】
+    st.left -= ms;
+    if (st.left <= 0) { st.left = 0; st.state = '总结'; st.word = null; }
+  }
+
+  // ---- 判定层（循环只认这一层，不知道传感器存在 —— ADR-0004）--------
+  function verdict(v) {
+    if (!st || st.state !== '进行') return false;
+    if (v !== '猜中' && v !== '跳过') return false;
+    st.log.push({ word: st.word, verdict: v });
+    st.last = v;
+    st.state = '确认';
+    return true;
+  }
+
+  function release() {
+    if (!st || st.state !== '确认') return false;
+    st.state = '进行';
+    draw();
+    return true;
+  }
+
+  // ---- 输入层（姿态 / 点击 -> 判定，纯函数，离线可验）---------------
+  // 这一层【不碰传感器】，它只接收一个已经算好的数。浏览器给不给得出这个数，
+  // 是真机才能回答的问题（见 ADR-0004 的能力边界）。
+  function feedNormal(z) {
+    if (!st) return;
+    const a = Math.abs(z);
+    if (st.state === '起手') { if (a < TH.中位) st.armed = true; return; }
+    if (st.state === '确认') { if (a < TH.中位) release(); return; }
+    if (st.state !== '进行') return;
+    if (z <= -TH.判定) verdict('猜中');   // 下翻
+    else if (z >= TH.判定) verdict('跳过'); // 上翻
+  }
+
+  // 点击兜底：没有中位可回，所以一次点击【同时】提交和放行 —— 一个词一次点击。
+  // 确认画面在这条路上是一闪而过的视觉反馈，不是一个要等的状态。
+  function feedTap(y, h) {
+    if (!st) return;
+    if (st.state === '起手') { st.armed = true; return; }
+    if (st.state === '确认') { release(); return; }
+    if (st.state !== '进行') return;
+    verdict(y > h / 2 ? '猜中' : '跳过');  // 下半屏 = 猜中
+    release();
+  }
+
+  // ---- 总结 --------------------------------------------------------
+  function score() {
+    let a = 0, b = 0;
+    for (const e of st ? st.log : []) (e.verdict === '猜中' ? a++ : b++);
+    return { 猜中: a, 跳过: b };
+  }
+
+  function pace() {
+    if (!st || !st.log.length) return 0;
+    return (st.total - st.left) / 1000 / st.log.length;
+  }
+
+  function amend(i) {
+    if (!st || !st.log[i]) return false;
+    st.log[i].verdict = st.log[i].verdict === '猜中' ? '跳过' : '猜中';
+    return true;
+  }
+
+  // ---- 渲染（只报路径名，不真画）------------------------------------
+  function paint(n) { painted.add(n); }
+  const PLAYING = s => s === '起手' || s === '进行' || s === '确认';
+  function render() {
+    if (!st) { paint('菜单'); return; }      // 还没开局，屏幕上是菜单
+    // 盖层只在玩的时候盖 —— 总结页竖着看更顺，而且它上面写的「计时已暂停」也不成立
+    if (st.portrait && PLAYING(st.state)) { paint('竖屏盖层'); return; }
+    if (st.state === '起手') paint('倒数');
+    else if (st.state === '进行') paint('词');
+    else if (st.state === '确认') paint('确认');
+    else if (st.state === '总结') paint('总结');
+  }
+
+  function shown() {
+    if (!st) return { kind: '无' };
+    if (st.portrait && PLAYING(st.state)) return { kind: '竖屏' };
+    if (st.state === '起手') return { kind: '倒数', n: Math.ceil(st.readyLeft / 1000) };
+    if (st.state === '进行') return { kind: '词', word: st.word };
+    if (st.state === '确认') return { kind: '确认', verdict: st.last };
+    return { kind: '总结' };
+  }
+
+  const NOD = {
+    PACKS, WORDS, SECS, TH, PAINT_PATHS,
+    start, ready, tick, verdict, release, feedNormal, feedTap, amend,
+    render, paint, shown, pace,
+    word: () => (st && st.state === '进行' ? st.word : null),
+    left: () => (st ? st.left : 0),
+    usedMs: () => (st ? st.total - st.left : 0),
+    log: () => (st ? st.log.slice() : []),
+    score,
+    state: () => (st ? st.state : null),
+    portrait(on) { if (st) st.portrait = !!on; },
+    cycles: () => (st ? st.cycles : 0),
+    poolSize: () => (st ? st.base.length : 0),
+    __painted: painted,
+  };
+  window.NOD = NOD;
+})();
+</script>

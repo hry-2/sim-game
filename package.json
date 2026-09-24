@@ -2,7 +2,7 @@
   "name": "sim-game",
   "version": "0.1.0",
   "private": true,
-  "description": "网页游戏合集：效用AI 生活模拟（市井）、赛博朋克射击（霓虹废钢线）、赛博朋克潜入剧情（夜港）",
+  "description": "网页游戏合集：效用AI 生活模拟（市井）、赛博朋克射击（霓虹废钢线）、赛博朋克潜入剧情（夜港）、疫后小镇生存（静街）、面对面比划猜词（点头）",
   "scripts": {
     "dev": "python3 -m http.server 5173",
     "dev:node": "npx --yes serve . -l 5173",
@@ -12,7 +12,13 @@
     "portraits": "node tools/portrait_gen.js --embed",
     "check:neon": "node tools/verify-neon.js",
     "probe:neon": "node tools/probe-neon.js 20",
-    "smoke": "node -r ./tools/_chrome.js tools/smoke-test.js"
+    "survivors": "node tools/survivor_gen.js --embed",
+    "check:street": "node tools/verify-street.js",
+    "check:nod": "node tools/verify-nod.js",
+    "probe:street": "node tools/probe-street.js 20",
+    "smoke": "node -r ./tools/_chrome.js tools/smoke-test.js",
+    "import:sprites": "node tools/sprite_import.js",
+    "check:import": "node tools/sprite_import.js --selftest"
   },
   "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
