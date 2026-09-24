@@ -109,13 +109,20 @@ ok(/visibilitychange/.test(html), '切后台会松开摇杆，回来不会还按
 ok(/function goTouch/.test(html), '第一次真的碰屏幕就切到触屏模式（触屏笔记本也能用手指）');
 ok(!/if \(!isTouch\) return;/.test(html), '监听器总是装上，不因为开局猜错就永久失效');
 if (NST) {
-  NST.start();
+  // 种子必须钉死。start() 不传种子的话 RUN_SEED 取的是 Date.now()，
+  // 于是这一段每次跑在不同的局上 —— 而 update() 有预算就会再刷怪，
+  // 刷出一只比 120px 更近的，自动瞄准就锁到它身上，这条断言时绿时红。
+  // 抓到它纯属运气：连着跑两遍，一遍红一遍绿，之后二十遍又全绿。
+  NST.start(4242);
   const TP = NST.P, TG = NST.G;
+  TG.budget = 0;                                          // 别让这一帧又刷出怪来
   TG.mobs.length = 0; NST.spawn('grunt');
   const m = TG.mobs[0]; m.x = TP.x; m.y = TP.y - 120;      // 正上方
   TP.ang = 0; TG.bullets.length = 0;
   TP.fireT = 0;
   NST.update(1 / 60);
+  ok(TG.mobs.filter(x => !x.dead).length === 1,
+    `场上只有那一只（现在 ${TG.mobs.filter(x => !x.dead).length} 只）—— 多一只这条断言就不成立`);
   const want = Math.atan2(m.y - TP.y, m.x - TP.x);
   ok(Math.abs(NST.TC.on && (TP.ang - want)) < .01, '右手没按时，自动瞄最近的敌人');
   ok(TG.bullets.length > 0 || TG.arcs.length > 0 || TG.beams.length > 0, '触屏下不按也会开火（单手能玩）');
@@ -3249,6 +3256,100 @@ console.log('换场地前自动回收');
   // 五、没东西可收的时候不许冒出一条空横幅
   ok(NS.sweepNote(null) === '' && NS.sweepNote({ xp: 0, scrap: 0, hp: 0, parts: [], buffs: 0 }) === '',
     '什么都没收到就不说话');
+}
+
+// ---- 59) 开店有画面 ----
+// 原来是点一下、瞬间吐一整段文字。「客人嫌贵走了」只剩一行字，
+// 而定价是这套经营玩法唯一的决策 —— 被拒绝得看得见才有体感。
+console.log('货摊画面');
+{
+  const fresh = () => { for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+    Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf(); };
+  fresh();
+  NS.PROF.parts = { cap: 6, plate: 3, core: 2, servo: 4 };
+  NS.PROF.scrap = 3000;
+  NS.PART_IDS.forEach(k => NS.setPrice(k, Math.round(NS.priceBand(k).lo * .9)));  // 压低价保证有成交
+  const before = NS.PROF.scrap;
+  const res = NS.openStore();
+  ok(res.log.length > 2 && res.earned > 0, `这一场有 ${res.log.length} 位客人、进账 ${res.earned}`);
+
+  // 一、画面只是【回放】，结算一个字不动 —— 所以经济那边的断言全都还成立
+  ok(NS.PROF.scrap === before + res.earned, '账在 openStore 里就结完了，画面不参与算账');
+
+  NS.playStore(res);
+  ok(byId('hqScrap').textContent === String(before),
+    `开场时显示的是开张前的钱（${byId('hqScrap').textContent}）—— 钱先到客人后来会穿帮`);
+
+  // 二、一位一位地放：钱一笔笔进，日志一行行长
+  let t = 0, seenScrap = [byId('hqScrap').textContent], lines = [];
+  for (let f = 0; f < 6000 && NS.SCENE.on; f++) {
+    NS.tickStore(1 / 60); t += 1 / 60;
+    const sc = byId('hqScrap').textContent;
+    if (sc !== seenScrap[seenScrap.length - 1]) seenScrap.push(sc);
+    lines.push((byId('hqLog').innerHTML.match(/<div/g) || []).length);
+  }
+  ok(!NS.SCENE.on, '放完会自己停 —— 不能留一个 rAF 在那儿空转');
+  ok(seenScrap.length > 2, `钱是一笔笔到账的（变了 ${seenScrap.length - 1} 次）`);
+  ok(byId('hqScrap').textContent === String(before + res.earned), '放完之后对得上真实数字');
+  ok(lines[0] < lines[lines.length - 1], '日志是一行行长出来的，不是一次性糊上去');
+  ok(/class="sum"/.test(byId('hqLog').innerHTML), '最后补上汇总那一行');
+
+  // 三、时长要有个谱。第一版每位 1.6 秒，九个客人 14.6 秒 ——
+  // 这是个菜单界面，没人坐得住。
+  const per = t / res.log.length;
+  ok(per < 1.1, `每位客人 ${per.toFixed(2)}s`);
+  ok(t < 14, `整场 ${t.toFixed(1)}s`);
+
+  // 四、不想看完能跳过
+  NS.playStore(res);
+  NS.tickStore(.1);
+  NS.skipStore();
+  ok(!NS.SCENE.on && byId('hqScrap').textContent === String(before + res.earned),
+    '点一下直接看结果，数字也立刻对上');
+
+  // 五、离开据点要把循环停掉
+  NS.playStore(res);
+  NS.showHQ(false);
+  ok(!NS.SCENE.on, '关了据点就停 —— 否则那个循环会一直画下去');
+
+  // 六、货箱空的时候不能崩
+  fresh(); NS.PROF.parts = {};
+  const empty = NS.openStore();
+  NS.playStore(empty);
+  for (let f = 0; f < 600 && NS.SCENE.on; f++) NS.tickStore(1 / 60);
+  ok(!NS.SCENE.on, '空货箱也能正常收场');
+
+  // 七、能加减的那个数字必须写明是什么。
+  // 被问过「开门营业上面可以加减的是什么」—— 那一排原来只有一个光秃秃的数字。
+  // 跟 HUD 那条规矩是同一条：数字旁边没有东西说它是什么，就必须写。
+  fresh();
+  NS.PROF.parts = { cap: 3, core: 1 };
+  NS.syncStore();
+  const stock = byId('hqStock').innerHTML;
+  ok(/要 价/.test(stock), '有列头写明那一列是「要价」');
+  ok(/存 量/.test(stock) && /零 件/.test(stock), '三列都有名字');
+  ok(/每件/.test(stock) && /±10/.test(stock), '说清是每件的价、一下加减多少');
+  ok(/客人转身走|砸名声/.test(stock) && /赚得少/.test(stock),
+    '说清定高定低各自的代价 —— 这是这套玩法唯一的决策，不能靠猜');
+  ok(/看不见/.test(stock), '同时说清心理价位带是看不见的，得自己试');
+  ok(/缺货/.test(stock) && /积压/.test(stock), '名字后面那个箭头也解释了');
+  // 列头的宽度得跟行里的格子对上。对不齐的列头比没有列头还糟 —— 它会指错。
+  const css2 = (html.match(/<style>([\s\S]*?)<\/style>/g) || []).join('\n');
+  const w = re => { const m = css2.match(re); return m ? +m[1] : null; };
+  ok(w(/\.pcols \.h2\{width:(\d+)px/) === w(/\.pitem \.qt\{min-width:(\d+)px/),
+    '「存量」列头和存量格同宽');
+  const btn = w(/\.pitem button\{[^}]*width:(\d+)px/);
+  const pv = w(/\.pitem \.pv\{[^}]*min-width:(\d+)px/);
+  const gap = w(/\.pitem\{[^}]*gap:(\d+)px/);
+  ok(w(/\.pcols \.h3\{width:(\d+)px/) === btn * 2 + pv + gap * 2,
+    `「要价」列头宽 = 减号 ${btn} + ${gap} + 价格 ${pv} + ${gap} + 加号 ${btn}`);
+
+  // 八、客人的颜色不许跟着玩家的涂装变。SPR 是按涂装烤出来的，
+  // 用了 B/S/L/C/O/H 这六个会被重映射的字母就会跟着变色。
+  const skinKeys = ['B', 'S', 'L', 'C', 'O', 'H'];
+  const bad = ['cust_a', 'cust_b', 'cust_c', 'stall'].filter(g =>
+    NS.GRID[g].some(frame => frame.some(row => row.split('').some(ch => skinKeys.indexOf(ch) >= 0))));
+  ok(!bad.length, `摊位和客人不用会被涂装重映射的颜色（用了的：${bad.join(' ') || '无'}）`);
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');

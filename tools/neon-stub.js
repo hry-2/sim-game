@@ -76,6 +76,16 @@ global.document = { createElement: mkEl, getElementById: byId, querySelector: mk
   querySelectorAll: () => [], addEventListener: on, body: mkEl() };
 global.window = global; global.addEventListener = on; global.matchMedia = () => ({ matches: false });
 global.requestAnimationFrame = () => 0; global.performance = { now: () => 0 };
+// 时间钉死。不钉的话 start() 不传种子时 RUN_SEED 取 Date.now()，
+// 整个套件里几十处 start() 就每次跑在不同的局上 —— 断言时绿时红，
+// 而且只在「这一帧恰好又刷出一只更近的怪」这种巧合下才红，几乎抓不到。
+// 每日局的 dayKey() 也走 Date.now()，一起钉死才比得起来。
+const FIXED_NOW = Date.UTC(2026, 0, 2, 3, 4, 5);
+const RealDate = Date;
+global.Date = class extends RealDate {
+  constructor(...a) { return a.length ? new RealDate(...a) : new RealDate(FIXED_NOW); }
+  static now() { return FIXED_NOW; }
+};
 global.location = { search: '', href: '' }; global.innerWidth = 1280; global.innerHeight = 720;
 const realTimeout = global.setTimeout; global.setTimeout = () => 0;
 const LS = {};
