@@ -121,8 +121,16 @@ function play(seed, maxWave, dg, hq) {
     // 近战就贴到砍得到的距离上；人越多贴得越浅，别一头扎进堆里。
     const MELEE = { melee: 1, lunge: 1, grind: 1 };
     const isMelee = !!MELEE[P.kind];
-    const keepOut = isMelee
-      ? Math.max(14, (P.reach || 30) * .7 + near * 2)
+    // 站在自己射程的【外沿】，不是往里钻。第一版写的是 reach*0.7，
+    // 链锯（reach 26）就被推到 18px —— 那已经在敌人的接触伤害圈里
+    // （d < m.r + 7），机器人一直在挨蹭，八个种子全死在第 3 波。
+    // 那是量具站错位置，不是这把枪弱。
+    // 站在自己射程的内沿。两次都踩了坑：
+    //   reach*0.7 → 链锯被推到 18px，进了敌人的接触伤害圈（d < m.r + 7），八局全死在第 3 波；
+    //   reach+2+near → 人一多就被推出射程，振动刀从 10.5 波掉到 4.3 ——
+    //     而近战恰恰是人多的时候才要挥。
+    // 所以既不能往里钻，也不能跟着人数往外退。
+    const keepOut = isMelee ? Math.max(12, (P.reach || 30) - 2)
       : Math.min(130, 70 + near * 9);
     let chasing = false;
     if (tg && td < keepOut) { mx = (P.x - tg.x) / td; my = (P.y - tg.y) / td; }

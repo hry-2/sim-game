@@ -21,7 +21,20 @@
     --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hidden}
+  html{height:100%}
+  /* 底色不是纯黑。两团很淡的辉光（左上偏绿、右下偏紫）压在深色上 ——
+     菜单、起手、总结这三屏都走它，进行屏和确认屏各自有自己的底色。
+     为什么是辉光不是平涂：菜单上有四个大类的彩色按钮，一层平涂的彩底会跟它们打架，
+     辉光够淡，只负责把「黑」变成「夜」。 */
+  body{
+    height:100%;margin:0;color:var(--ink);overflow:hidden;
+    background:
+      radial-gradient(120% 95% at 2% 0%, rgba(61,220,151,.30), transparent 56%),
+      radial-gradient(115% 95% at 100% 100%, rgba(150,90,220,.34), transparent 56%),
+      radial-gradient(85% 70% at 88% 0%, rgba(237,120,190,.18), transparent 58%),
+      linear-gradient(158deg,#16233a,#0e1116 52%,#1b1228);
+    background-attachment:fixed;
+  }
   body{
     font:16px/1.5 system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
     user-select:none;-webkit-user-select:none;touch-action:manipulation;overscroll-behavior:none;
@@ -79,6 +92,7 @@
     width:100%;max-width:640px;padding:16px;border:0;border-radius:12px;
     background:linear-gradient(135deg,var(--brand),#22b880);
     color:#06231a;font-size:19px;font-weight:800;letter-spacing:.3em;
+    box-shadow:0 8px 28px rgba(61,220,151,.28);
     text-indent:.3em;cursor:pointer;font-family:inherit;
   }
 

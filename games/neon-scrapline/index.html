@@ -2601,8 +2601,12 @@ const WEAPONS = {
   //         振动刀是把人推开腾空间，链锯反过来要他们别走，两把的走位是相反的。
   lance: { n:'冲锋撞角', s:'撞角', ic:'^^', kind:'lunge', rate:1.15, dmg:34, reach:30, arc:70, dash:118, iframe:.22,
     col:'255,157,61', d:'按一下冲出去，冲的那一下无敌、撞到谁伤谁。方向按下就改不了' },
-  saw:   { n:'裂解链锯', s:'链锯', ic:'%%', kind:'grind', rate:11, dmg:2.6, reach:26, arc:64, ramp:.09, rampMax:2.4,
-    col:'124,255,79', d:'贴住不放，咬住同一个越磨越疼（最高 2.4 倍）。不击退 —— 你要他们留在锯上' },
+  // heal 是后加的，不是配平数值：链锯不带击退，而振动刀靠「击退 + 命中回血」
+  //   才能在人堆里活下来。两样都没有的话它只是一把站在绞肉机里的短刀 ——
+  //   实测八个种子全死在第 3 波，而它的单体 DPS（116）跟熔切光束（126）同级。
+  //   所以补的是【生存手段】，而且要跟它的身份对上：越磨越疼，也越磨越回血。
+  saw:   { n:'裂解链锯', s:'链锯', ic:'%%', kind:'grind', rate:11, dmg:2.6, reach:32, arc:64, ramp:.09, rampMax:2.4, heal:.22,
+    col:'124,255,79', d:'贴住不放，咬住同一个越磨越疼、也越磨越回血。不击退 —— 你要他留在锯上' },
 };
 const WEP_ORDER = ['pulse', 'shot', 'rail', 'arc', 'nade', 'blade', 'lance', 'saw', 'beam', 'mine', 'disc'];
 
@@ -4244,6 +4248,8 @@ function fireGrind(a) {
   const crit = RNG.fx() < P.crit;
   hurtMob(best, P.dmg * mul * (crit ? 3 : 1), 0, 0, P.x, P.y);
   G.wepDmg.saw = (G.wepDmg.saw || 0) + P.dmg * mul;
+  // 回血跟着倍率一起涨 —— 「咬住不放」这件事本身就是它的生存方式
+  if (P.heal) { P.hp = Math.min(P.maxhp, P.hp + P.heal * mul); syncHud(); }
   burstFx(best.x, best.y, mul > 1.8 ? 4 : 2, mul > 1.8 ? '#ffe066' : '#bfff9f', 120);
   G.shake = Math.max(G.shake, .8 + mul * .4);
 }
