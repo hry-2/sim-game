@@ -119,7 +119,15 @@ function play(seed, maxWave, dg, hq) {
     // 所以三把近战的平衡数据一直是空的（`full` 档平均只到 7.3 波，
     // 一多半是它抽到刀之后自己饿死的）。
     // 近战就贴到砍得到的距离上；人越多贴得越浅，别一头扎进堆里。
-    const MELEE = { melee: 1, lunge: 1, grind: 1 };
+    // 三槽之后，抽到换装卡会自动换到新枪上 —— 机器人可能被塞了一把
+    // 冷却 2 秒、伤害 6 的炼金武器，然后拿着它打完整局。
+    // 它不会「用炼金摆盘再切回来打」（那需要读懂战场，它读不懂），
+    // 所以默认切回远程槽。**这是量具的能力边界：炼金这一路它测不了。**
+    if (P.owned.length > 1) {
+      const rng = P.owned.find(id => NS.slotOf(id) === 'range');
+      if (rng && NS.WEAPONS[P.wep].slot === 'magic') NS.equip(rng);
+    }
+    const MELEE = { melee: 1, lunge: 1, guard: 1 };
     const isMelee = !!MELEE[P.kind];
     // 站在自己射程的【外沿】，不是往里钻。第一版写的是 reach*0.7，
     // 链锯（reach 26）就被推到 18px —— 那已经在敌人的接触伤害圈里

@@ -628,7 +628,8 @@ pad(0, 0, 0, 0, [9]); NS.update(1 / 60);
 ok(!GG.paused, '松开再按才切回来');
 GG.paused = false;
 // 换枪键
-NS.PROF.bought.shot = 1; NS.PROF.unlocked.w_shot = 1; NS.equip('pulse'); NS.equip('shot'); NS.equip('pulse');
+NS.PROF.bought.shot = 1; NS.PROF.unlocked.w_shot = 1; NS.PROF.unlocked.w_blade = 1;
+NS.gainWep('blade'); NS.equip('pulse');
 const w0 = GP.wep;
 pad(0, 0, 0, 0, []); NS.update(1 / 60);
 pad(0, 0, 0, 0, [2]); NS.update(1 / 60);
@@ -991,7 +992,7 @@ console.log('换枪键');
   ok(wep.textContent === NST.WEAPONS[TP.wep].s, `按钮写的是当前武器「${wep.textContent}」，不是笼统的「枪」`);
   ok(wep.style['--wc'] === NST.WEAPONS[TP.wep].col, '按钮染成当前武器的颜色');
   // 拿到第二把之后才真的能按
-  NST.equip('shot');
+  NST.gainWep('lance');       // 另一个槽的（同槽会替换），而且颜色跟脉冲不一样
   ok(TP.owned.length === 2 && !wep.classList.contains('lock'), '有第二把枪之后按钮点亮');
   const before = wep.textContent, col0 = wep.style['--wc'];
   NST.cycleWep();
@@ -1319,10 +1320,10 @@ console.log('构筑面板');
   ok(/class="bi full"/.test(h), '满级的词条单独标出来（满了就不会再出现在卡池里）');
   ok(/\.build \.bi\.full \.st\{color:var\(--tox\)\}/.test(html), '满级用不同颜色，不是只加个字');
   // 武器：当前拿着的要标
-  NS.PROF.unlocked.w_shot = 1; NS.equip('shot');
+  NS.PROF.unlocked.w_blade = 1; NS.gainWep('blade');   // 另一个槽的，才叫「多带一把」
   h = NS.buildHTML();
   ok(/class="bi now"/.test(h), '当前拿着的那把单独标出来');
-  ok(h.indexOf(NS.WEAPONS.pulse.n) >= 0 && h.indexOf(NS.WEAPONS.shot.n) >= 0, '带着的枪都列出来，不只列当前这把');
+  ok(h.indexOf(NS.WEAPONS.pulse.n) >= 0 && h.indexOf(NS.WEAPONS.blade.n) >= 0, '带着的枪都列出来，不只列当前这把');
   // 换装卡不该混进词条行（它们是武器，不是改装）
   ok(h.indexOf('w_shot') < 0, '换装卡不重复出现在词条行里');
   // 两个位置都要填：选牌时和暂停时
@@ -1440,8 +1441,10 @@ console.log('数字键换枪');
   NS.setMode('free'); NS.start(24);
   const KP = NS.P;
   NS.PROF.unlocked.w_shot = 1; NS.PROF.unlocked.w_rail = 1;
-  NS.equip('shot'); NS.equip('rail'); NS.equip('pulse');
-  ok(KP.owned.length === 3, `带着 ${KP.owned.length} 把：${KP.owned.join(' / ')}`);
+  // 三把得来自三个不同的槽 —— 同槽的会互相替换，这是新的规矩
+  NS.gainWep('rail'); NS.gainWep('blade'); NS.gainWep('dust');
+  ok(KP.owned.length === 3, `远程 / 近战 / 炼金各一把：${KP.owned.join(' / ')}`);
+  NS.equip(KP.owned[0]);
   key2('Digit2');
   ok(KP.wep === KP.owned[1], `按 2 直接换到第二把（${KP.wep}）`);
   key2('Digit1');
@@ -1468,10 +1471,10 @@ console.log('手机 UI');
   ok(/左半屏|右半屏/.test(tcBlock), '触屏那套讲的是左右半屏拖动');
   // 二、Q▸ 只给键盘看
   NST.setMode('free'); NST.start(31);
-  NST.PROF.unlocked.w_shot = 1; NST.equip('shot');
+  NST.PROF.unlocked.w_blade = 1; NST.gainWep('blade');
   ok(byId('wepTxt').textContent.indexOf('Q') < 0, `触屏的武器标签不写 Q（「${byId('wepTxt').textContent}」）`);
   NS.setMode('free'); NS.start(31);
-  NS.PROF.unlocked.w_shot = 1; NS.equip('shot');
+  NS.PROF.unlocked.w_blade = 1; NS.gainWep('blade');   // 得真的多带一把，Q 才有意义
   ok(byId('wepTxt').textContent.indexOf('Q') >= 0, `键鼠的仍然提示 Q（「${byId('wepTxt').textContent}」）`);
   // 三、升级页提示也分设备
   NST.G.state = 'play'; NST.showLevelup();
@@ -1869,9 +1872,11 @@ console.log('废钢与商店');
   const rr0 = S3.rerolls;
   ok(NS.shopBuy('rr') === true && S3.rerolls === rr0 + 1, `重摇 +1（${rr0} → ${S3.rerolls}）`);
   NS.PROF.unlocked.w_rail = 1;
-  const own0 = P3.owned.length;
+  const own0 = P3.owned.slice().join();
   ok(NS.shopGuns().length > 0, `军械里有 ${NS.shopGuns().length} 把可买`);
-  ok(NS.shopBuy('gun') === true && P3.owned.length > own0, `买到了新枪（带着 ${own0} → ${P3.owned.length} 把）`);
+  // 三槽之后「买到新枪」不一定是多一把 —— 同槽的会替换。验的是手里真的变了。
+  ok(NS.shopBuy('gun') === true && P3.owned.slice().join() !== own0,
+    `买到了新枪（${own0} → ${P3.owned.join()}）`);
   // 买过的枪不会再出现在军械里
   ok(NS.shopGuns().indexOf(P3.owned[P3.owned.length - 1]) < 0, '已经带着的枪不再出现在军械里');
   // 买不起就买不了，钱也不会扣成负数
@@ -1915,7 +1920,9 @@ console.log('废钢与商店');
   S5.phase = 'shop'; P5.hp = P5.maxhp * .3;
   const profBefore = JSON.stringify({ bought: NS.PROF.bought, wep: NS.PROF.wep });
   for (const it of NS.SHOP) { S5.scrap = 9999; NS.shopBuy(it.id); }
-  ok(P5.owned.length > 1 && S5.rerolls > NS.REROLLS && P5.hp > P5.maxhp * .7, '这一局确实买到手了');
+  // 「军械调拨」买到的可能是同槽替换，所以数量不一定涨 —— 验的是它确实换了武器
+  ok(P5.owned.join() !== 'pulse' && S5.rerolls > NS.REROLLS && P5.hp > P5.maxhp * .7,
+    `这一局确实买到手了（手里：${P5.owned.join(' ')}）`);
   ok(JSON.stringify({ bought: NS.PROF.bought, wep: NS.PROF.wep }) === profBefore,
     '档案里的「已买下的起手武器」一个没动 —— 商店买的枪不是永久的');
   NS.start(81);
@@ -1951,7 +1958,7 @@ console.log('新武器');
     `WEP_ORDER 列全了所有定义过的枪（${NS.WEP_ORDER.length} / ${Object.keys(NS.WEAPONS).length}）`);
   // 近战不能只有一把。近战最难的是「怎么贴上去」和「贴上去之后怎么活」，
   // 一把枪解不了两个问题。
-  const MELEE = ['melee', 'lunge', 'grind'];
+  const MELEE = ['melee', 'lunge', 'guard'];
   const melee = NS.WEP_ORDER.filter(id => MELEE.indexOf(NS.WEAPONS[id].kind) >= 0);
   ok(melee.length >= 3, `近战有 ${melee.length} 把：${melee.map(id => NS.WEAPONS[id].n).join(' ')}`);
   ok(new Set(melee.map(id => NS.WEAPONS[id].kind)).size === melee.length,
@@ -2335,12 +2342,17 @@ console.log('据点与生产链');
     const snap = () => ({ dmg: NS.P.dmg, rate: NS.P.fireRate, pierce: NS.P.pierce, spread: NS.P.spread,
       range: NS.P.range, chain: NS.P.chain, reach: NS.P.reach, splash: NS.P.splash,
       arc: NS.P.arc, knock: NS.P.knock, heal: NS.P.heal,
-      dash: NS.P.dash, iframe: NS.P.iframe, ramp: NS.P.ramp, rampMax: NS.P.rampMax });
+      dash: NS.P.dash, iframe: NS.P.iframe, block: NS.P.block,
+      zlife: NS.P.zlife, slowZone: NS.P.slowZone, pullZone: NS.P.pullZone,
+      brand: NS.P.brand, selfPush: NS.P.selfPush ? 1 : 0 });
     const before = snap();
     NS.PROF.mods[w] = 1; NS.PROF.modsOn[w] = 1;
     NS.equip(w);
     const after = snap();
-    const flags = NS.P.railSplit || NS.P.nadeProx || NS.P.bladeKick || NS.P.beamWide || NS.P.mineRemote || NS.P.discTwin;
+    // 行为标记也要跟着武器一起长。反冲环的代价是「你自己也被震退」，
+    // 那是个行为不是数值 —— 不把 selfPush 算进来的话这条对它直接失效。
+    const flags = NS.P.railSplit || NS.P.nadeProx || NS.P.bladeKick || NS.P.beamWide
+      || NS.P.mineRemote || NS.P.discTwin || NS.P.selfPush;
     const up = Object.keys(before).filter(k => after[k] > before[k]);
     const down = Object.keys(before).filter(k => after[k] < before[k]);
     ok(down.length > 0 || flags, `${NS.WEAPONS[w].n}·${NS.WMOD[w].n} 有代价（降了 ${down.join('/') || '—'}，行为标记 ${flags ? '有' : '无'}）`);
@@ -3160,7 +3172,17 @@ console.log('涂装与武器外观');
   // 二、武器挂件同理：除了开局那把，每把都带一件，互不相同
   const rigs = NS.WEP_ORDER.filter(k => k !== 'pulse').map(k => (NS.WRIG[k] || {}).g);
   ok(rigs.every(Boolean), `开局那把之外每把枪都带挂件（${rigs.length} 件）`);
-  ok(new Set(rigs).size === rigs.length, '每把的挂件都不一样');
+  // 同一种炼金属性的两把可以共用挂件 —— 那正是「同属性」想表达的；
+  // 跨属性 / 跨槽共用才是真重复。
+  const rigOwner = {};
+  const clash = [];
+  NS.WEP_ORDER.filter(k => k !== 'pulse').forEach(k => {
+    const g = (NS.WRIG[k] || {}).g; if (!g) return;
+    const tag = NS.WEAPONS[k].elem || NS.slotOf(k) + ':' + k;
+    if (rigOwner[g] && rigOwner[g] !== tag) clash.push(g + '(' + rigOwner[g] + ' vs ' + tag + ')');
+    rigOwner[g] = tag;
+  });
+  ok(!clash.length, `挂件不跨属性共用（撞的：${clash.join(' ') || '无'}）`);
   ok(rigs.every(g => NS.SPR[g]), '挂件的精灵都真的存在');
 
   // 三、真的画出来了，而且换一把就真的不一样 —— 这才是「看得出来」。
@@ -3433,8 +3455,447 @@ console.log('重复的枪');
     ok(left < n, `拿走 ${g[0]} 之后卡池里的枪从 ${n} 张减到 ${left} 张`);
     n = left;
   }
-  ok(NS.P.owned.length === NS.WEP_ORDER.length,
-    `一路抽下来所有枪全到手（${NS.P.owned.length}/${NS.WEP_ORDER.length}）`);
+  // 三槽之后「全到手」不再成立 —— 一局最多带三把，抽到同类的会替换。
+  // 要验的变成：抽完之后每个槽都占着，而且正好一把。
+  ok(NS.P.owned.length === NS.SLOTS.length,
+    `一局最多带 ${NS.P.owned.length} 把（远程 / 近战 / 炼金各一）`);
+  const bySlot = {};
+  NS.P.owned.forEach(id => { bySlot[NS.slotOf(id)] = (bySlot[NS.slotOf(id)] || 0) + 1; });
+  ok(NS.SLOTS.every(sl => bySlot[sl] === 1),
+    `每个槽正好一把（${NS.P.owned.map(id => NS.slotOf(id) + ':' + id).join(' ')}）`);
+}
+
+// ---- 61) 两把新近战 ----
+// 近战的死因从来不是打不动，是【够不着的远程】：哨戒无人机停在 92px、钉枪手 220px。
+// 这两把各给一个答案，而且答案不一样。
+console.log('新近战');
+{
+  NS.start(120);
+  const G = NS.G, P = NS.P;
+  G.budget = 0; G.waveT = 999;
+
+  // 一、冲锋撞角：攻击就是位移，而且要沿【整条路径】判定
+  NS.equip('lance');
+  ok(P.dash > 92, `冲刺 ${P.dash}px 越得过无人机那条 92px 的线 —— 这是它存在的理由`);
+  G.mobs.length = 0;
+  const put = (dx, dy) => { NS.spawn('grunt'); const m = G.mobs[G.mobs.length - 1];
+    m.x = P.x + dx; m.y = P.y + dy; m.hp = 9999; m.max = 9999; return m; };
+  const onPath = [put(30, 0), put(70, 6), put(105, 0)];
+  const offPath = put(60, 95);
+  const x0 = P.x;
+  P.ang = 0; P.inv = 0; NS.fire();
+  ok(Math.abs(P.x - x0 - P.dash) < 2, `人真的冲出去了（${Math.round(P.x - x0)}px）`);
+  ok(onPath.every(m => m.hp < 9999),
+    '冲刺路径上的三只全都挨了 —— 在终点判身前扇形的话它们这时都在你身后（踩过）');
+  ok(offPath.hp === 9999, '路径外的没事');
+  ok(P.inv > 0, '冲的那一下无敌 —— 不然「主动往人堆里钻」根本不成立');
+
+  // 二、力场盾：挡正面的子弹，不挡侧背，也不挡撞上来的人
+  NS.start(121);
+  const G2 = NS.G, P2 = NS.P;
+  G2.budget = 0; G2.waveT = 999; G2.mobs.length = 0;
+  NS.update(1 / 60);                                   // 先跑一帧，让 P.ang 落到它实际的朝向
+  const face = P2.ang;
+  const shootFrom = off => {
+    NS.equip('guard'); P2.hp = P2.maxhp; G2.ebullets.length = 0;
+    const a = face + off;
+    for (let i = 0; i < 8; i++) G2.ebullets.push({ x: P2.x + Math.cos(a) * 40, y: P2.y + Math.sin(a) * 40,
+      vx: -Math.cos(a) * 200, vy: -Math.sin(a) * 200, life: 2, dmg: 9, src: 'drone' });
+    for (let f = 0; f < 40; f++) { P2.inv = 0; NS.update(1 / 60); }
+    return P2.maxhp - P2.hp;
+  };
+  ok(shootFrom(0) === 0, '正面来的子弹全挡掉');
+  ok(shootFrom(Math.PI / 2) > 0, '侧面来的挡不住');
+  ok(shootFrom(Math.PI) > 0, '背后来的挡不住 —— 挡的是朝向，不是无敌');
+  // 换成别的枪就不挡了，确认这是这把枪的本事而不是谁都有
+  NS.equip('blade'); P2.hp = P2.maxhp; G2.ebullets.length = 0;
+  for (let i = 0; i < 8; i++) G2.ebullets.push({ x: P2.x + Math.cos(face) * 40, y: P2.y + Math.sin(face) * 40,
+    vx: -Math.cos(face) * 200, vy: -Math.sin(face) * 200, life: 2, dmg: 9, src: 'drone' });
+  for (let f = 0; f < 40; f++) { P2.inv = 0; NS.update(1 / 60); }
+  ok(P2.hp < P2.maxhp, '换成振动刀就挡不住了 —— 盾是这把枪的本事');
+
+  // 三、挡子弹不等于挡人：撞上来的照样疼，否则它就是无敌
+  NS.start(122);
+  const G3 = NS.G, P3 = NS.P;
+  G3.budget = 0; G3.waveT = 999; G3.mobs.length = 0;
+  NS.update(1 / 60);
+  NS.equip('guard');
+  NS.spawn('rusher');
+  const r = G3.mobs[0];
+  P3.hp = P3.maxhp;
+  for (let f = 0; f < 200; f++) {
+    r.x = P3.x + Math.cos(P3.ang) * 6; r.y = P3.y + Math.sin(P3.ang) * 6;   // 正面贴脸
+    P3.inv = 0; NS.update(1 / 60);
+    if (P3.hp < P3.maxhp) break;
+  }
+  ok(P3.hp < P3.maxhp, '正面撞上来的人照样打得到你 —— 盾挡的是子弹，不是接触');
+
+  // 四、三把近战各是一种开火方式，答的问题也各不相同
+  const kinds = ['melee', 'lunge', 'guard'];
+  const melee = NS.WEP_ORDER.filter(id => kinds.indexOf(NS.WEAPONS[id].kind) >= 0);
+  ok(melee.length === 3, `三把近战：${melee.map(id => NS.WEAPONS[id].n).join(' ')}`);
+  ok(NS.WEAPONS.blade.heal > 0 && !NS.WEAPONS.guard.heal,
+    '振动刀靠命中回血续命，力场盾不回血 —— 它拿盾换了这个');
+  ok(NS.WEAPONS.guard.knock > NS.WEAPONS.blade.knock,
+    '力场盾的击退更强 —— 不回血就得靠把人推开');
+}
+
+// ---- 62) 升级词条对近战不许是死卡 ----
+// 加武器最容易漏的就是这里：23 张词条里有几张只对子弹生效，
+// 而近战根本不造子弹 —— 抽到就等于白抽一次三选一。
+// 这条规矩仓库里早就有（「不然它们对刀就是废卡」），但只覆盖了穿甲和双联。
+console.log('词条对近战');
+{
+  // 每条近战开火路径真正读的字段。这不是猜的 ——
+  // fireMelee / fireLunge / fireGuard 里出现过的 P.* 就是这些。
+  const READS = {
+    blade: ['arc', 'reach', 'crit', 'dmg', 'knock', 'heal', 'bounce'],
+    lance: ['dash', 'iframe', 'reach', 'crit', 'dmg', 'bounce'],
+    guard: ['arc', 'reach', 'crit', 'dmg', 'knock', 'bounce'],
+  };
+  const snap = w => JSON.stringify(READS[w].map(k => NS.P[k]));
+  // 这两类跟拿的是哪把枪无关：一类在 hurtMob 里生效，一类压根不碰武器
+  const HURT = ['slow', 'charge', 'mark'];
+  const GLOBAL = ['rof', 'spd', 'hp', 'mag', 'shield', 'boom', 'leech', 'dash',
+    'aura', 'salvage', 'escort', 'u_cap', 'u_recoil', 'u_ghost'];
+  const dead = [];
+  for (const u of NS.UPGRADES) {
+    if (/^w_/.test(u.id) || HURT.indexOf(u.id) >= 0 || GLOBAL.indexOf(u.id) >= 0) continue;
+    for (const w of ['blade', 'lance', 'guard']) {
+      NS.start(9); NS.equip(w);
+      const before = snap(w);
+      NS.takeUpgrade(u); NS.equip(w);
+      if (snap(w) === before) dead.push(u.n.replace(/ /g, '') + '@' + NS.WEAPONS[w].n);
+    }
+  }
+  ok(!dead.length, `改武器手感的词条对三把近战都不是死卡（死的：${dead.join(' ') || '无'}）`);
+
+  // hurtMob 那三条是所有武器共用的，换句话说近战也吃得到
+  const hurtSrc = html.slice(html.indexOf('function hurtMob'), html.indexOf('function hurtMob') + 2600);
+  ok(/P\.slow/.test(hurtSrc) && /P\.charge/.test(hurtSrc) && /P\.mark/.test(hurtSrc),
+    '冷凝弹头 / 蓄能枪机 / 拆解标记 走的是 hurtMob，近战一样吃得到');
+
+  // 折返弹：原来只在造子弹的时候读，对振动刀是从它加进来那天起就死的
+  NS.start(9); NS.equip('blade');
+  const b0 = NS.P.bounce | 0;
+  NS.takeUpgrade(NS.UPGRADES.find(u => u.id === 'bounce')); NS.equip('blade');
+  ok(NS.P.bounce > b0, '折返弹在近战身上也有值');
+  ok(/if \(P\.bounce\)/.test(html.slice(html.indexOf('function fireMelee'), html.indexOf('function fireMelee') + 1200)),
+    '而且挥击真的会读它 —— 不读的话字段变了也还是死卡');
+
+  // 双联发射对撞角：它是沿路径判定的，不读 P.arc，所以得换个说法
+  NS.start(9); NS.equip('lance');
+  const d0 = NS.P.dash;
+  NS.takeUpgrade(NS.UPGRADES.find(u => u.id === 'count')); NS.equip('lance');
+  ok(NS.P.dash > d0, `双联发射对撞角换成「冲得更远」（${d0} → ${NS.P.dash}）—— 它不读扇形`);
+}
+
+// ---- 63) 三个槽：远程 / 近战 / 炼金各一把 ----
+// 原来抽到就往身上加，最后十四把全带着 —— 那等于不用选。
+console.log('三槽');
+{
+  ok(NS.SLOTS.join() === 'range,melee,magic', `三个槽：${NS.SLOTS.join(' / ')}`);
+  const by = {};
+  NS.WEP_ORDER.forEach(id => { const sl = NS.slotOf(id); (by[sl] = by[sl] || []).push(id); });
+  ok(NS.SLOTS.every(sl => (by[sl] || []).length >= 3),
+    `每个槽都有得挑（${NS.SLOTS.map(sl => sl + ' ' + (by[sl] || []).length).join(' / ')}）`);
+  ok(NS.WEP_ORDER.every(id => NS.SLOTS.indexOf(NS.slotOf(id)) >= 0), '每把枪都归属某个槽');
+
+  NS.MILES.forEach(m => { NS.PROF.unlocked[m.id] = 1; });
+  NS.start(140);
+  const P = NS.P;
+  ok(P.owned.length === 1 && NS.slotOf(P.owned[0]) === 'range',
+    '开局只有远程那一把，近战和炼金两个槽是空的');
+
+  // 空槽 → 填上；同槽 → 替换
+  NS.gainWep('blade');
+  ok(P.owned.length === 2, '第一把近战填进空槽');
+  NS.gainWep('lance');
+  ok(P.owned.length === 2 && P.owned.indexOf('blade') < 0 && P.owned.indexOf('lance') >= 0,
+    '再来一把近战是【替换】，不是多带一把');
+  NS.gainWep('dust');
+  ok(P.owned.length === 3, '炼金填进第三个槽');
+  NS.gainWep('rail');
+  ok(P.owned.length === 3 && P.owned.indexOf('pulse') < 0, '远程也一样替换');
+
+  // 顺序固定成 远程→近战→炼金，数字键 1/2/3 才能永远指同一个槽
+  ok(P.owned.map(NS.slotOf).join() === 'range,melee,magic',
+    `手里的顺序固定（${P.owned.map(id => NS.slotOf(id) + ':' + id).join(' ')}）`);
+  NS.gainWep('guard');
+  ok(P.owned.map(NS.slotOf).join() === 'range,melee,magic', '替换之后顺序还是这个');
+
+  // 一局里绝不可能同时拿两把同类的
+  for (let i = 0; i < 60; i++) {
+    const w = NS.WEP_ORDER[(i * 7) % NS.WEP_ORDER.length];
+    NS.gainWep(w);
+    const c = {};
+    P.owned.forEach(id => { c[NS.slotOf(id)] = (c[NS.slotOf(id)] | 0) + 1; });
+    if (NS.SLOTS.some(sl => c[sl] > 1)) { ok(false, `抽了 ${i} 次之后出现同槽两把：${P.owned.join()}`); break; }
+    if (i === 59) ok(true, '抽六十次，每个槽始终最多一把');
+  }
+}
+
+// ---- 64) 炼金：不靠杀人的第三条路 ----
+console.log('炼金');
+{
+  const MAG = NS.WEP_ORDER.filter(id => NS.slotOf(id) === 'magic');
+  ok(MAG.length >= 6, `炼金 ${MAG.length} 把：${MAG.map(id => NS.WEAPONS[id].n).join(' ')}`);
+  // 三种属性，每种两把 —— 属性一样、投法不同，所以那是真正的二选一
+  const byElem = {};
+  MAG.forEach(id => { const e = NS.WEAPONS[id].elem; (byElem[e] = byElem[e] || []).push(id); });
+  // 五种属性里，炼金那一路占三种；霜和雷不是炼金武器给的 ——
+  // 它们是【把散落在别处的效果收进同一套】：冷凝弹头给霜，电弧链和静电场给雷。
+  ok(Object.keys(byElem).length === 3,
+    `炼金覆盖三种属性（${Object.keys(byElem).map(e => NS.ELEM[e].n).join(' ')}）`);
+  const elemSrc = {};
+  NS.WEP_ORDER.forEach(id => { const e = NS.WEAPONS[id].elem; if (e) (elemSrc[e] = elemSrc[e] || []).push(NS.WEAPONS[id].n); });
+  NS.UPGRADES.forEach(u => { if (u.elem) (elemSrc[u.elem] = elemSrc[u.elem] || []).push(u.n); });
+  ok(Object.keys(elemSrc).length === Object.keys(NS.ELEM).length,
+    `五种属性每种都有来源（${Object.entries(elemSrc).map(([e, v]) => NS.ELEM[e].n + ':' + v.length).join(' ')}）`);
+  ok((elemSrc.frost || []).length > 0 && (elemSrc.volt || []).length >= 2,
+    `霜和雷来自已有内容，不是新武器（霜 ${(elemSrc.frost || []).join('')} / 雷 ${(elemSrc.volt || []).join(' ')}）`);
+  ok(Object.values(byElem).every(v => v.length >= 2),
+    `每种属性至少两种投法（${Object.entries(byElem).map(([e, v]) => NS.ELEM[e].n + v.length).join(' ')}）`);
+  ok(new Set(MAG.map(id => NS.WEAPONS[id].kind)).size >= 4,
+    `炼金内部就有 ${new Set(MAG.map(id => NS.WEAPONS[id].kind)).size} 种开火方式 —— 不是一个招式的六个皮肤`);
+  // 它们的节奏必须跟另外两条路不一样：冷却长、伤害低
+  const rngDmg = NS.WEP_ORDER.filter(id => NS.slotOf(id) === 'range')
+    .reduce((n, id) => n + NS.WEAPONS[id].rate * NS.WEAPONS[id].dmg, 0) / 8;
+  // 这一路唯一的硬规矩：直接输出必须远低于远程 —— 它的价值在后果上。
+  // 不写「rate < 1」那种形状规矩，投法不同节奏本来就该不同。
+  MAG.forEach(id => {
+    const W = NS.WEAPONS[id];
+    ok(W.rate * W.dmg < rngDmg * .45,
+      `${W.n} 的直接输出只有远程平均的 ${Math.round(W.rate * W.dmg / rngDmg * 100)}%`);
+  });
+
+  NS.start(141);
+  const G = NS.G, P = NS.P;
+  G.budget = 0; G.waveT = 999; G.mobs.length = 0;
+  // 一、扔出去要真的落地成区域
+  NS.gainWep('pool'); P.ang = 0; NS.fire();
+  ok((G.orbs || []).length === 1, '先是一颗飞出去的弹');
+  for (let f = 0; f < 120; f++) NS.update(1 / 60);
+  ok(G.zones.length === 1, '落地变成一块区域');
+  const z = G.zones[0];
+  ok(z.r < 40, `区域不能太大（半径 ${z.r}，榴弹的爆炸是 ${NS.WEAPONS.nade.splash}）`);
+
+  // 二、熔金池：站进去掉血 + 变慢
+  NS.spawn('grunt'); const m = G.mobs[0]; m.hp = 500; m.max = 500;
+  for (let f = 0; f < 120; f++) { m.x = z.x; m.y = z.y; NS.update(1 / 60); }
+  ok(m.hp < 500, `站在熔金里会掉血（掉了 ${Math.round(500 - m.hp)}）`);
+  ok(m.slowT > 0, '而且变慢');
+
+  // 三、引力核：把人拽到一处
+  NS.start(142);
+  const G2 = NS.G, P2 = NS.P;
+  G2.budget = 0; G2.waveT = 999; G2.mobs.length = 0;
+  NS.gainWep('grav'); P2.ang = 0; NS.fire();
+  for (let f = 0; f < 120; f++) NS.update(1 / 60);
+  const zg = G2.zones[0];
+  NS.spawn('grunt'); const g = G2.mobs[0];
+  g.x = zg.x + zg.r * .8; g.y = zg.y;
+  const d0 = Math.hypot(g.x - zg.x, g.y - zg.y);
+  for (let f = 0; f < 60; f++) NS.update(1 / 60);
+  ok(Math.hypot(g.x - zg.x, g.y - zg.y) < d0 * .5,
+    `引力核把人往里拽（${Math.round(d0)} → ${Math.round(Math.hypot(g.x - zg.x, g.y - zg.y))}px）`);
+
+  // 四、嬗变之尘：雾里死的掉双倍。这是它唯一的意义 —— 它不负责杀。
+  const harvest = (w, n) => {
+    NS.start(143); const G3 = NS.G, P3 = NS.P;
+    G3.budget = 0; G3.waveT = 999;
+    NS.gainWep(w);
+    let scrap = 0, parts = 0;
+    for (let i = 0; i < n; i++) {
+      G3.mobs.length = 0; G3.drops.length = 0; G3.zones.length = 0; G3.orbs = [];
+      NS.spawn('tank'); const t = G3.mobs[0];
+      if (w === 'dust') {
+        P3.ang = Math.atan2(t.y - P3.y, t.x - P3.x); NS.fire();
+        for (let f = 0; f < 120; f++) { const zz = G3.zones[0]; if (zz) { t.x = zz.x; t.y = zz.y; } NS.update(1 / 60); }
+      }
+      NS.hurtMob(t, 1e9, 0, 0, P3.x, P3.y);
+      G3.drops.forEach(d => { if (d.kind === 'coin') scrap += d.v || 1; if (d.kind === 'part') parts++; });
+    }
+    return { scrap, parts };
+  };
+  const a1 = harvest('pulse', 40), b1 = harvest('dust', 40);
+  ok(b1.scrap > a1.scrap * 1.5, `金雾里死的废钢翻倍（${a1.scrap} → ${b1.scrap}）`);
+  ok(b1.parts > a1.parts, `零件也翻（${a1.parts} → ${b1.parts}）`);
+
+  // 五、解锁全挂在据点那头 —— 炼金本来就是从那条链长出来的
+  MAG.forEach(id => {
+    const ms = NS.MILES.find(x => x.id === 'w_' + id);
+    ok(!!ms && /卖出|精炼钢|做生意|名声/.test(ms.d),
+      `${NS.WEAPONS[id].n} 的解锁挂在经营上（${ms ? ms.d : '没有'}）`);
+  });
+
+  // 六、属性：子弹穿过自己的区域会被附上它。
+  // 这是炼金能成立的关键 —— 你永远带着一把远程枪，所以「先摆地再往里打」随时可用。
+  const infuseTest = mw => {
+    NS.MILES.forEach(x => { NS.PROF.unlocked[x.id] = 1; });
+    NS.start(160); const GG = NS.G, PP = NS.P;
+    GG.budget = 0; GG.waveT = 999; GG.mobs.length = 0;
+    NS.gainWep(mw); PP.ang = 0; NS.fire();
+    for (let f = 0; f < 90; f++) NS.update(1 / 60);
+    const z = GG.zones[0];
+    NS.equip('pulse');
+    NS.spawn('tank'); const t = GG.mobs[0]; t.hp = 1e6; t.max = 1e6;
+    for (let f = 0; f < 150; f++) {
+      t.x = z.x + z.r + 30; t.y = z.y;                 // 怪在区域【后面】，子弹必须穿过去
+      PP.ang = 0; PP.fireT -= 1 / 60;
+      if (PP.fireT <= 0) { NS.fire(); PP.fireT = 1 / PP.fireRate; }
+      NS.update(1 / 60);
+    }
+    return t;
+  };
+  ok(infuseTest('dust').harvest > 0, '子弹穿过金雾 → 打死的也算在雾里死（嬗）');
+  ok(infuseTest('pool').burn > 0, '子弹穿过熔金 → 命中附带灼烧（熔）');
+  // 引力：弹道被拽向核心，等于替你修正准头
+  NS.start(161);
+  const G4 = NS.G, P4 = NS.P;
+  G4.budget = 0; G4.waveT = 999; G4.mobs.length = 0;
+  NS.gainWep('grav'); P4.ang = 0; NS.fire();
+  for (let f = 0; f < 90; f++) NS.update(1 / 60);
+  const zg2 = G4.zones[0];
+  NS.equip('pulse'); P4.ang = .44; P4.fireT = 0; NS.fire();
+  let best = 1e9;
+  for (let f = 0; f < 40; f++) {
+    NS.update(1 / 60);
+    if (!G4.bullets.length) break;
+    const bb = G4.bullets[0];
+    best = Math.min(best, Math.hypot(bb.x - zg2.x, bb.y - zg2.y));
+  }
+  const noFix = Math.abs(Math.sin(.44)) * Math.hypot(zg2.x - P4.x, zg2.y - P4.y);
+  ok(best < noFix, `子弹穿过引力场会被往核心拽（不修正会偏 ${Math.round(noFix)}px，实际最近 ${Math.round(best)}px）`);
+  // 但只修正、不绕圈：过了核心就放手
+  ok(/b\.vx \* dx \+ b\.vy \* dy\) <= 0/.test(html),
+    '飞过核心之后就不再掰 —— 不加这个判断子弹会绕着核心转圈（实测 24° 被拽成 -49°）');
+}
+
+// ---- 65) 霜：全游戏第一个硬控 ----
+// 查下来这游戏所有的控制都是百分比减速（slowT 出现 9 次，freeze 0 次），
+// 刀锋犬的冲刺、拆解臂的蓄力撞一旦起手就打断不了。霜补的就是这个。
+console.log('霜与雷');
+{
+  ok(!!NS.ELEM.frost && !!NS.ELEM.volt, '霜和雷都进了属性表');
+  // 霜不是新武器给的 —— 它是把冷凝弹头收进属性系统
+  const slowCard = NS.UPGRADES.find(u => u.id === 'slow');
+  ok(slowCard.elem === 'frost', '冷凝弹头归到霜');
+  ok(/叠满|冻/.test(slowCard.d), `说明里写清了叠满会冻（${slowCard.d}）`);
+
+  NS.start(170);
+  const G = NS.G, P = NS.P;
+  G.budget = 0; G.waveT = 999; G.mobs.length = 0;
+  NS.takeUpgrade(slowCard);
+  NS.spawn('rusher'); const m = G.mobs[0]; m.hp = 1e6; m.max = 1e6;
+  const layers = [];
+  for (let i = 0; i < NS.FROST_MAX; i++) { NS.hurtMob(m, 1, 0, 0, P.x, P.y); layers.push(m.frost | 0); }
+  ok(layers[0] === 1 && m.frozen > 0,
+    `打 ${NS.FROST_MAX} 下叠满就冻（层数 ${layers.join('→')}，冻 ${m.frozen.toFixed(1)}s）`);
+
+  // 冻住的时候真的不动
+  const x0 = m.x, y0 = m.y;
+  for (let f = 0; f < 30; f++) NS.update(1 / 60);
+  ok(Math.hypot(m.x - x0, m.y - y0) < 1, '冻住期间一步都不走');
+  for (let f = 0; f < 120; f++) NS.update(1 / 60);
+  ok(Math.hypot(m.x - x0, m.y - y0) > 1, '一秒之后解冻，又动起来');
+
+  // 最关键的一条：冻结要能【打断起手动作】。这是它存在的理由。
+  NS.start(171);
+  const G2 = NS.G, P2 = NS.P;
+  G2.budget = 0; G2.waveT = 999; G2.mobs.length = 0;
+  NS.takeUpgrade(NS.UPGRADES.find(u => u.id === 'slow'));
+  NS.spawn('boss2'); const b = G2.mobs[0]; b.hp = 1e6; b.max = 1e6;
+  b.x = P2.x + 200; b.y = P2.y;
+  let wound = false;
+  for (let f = 0; f < 1200; f++) { NS.update(1 / 60); if ((b.chg || 0) > 0 || (b.wind || 0) > 0) { wound = true; break; } }
+  ok(wound, '拆解臂进入了蓄力/冲撞');
+  for (let i = 0; i < NS.FROST_MAX; i++) NS.hurtMob(b, 1, 0, 0, P2.x, P2.y);
+  ok(b.frozen > 0 && !(b.chg > 0) && !(b.wind > 0),
+    '冻住把蓄力打断了 —— 这是全游戏第一个能打断起手的东西');
+
+  // 霜不许无限续：冻着的时候不再叠层
+  const f0 = b.frozen;
+  for (let i = 0; i < 9; i++) NS.hurtMob(b, 1, 0, 0, P2.x, P2.y);
+  ok(b.frozen <= f0, '冻着的时候再打也不会续冻 —— 否则就是永久锁死');
+
+  // 雷：把电弧链和静电场收进同一条规则，伤害向旁边再跳一次
+  NS.start(172);
+  const G3 = NS.G, P3 = NS.P;
+  G3.budget = 0; G3.waveT = 999; G3.mobs.length = 0;
+  NS.takeUpgrade(NS.UPGRADES.find(u => u.id === 'aura'));
+  NS.spawn('grunt'); NS.spawn('grunt');
+  G3.mobs.forEach(x => { x.hp = 1e5; x.max = 1e5; });
+  const R = 22 + P3.aura * 1.5;
+  for (let f = 0; f < 60; f++) {
+    G3.mobs[0].x = P3.x + 16; G3.mobs[0].y = P3.y;
+    G3.mobs[1].x = P3.x + R + 34; G3.mobs[1].y = P3.y;   // 明确在场外
+    NS.update(1 / 60);
+  }
+  ok(G3.mobs[1].hp < 1e5,
+    `静电场圈外的也挨到了（圈半径 ${R.toFixed(0)}，它在 ${(R + 34).toFixed(0)}px）—— 靠雷跳过去`);
+  ok(NS.UPGRADES.find(u => u.id === 'aura').elem === 'volt'
+    && NS.WEAPONS.arc.elem === 'volt', '静电场和电弧链都归到雷');
+
+  // 看得见：霜和冻结不能只有数据层的变化
+  ok(/m\.frost > 0 && !\(m\.frozen > 0\)/.test(html), '挂霜有自己的画法');
+  ok(/if \(m\.frozen > 0\) \{[\s\S]{0,200}strokeRect/.test(html),
+    '冻住画成一圈方框 —— 用形状不用颜色（泛光会把颜色洗白，这仓库栽过四次）');
+}
+
+// ---- 66) 解锁条件要查得到 ----
+// 被问「怎么看每一个的解锁条件」。当时整个游戏只有一行「下一个解锁：…」，
+// 一次一条 —— 而里程碑已经三十多条，「我想要那把枪，得做什么」完全无从查起。
+console.log('解锁清单');
+{
+  const fresh = () => { for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+    Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf(); };
+  fresh();
+  const h = NS.milesHTML();
+  // 一、三十多条一条都不许漏
+  ok((h.match(/class="mrow/g) || []).length === NS.MILES.length,
+    `清单列全了 ${NS.MILES.length} 条里程碑`);
+  NS.MILES.forEach(m => {
+    if (h.indexOf(m.n) < 0) ok(false, `${m.n} 不在清单里`);
+  });
+  ok(NS.MILES.every(m => h.indexOf(m.d) > -1), '每一条的解锁条件都写出来了');
+
+  // 二、分类是从 id 前缀推的，加新里程碑自动归位 —— 不用在每条上手写一遍
+  ok(NS.mileCat('w_x') === '武 器' && NS.mileCat('s_x') === '涂 装'
+    && NS.mileCat('p_x') === '宠 物' && NS.mileCat('zzz') === '其 它',
+    '分类从 id 前缀推，加新的自动归位');
+  const cats = [...new Set(NS.MILES.map(m => NS.mileCat(m.id)))];
+  ok(cats.length >= 5, `分成了 ${cats.length} 类：${cats.join(' ')}`);
+
+  // 三、进度是算出来的，不是「累计拆解 400 个」这种干巴巴一句话
+  const withProg = NS.MILES.filter(m => NS.mileProg(m));
+  ok(withProg.length >= NS.MILES.length * .8,
+    `${withProg.length}/${NS.MILES.length} 条能算出「还差多少」`);
+  NS.PROF.kills = 128;
+  const arc = NS.MILES.find(m => m.id === 'w_arc');
+  const pg = NS.mileProg(arc);
+  ok(pg && pg.now === 128 && pg.need === 400,
+    `进度真的跟着档案走（电弧链 ${pg ? pg.now + '/' + pg.need : '算不出'}）`);
+  // 已经够了就不该还显示进度条
+  NS.PROF.kills = 9999; NS.checkMiles();
+  ok(NS.PROF.unlocked.w_arc && NS.milesHTML().indexOf('class="mrow got"') > -1,
+    '解锁了的单独标出来，不再显示进度条');
+
+  // 四、点得开、关得掉，而且跟据点一样要把标题页收起来
+  fresh();
+  NS.showMiles(true);
+  ok(byId('mileBox').classList.contains('show') && !byId('title').classList.contains('show'),
+    '打开清单时标题页收起来');
+  ok(byId('mileBody').innerHTML.length > 500, '内容是打开时才生成的');
+  NS.showMiles(false);
+  ok(!byId('mileBox').classList.contains('show') && byId('title').classList.contains('show'),
+    '关掉之后回标题页');
+  // 入口必须在标题页上点得到
+  ok(/data-act="miles"/.test(byId('prof').innerHTML), '标题页上有进这张清单的入口');
+
+  // 五、老规矩：每条里程碑发的都得是新内容或新难度，不是数值加成
+  ok(NS.MILES.every(m => /卡池|词条|底座|涂装|危险等级|宠物/.test(m.n)),
+    '清单里每一条发的都是新东西或新难度 —— 没有一条是数值加成');
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');

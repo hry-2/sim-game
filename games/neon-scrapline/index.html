@@ -383,6 +383,39 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   /* 玩法说明。被问过一串「X 是什么意思 / Y 在哪看」—— 单独答一条是补丁，
      得有一处从头讲清楚「这游戏怎么玩」，而且要说人话：
      不用「整合度」「义体等级」这种游戏内造词开头，先说它是血和等级。 */
+  #mileBox{
+    position:absolute;inset:0;display:none;align-content:start;justify-items:center;
+    background:#05070e;padding:18px 16px 20px;pointer-events:auto;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  }
+  #mileBox.show{display:grid}
+  #mileBox .head{font-family:var(--disp);font-size:13px;color:var(--amber);
+    text-shadow:0 0 14px rgba(255,179,71,.5);margin-bottom:10px}
+  #mileBody{max-width:560px;width:100%;font-size:10px}
+  .mhint{color:#6e7f9e;line-height:1.7;margin-bottom:12px}
+  .mhint b{color:var(--amber);font-weight:600}
+  .mcat{font-family:var(--disp);font-size:9px;color:#54648a;letter-spacing:.16em;margin:12px 0 5px}
+  .mrow{display:flex;align-items:center;gap:8px;padding:5px 9px;margin-bottom:3px;
+    background:rgba(12,18,30,.7);border:1px solid #22304f}
+  .mrow .mn{color:#cfe8ff;white-space:nowrap;min-width:104px}
+  .mrow .md{color:#6e7f9e;flex:1;line-height:1.4}
+  /* 进度条比一句「累计拆解 400 个」有用得多 —— 差多少一眼看得见 */
+  .mrow .mbar{position:relative;width:46px;height:4px;flex:none;
+    background:#141d33;border:1px solid #243450}
+  .mrow .mbar > i{position:absolute;inset:0;display:block;background:var(--amber)}
+  .mrow .mnum{color:#8fa4c6;min-width:56px;text-align:right;font-family:var(--disp);font-size:9px}
+  .mrow.got{border-color:#2a4a2a;background:rgba(14,24,14,.5)}
+  .mrow.got .mn{color:var(--tox)} .mrow.got .mnum{color:#3f5a3f}
+  .milebtn{font:inherit;font-size:10px;letter-spacing:.06em;color:#ffb03a;
+    background:rgba(20,14,4,.6);border:1px solid #4a3a18;padding:6px 12px;cursor:pointer}
+  .milebtn:hover{border-color:var(--amber);color:#ffd08a}
+  body.touch .milebtn{min-height:40px;padding:10px 16px}
+  body.touch #mileBox .chip{min-height:40px;padding:11px 20px}
+  body.touch #mileBox .sbtns{
+    position:sticky;bottom:-20px;z-index:2;justify-self:stretch;
+    display:flex;justify-content:center;padding:12px 0 20px;margin-top:4px;
+    background:linear-gradient(rgba(5,7,14,0),#05070e 30%,#05070e);
+  }
   #howBox{
     position:absolute;inset:0;display:none;align-content:start;justify-items:center;
     /* 不透明。半透明的时候标题页那行发光的大字直接透上来压在正文第一段上 */
@@ -780,6 +813,12 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     <div class="build" id="buildUp"></div>
   </div>
 
+  <div id="mileBox">
+    <div class="head">解 锁 清 单</div>
+    <div id="mileBody"></div>
+    <div class="sbtns"><button class="chip" id="mileBack">返 回</button></div>
+  </div>
+
   <div id="howBox">
     <div class="head">怎 么 玩</div>
     <div id="howBody"></div>
@@ -978,7 +1017,7 @@ function setArena(i, announce) {
   genScenery();
   if (P) {
     G.mobs.length = 0; G.ebullets.length = 0; G.bullets.length = 0; G.drops.length = 0;
-    G.mines.length = 0; G.discs.length = 0;
+    G.mines.length = 0; G.discs.length = 0; G.zones.length = 0;
     P.x = A.w / 2; P.y = A.h / 2;
     G.cam.x = camAt(P.x - VW / 2, A.w, VW);
     G.cam.y = camAt(P.y - VH / 2, A.h, VH);
@@ -1349,24 +1388,109 @@ const GRID = {
       '..KK........',
     ],
   ],
-  gun_saw: [
+  gun_dust: [
     [
       '..KK........',
-      '.KGGK.KTKTK.',
-      'KGLLGKTTTTTK',
-      'KGLLLLTTTTTT',
-      'KGLLGKTTTTTK',
-      '.KGGK.KTKTK.',
+      '.KGGK.......',
+      'KGLLGKKYKYK.',
+      'KGLLLLYYYYYY',
+      'KGLLGKKYKYK.',
+      '.KGGK.......',
       '..KK........',
     ],
+  ],
+  gun_pool: [
     [
       '..KK........',
-      '.KGGK.TKTKT.',
-      'KGLLGKTTTTTK',
-      'KGLLLLTTTTTT',
-      'KGLLGKTTTTTK',
-      '.KGGK.TKTKT.',
+      '.KGGKKOOOK..',
+      'KGLLGOYYYOK.',
+      'KGLLLOYYYOKK',
+      'KGLLGOYYYOK.',
+      '.KGGKKOOOK..',
       '..KK........',
+    ],
+  ],
+  gun_grav: [
+    [
+      '..KK..KPPK..',
+      '.KGGKKP..PK.',
+      'KGLLGP....PK',
+      'KGLLLP....PK',
+      'KGLLGP....PK',
+      '.KGGKKP..PK.',
+      '..KK..KPPK..',
+    ],
+  ],
+  gun_spike: [                                         // 嬗刺：一根扎出去的尖
+    [
+      '..KK........',
+      '.KGGK.......',
+      'KGLLGKKYK...',
+      'KGLLLLYYYYYK',
+      'KGLLGKKYK...',
+      '.KGGK.......',
+      '..KK........',
+    ],
+  ],
+  gun_lane: [                                          // 熔道：一排喷口
+    [
+      '..KK........',
+      '.KGGKOKOKOK.',
+      'KGLLGOYOYOYK',
+      'KGLLLOYOYOYO',
+      'KGLLGOYOYOYK',
+      '.KGGKOKOKOK.',
+      '..KK........',
+    ],
+  ],
+  gun_push: [                                          // 斥力：外扩的环
+    [
+      '..KK..K..K..',
+      '.KGGK.KP.KP.',
+      'KGLLGKPP.PP.',
+      'KGLLLPPPPPPP',
+      'KGLLGKPP.PP.',
+      '.KGGK.KP.KP.',
+      '..KK..K..K..',
+    ],
+  ],
+  w_vial: [
+    [
+      'KYK',
+      'KWK',
+      'KYK',
+      'KKK',
+    ],
+  ],
+  w_crucible: [                                        // 熔金：背后的坩埚
+    [
+      'KOOOK',
+      'OYYYO',
+      'OYYYO',
+      'KOOOK',
+      '.KOK.',
+    ],
+  ],
+  w_ring: [                                            // 引力：背后的环
+    [
+      'KPPPK',
+      'PK.KP',
+      'P...P',
+      'PK.KP',
+      'KPPPK',
+    ],
+  ],
+  gun_guard: [                                         // 力场盾：一块竖着的盾牌，前面一层力场
+    [
+      '.....KKK....',
+      '..KKKPPPK...',
+      '.KGGKPWWPK..',
+      'KGLLKPWWPK.P',
+      'KGLLKPWWPK.P',
+      'KGLLKPWWPK.P',
+      '.KGGKPWWPK..',
+      '..KKKPPPK...',
+      '.....KKK....',
     ],
   ],
   // 身上的挂件
@@ -2536,7 +2660,7 @@ const G = {
   score: 0, kills: 0, wave: 0, waveT: 0, phase: 'break', spawnT: 0, budget: 0,
   combo: 0, comboT: 0,
   bullets: [], ebullets: [], mobs: [], parts: [], drops: [], beams: [], arcs: [], slashes: [],
-  mines: [], discs: [],
+  mines: [], discs: [], zones: [],
   wepDmg: {}, deathBy: null, bossKills: 0, coreKills: 0, tankKills: 0, buffs: {}, mod: null, eliteKills: 0,
   overheat: 0, won: false, seen: {}, seenAff: {}, tipQ: [], tipT: 0, unlockedDanger: null, waveMax: 0, rerolls: 0,
   pityDone: 0, pet: null, escorts: [], lvQ: 0,
@@ -2569,15 +2693,15 @@ function newPlayer() {
    五把枪改的是【怎么打】，不是数值大小。词条还是词条，作用在倍率上，
    所以换枪不会把攒下来的强化清掉。 */
 const WEAPONS = {
-  pulse: { n:'脉冲步枪', s:'脉冲', ic:'>',  kind:'bullet', rate:4.2, dmg:11, count:1, spread:.05, bspd:265, range:1.05,
+  pulse: { n:'脉冲步枪', s:'脉冲', ic:'>',  kind:'bullet', slot:'range', rate:4.2, dmg:11, count:1, spread:.05, bspd:265, range:1.05,
     col:'69,240,255', d:'中速单发。没有短板，也没有长处' },
-  shot:  { n:'霰弹枪',   s:'霰弹', ic:'*',  kind:'bullet', rate:1.5, dmg:6,  count:7, spread:.34, bspd:230, range:.42,
+  shot:  { n:'霰弹枪',   s:'霰弹', ic:'*',  kind:'bullet', slot:'range', rate:1.5, dmg:6,  count:7, spread:.34, bspd:230, range:.42,
     col:'255,157,61', d:'一次七发扇形。贴脸撕开一片，远了什么都打不到' },
-  rail:  { n:'磁轨枪',   s:'磁轨', ic:'=',  kind:'rail',   rate:.62, dmg:44, reach:260,
+  rail:  { n:'磁轨枪',   s:'磁轨', ic:'=',  kind:'rail', slot:'range',   rate:.62, dmg:44, reach:260,
     col:'164,92,255', d:'一击穿透整条线上所有敌人。慢，要预判他们排队' },
-  arc:   { n:'电弧链',   s:'电弧', ic:'~',  kind:'arc',    rate:2.8, dmg:7,  chain:3, reach:56,
+  arc:   { n:'电弧链',   s:'电弧', ic:'~',  kind:'arc', slot:'range', elem:'volt', rate:2.8, dmg:7,  chain:3, reach:56,
     col:'124,255,79', d:'自动跳到最近的敌人，连锁三次。不用瞄，但伤害低' },
-  nade:  { n:'榴弹',     s:'榴弹', ic:'o',  kind:'nade',   rate:1.05, dmg:15, splash:32, bspd:150, range:.9,
+  nade:  { n:'榴弹',     s:'榴弹', ic:'o',  kind:'nade', slot:'range',   rate:1.05, dmg:15, splash:32, bspd:150, range:.9,
     col:'255,224,102', d:'落地爆炸，能越过前排。站太近会炸到自己' },
   // 近战。不能只是"射程为 0 的枪"—— 敌人靠碰撞伤人，所以贴上去这件事本身有代价。
   // 补偿写进武器里：一刀砍一片、命中击退、命中回一点血。
@@ -2585,13 +2709,13 @@ const WEAPONS = {
   //   光束：单体最快，但必须一直跟住；成群最废
   //   布雷：不用瞄，改成算他们会走哪
   //   回旋：飞出去再飞回来，来回各穿一次，逼你把人站成一条线
-  beam:  { n:'熔切光束', s:'光束', ic:'|',  kind:'beam',   rate:16, dmg:4.2, reach:150,
+  beam:  { n:'熔切光束', s:'光束', ic:'|',  kind:'beam', slot:'range',   rate:16, dmg:4.2, reach:150,
     col:'69,240,255', d:'按住就是一条线，只咬住最前面那一个。单体最快，成群最废' },
-  mine:  { n:'布雷器',   s:'布雷', ic:'#',  kind:'mine',   rate:1.1, dmg:40, splash:38,
+  mine:  { n:'布雷器',   s:'布雷', ic:'#',  kind:'mine', slot:'range',   rate:1.1, dmg:40, splash:38,
     col:'255,157,61', d:'脚下放雷，半秒后待发，踩到就炸。不用瞄，改成算他们会走哪' },
-  disc:  { n:'回旋刃',   s:'回旋', ic:'0',  kind:'disc',   rate:1.5, dmg:20, reach:170, bspd:235,
+  disc:  { n:'回旋刃',   s:'回旋', ic:'0',  kind:'disc', slot:'range',   rate:1.5, dmg:20, reach:170, bspd:235,
     col:'124,255,79', d:'飞出去再飞回来，来回各穿一次。站得让他们排成一条线' },
-  blade: { n:'振动刀',   s:'振刀', ic:'/',  kind:'melee',  rate:2.4, dmg:26, reach:42, arc:110, knock:150, heal:0.8,
+  blade: { n:'振动刀',   s:'振刀', ic:'/',  kind:'melee', slot:'melee',  rate:2.4, dmg:26, reach:42, arc:110, knock:150, heal:0.8,
     col:'69,240,255', d:'身前扇形一刀砍一片，命中击退并回一点血。但你得贴上去' },
   // 近战原来只有一把，而近战最难的从来不是「砍」，是「怎么贴上去」和「贴上去之后怎么活」。
   // 这两把各解一个，而且解法互相排斥：
@@ -2599,16 +2723,55 @@ const WEAPONS = {
   //         冲进爆囊堆里是自己的问题。
   //   链锯：贴住不放，咬住同一个越磨越疼。刻意【不带击退】——
   //         振动刀是把人推开腾空间，链锯反过来要他们别走，两把的走位是相反的。
-  lance: { n:'冲锋撞角', s:'撞角', ic:'^^', kind:'lunge', rate:1.15, dmg:34, reach:30, arc:70, dash:118, iframe:.22,
+  lance: { n:'冲锋撞角', s:'撞角', ic:'^^', kind:'lunge', slot:'melee', rate:1.15, dmg:34, reach:30, arc:70, dash:118, iframe:.22,
     col:'255,157,61', d:'按一下冲出去，冲的那一下无敌、撞到谁伤谁。方向按下就改不了' },
-  // heal 是后加的，不是配平数值：链锯不带击退，而振动刀靠「击退 + 命中回血」
-  //   才能在人堆里活下来。两样都没有的话它只是一把站在绞肉机里的短刀 ——
-  //   实测八个种子全死在第 3 波，而它的单体 DPS（116）跟熔切光束（126）同级。
-  //   所以补的是【生存手段】，而且要跟它的身份对上：越磨越疼，也越磨越回血。
-  saw:   { n:'裂解链锯', s:'链锯', ic:'%%', kind:'grind', rate:11, dmg:2.6, reach:32, arc:64, ramp:.09, rampMax:2.4, heal:.22,
-    col:'124,255,79', d:'贴住不放，咬住同一个越磨越疼、也越磨越回血。不击退 —— 你要他留在锯上' },
+  // 第二把近战是量出来的，不是想出来的。
+  // 先做的是「裂解链锯」：贴住不放、越磨越疼。八个种子平均只到第 4 波，
+  // 补回血、加拖拽、改拖拽范围，改到第 7.6 波还是远低于基准 18.3。
+  // 又做了一次 A/B：让机器人【咬住同一个不放】反而更差（7.6 → 4.6）——
+  // 说明不是量具不会用，是方向错了：单体输出在一个「威胁来自人群」的游戏里换不到生存。
+  // 于是撤掉，改做数据真正指出来的那个问题 ——
+  // 近战的死因从来不是打不动，是【够不着的远程】：哨戒无人机停在 92px、钉枪手 220px。
+  // 力场盾不解决「够得着」（那是撞角的活），它解决「够不着的时候怎么活着走过去」：
+  // 面朝哪边就挡住哪边的子弹，这是铁闸那套机制的镜像，玩家从敌人那边已经认识它了。
+  // 数值上跟振动刀是一组明确的交换，不是「刀 + 一个白送的盾」：
+  //   振动刀 2.4×26 = 62 DPS，靠命中回血在人堆里续命；
+  //   力场盾 1.9×28 = 53 DPS，不回血，靠挡弹和更强的击退活。
+  // 第一版写的是 1.4×22 = 31 DPS，只有刀的一半 —— 盾再好也换不回来，实测只到第 6.5 波。
+  guard: { n:'力场盾', s:'力盾', ic:'[]', kind:'guard', slot:'melee', rate:2.2, dmg:30, reach:38, arc:100, knock:210, block:120,
+    col:'164,92,255', d:'挥击之间一直举着盾：正面 100° 的子弹直接弹开。挡不住撞上来的人' },
+  /* ---- 炼金的三种属性 ----
+     属性不是伤害类型倍率（那是纯数值，这游戏不走那条路），
+     而是【区域效果】+【子弹穿过它时被附上什么】。
+     后半句是这一路能成立的关键：你永远带着一把远程枪，
+     所以「先摆一块地，再往里面打」是一个随时可用的组合 ——
+     炼金从此不是「第三把伤害更低的枪」，是给另外两把摆盘的那一层。 */
+  /* ---- 炼金：第三条路 ----
+     它不该是「射程远一点的枪」。远程的节奏是持续瞄准，近战是走位，
+     炼金这一条给的是【冷却 + 改变战场】：一下下地放，每一下都不是为了直接杀人 ——
+     嬗变是为了收，熔金是为了划地盘，引力是为了把人聚起来给别的武器打。
+     所以它们的 rate 都很低（1.4~2.5 秒一发），伤害也低，价值在后果上。 */
+  // 半径参照物：榴弹的爆炸是 32、布雷器 38。第一版写了 46~96，
+  // 在 320×180 的画布上三个圈能铺满大半屏 —— 那不是「一块地」，那是天气。
+  dust:  { n:'嬗变之尘', s:'嬗变', ic:'**', kind:'alch', slot:'magic', elem:'trans', rate:.55, dmg:6, splash:38, life:4.2, bspd:150, range:.85,
+    col:'255,224,102', d:'撒一片金雾，雾里的敌人被拆解时掉双倍废钢和零件。它不负责杀，负责收' },
+  pool:  { n:'熔金池',   s:'熔金', ic:'::', kind:'alch', slot:'magic', elem:'molten', rate:.42, dmg:11, splash:34, life:6.5, bspd:130, range:.8, slowZone:.45,
+    col:'255,157,61', d:'在地上浇一滩熔金，站进去的持续掉血还变慢。划出一块他们不敢走的地' },
+  grav:  { n:'引力核',   s:'引力', ic:'()', kind:'alch', slot:'magic', elem:'grav', rate:.5, dmg:4, splash:58, life:2.2, bspd:180, range:.9, pullZone:150,
+    col:'164,92,255', d:'扔出一颗核，两秒内把周围的敌人全拽向它。自己不杀人 —— 它是给别的武器摆盘的' },
+  /* 每种属性的第二种【投法】。属性一样，递送方式完全不同 ——
+     扔出去一块地是「你选一个点」，下面这三把是「你选一个方向 / 一个身位」。
+     同属性两把只能带一把（一个炼金槽），所以这是真正的二选一。 */
+  spike: { n:'嬗变之刺', s:'嬗刺', ic:'*|', kind:'brand', slot:'magic', elem:'trans', rate:1.1, dmg:10, reach:52, arc:44, brand:5,
+    col:'255,224,102', d:'向前扎一道金痕，扎中的挂五秒嬗变印记 —— 之后谁杀的都算双倍' },
+  lane:  { n:'熔金道',   s:'熔道', ic:'==', kind:'lane', slot:'magic', elem:'molten', rate:.5, dmg:9, reach:150, splash:15, life:4.5,
+    col:'255,157,61', d:'脚下往前烧出一条线，连成一道墙。挡路的不是伤害，是他们不敢走' },
+  push:  { n:'斥力环',   s:'斥力', ic:')(', kind:'burst', slot:'magic', elem:'grav', rate:.8, dmg:8, splash:64, knock:340,
+    col:'164,92,255', d:'以自己为中心炸开一圈，把所有人推出去。引力核聚人，它反过来 —— 救命用的' },
 };
-const WEP_ORDER = ['pulse', 'shot', 'rail', 'arc', 'nade', 'blade', 'lance', 'saw', 'beam', 'mine', 'disc'];
+const WEP_ORDER = ['pulse', 'shot', 'rail', 'arc', 'nade', 'beam', 'mine', 'disc',
+  'blade', 'lance', 'guard',
+  'dust', 'spike', 'pool', 'lane', 'grav', 'push'];
 
 /* ================= 词条 ================= */
 const UPGRADES = [
@@ -2620,12 +2783,12 @@ const UPGRADES = [
   { id:'hp',    n:'纳米修复', ic:'+',  d:'生命上限 +25，并立即回满', max:5, rare:0, f:p=>{p.maxhp+=25;p.hp=p.maxhp;} },
   { id:'mag',   n:'磁力回收', ic:'( )',d:'核心拾取范围 +70%', max:3, rare:0, f:p=>p.pickR*=1.7 },
   { id:'shield',n:'反应护盾', ic:'[]', d:'20% 概率完全免伤', max:3, rare:1, f:p=>p.shield+=.2 },
-  { id:'slow',  n:'冷凝弹头', ic:'*',  d:'命中使敌人减速 40%', max:2, rare:0, f:p=>p.slow+=.4 },
+  { id:'slow',  n:'冷凝弹头', ic:'*',  d:'命中挂霜并减速 40%，叠满三层冻住一秒', max:2, rare:0, elem:'frost', f:p=>p.slow+=.4 },
   { id:'boom',  n:'爆裂核心', ic:'@',  d:'击杀时引发范围爆炸', max:3, rare:1, f:p=>p.explode+=1 },
   { id:'leech', n:'血肉汲取', ic:'v',  d:'击杀回复 4 点生命', max:3, rare:0, f:p=>p.lifesteal+=4 },
   { id:'dash',  n:'幽灵冲刺', ic:'~',  d:'冲刺 CD -35%，冲刺撞击造成伤害', max:2, rare:1, f:p=>{p.dashCd*=.65;p.dashDmg+=28;} },
   { id:'lens',  n:'弹幕透镜', ic:'=',  d:'弹速 +30%，射程 +25%', max:3, rare:0, f:p=>{p.mul.bspd*=1.3;p.mul.range*=1.25;equip(p.wep);} },
-  { id:'aura',  n:'静电场',   ic:'#',  d:'身周持续放电伤害', max:3, rare:1, f:p=>p.aura+=9 },
+  { id:'aura',  n:'静电场',   ic:'#',  d:'身周持续放电，并向旁边跳一次', max:3, rare:1, elem:'volt', f:p=>p.aura+=9 },
   { id:'crit',  n:'暴击回路', ic:'!',  d:'15% 概率造成 3 倍伤害', max:3, rare:1, f:p=>p.crit+=.15 },
   // 下面四条刻意都改【机制】而不是加数值 —— 数值那条线已经够长了，
   // 再堆只会让选牌变成「哪个加得多」。
@@ -2639,16 +2802,22 @@ const UPGRADES = [
   { id:'escort',n:'护 航 无 人 机', ic:'oo', d:'召来一架跟班，绕着你转、自己找最近的打', max:3, rare:1, from:4,
     f:p=>{ G.escorts.push({ a: G.escorts.length * TAU / 3, x: p.x, y: p.y, cd: .6, fx: 0 }); } },
   // 换装卡：拿到就永久带着，Q 键在带着的枪之间切
-  { id:'w_shot', n:'霰弹枪',   ic:'*', d:WEAPONS.shot.d, max:1, rare:1, wep:'shot', req:'w_shot', f:p=>equip('shot') },
-  { id:'w_rail', n:'磁轨枪',   ic:'=', d:WEAPONS.rail.d, max:1, rare:1, wep:'rail', req:'w_rail', f:p=>equip('rail') },
-  { id:'w_arc',  n:'电弧链',   ic:'~', d:WEAPONS.arc.d,  max:1, rare:1, wep:'arc', req:'w_arc',  f:p=>equip('arc') },
-  { id:'w_nade', n:'榴弹',     ic:'o', d:WEAPONS.nade.d, max:1, rare:1, wep:'nade', req:'w_nade', f:p=>equip('nade') },
-  { id:'w_blade',n:'振动刀',   ic:'/', d:WEAPONS.blade.d, max:1, rare:1, wep:'blade', req:'w_blade', f:p=>equip('blade') },
-  { id:'w_beam', n:'熔切光束', ic:'|', d:WEAPONS.beam.d,  max:1, rare:1, wep:'beam', req:'w_beam', f:p=>equip('beam') },
-  { id:'w_mine', n:'布雷器',   ic:'#', d:WEAPONS.mine.d,  max:1, rare:1, wep:'mine', req:'w_mine', f:p=>equip('mine') },
-  { id:'w_disc', n:'回旋刃',   ic:'0', d:WEAPONS.disc.d,  max:1, rare:1, wep:'disc', req:'w_disc', f:p=>equip('disc') },
-  { id:'w_lance',n:'冲锋撞角', ic:'^^', d:WEAPONS.lance.d, max:1, rare:1, wep:'lance', req:'w_lance', f:p=>equip('lance') },
-  { id:'w_saw',  n:'裂解链锯', ic:'%%', d:WEAPONS.saw.d,   max:1, rare:1, wep:'saw',   req:'w_saw',   f:p=>equip('saw') },
+  { id:'w_shot', n:'霰弹枪',   ic:'*', d:WEAPONS.shot.d, max:1, rare:1, wep:'shot', req:'w_shot', f:p=>gainWep('shot') },
+  { id:'w_rail', n:'磁轨枪',   ic:'=', d:WEAPONS.rail.d, max:1, rare:1, wep:'rail', req:'w_rail', f:p=>gainWep('rail') },
+  { id:'w_arc',  n:'电弧链',   ic:'~', d:WEAPONS.arc.d,  max:1, rare:1, wep:'arc', req:'w_arc',  f:p=>gainWep('arc') },
+  { id:'w_nade', n:'榴弹',     ic:'o', d:WEAPONS.nade.d, max:1, rare:1, wep:'nade', req:'w_nade', f:p=>gainWep('nade') },
+  { id:'w_blade',n:'振动刀',   ic:'/', d:WEAPONS.blade.d, max:1, rare:1, wep:'blade', req:'w_blade', f:p=>gainWep('blade') },
+  { id:'w_beam', n:'熔切光束', ic:'|', d:WEAPONS.beam.d,  max:1, rare:1, wep:'beam', req:'w_beam', f:p=>gainWep('beam') },
+  { id:'w_mine', n:'布雷器',   ic:'#', d:WEAPONS.mine.d,  max:1, rare:1, wep:'mine', req:'w_mine', f:p=>gainWep('mine') },
+  { id:'w_disc', n:'回旋刃',   ic:'0', d:WEAPONS.disc.d,  max:1, rare:1, wep:'disc', req:'w_disc', f:p=>gainWep('disc') },
+  { id:'w_lance',n:'冲锋撞角', ic:'^^', d:WEAPONS.lance.d, max:1, rare:1, wep:'lance', req:'w_lance', f:p=>gainWep('lance') },
+  { id:'w_guard',n:'力场盾',   ic:'[]', d:WEAPONS.guard.d, max:1, rare:1, wep:'guard', req:'w_guard', f:p=>gainWep('guard') },
+  { id:'w_dust', n:'嬗变之尘', ic:'**', d:WEAPONS.dust.d,  max:1, rare:1, wep:'dust',  req:'w_dust',  f:p=>gainWep('dust') },
+  { id:'w_pool', n:'熔金池',   ic:'::', d:WEAPONS.pool.d,  max:1, rare:1, wep:'pool',  req:'w_pool',  f:p=>gainWep('pool') },
+  { id:'w_grav', n:'引力核',   ic:'()', d:WEAPONS.grav.d,  max:1, rare:1, wep:'grav',  req:'w_grav',  f:p=>gainWep('grav') },
+  { id:'w_spike',n:'嬗变之刺', ic:'*|', d:WEAPONS.spike.d, max:1, rare:1, wep:'spike', req:'w_spike', f:p=>gainWep('spike') },
+  { id:'w_lane', n:'熔金道',   ic:'==', d:WEAPONS.lane.d,  max:1, rare:1, wep:'lane',  req:'w_lane',  f:p=>gainWep('lane') },
+  { id:'w_push', n:'斥力环',   ic:')(', d:WEAPONS.push.d,  max:1, rare:1, wep:'push',  req:'w_push', f:p=>gainWep('push') },
   // 下面三条要先在档案里解锁才会进池。都带代价 —— 纯加强的卡不会被记住。
   { id:'u_cap',    n:'过载电容', ic:'!!', d:'射速 +45%，但生命上限 -15', max:3, rare:1, req:'u_cap',
     f:p=>{ p.mul.rate*=1.45; p.maxhp-=15; p.hp=Math.min(p.hp,p.maxhp); equip(p.wep); } },
@@ -3073,8 +3242,8 @@ function runReport() {
 const PROF_KEY = 'ns.prof';
 const PROF_DEF = { scrap: 0, scrapTotal: 0, kills: 0, runs: 0, bestWave: 0, wins: 0, coreKills: 0, seen: {},
   pet: null, dogPart: null,
-  parts: {}, price: {}, fame: 60, mkt: null, sold: 0, earned: 0,
-  ingot: 0, base: {}, mods: {}, modsOn: {}, pity: [],
+  parts: {}, price: {}, fame: 60, fameMax: 60, mkt: null, sold: 0, earned: 0,
+  ingot: 0, ingotTotal: 0, base: {}, mods: {}, modsOn: {}, pity: [],
   danger: 0, dangerMax: 0,
   bossKills: 0, tankKills: 0, unlocked: {}, bought: {}, wep: 'pulse', chassis: 'std', skin: 'std' };
 function loadProf() {
@@ -3170,7 +3339,15 @@ const MILES = [
   // 两把新近战。解锁条件照旧是「先把那种打法预演一遍」：
   // 撞角要你先敢往前冲（近身拆重装机甲），链锯要你能在人堆里活下来（连杀）。
   { id: 'w_lance', d: '近身拆掉 25 台重装机甲', n: '冲锋撞角进卡池', ok: p => p.tankKills >= 25 },
-  { id: 'w_saw',   d: '累计拆解 900 个',        n: '裂解链锯进卡池', ok: p => p.kills >= 900 },
+  { id: 'w_guard', d: '累计拆解 900 个',        n: '力场盾进卡池',   ok: p => p.kills >= 900 },
+  // 炼金这一路的解锁全挂在【经营】那头 —— 它本来就是从据点那条链长出来的
+  { id: 'w_dust',  d: '卖出 40 件货',           n: '嬗变之尘进卡池', ok: p => (p.sold | 0) >= 40 },
+  { id: 'w_pool',  d: '累计炼出 20 块精炼钢',   n: '熔金池进卡池',   ok: p => (p.ingotTotal | 0) >= 20 },
+  { id: 'w_grav',  d: '做生意赚到 6000 废钢',   n: '引力核进卡池',   ok: p => (p.earned | 0) >= 6000 },
+  // 第二种投法的解锁比第一种深一档 —— 先摸熟这一属性，再给你另一种用法
+  { id: 'w_spike', d: '卖出 120 件货',          n: '嬗变之刺进卡池', ok: p => (p.sold | 0) >= 120 },
+  { id: 'w_lane',  d: '累计炼出 60 块精炼钢',   n: '熔金道进卡池',   ok: p => (p.ingotTotal | 0) >= 60 },
+  { id: 'w_push',  d: '名声满过一次（100）',    n: '斥力环进卡池',   ok: p => (p.fameMax | 0) >= 100 },
   { id: 'd_two',   d: '打穿一次 30 波',     n: '危险等级：高危', ok: p => (p.wins | 0) >= 1 },
   { id: 'd_all',   d: '在高危以上打穿一次', n: '危险等级：熔毁 / 归零', ok: p => (p.dangerMax | 0) >= 2 },
 ];
@@ -3295,6 +3472,7 @@ function openStore() {
   // 名声：卖出去加，赶走客人减。贪一次没事，一直贪就没人来了。
   const before = fame();
   PROF.fame = clamp(before + sold * 2 - walked * 3, 0, 100);
+  PROF.fameMax = Math.max(PROF.fameMax | 0, PROF.fame);  // 名声会掉，里程碑要认「最高到过多少」
   PROF.sold = (PROF.sold | 0) + sold;
   PROF.earned = (PROF.earned | 0) + earned;
   PROF.scrap += earned;
@@ -3350,6 +3528,9 @@ function refine(n) {
   if (can < 1) return 0;
   PROF.scrap -= can * r;
   PROF.ingot = (PROF.ingot | 0) + can;
+  // 累计炼过多少 —— 花掉的也算。熔金池那条里程碑要的是「你炼过这么多」，
+  // 不是「你手上还剩这么多」，后者会因为花钱而倒退。
+  PROF.ingotTotal = (PROF.ingotTotal | 0) + can;
   saveProf(); return can;
 }
 
@@ -3372,8 +3553,20 @@ const WMOD = {
     f: p => { p.bladeKick = 1; } },
   lance: { n: '穿 刺 尖 端', c: 5, d: '冲得更远、撞得更疼，但无敌时间砍半',
     f: p => { p.dash *= 1.45; p.dmg *= 1.3; p.iframe *= .5; } },
-  saw:   { n: '双 排 链 齿', c: 6, d: '锯面变宽能咬住两个，但越磨越疼的上限降到 1.5 倍',
-    f: p => { p.arc *= 1.9; p.rampMax = 1.5; } },
+  guard: { n: '广 角 力 场', c: 6, d: '挡弹扇形加宽到几乎一整圈，但挥击伤害砍半',
+    f: p => { p.block = 300; p.dmg *= .5; } },
+  dust:  { n: '催 化 剂',   c: 5, d: '金雾范围大一圈，但持续时间砍半',
+    f: p => { p.splash *= 1.5; p.zlife *= .5; } },
+  pool:  { n: '导 流 槽',   c: 5, d: '熔金摊得更薄更广，但每次灼烧伤害 -45%',
+    f: p => { p.splash *= 1.6; p.dmg *= .55; } },
+  grav:  { n: '临 界 核',   c: 6, d: '拽力翻倍，但持续只剩一半 —— 从「聚一会儿」变成「猛吸一下」',
+    f: p => { p.pullZone *= 2; p.zlife *= .5; } },
+  spike: { n: '深 蚀 尖',   c: 5, d: '印记延长到 12 秒，但扎中的范围窄一半',
+    f: p => { p.brand = 12; p.arc *= .5; } },
+  lane:  { n: '长 流 槽',   c: 5, d: '烧得更长，但每一段都更窄、灼伤更轻',
+    f: p => { p.reach *= 1.6; p.splash *= .7; p.dmg *= .7; } },
+  push:  { n: '反 冲 环',   c: 6, d: '推得更远，但你自己也被震退一段',
+    f: p => { p.knock *= 1.6; p.selfPush = 1; } },
   beam:  { n: '散 焦 透 镜', c: 6, d: '改成扫一个扇形能打到多个，但单体伤害减半',
     f: p => { p.beamWide = 1; p.dmg *= .5; } },
   mine:  { n: '遥 爆 模 块', c: 5, d: '雷不再自动触发，改成按开火键一起引爆',
@@ -3408,6 +3601,48 @@ function checkMiles() {
   return got;
 }
 function nextMile() { return MILES.find(m => !PROF.unlocked[m.id]) || null; }
+/* 解锁清单。原来整个游戏只有一行「下一个解锁：…」，一次一条 ——
+   而里程碑已经有三十多条，「我想要嬗变之刺，得做什么」完全无从查起。
+   分类从 id 前缀推，进度从条件里的那个统计量算 ——
+   两样都不用在每条里程碑上再手写一遍，加新的自动就跟上。 */
+const MILE_CAT = { w_: '武 器', s_: '涂 装', c_: '底 座', p_: '宠 物', u_: '词 条' };
+function mileCat(id) {
+  for (const k in MILE_CAT) if (id.indexOf(k) === 0) return MILE_CAT[k];
+  return '其 它';
+}
+// 条件写在 ok() 里（p => p.kills >= 400）。把里面的统计量名字和门槛读出来，
+// 就能显示「已经 128 / 400」而不是干巴巴一句「累计拆解 400 个」。
+function mileProg(m) {
+  const src = String(m.ok);
+  const f = src.match(/p\.(\w+)[^>]*>=\s*(\d+)/);
+  if (!f) return null;
+  const now = (PROF[f[1]] | 0), need = +f[2];
+  return { now: Math.min(now, need), need };
+}
+function milesHTML() {
+  const by = {};
+  for (const m of MILES) {
+    const c = mileCat(m.id);
+    (by[c] = by[c] || []).push(m);
+  }
+  const done = MILES.filter(m => PROF.unlocked[m.id]).length;
+  let h = `<div class="mhint">已解锁 <b>${done}</b> / ${MILES.length}。`
+    + '每一条给的都是<b>新东西</b>或<b>新难度</b> —— 没有一条是数值加成。</div>';
+  for (const c in by) {
+    h += `<div class="mcat">${c}</div>`;
+    h += by[c].map(m => {
+      const got = !!PROF.unlocked[m.id];
+      const pg = got ? null : mileProg(m);
+      const bar = pg
+        ? `<span class="mbar"><i style="width:${Math.round(pg.now / pg.need * 100)}%"></i></span>`
+          + `<span class="mnum">${pg.now} / ${pg.need}</span>`
+        : `<span class="mnum">${got ? '已 解 锁' : ''}</span>`;
+      return `<div class="mrow${got ? ' got' : ''}">`
+        + `<span class="mn">${m.n}</span><span class="md">${m.d}</span>${bar}</div>`;
+    }).join('');
+  }
+  return h;
+}
 if (checkMiles().length) saveProf();          // 读档补发
 // 一局结束：把这一局的战绩折进档案，然后看解锁了什么
 function bankRun() {
@@ -3527,11 +3762,17 @@ function syncProf() {
   h += '</div>';
   if (REDUCE) h += '<div class="prow next">系统里开了「减少动态效果」，震屏和辉光已默认关闭</div>';
   const nm = nextMile();
-  h += `<div class="prow next">${nm ? '下一个解锁：' + nm.d + ' → ' + nm.n : '全部解锁完了'}</div>`;
+  // 这一行原来只是个通知。点开就是全部 31 条 ——
+  // 「我想要那把枪，得做什么」不该只能靠一条一条解锁碰运气。
+  const doneN = MILES.filter(m => PROF.unlocked[m.id]).length;
+  h += `<div class="prow next"><button class="chip milebtn" data-act="miles">`
+    + `${nm ? '下一个解锁：' + nm.d + ' → ' + nm.n : '全部解锁完了'}`
+    + ` ｜ 全部 ${doneN}/${MILES.length} ▸</button></div>`;
   box.innerHTML = h;
   for (const b of box.querySelectorAll('.chip')) b.onclick = () => {
     const [k, ...rest] = b.dataset.act.split(':'); const v = rest.join(':');
     if (k === 'opt') { const [ok2, ov] = v.split(':'); setOpt(ok2, +ov); return; }
+    if (k === 'miles') { showMiles(true); return; }
     if (k === 'mode') setMode(v);
     else if (k === 'dg') pickDanger(+v);
     else if (k === 'skin') pickSkin(v);
@@ -3578,7 +3819,13 @@ const WRIG = {
   mine:  { g: 'w_pouch',  on: 'body', x: 7,  y: 3 },    // 腰侧雷囊
   disc:  { g: 'w_rack',   on: 'back', x: -7, y: 4 },    // 背后环刃架
   lance: { g: 'w_horn',   on: 'body', x: -6, y: -8 },   // 肩上的尖角
-  saw:   { g: 'w_fuel',   on: 'back', x: -7, y: 2 },    // 背后的油箱
+  guard: { g: 'w_fuel',   on: 'back', x: -7, y: 2 },    // 背后的力场发生器（油箱那个形状正好）
+  dust:  { g: 'w_vial',   on: 'body', x: -6, y: 3 },    // 腰间的药瓶
+  pool:  { g: 'w_crucible', on: 'back', x: -7, y: 1 },  // 背后的坩埚
+  grav:  { g: 'w_ring',   on: 'back', x: -7, y: -3 },   // 背后的环
+  spike: { g: 'w_vial',   on: 'body', x: 6,  y: -6 },   // 肩上的小瓶
+  lane:  { g: 'w_crucible', on: 'back', x: 7, y: 1 },
+  push:  { g: 'w_ring',   on: 'body', x: 0,  y: 5 },    // 腰上的环
 };
 const SKIN_ORDER = ['std', 'core', 'rail', 'scrap', 'neon', 'ghost'];
 
@@ -3614,7 +3861,9 @@ function dailySkin() { return SKIN_ORDER[strSeed('skin-' + dayKey()) % SKIN_ORDE
    所以这里：身体朝镜头（往左瞄就水平翻转），只有【枪】绕胸口的支点跟着准心转。
    道具升级了就往固定槽位上挂一片贴花 —— 枪上的挂枪上，背上的挂背上。 */
 const GUN_OF = { pulse: 'gun_pulse', shot: 'gun_shot', rail: 'gun_rail', arc: 'gun_arc', nade: 'gun_nade',
-  blade: 'gun_blade', lance: 'gun_lance', saw: 'gun_saw',
+  blade: 'gun_blade', lance: 'gun_lance', guard: 'gun_guard',
+  dust: 'gun_dust', pool: 'gun_pool', grav: 'gun_grav',
+  spike: 'gun_spike', lane: 'gun_lane', push: 'gun_push',
   beam: 'gun_beam', mine: 'gun_mine', disc: 'gun_disc' };
 // on: 'gun' 跟着枪转 / 'body' 贴在身上 / 'back' 画在身体后面
 // x,y 是相对精灵中心的偏移（身体 16×20，枪的支点在它左端中央）
@@ -3987,7 +4236,9 @@ const SHOP = [
     act: () => {
       const g = shopGuns();
       const id = g[(RNG.card() * g.length) | 0];
-      equip(id); Sfx.swap(); banner(WEAPONS[id].n, WEAPONS[id].d);
+      const old = inSlot(slotOf(id));                  // 换掉的是同槽那把，说清楚
+      gainWep(id); Sfx.swap();
+      banner(WEAPONS[id].n, old ? '换下了 ' + WEAPONS[old].n : WEAPONS[id].d);
     } },
 ];
 // 已解锁（或每日局全开）、但这一局还没带在身上的枪
@@ -4092,7 +4343,8 @@ function waveSpawn(dt) {
 function equip(id) {
   const W = WEAPONS[id]; if (!W || !P) return;
   P.wep = id; P.kind = W.kind; P.wcol = W.col;
-  if (P.owned.indexOf(id) < 0) P.owned.push(id);
+  // 注意：equip 只负责「换到这把」，不负责「获得」。
+  // 获得走 gainWep —— 三个槽位各只放一把，抽到同类的就是替换。
   const m = P.mul;
   P.fireRate = W.rate * m.rate;
   P.dmg = W.dmg * m.dmg;
@@ -4103,25 +4355,55 @@ function equip(id) {
   P.pierce = W.kind === 'melee' ? 0 : (W.pierce || 0) + m.pierce;
   P.chain = W.chain || 0;
   P.splash = (W.splash || 0);
-  if (W.kind === 'melee' || W.kind === 'lunge' || W.kind === 'grind') {
+  // 这些字段【每把枪都从自己的定义里读】，不按 kind 分支。
+  // 原来是「近战一支、其余一支清零」，于是后来加的 brand / burst 掉进清零那一支 ——
+  // 嬗变之刺的扇形变成 0（只能扎中正对着的那一个点），
+  // 斥力环的击退变成 0（一把「把人推开」的武器不推人）。
+  // 两把都不是数值不对，是压根没生效。
+  P.reach = (W.reach || 0) * m.range;
+  P.arc = (W.arc || 0) * Math.PI / 180;
+  P.knock = W.knock || 0; P.heal = W.heal || 0;
+  P.dash = W.dash || 0; P.iframe = W.iframe || 0;
+  P.block = W.block || 0;
+  if (W.kind === 'melee' || W.kind === 'lunge' || W.kind === 'guard') {
     // 近战没有弹丸，所以这两条词条换个说法接着有用：
     // 双联发射 → 扇形更宽；穿甲钨芯 → 砍得更远。不然它们对刀就是废卡。
     P.reach = W.reach * m.range + m.pierce * 6;
     P.arc = (W.arc + m.count * 18) * Math.PI / 180;
-    P.knock = W.knock || 0; P.heal = W.heal || 0;
-    P.dash = W.dash || 0; P.iframe = W.iframe || 0;
-    P.ramp = W.ramp || 0; P.rampMax = W.rampMax || 1;
-  } else {
-    P.reach = (W.reach || 0) * m.range;
-    P.arc = 0; P.knock = 0; P.heal = 0;
-    P.dash = 0; P.iframe = 0; P.ramp = 0; P.rampMax = 1;
+    // 撞角是沿【路径】判定的，根本不读 P.arc —— 所以上面那句「双联发射 → 扇形更宽」
+    // 对它是张死卡。给它换个说法：冲得更远，路上能撞到的人自然更多。
+    if (W.kind === 'lunge') P.dash += m.count * 22;
   }
+  // 炼金：范围和持续时间是它的「威力」，伤害反而是次要的
+  P.zlife = (W.life || 0);
+  P.brand = W.brand || 0;
+  P.slowZone = W.slowZone || 0;
+  P.pullZone = W.pullZone || 0;
+  P.elem = W.elem || '';
+  P.harvest = W.elem === 'trans' ? 1 : 0;
   // 武器改装件：在所有词条倍率算完之后再叠，这样它改的是【这把枪的性格】，
   // 而不是被倍率放大成数值。每日局不吃改装 —— 大家的枪得一样。
   P.railSplit = 0; P.nadeProx = 0; P.bladeKick = 0; P.beamWide = 0; P.mineRemote = 0; P.discTwin = 0;
+  P.selfPush = 0;
   if (MODE !== 'daily' && WMOD[id] && modOwned(id) && modOn(id)) WMOD[id].f(P);
   P.fireT = Math.min(P.fireT, .25);
   syncHud();
+}
+/* 三个槽位：远程 / 近战 / 炼金，各带一把。
+   原来是抽到就往 P.owned 里加，最后十四把全带着 —— 那等于不用选。
+   现在抽到同类的会【替换】那个槽，所以「这张牌换不换」本身是个决定。 */
+const SLOTS = ['range', 'melee', 'magic'];
+function slotOf(id) { return (WEAPONS[id] && WEAPONS[id].slot) || 'range'; }
+function inSlot(sl) { return P.owned.find(id => slotOf(id) === sl) || null; }
+function gainWep(id) {
+  const sl = slotOf(id);
+  const old = inSlot(sl);
+  if (old === id) { equip(id); return; }
+  if (old) P.owned.splice(P.owned.indexOf(old), 1);
+  P.owned.push(id);
+  // 顺序固定成 远程→近战→炼金，这样数字键 1/2/3 永远指同一个槽
+  P.owned.sort((a, b) => SLOTS.indexOf(slotOf(a)) - SLOTS.indexOf(slotOf(b)));
+  equip(id);
 }
 function cycleWep() {
   if (!P || P.owned.length < 2) return;
@@ -4136,7 +4418,11 @@ function fire() {
   const a0 = P.ang;
   if (P.kind === 'melee') return fireMelee(a0);
   if (P.kind === 'lunge') return fireLunge(a0);
-  if (P.kind === 'grind') return fireGrind(a0);
+  if (P.kind === 'guard') return fireGuard(a0);
+  if (P.kind === 'alch') return fireAlch(a0);
+  if (P.kind === 'brand') return fireBrand(a0);
+  if (P.kind === 'lane') return fireLane(a0);
+  if (P.kind === 'burst') return fireBurst(a0);
   if (P.kind === 'rail') return fireRail(a0);
   if (P.kind === 'arc') return fireArc();
   if (P.kind === 'nade') return fireNade(a0);
@@ -4163,12 +4449,9 @@ function fire() {
   else Sfx.shoot();
 }
 // 近战：身前一个扇形，扇形里的全砍到（cleave）。这是它对得起"贴上去"的原因。
-function fireMelee(a) {
-  if (P.bladeKick) {                                   // 反冲刃：把自己往反方向弹开，当位移用
-    P.x = clamp(P.x - Math.cos(a) * 26, P.r, ARENA.w - P.r);
-    P.y = clamp(P.y - Math.sin(a) * 26, P.r, ARENA.h - P.r);
-  }
-  P.swingDir = -(P.swingDir || 1);                       // 一刀左一刀右，别每下都一样
+/* 一次扇形挥击。抽出来是因为振动刀和力场盾是同一套判定，
+   而且「折返弹」要让它连挥两下 —— 写两份的话第二把枪一定会漏。 */
+function meleeSweep(a, mul, wep) {
   const half = P.arc / 2;
   let n = 0;
   for (const m of G.mobs) {
@@ -4180,14 +4463,26 @@ function fireMelee(a) {
     // 击退按【单位向量 × 固定像素】算，不能除以距离 —— 那样越近推得越少，
     // 而近战恰恰是贴着打的，等于没有击退。而"把空间打出来"是近战成立的理由。
     const nx = d > 1 ? dx / d : 1, ny = d > 1 ? dy / d : 0;
-    hurtMob(m, P.dmg * (crit ? 3 : 1), nx * P.knock * .08, ny * P.knock * .08, P.x, P.y);
-    G.wepDmg.blade = (G.wepDmg.blade || 0) + P.dmg;
+    hurtMob(m, P.dmg * mul * (crit ? 3 : 1), nx * P.knock * .08, ny * P.knock * .08, P.x, P.y);
+    G.wepDmg[wep] = (G.wepDmg[wep] || 0) + P.dmg * mul;
     burstFx(m.x, m.y, crit ? 9 : 5, crit ? '#ffe066' : '#dff6ff', 150);
     n++;
   }
+  G.slashes.push({ x: P.x, y: P.y, a, half, reach: P.reach, dir: P.swingDir, t: .17, col: P.wcol });
+  return n;
+}
+function fireMelee(a) {
+  if (P.bladeKick) {                                   // 反冲刃：把自己往反方向弹开，当位移用
+    P.x = clamp(P.x - Math.cos(a) * 26, P.r, ARENA.w - P.r);
+    P.y = clamp(P.y - Math.sin(a) * 26, P.r, ARENA.h - P.r);
+  }
+  P.swingDir = -(P.swingDir || 1);                       // 一刀左一刀右，别每下都一样
+  let n = meleeSweep(a, 1, 'blade');
+  // 折返弹原来只在造子弹的时候生效，近战一张死卡 —— 而它对振动刀是从加进来那天起就死的。
+  // 换个跟名字对得上的说法：反手再补一刀，伤害减半。
+  if (P.bounce) { P.swingDir = -P.swingDir; n += meleeSweep(a, .5, 'blade'); }
   // 命中回血：奖励留在人堆里。但一刀砍一片不能就地满血，所以每刀有上限。
   if (n) { P.hp = Math.min(P.maxhp, P.hp + Math.min(3, P.heal * n)); syncHud(); }
-  G.slashes.push({ x: P.x, y: P.y, a, half, reach: P.reach, dir: P.swingDir, t: .17, col: P.wcol });
   G.shake = Math.max(G.shake, n ? 3 : 1.4);
   Sfx.swing(n);
 }
@@ -4198,6 +4493,14 @@ function fireMelee(a) {
    冲的那一段无敌，否则"主动往人堆里钻"这件事根本不成立。 */
 function fireLunge(a) {
   const d = P.dash;
+  // 折返弹：冲出去之后再弹回来一次。名字本来就是这个意思，
+  // 而且对撞角特别对味 —— 冲进去、再冲出来，路径上的人挨两遍。
+  if (P.bounce && !P.__lungeBack) {
+    P.__lungeBack = 1;
+    fireLunge(a);                                      // 先冲出去
+    P.__lungeBack = 0;
+    return fireLungeBack(a);                           // 再弹回来
+  }
   const sx = P.x, sy = P.y;
   P.x = clamp(P.x + Math.cos(a) * d, P.r, ARENA.w - P.r);
   P.y = clamp(P.y + Math.sin(a) * d, P.r, ARENA.h - P.r);
@@ -4226,32 +4529,210 @@ function fireLunge(a) {
   G.shake = Math.max(G.shake, n ? 4 : 2);
   Sfx.swing(n);
 }
-
-/* 裂解链锯：贴住不放，咬住同一个越磨越疼。
-   刻意不带击退 —— 振动刀是把人推开腾空间，链锯反过来要他们【留在锯上】，
-   两把的走位因此是相反的。换目标就从头攒，所以它打单个厚的比打一片强。 */
-function fireGrind(a) {
-  const half = P.arc / 2;
-  let best = null, bd = 1e9;
+// 折返弹的回程：往回冲半程，伤害减半
+function fireLungeBack(a) {
+  const back = a + Math.PI;
+  const d = P.dash * .55;
+  const sx = P.x, sy = P.y;
+  P.x = clamp(P.x + Math.cos(back) * d, P.r, ARENA.w - P.r);
+  P.y = clamp(P.y + Math.sin(back) * d, P.r, ARENA.h - P.r);
+  P.inv = Math.max(P.inv, P.iframe);
+  const ex = P.x - sx, ey = P.y - sy, seg = Math.max(1, ex * ex + ey * ey);
   for (const m of G.mobs) {
     if (m.dead) continue;
-    const dx = m.x - P.x, dy = m.y - P.y, dd = len(dx, dy);
+    const t = clamp(((m.x - sx) * ex + (m.y - sy) * ey) / seg, 0, 1);
+    const dd = len(m.x - (sx + ex * t), m.y - (sy + ey * t));
     if (dd > P.reach + m.r) continue;
-    if (dd > 1 && Math.abs(angDiff(Math.atan2(dy, dx), a)) > half) continue;
-    if (dd < bd) { bd = dd; best = m; }
+    hurtMob(m, P.dmg * .5, 0, 0, sx, sy);
+    G.wepDmg.lance = (G.wepDmg.lance || 0) + P.dmg * .5;
+    burstFx(m.x, m.y, 5, '#ffd0a0', 150);
   }
-  if (!best) { P.grindOn = null; P.grind = 0; return; }
-  // 换目标就从头攒。这条是这把枪的全部性格 —— 不然它只是把射程短的电弧链。
-  if (P.grindOn !== best) { P.grindOn = best; P.grind = 0; }
-  P.grind = Math.min(P.rampMax - 1, P.grind + P.ramp);
-  const mul = 1 + P.grind;
-  const crit = RNG.fx() < P.crit;
-  hurtMob(best, P.dmg * mul * (crit ? 3 : 1), 0, 0, P.x, P.y);
-  G.wepDmg.saw = (G.wepDmg.saw || 0) + P.dmg * mul;
-  // 回血跟着倍率一起涨 —— 「咬住不放」这件事本身就是它的生存方式
-  if (P.heal) { P.hp = Math.min(P.maxhp, P.hp + P.heal * mul); syncHud(); }
-  burstFx(best.x, best.y, mul > 1.8 ? 4 : 2, mul > 1.8 ? '#ffe066' : '#bfff9f', 120);
-  G.shake = Math.max(G.shake, .8 + mul * .4);
+  G.slashes.push({ x: P.x - Math.cos(back) * d * .5, y: P.y - Math.sin(back) * d * .5,
+    a: back, half: .22, reach: d * .62, dir: -1, t: .2, col: P.wcol });
+}
+
+/* 炼金：扔一颗东西出去，落地变成一块【区域】。
+   这一条路的节奏跟另外两条都不一样 —— 远程是持续瞄准，近战是走位，
+   炼金是「一下下地放，每一下都改变战场」：
+     嬗变之尘 不负责杀，负责收（雾里死的掉双倍）
+     熔金池   划出一块他们不敢走的地
+     引力核   把散开的人聚成一堆，给别的武器摆盘
+   所以它们的射速都很低（1.4~2.5 秒一发），伤害也低，价值全在后果上。 */
+/* 五种属性。前三种是炼金那一路自带的，后两种是【把散落在各处的效果收进同一套】——
+   冷凝弹头、时滞、电弧链、静电场原本各做各的，玩家看不出它们是一类东西。
+   归并之后它们有共同的规则、共同的显示、共同的一句说明。
+
+   霜还多做了一件事：**全游戏原来没有任何硬控**（slowT 出现 9 次，freeze 0 次），
+   所有控制都是百分比减速，刀锋犬的冲刺、拆解臂的蓄力撞一旦起手就打断不了。
+   叠满霜会真的冻住一秒 —— 这是第一个能打断起手动作的东西。 */
+const ELEM = {
+  trans: { n: '嬗', col: '255,224,102', d: '打死的算在金雾里死 —— 掉双倍废钢和零件' },
+  molten:{ n: '熔', col: '255,157,61',  d: '命中附带灼烧，三秒里持续掉血' },
+  grav:  { n: '引', col: '164,92,255',  d: '弹道被拽向核心 —— 等于替你修正准头' },
+  frost: { n: '霜', col: '69,240,255',  d: '层层挂霜，叠满三层直接冻住一秒 —— 冲锋和蓄力都能打断' },
+  volt:  { n: '雷', col: '124,255,79',  d: '伤害向旁边再跳一次 —— 人越挤越疼' },
+};
+const FROST_MAX = 3;                                   // 叠到这么多层就冻
+const FROST_HOLD = 1.0;                                // 冻多久
+const FROST_DECAY = 2.2;                               // 不补霜的话多久掉一层
+const ZONE_MAX = 4;
+function fireAlch(a) {
+  const d = 40 + 70 * (P.range || 1);                  // 扔出去的距离。太远的话你看不清落点
+  const tx = clamp(P.x + Math.cos(a) * d, 12, ARENA.w - 12);
+  const ty = clamp(P.y + Math.sin(a) * d, 12, ARENA.h - 12);
+  G.orbs = G.orbs || [];
+  G.orbs.push({ x: P.x, y: P.y, tx, ty, t: 0,
+    fly: Math.max(.18, len(tx - P.x, ty - P.y) / (P.bspd || 150)),
+    wep: P.wep, r: P.splash, dmg: P.dmg, life: P.zlife,
+    slow: P.slowZone, pull: P.pullZone, harvest: P.harvest, col: P.wcol, elem: P.elem });
+  Sfx.nade ? Sfx.nade() : Sfx.swing(0);
+}
+// 飞行中的炼金弹 → 落地变区域
+function updateOrbs(dt) {
+  if (!G.orbs) G.orbs = [];
+  for (const o of G.orbs) {
+    o.t += dt;
+    const k = Math.min(1, o.t / o.fly);
+    o.x = o.x + (o.tx - o.x) * Math.min(1, dt / Math.max(.016, o.fly - o.t + dt));
+    o.y = o.y + (o.ty - o.y) * Math.min(1, dt / Math.max(.016, o.fly - o.t + dt));
+    if (k >= 1) {
+      o.gone = 1;
+      if (G.zones.length >= ZONE_MAX) G.zones.shift();
+      G.zones.push({ x: o.tx, y: o.ty, r: o.r, dmg: o.dmg, life: o.life, max: o.life,
+        slow: o.slow, pull: o.pull, harvest: o.harvest, col: o.col, wep: o.wep, elem: o.elem, tick: 0 });
+      G.shake = Math.max(G.shake, 2);
+    }
+  }
+  G.orbs = G.orbs.filter(o => !o.gone);
+}
+function updateZones(dt) {
+  for (const z of G.zones) {
+    z.life -= dt;
+    z.tick -= dt;
+    const hit = z.tick <= 0;
+    if (hit) z.tick = .25;                              // 每 0.25 秒结算一次，别每帧掉血
+    for (const m of G.mobs) {
+      if (m.dead) continue;
+      const dx = m.x - z.x, dy = m.y - z.y, d = len(dx, dy);
+      if (d > z.r + m.r) continue;
+      if (hit && z.dmg) {
+        hurtMob(m, z.dmg, 0, 0, z.x, z.y);
+        G.wepDmg[z.wep] = (G.wepDmg[z.wep] || 0) + z.dmg;
+      }
+      if (z.slow) m.slowT = Math.max(m.slowT, .3);      // 站在熔金里就慢
+      if (z.pull && d > 4) {                            // 引力核：往中心拽
+        const s2 = z.pull * dt;
+        m.x -= dx / d * Math.min(s2, d - 4);
+        m.y -= dy / d * Math.min(s2, d - 4);
+      }
+      if (z.harvest) m.harvest = .6;                    // 嬗变：在雾里死的掉双倍（留 0.6 秒余味）
+    }
+  }
+  G.zones = G.zones.filter(z => z.life > 0);
+}
+
+/* 炼金这一路能成立的关键：你永远带着一把远程枪，
+   所以「先摆一块地，再往里面打」是一个随时可用的组合。
+   子弹飞过自己的区域就被附上那块地的属性 ——
+   炼金从此不是「第三把伤害更低的枪」，是给另外两把摆盘的那一层。 */
+/* 嬗变之刺：不扔地，向前扎一道。扎中的挂【嬗变印记】——
+   之后不管被谁打死都算双倍。跟嬗变之尘的区别是「你选谁」而不是「你选哪块地」，
+   所以它擅长点名：BOSS、重装机甲、你知道马上要死的那几个。 */
+function fireBrand(a) {
+  const half = P.arc / 2;                              // equip 已经换成弧度了
+  let n = 0;
+  for (const m of G.mobs) {
+    if (m.dead) continue;
+    const dx = m.x - P.x, dy = m.y - P.y, d = len(dx, dy);
+    if (d > P.reach + m.r) continue;
+    if (d > 1 && Math.abs(angDiff(Math.atan2(dy, dx), a)) > half) continue;
+    hurtMob(m, P.dmg, 0, 0, P.x, P.y);
+    G.wepDmg.spike = (G.wepDmg.spike || 0) + P.dmg;
+    m.harvest = Math.max(m.harvest || 0, P.brand);      // 印记比金雾久得多
+    burstFx(m.x, m.y, 5, '#ffe066', 150);
+    n++;
+  }
+  G.slashes.push({ x: P.x, y: P.y, a, half, reach: P.reach, dir: 1, t: .15, col: P.wcol });
+  G.shake = Math.max(G.shake, n ? 3 : 1.2);
+  Sfx.swing(n);
+}
+/* 熔金道：脚下往前烧出一串小块，连成一道墙。
+   它不是「更长的熔金池」—— 池子是一个圆，你扔到人堆里；
+   道是一条线，你用它【封路】：横在他们和你之间。 */
+function fireLane(a) {
+  const step = P.splash * 1.4;
+  const n = Math.max(3, Math.round(P.reach / step));
+  for (let i = 1; i <= n; i++) {
+    const x = clamp(P.x + Math.cos(a) * step * i, 8, ARENA.w - 8);
+    const y = clamp(P.y + Math.sin(a) * step * i, 8, ARENA.h - 8);
+    if (G.zones.length >= ZONE_MAX + 4) G.zones.shift();
+    G.zones.push({ x, y, r: P.splash, dmg: P.dmg, life: P.zlife, max: P.zlife,
+      slow: .45, pull: 0, harvest: 0, col: P.wcol, wep: 'lane', elem: P.elem, tick: i * .05 });
+  }
+  G.shake = Math.max(G.shake, 2.5);
+  Sfx.nade ? Sfx.nade() : Sfx.swing(0);
+}
+/* 斥力环：以自己为中心炸开一圈，把人全推出去。
+   引力核是聚人，这一把反过来 —— 它是救命的那个键：被围住的时候开一条路。 */
+function fireBurst(a) {
+  let n = 0;
+  for (const m of G.mobs) {
+    if (m.dead) continue;
+    const dx = m.x - P.x, dy = m.y - P.y, d = len(dx, dy) || 1;
+    if (d > P.splash + m.r) continue;
+    hurtMob(m, P.dmg, dx / d * P.knock * .08, dy / d * P.knock * .08, P.x, P.y);
+    G.wepDmg.push = (G.wepDmg.push || 0) + P.dmg;
+    n++;
+  }
+  // 反冲环：推得更远，代价是自己也被震退一段（改装件的那句「但」要真的发生）
+  if (P.selfPush) {
+    P.x = clamp(P.x - Math.cos(a) * 34, P.r, ARENA.w - P.r);
+    P.y = clamp(P.y - Math.sin(a) * 34, P.r, ARENA.h - P.r);
+  }
+  G.parts.push({ x: P.x, y: P.y, vx: 0, vy: 0, life: .45, max: .45, s: P.splash * 2.4, c: '#c8a0ff', ring: true });
+  G.shake = Math.max(G.shake, 5);
+  Sfx.boom ? Sfx.boom() : Sfx.swing(n);
+}
+
+function infuse(dt) {
+  if (!G.zones.length) return;
+  for (const b of G.bullets) {
+    if (b.elem) continue;                              // 附过一次就够了，别叠
+    for (const z of G.zones) {
+      if (!z.elem) continue;
+      if (len(b.x - z.x, b.y - z.y) > z.r) continue;
+      b.elem = z.elem;
+      b.col = ELEM[z.elem].col;                        // 颜色跟着变 —— 看得见才叫附上了
+      if (z.elem === 'grav') b.gz = z;                 // 引力：记住是哪颗核在拽它
+      break;
+    }
+  }
+  // 引力属性的子弹被拽向核心，等于替你修正准头
+  for (const b of G.bullets) {
+    if (b.elem !== 'grav' || !b.gz || b.gz.life <= 0) continue;
+    const dx = b.gz.x - b.x, dy = b.gz.y - b.y, d = len(dx, dy) || 1;
+    const sp = len(b.vx, b.vy) || 1;
+    // 只在【还在朝核心飞】的时候掰。过了核心就放手 ——
+    // 不加这个判断的话子弹会绕着核心转圈（实测 24° 被拽成 -49°，整整 73 度）。
+    if ((b.vx * dx + b.vy * dy) <= 0) continue;
+    const k = 1.8 * dt;                                // 每秒把弹道往核心方向掰这么多
+    b.vx += dx / d * sp * k; b.vy += dy / d * sp * k;
+    const s2 = len(b.vx, b.vy) || 1;
+    b.vx = b.vx / s2 * sp; b.vy = b.vy / s2 * sp;       // 只改方向不改速度
+  }
+}
+
+/* 力场盾：挥击之间一直举着盾。
+   近战的死因从来不是打不动，是【够不着的远程】——
+   哨戒无人机停在 92px、钉枪手 220px，任何纯近战都摸不到它们。
+   这把枪不解决「够得着」（那是撞角的活），它解决「够不着的时候怎么活着走过去」。
+   挡的是子弹不是人：撞上来的照样疼，所以它不是无敌，是换了一种要面对的威胁。 */
+function fireGuard(a) {
+  P.swingDir = -(P.swingDir || 1);
+  let n = meleeSweep(a, 1, 'guard');
+  if (P.bounce) { P.swingDir = -P.swingDir; n += meleeSweep(a, .5, 'guard'); }
+  G.shake = Math.max(G.shake, n ? 3 : 1.4);
+  Sfx.swing(n);
 }
 
 // 磁轨：一条线，线上所有人一起吃伤害
@@ -4295,6 +4776,7 @@ function fireArc() {
     hit.push(best); pts.push([best.x, best.y]);
     hurtMob(best, P.dmg * (RNG.fx() < P.crit ? 3 : 1), 0, 0, sx, sy);
     G.wepDmg.arc = (G.wepDmg.arc || 0) + P.dmg;
+    voltJump(best, P.dmg * .3);                        // 电弧链也归到【雷】这条规则下
     burstFx(best.x, best.y, 5, '#a8ff7c', 110);
     sx = best.x; sy = best.y;
   }
@@ -4428,6 +4910,35 @@ function explode(x, y, r, dmg) {
   G.shake = Math.max(G.shake, 4);
   Sfx.boom();
 }
+/* 雷：伤害向旁边再跳一次。把电弧链和静电场收进同一条规则 ——
+   它们原来各做各的，玩家看不出是一类东西。人越挤越疼，正好跟引力核连成一套。 */
+function voltJump(from, dmg) {
+  let best = null, bd = 70;
+  for (const m of G.mobs) {
+    if (m.dead || m === from) continue;
+    const d = len(m.x - from.x, m.y - from.y);
+    if (d < bd) { bd = d; best = m; }
+  }
+  if (!best) return;
+  hurtMob(best, dmg, 0, 0, from.x, from.y);
+  G.beams.push({ x1: from.x, y1: from.y, x2: best.x, y2: best.y, t: .09, col: ELEM.volt.col, thin: 1 });
+}
+
+/* 霜：叠层，叠满冻住。这是全游戏第一个硬控 ——
+   之前所有控制都是百分比减速，刀锋犬的冲刺、拆解臂的蓄力撞起手之后就打断不了。
+   冻结【会打断起手动作】，这正是它存在的理由。 */
+function addFrost(m, n) {
+  if (!m || m.dead) return;
+  if (m.frozen > 0) return;                            // 冻着的时候不再叠，否则会无限续
+  m.frost = (m.frost || 0) + n;
+  m.frostT = FROST_DECAY;
+  if (m.frost >= FROST_MAX) {
+    m.frost = 0;
+    m.frozen = FROST_HOLD;
+    m.chg = 0; m.wind = 0; m.dashT = 0;                // 打断蓄力 / 冲锋 —— 硬控的意义在这
+    burstFx(m.x, m.y, 8, '#9fe8ff', 120);
+  }
+}
 function hurtMob(m, dmg, kx, ky, sx, sy) {
   if (P && P.charged) dmg *= 1 + 2 * P.charge;         // 蓄能：停火后的第一发
   if (m.markT > 0) dmg *= 1 + .25 * (m.markBy || 1);   // 拆解标记：被标记的多吃伤害
@@ -4447,7 +4958,8 @@ function hurtMob(m, dmg, kx, ky, sx, sy) {
   if (m.guarded > 0 && !G.overheat) dmg *= .35;                       // 被中继护着：先打中继
   m.hp -= dmg;
   m.flash = .12;
-  if (P.slow) m.slowT = Math.max(m.slowT, .8);
+  // 冷凝弹头归并成【霜】属性：减速照旧，外加叠层，叠满冻住。
+  if (P.slow) { m.slowT = Math.max(m.slowT, .8); addFrost(m, 1); }
   m.x += kx; m.y += ky;
   if (m.hp <= 0) killMob(m);
 }
@@ -4515,8 +5027,10 @@ function killMob(m) {
     const chance = isBoss(m) ? 1 : t === 'tank' ? 1
       : (t === 'shieldbot' || t === 'relay' || t === 'sniper' || t === 'hauler') ? .55
       : (t === 'grunt' || t === 'shard') ? .25 : .35;
-    if (m.elite || RNG.wave() < chance) {
-      const v = isBoss(m) ? 25 : t === 'tank' ? 2 : 1;
+    // 嬗变之尘：在金雾里被拆解的，废钢翻倍。这把枪不负责杀，负责收。
+    const hv = (m.harvest || 0) > 0 ? 2 : 1;
+    if (m.elite || RNG.wave() < chance * hv) {
+      const v = (isBoss(m) ? 25 : t === 'tank' ? 2 : 1) * hv;
       G.drops.push({ x: m.x, y: m.y, vx: 0, vy: 0, t: 0, kind: 'coin',
         v: v * (m.elite ? 3 : 1) });
     }
@@ -4526,7 +5040,8 @@ function killMob(m) {
     const pk = PART_OF[m.type];
     // 拾荒犬：指定的那种零件掉率翻倍
     const dogMul = (activePet() === 'dog' && pk === dogPart()) ? 2 : 1;
-    if (pk && RNG.wave() < (isBoss(m) ? 1 : m.elite ? .30 : .12) * dogMul) {
+    const hvMul = (m.harvest || 0) > 0 ? 2 : 1;          // 金雾里死的，零件也翻倍
+    if (pk && RNG.wave() < (isBoss(m) ? 1 : m.elite ? .30 : .12) * dogMul * hvMul) {
       G.drops.push({ x: m.x, y: m.y, vx: 0, vy: 0, t: 0, kind: 'part', pk });
     }
   }
@@ -4697,6 +5212,7 @@ function update(dt) {
       const R = 22 + P.aura * 1.5;
       for (const m of G.mobs) if (!m.dead && len(m.x - P.x, m.y - P.y) < R + m.r) {
         hurtMob(m, P.aura * .55, 0, 0);
+        voltJump(m, P.aura * .3);                      // 静电场归并成【雷】：再往旁边跳一次
         const a = Math.atan2(m.y - P.y, m.x - P.x);
         for (let i = 0; i < 2; i++)
           G.parts.push({ x: P.x + Math.cos(a) * rnd(4, R), y: P.y + Math.sin(a) * rnd(4, R),
@@ -4743,6 +5259,16 @@ function update(dt) {
     if (m.dead) continue;
     m.flash = Math.max(0, m.flash - dt);
     m.slowT = Math.max(0, m.slowT - dt);
+    // 霜：冻着就整个跳过这一帧的行动；没冻着的话霜会慢慢化掉
+    if (m.frozen > 0) {
+      m.frozen -= dt;
+      m.vx = 0; m.vy = 0;
+      continue;
+    }
+    if (m.frost > 0) {
+      m.frostT = (m.frostT || 0) - dt;
+      if (m.frostT <= 0) { m.frost--; m.frostT = FROST_DECAY; }
+    }
     m.guarded = Math.max(0, (m.guarded || 0) - dt);   // 中继的护盾每帧衰减，中继一死马上失效
     if (m.markT > 0) m.markT -= dt;
     // 精英词缀里需要每帧跑的两个
@@ -5031,6 +5557,9 @@ function update(dt) {
       if (m.dead || b.life <= 0 || b.hits.indexOf(m) >= 0) continue;
       if (len(m.x - b.x, m.y - b.y) < m.r + 2) {
         hurtMob(m, b.dmg, b.vx * dt * .5, b.vy * dt * .5, b.x - b.vx * .05, b.y - b.vy * .05);
+        // 附了属性的子弹把属性一起打进去
+        if (b.elem === 'trans') m.harvest = .6;        // 嬗：打死的也算在金雾里死
+        if (b.elem === 'molten') m.burn = Math.max(m.burn || 0, 3);   // 熔：点燃三秒
         G.wepDmg[b.wep || 'pulse'] = (G.wepDmg[b.wep || 'pulse'] || 0) + b.dmg;
         burstFx(b.x, b.y, b.crit ? 8 : 4, b.crit ? '#ffe066' : 'rgb(' + (b.col || '69,240,255') + ')', 120);
         Sfx.hit();
@@ -5093,6 +5622,23 @@ function update(dt) {
     }
   }
 
+  updateOrbs(dt); updateZones(dt);                     // 炼金：飞行中的弹 + 地上的区域
+  infuse(dt);                                          // 子弹穿过自己的区域 → 被附上属性
+  // 嬗变的余味：出了金雾还留 0.6 秒，不然「刚走出去就死」不算数很别扭
+  for (const m of G.mobs) if (m.harvest > 0) m.harvest -= dt;
+  // 灼烧：熔属性的子弹点着的，三秒里每 0.4 秒掉一次
+  for (const m of G.mobs) {
+    if (m.dead || !(m.burn > 0)) continue;
+    m.burn -= dt;
+    m.burnT = (m.burnT || 0) - dt;
+    if (m.burnT <= 0) {
+      m.burnT = .4;
+      hurtMob(m, 4, 0, 0, m.x, m.y);
+      G.wepDmg.pool = (G.wepDmg.pool || 0) + 4;
+      burstFx(m.x, m.y, 2, '#ff9d3d', 90);
+    }
+  }
+
   // 雷：待发之后谁碰谁炸
   for (const mn of G.mines) {
     mn.t += dt;
@@ -5145,6 +5691,17 @@ function update(dt) {
   for (const b of G.ebullets) {
     b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
     if (b.x < 0 || b.y < 0 || b.x > ARENA.w || b.y > ARENA.h) b.life = 0;
+    // 力场盾：正面扇形里飞来的子弹直接弹开。判的是【子弹在你哪一边】，
+    // 不是它往哪飞 —— 后者会让贴着你擦过去的子弹也算挡住，那就成了无敌。
+    if (b.life > 0 && P.block && len(b.x - P.x, b.y - P.y) < 26) {
+      const rel = Math.abs(angDiff(Math.atan2(b.y - P.y, b.x - P.x), P.ang));
+      if (rel < P.block * Math.PI / 360) {
+        b.life = 0;
+        burstFx(b.x, b.y, 4, '#c8a0ff', 130);
+        Sfx.hitWall ? Sfx.hitWall() : 0;
+        continue;
+      }
+    }
     if (b.life > 0 && len(b.x - P.x, b.y - P.y) < 7) { hurtPlayer(b.dmg, b.src); b.life = 0; }
   }
   G.ebullets = G.ebullets.filter(b => b.life > 0);
@@ -5418,6 +5975,34 @@ function render() {
   }
 
   // 敌人子弹
+  // 炼金的区域。画在敌人之前 —— 它是地上的东西，不是糊在人脸上的特效。
+  for (const z of G.zones) {
+    const x = z.x - G.cam.x, y = z.y - G.cam.y;
+    const k = Math.min(1, z.life / .6);                 // 快没的时候淡出
+    const pulse = .8 + .2 * Math.sin(G.t * 5 + z.x);
+    ctx.save();
+    ctx.globalAlpha = .12 * k * pulse;
+    ctx.fillStyle = 'rgb(' + z.col + ')';
+    ctx.beginPath(); ctx.arc(x, y, z.r, 0, TAU); ctx.fill();
+    ctx.globalAlpha = .55 * k;
+    ctx.strokeStyle = 'rgb(' + z.col + ')'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(x, y, z.r, 0, TAU); ctx.stroke();
+    // 引力核多画一圈往里收的线，说明它在往中间拽
+    if (z.pull) {
+      ctx.globalAlpha = .4 * k;
+      const rr = z.r * (.35 + .5 * ((G.t * .7) % 1));
+      ctx.beginPath(); ctx.arc(x, y, rr, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // 飞行中的炼金弹
+  if (G.orbs) for (const o of G.orbs) {
+    const x = o.x - G.cam.x, y = o.y - G.cam.y;
+    orb(x, y, 7, 'rgba(' + o.col + ',.5)');
+    ctx.fillStyle = 'rgb(' + o.col + ')';
+    ctx.fillRect((x | 0) - 2, (y | 0) - 2, 4, 4);
+  }
+
   // 场地互动物。画在敌人之前，所以是「地上的东西」而不是飘在头顶。
   for (const h of HAZ) {
     if (h.gone) continue;
@@ -5619,6 +6204,30 @@ function render() {
       ctx.restore();
     }
     if (m.slowT > 0) orb(x, y, m.r * 2, 'rgba(69,240,255,.25)');
+    // 霜和冻结必须看得出来。颜色救不了（泛光会洗白），所以用【形状】：
+    // 挂霜是几根短刺，冻住是一整圈方框 + 定住不动的白边。
+    if (m.burn > 0 && ((G.t * 14) | 0) % 2) {
+      ctx.fillStyle = '#ff9d3d';
+      ctx.fillRect((x | 0) - 1, (y - m.r - 6) | 0, 2, 3);
+    }
+    if (m.frost > 0 && !(m.frozen > 0)) {
+      ctx.strokeStyle = 'rgba(159,232,255,.85)'; ctx.lineWidth = 1;
+      for (let i = 0; i < m.frost; i++) {
+        const a = -Math.PI / 2 + (i - (m.frost - 1) / 2) * .5;
+        const r0 = m.r + 2, r1 = m.r + 6;
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0);
+        ctx.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1);
+        ctx.stroke();
+      }
+    }
+    if (m.frozen > 0) {
+      const s0 = m.r + 4;
+      ctx.strokeStyle = '#dff6ff'; ctx.lineWidth = 1;
+      ctx.strokeRect((x - s0) | 0, (y - s0) | 0, s0 * 2, s0 * 2);
+      ctx.strokeStyle = 'rgba(159,232,255,.5)';
+      ctx.strokeRect((x - s0 - 2) | 0, (y - s0 - 2) | 0, s0 * 2 + 4, s0 * 2 + 4);
+    }
     if (m.guarded > 0) {                               // 被中继护着：套一层绿环，一眼看得出打不动
       ctx.strokeStyle = 'rgba(124,255,79,.55)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(x, y, m.r + 3, 0, TAU); ctx.stroke();
@@ -5981,7 +6590,9 @@ function start(seedOverride) {
     applySkin(PROF.skin);
     (CHASSIS[PROF.chassis] || CHASSIS.std).f(P);         // 底座
     P.hp = P.maxhp;
-    equip(PROF.wep && (PROF.wep === 'pulse' || PROF.bought[PROF.wep]) ? PROF.wep : 'pulse');
+    // 起手武器要走 gainWep —— equip 只管换手，不管「拿到」。
+    // 买成起手的那把会顶掉同槽的默认枪（目前只有远程槽有默认枪）。
+    gainWep(PROF.wep && (PROF.wep === 'pulse' || PROF.bought[PROF.wep]) ? PROF.wep : 'pulse');
   }
   G.cam.x = camAt(P.x - VW / 2, ARENA.w, VW);
   G.cam.y = camAt(P.y - VH / 2, ARENA.h, VH);
@@ -6180,8 +6791,31 @@ function howToHTML() {
     `<p>一共 ${weps} 把，开局只有一把。其余的要先靠<b>里程碑</b>解锁，`
     + '解锁之后它就进了升级三选一的卡池，<b>抽到就永久带着</b>，可以随时切换。</p>'
     + `<p>也可以在标题页花 ${WEP_COST} 废钢把它买成<b>起手武器</b>，开局就拿着。</p>`
-    + '<p>九把枪改的是<b>怎么打</b>，不是数值大小：霰弹有后坐力、磁轨一枪穿一整排、'
-    + '布雷器不用瞄、改成算他们会往哪走。</p>')
+    + '<p>每把枪改的是<b>怎么打</b>，不是数值大小：霰弹有后坐力、磁轨一枪穿一整排、'
+    + '布雷器不用瞄、改成算他们会往哪走。</p>'
+    + '<p><b>三个槽，各带一把</b>：远程、近战、炼金。抽到同类的换装卡会<b>替换</b>那个槽里的枪 ——'
+    + '带满十四把等于不用选，所以每张换装卡都是个决定。'
+    + `按 <b>${isTouch ? '右下圆键' : '1 / 2 / 3'}</b> 在三把之间切换。</p>`
+    + '<p><b>炼金</b>那一路不靠杀人，直接输出只有远程的一到三成，价值全在后果上。'
+    + '三种属性，每种两种投法：</p>'
+    + dl([
+      ['嬗', '撒一片<b>金雾</b>，雾里被拆解的掉双倍废钢和零件；或者向前扎一道<b>印记</b>，点名某一个'],
+      ['熔', '地上浇一滩<b>熔金</b>，站进去掉血还变慢；或者往前烧出一道<b>墙</b>，封住他们的路'],
+      ['引', '扔一颗<b>核</b>把人拽成一堆给别的武器打；或者反过来<b>炸开一圈</b>，被围住时开路'],
+    ])
+    + '<p>真正的用法是跟你手上那把远程枪配合：<b>子弹穿过自己的区域会被附上属性</b> ——'
+    + '穿过金雾的，打死的也算双倍；穿过熔金的，命中附带灼烧；穿过引力场的，'
+    + '弹道被拽向核心、等于替你修准头。所以先摆一块地，再往里面打。</p>'
+    + '<p>六把的解锁全挂在据点那头 —— 卖货、炼钢、做生意、名声。</p>'
+    + '<p><b>五种属性</b>。前三种是炼金给的，后两种来自你本来就有的东西 ——'
+    + '它们其实一直是一类效果，只是原来没人告诉你：</p>'
+    + dl(Object.keys(ELEM).map(k => [ELEM[k].n, ELEM[k].d]))
+    + '<p><b>霜</b>是唯一能<b>打断起手动作</b>的东西：刀锋犬的冲刺、拆解臂的蓄力撞，'
+    + '起手之后别的都拦不住，冻住能。叠满三层就冻一秒 —— 冻着的时候再打不会续冻。</p>'
+    + '<p><b>三把近战</b>各解一个近战自己的难题 —— 敌人里有停在 92px 的无人机、'
+    + '220px 的钉枪手，近战根本够不着：<br>'
+    + '振动刀把人推开腾空间、命中回血；冲锋撞角让「冲过去」本身就是攻击（那一下无敌，'
+    + '但方向按下就改不了）；力场盾在挥击之间一直举着，正面来的子弹直接弹开 —— 但挡不住撞上来的人。</p>')
 
   + sec('死 了 之 后 剩 下 什 么',
     '<p>这一局捡的<b>废钢</b>和<b>零件</b>都带得走，<b>死了也算</b> —— 不用为了保底而苟着。</p>'
@@ -6221,6 +6855,7 @@ function howToHTML() {
       ['增益是干什么的', '暂停 → <b>图鉴</b>，六种都写着'],
       ['新枪怎么来', '标题页「起手」那一排，下面有一行说明'],
       ['据点有什么用', '据点顶上那排链条'],
+      ['这东西怎么解锁', '标题页底下那行「下一个解锁」<b>点开</b> —— 全部三十多条和各自的进度都在里面'],
     ]));
 }
 function chainSteps() {
@@ -6592,6 +7227,14 @@ function showHow(on) {
   // 不构成层叠上下文，所以那个 2 是直接跟根层比的，会浮在这一屏上面。
   el('title').classList.toggle('show', !on);
 }
+function showMiles(on) {
+  const b = el('mileBox');
+  if (!b) return;
+  if (on) { const body = el('mileBody'); if (body) body.innerHTML = milesHTML(); }
+  b.classList.toggle('show', !!on);
+  el('title').classList.toggle('show', !on);           // 跟据点、怎么玩一样要把标题页收起来
+}
+el('mileBack').onclick = () => showMiles(false);
 el('howBtn').onclick = () => showHow(true);
 el('howBack').onclick = () => showHow(false);
 el('hqBtn').onclick = () => showHQ(true);
@@ -6749,7 +7392,9 @@ window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
   buildHTML, syncBuild, setPaused, armGiveup, doReroll, syncReroll, renderOffer, REROLLS, dexHTML, showDex,
   syncHQ, showHQ, syncPity, togglePity, syncPet, syncStore, renderStoreLog, chainText, chainSteps, shopList, shopCost, intelText,
   showTab, bagHTML, syncTags,
-  HOWTO, firstTime, howToHTML, showHow,
+  HOWTO, firstTime, howToHTML, showHow, ELEM, milesHTML, mileCat, mileProg, showMiles,
+  FROST_MAX, FROST_HOLD, addFrost, voltJump,
+  gainWep, slotOf, inSlot, SLOTS,
   sweepDrops, sweepNote, gainXp,
   WRIG,
   backToTitle, armGiveup, playStore, stopStore, skipStore, drawStore, tickStore, SCENE,
