@@ -3116,5 +3116,70 @@ console.log('点了没反应');
   ok(!naked.length, `带选中态的 hover 都关进了 @media（裸着的：${naked.join(' ') || '无'}）`);
 }
 
+// ---- 57) 涂装换的是轮廓，换枪连人一起变 ----
+// 报的是「皮肤变化不明显」。查下来：六套涂装只换调色板，网格一个字没动 ——
+// 六个人影完全同形，而 320×180 叠泛光会把颜色洗白，等于没换。
+// 「换枪人物也要变」同理：原来只有手上那把枪的形状变了。
+console.log('涂装与武器外观');
+{
+  // 一、除了基准款，每套涂装都得有自己的剪影件，而且互不相同
+  const sils = NS.SKIN_ORDER.filter(k => k !== 'std').map(k => (NS.SKINS[k] || {}).sil);
+  ok(sils.every(Boolean), `基准款之外每套涂装都带剪影件（${sils.join(' ')}）`);
+  ok(new Set(sils).size === sils.length, '每套的剪影件都不一样 —— 同一个形状等于没换');
+  ok(sils.every(g => NS.SPR[g]), '剪影件的精灵都真的存在');
+
+  // 二、武器挂件同理：除了开局那把，每把都带一件，互不相同
+  const rigs = NS.WEP_ORDER.filter(k => k !== 'pulse').map(k => (NS.WRIG[k] || {}).g);
+  ok(rigs.every(Boolean), `开局那把之外每把枪都带挂件（${rigs.length} 件）`);
+  ok(new Set(rigs).size === rigs.length, '每把的挂件都不一样');
+  ok(rigs.every(g => NS.SPR[g]), '挂件的精灵都真的存在');
+
+  // 三、真的画出来了，而且换一把就真的不一样 —— 这才是「看得出来」。
+  // 只验「代码里写了这几行」的话，摆错位置、被身体挡住、根本没调用都发现不了。
+  NS.start(97);
+  const P = NS.P, G = NS.G;
+  Object.keys(NS.DECAL).forEach(id => delete G.stacks[id]);   // 词条会干扰，先清干净
+  P.ang = 0; P.vxm = 0;
+  const drawnFor = () => {
+    ctx.__rec();
+    NS.drawPlayer(30, 30);
+    const imgs = ctx.__ops.filter(o => o[0] === 'drawImage').map(o => o[1]);
+    ctx.__rec(false);
+    return imgs;
+  };
+  const byWep = {};
+  for (const w of NS.WEP_ORDER) { P.wep = w; byWep[w] = drawnFor(); }
+  const sameAsPulse = NS.WEP_ORDER.filter(w => w !== 'pulse'
+    && byWep[w].length === byWep.pulse.length
+    && byWep[w].every((img, i) => img === byWep.pulse[i]));
+  ok(!sameAsPulse.length,
+    `换枪之后画出来的东西真的变了（跟脉冲步枪一模一样的：${sameAsPulse.join(' ') || '无'}）`);
+
+  P.wep = 'pulse';
+  const bySkin = {};
+  for (const sk of NS.SKIN_ORDER) { NS.PROF.skin = sk; NS.applySkin(sk); bySkin[sk] = drawnFor(); }
+  const sameAsStd = NS.SKIN_ORDER.filter(sk => sk !== 'std'
+    && bySkin[sk].length === bySkin.std.length);
+  ok(!sameAsStd.length,
+    `换涂装之后多画了东西 —— 不只是换色（画的块数跟基准款一样的：${sameAsStd.join(' ') || '无'}）`);
+
+  // 四、剪影件必须露在身体外面，不然它改不了轮廓。
+  // 身体 20 高、居中，所以头顶在 -10；剪影画在 -12，是顶出去的。
+  ok(/blitMid\(SPR\[sil\]\[0\], 0, -1[12]\)/.test(html),
+    '剪影件顶在头顶外面 —— 藏在身体里的话轮廓一点没变');
+
+  // 五、涂装仍然只是外观。这条老规矩不能因为加了剪影件就破。
+  NS.start(98);
+  const snap = () => [NS.P.maxhp, NS.P.speed, NS.P.dmg, NS.P.fireRate, NS.P.shield, NS.P.pickR].join();
+  NS.PROF.skin = 'std'; NS.applySkin('std'); NS.start(98);
+  const base = snap();
+  const drift = NS.SKIN_ORDER.filter(sk => {
+    NS.PROF.skin = sk; NS.applySkin(sk); NS.start(98);
+    return snap() !== base;
+  });
+  ok(!drift.length, `换遍所有涂装，数值一模一样（变了的：${drift.join(' ') || '无'}）`);
+  NS.PROF.skin = 'std'; NS.applySkin('std');
+}
+
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');
 process.exit(fail ? 1 : 0);

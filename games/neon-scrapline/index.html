@@ -1477,6 +1477,116 @@ const GRID = {
       'KKK',
     ],
   ],
+
+  /* ---- 涂装的剪影件 ----
+     六套涂装原来只是换调色板，网格一个字没动 —— 六个人影完全同形。
+     在 320×180 的画布上、叠着泛光，颜色本来就会被洗白，
+     所以「换了涂装看不出来」是必然的（经验点像子弹、跟班像掉落物，同一个病）。
+     每套加一件顶在头上的剪影：改的是轮廓，不是颜色。
+     画在背后那一层，占的是词条贴花没用的头顶槽位。 */
+  s_core: [                                             // 母体：两根角
+    [
+      'E..E',
+      'E..E',
+      'EEEE',
+    ],
+  ],
+  s_rail: [                                             // 磁轨：头顶一个环
+    [
+      'KPPK',
+      'P..P',
+      'KPPK',
+    ],
+  ],
+  s_scrap: [                                            // 废钢：歪着的天线
+    [
+      '...Y',
+      '..Y.',
+      'KYK.',
+    ],
+  ],
+  s_neon: [                                             // 霓虹：一圈灯冠
+    [
+      'MKMKM',
+      'KMKMK',
+      'MMMMM',
+    ],
+  ],
+  s_ghost: [                                            // 幽灵：兜帽
+    [
+      '.GGGG.',
+      'GWWWWG',
+      'GWKKWG',
+    ],
+  ],
+
+  /* ---- 武器挂件 ----
+     原来换枪只换手上那把枪的形状，人是同一个人。
+     每把枪配一件挂在身上/背上的东西，换枪连人的轮廓一起变。
+     只有一件会同时出现（手上拿哪把就是哪件），所以不跟词条贴花抢槽位那么紧张。 */
+  w_band: [                                             // 霰弹：胸前弹带
+    [
+      'KEKEKEK',
+      'EYEYEYE',
+      'KEKEKEK',
+    ],
+  ],
+  w_coil: [                                             // 磁轨：背上电容塔
+    [
+      'KPPPK',
+      'PWWWP',
+      'KPPPK',
+      'PWWWP',
+      'KPPPK',
+    ],
+  ],
+  w_fork: [                                             // 电弧：肩上电极叉
+    [
+      'C.C',
+      'C.C',
+      'KCK',
+      'KCK',
+    ],
+  ],
+  w_belt: [                                             // 榴弹：腰间弹挂
+    [
+      'KTKTK',
+      'TWTWT',
+      'KTKTK',
+    ],
+  ],
+  w_sheath: [                                           // 振动刀：背后刀鞘
+    [
+      'KGK',
+      'GWG',
+      'GWG',
+      'GWG',
+      'KGK',
+    ],
+  ],
+  w_fin: [                                              // 熔切：背后散热鳍
+    [
+      'EKEKE',
+      'EKEKE',
+      'EEEEE',
+    ],
+  ],
+  w_pouch: [                                            // 布雷器：腰侧雷囊
+    [
+      'KOK',
+      'OYO',
+      'KOK',
+      'OYO',
+    ],
+  ],
+  w_rack: [                                             // 回旋刃：背后环刃架
+    [
+      'KTTTK',
+      'T.K.T',
+      'T.K.T',
+      'KTTTK',
+    ],
+  ],
   d_cap: [
     [
       'KYYK',
@@ -3193,18 +3303,36 @@ function syncProf() {
    刻意只做外观：涂装不带任何数值。带了数值它就成了第二套底座系统，
    跟已有的底座打架，而且会把「选好看的」变成「选强的」。
    验收里有一条专门守这个：换遍所有涂装，玩家的数值必须一模一样。 */
+/* sil = 顶在头上的剪影件，画在背后那一层。
+   原来六套涂装只换调色板，网格一个字没动 —— 六个人影完全同形，
+   而 320×180 的画布叠着泛光，颜色会被洗白，等于换了跟没换一样。
+   轮廓不一样才看得出来。sil 是纯外观，跟数值一点关系都没有。 */
 const SKINS = {
-  std:   { n: '神经索', trail: '#45f0ff', pal: {} },
-  core:  { n: '母体',   trail: '#ff2f4f', req: 's_core',
+  std:   { n: '神经索', trail: '#45f0ff', pal: {} },     // 基准款，不加东西
+  core:  { n: '母体',   trail: '#ff2f4f', req: 's_core', sil: 's_core',
     pal: { B: '#3a0f1c', S: '#6b1c30', L: '#a02a44', C: '#ff2f4f', O: '#ff6f8f', H: '#ffd0d8' } },
-  rail:  { n: '磁轨',   trail: '#a45cff', req: 's_rail',
+  rail:  { n: '磁轨',   trail: '#a45cff', req: 's_rail', sil: 's_rail',
     pal: { B: '#221040', S: '#3d1d6b', L: '#5f2f9e', C: '#a45cff', O: '#c88cff', H: '#e8d0ff' } },
-  scrap: { n: '废钢',   trail: '#ffb03a', req: 's_scrap',
-    pal: { B: '#231a10', S: '#42311c', L: '#6b5230', C: '#ffb03a', O: '#8a5a2a', H: '#ffe0a0' } },
-  neon:  { n: '霓虹',   trail: '#ff2ea6', req: 's_neon',
+  scrap: { n: '废钢',   trail: '#ffb03a', req: 's_scrap', sil: 's_scrap',
+    // 面罩原来跟身体同一个橙色系，整个人是一坨棕的。面罩单独提亮拉开对比。
+    pal: { B: '#231a10', S: '#42311c', L: '#6b5230', C: '#ffe066', O: '#8a5a2a', H: '#ffe0a0' } },
+  neon:  { n: '霓虹',   trail: '#ff2ea6', req: 's_neon', sil: 's_neon',
     pal: { B: '#3a0f2e', S: '#6b1c56', L: '#a02a80', C: '#ff2ea6', O: '#45f0ff', H: '#ffd0f0' } },
-  ghost: { n: '幽灵',   trail: '#dff0ff', req: 's_ghost',
+  ghost: { n: '幽灵',   trail: '#dff0ff', req: 's_ghost', sil: 's_ghost',
     pal: { B: '#1a2028', S: '#33404c', L: '#5b6b7a', C: '#eaf6ff', O: '#9fb4c4', H: '#ffffff' } },
+};
+/* 武器挂件：换枪连人一起变，不只是手上那把枪换形状。
+   同一时刻只会出现一件（手上拿哪把就是哪件），所以槽位不像词条贴花那么紧张。
+   on/x/y 的含义跟 DECAL 完全一样。 */
+const WRIG = {
+  shot:  { g: 'w_band',   on: 'body', x: 0,  y: -2 },   // 胸前弹带
+  rail:  { g: 'w_coil',   on: 'back', x: -7, y: -1 },   // 背上电容塔
+  arc:   { g: 'w_fork',   on: 'body', x: -6, y: -7 },   // 肩上电极叉
+  nade:  { g: 'w_belt',   on: 'body', x: -1, y: 3 },    // 腰间弹挂
+  blade: { g: 'w_sheath', on: 'back', x: 7,  y: 0 },    // 背后刀鞘
+  beam:  { g: 'w_fin',    on: 'back', x: -7, y: -5 },   // 背后散热鳍
+  mine:  { g: 'w_pouch',  on: 'body', x: 7,  y: 3 },    // 腰侧雷囊
+  disc:  { g: 'w_rack',   on: 'back', x: -7, y: 4 },    // 背后环刃架
 };
 const SKIN_ORDER = ['std', 'core', 'rail', 'scrap', 'neon', 'ghost'];
 
@@ -3304,12 +3432,18 @@ function drawPlayer(x, y) {
     ctx.restore();
   };
 
+  const rig = WRIG[P.wep];
+  const sil = (SKINS[PROF.skin] || SKINS.std).sil;
   ctx.save();
   ctx.translate(x | 0, y | 0);
   if (left) ctx.scale(-1, 1);
+  // 涂装的剪影件顶在头上，画在最后面 —— 它要改的是轮廓，所以必须露在身体外
+  if (sil && SPR[sil]) blitMid(SPR[sil][0], 0, -12);
   for (const d of decalsOn('back')) blitMid(SPR[d.g][0], d.x, d.y);   // 背上的先画，被身体压住一半
+  if (rig && rig.on === 'back' && SPR[rig.g]) blitMid(SPR[rig.g][0], rig.x, rig.y);
   blitAt(bodySpr, -bw / 2, -bh / 2);
   for (const d of decalsOn('body')) blitMid(SPR[d.g][0], d.x, d.y);
+  if (rig && rig.on === 'body' && SPR[rig.g]) blitMid(SPR[rig.g][0], rig.x, rig.y);
   ctx.restore();
 
   drawGun();
@@ -6091,6 +6225,7 @@ window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
   syncHQ, showHQ, syncPity, togglePity, syncPet, syncStore, renderStoreLog, chainText, chainSteps, shopList, shopCost, intelText,
   showTab, bagHTML, syncTags,
   HOWTO, firstTime, howToHTML, showHow,
+  WRIG,
   backToTitle, armGiveup,
   syncTC,
   SHOP, shopGuns, shopBuy, shopWorth, openShop, closeShop, syncShop, takeUpgrade, rollOffer, showLevelup, BUFFS, BUFF_IDS, grabBuff, MODS, rollMod, eliteChance, makeElite,

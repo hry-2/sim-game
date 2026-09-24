@@ -57,8 +57,8 @@ const NOD = run({});
   const miss = need.filter(k => NOD[k] === undefined);
   ok(miss.length === 0, `契约 ${need.length} 项，缺 ${miss.length} 项${miss.length ? '：' + miss.join(' ') : ''}`);
 
-  // 六个词包的名字必须和 CONTEXT.md 里钉的一致 —— 词变了可以，分类名不许飘
-  const want = ['动物', '日常动作', '影视动画', '成语', '食物', '名人'];
+  // 十个词包的名字与顺序必须和 CONTEXT.md 里钉的一致 —— 词变了可以，分类名不许飘
+  const want = ['动物', '日常动作', '影视动画', '二次元', '成语', '食物', '名人', '中国史', '世界史', '地理'];
   const same = NOD.PACKS.length === want.length && want.every((w, i) => NOD.PACKS[i] === w);
   ok(same, `词包 ${NOD.PACKS.length} 个：${NOD.PACKS.join(' / ')}`);
   ok(NOD.PACKS.indexOf('随机') < 0, '「随机」不在 PACKS 里 —— 它是抽法，不是一个词包');
@@ -357,9 +357,9 @@ sec('词库');
   const sizes = filled.map(p => `${p} ${NOD.WORDS[p].length}`).join(' / ');
   if (isFixture) {
     console.log(`  – 靶子不验词库规模（每包只有 ${NOD.WORDS[NOD.PACKS[0]].length} 个词，够跑边界就行）`);
-    ok(filled.length === 6, `六包都有词：${sizes}`);
+    ok(filled.length === NOD.PACKS.length, `${NOD.PACKS.length} 包都有词：${sizes}`);
   } else {
-    ok(filled.length >= 1, `已实现 ${filled.length}/6 个词包：${sizes}`);
+    ok(filled.length === NOD.PACKS.length, `已实现 ${filled.length}/${NOD.PACKS.length} 个词包：${sizes}`);
     const thin = filled.filter(p => NOD.WORDS[p].length < 200);
     ok(thin.length === 0,
       `每个非空词包 ≥200 词，不够的 ${thin.length} 个${thin.length ? '：' + thin.join(' ') : ''}`);
