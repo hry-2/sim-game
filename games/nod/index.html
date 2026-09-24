@@ -71,14 +71,20 @@
        装不下时它自己收缩并滚动（min-height:0 是让 flex 子项允许收缩的那一句）。 */
     flex:0 1 auto;min-height:0;width:100%;max-width:760px;padding:2px;
     display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;
-    /* 行高跟着视口高度走：矮横屏 50px，高竖屏封顶 84px。
-       上限压在 74：量出来竖屏 390×780 正好六行排下不用滚（76 时差 6px）。 */
+    /* 行高跟着视口高度走：矮横屏 50px，高竖屏封顶 74px。
+       上限曾经压在 74 是为了「竖屏 390×780 六行正好排下不用滚」—— 那条早在说明
+       加到三行时就不成立了，现在量出来还差 36px。不再往回凑：说明比那 36px 值钱，
+       底部渐隐已经把「还有更多」说清楚了。留着 74 是因为再大卡片会显得空。 */
     grid-auto-rows:clamp(50px,17vh,74px);
     align-content:start;overflow-y:auto;-webkit-overflow-scrolling:touch;
     /* 底部渐隐：被裁掉半行时读作「还有更多」，跟总结页那张列表同一个做法 */
     -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 14px),transparent);
     mask-image:linear-gradient(to bottom,#000 calc(100% - 14px),transparent);
   }
+  /* 每个格子里叠两个按钮：整张卡是勾选，右上角那枚「›」是细分入口。
+     按钮不能套按钮，所以外面得包一层 —— 这层只管定位，不画任何东西。 */
+  .cell{position:relative;min-width:0}
+  .cell .card{width:100%;height:100%}
   .card{
     position:relative;overflow:hidden;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(3px,1vh,7px);
@@ -111,17 +117,27 @@
   .card[aria-checked=true]::before{opacity:.18}
   .card[disabled]{opacity:.3;cursor:default}
   .card small{font-size:10px;opacity:.75;line-height:1}
-  /* 右上角的「›」表示这张卡点进去还有一层。随机卡没有，因为它没有子包 ——
-     不同的行为就该有不同的记号，否则点下去的结果无法预测。 */
-  .card .more{position:absolute;top:3px;right:6px;font-size:14px;line-height:1;opacity:.45}
-  .card[aria-checked=true] .more{opacity:.6}
+  /* 右上角的「›」是细分入口：点它进子包，点卡片其它地方只是勾选。
+     随机卡没有这枚，因为它没有子包 —— 不同的行为就该有不同的记号。
+     它盖住了卡片右上角一小块，这是有意的代价：入口要够得着才算入口。 */
+  .cell .more{
+    position:absolute;top:0;right:0;z-index:1;width:30px;height:28px;padding:0;
+    border:0;border-radius:0 13px 0 10px;background:transparent;color:inherit;
+    font-family:inherit;font-size:15px;line-height:1;opacity:.5;cursor:pointer;
+  }
+  .cell .more:active{opacity:1}
+  /* 选中的卡是品牌绿实心，「›」得跟着换成深色，否则浅色字压在亮底上看不见 */
+  .cell[data-on] .more{color:#06231a;opacity:.7}
+  /* 已经挑了子包的卡，把子包名写在下面 —— 否则回到这一屏就看不出
+     「动漫」现在只抽 V家 那 53 个词。放不下时 .card 的 overflow:hidden 会裁掉。 */
+  .card .sn{font-size:clamp(8.5px,1.9vh,11px);opacity:.85;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   /* 子包卡片：图标用所属大类那一枚，压淡当背景 —— 一眼看出还在这个大类里 */
   .card.subcard .ico{position:absolute;right:-6px;bottom:-6px;width:42%;height:auto;opacity:.16}
   .card.subcard .nm{font-size:clamp(11px,2.8vh,14px);text-align:center;padding:0 3px}
   #subs .head h2{margin:0;font-size:clamp(20px,5.4vh,32px);font-weight:700;letter-spacing:.14em}
   /* 子包名比大类名长（「虫·爬行·神兽」六个字），列宽要放宽，否则每张卡都折行 */
   /* 返回不参与时长那三个的平分 —— 它不是同一类东西 */
-  #back2,#drill{flex:0 0 auto;min-width:5.2em;font-size:13px}
+  #back2{flex:0 0 auto;min-width:5.2em;font-size:13px}
   .chip[disabled]{opacity:.35;cursor:default}
 
   /* ---------- 底栏：时长 + 开始 ---------- */
@@ -308,7 +324,7 @@
   /* 窄屏的底栏：细分屏比大类屏多一个「返回」，390px 宽下三个时长按钮被挤到把
      「60秒」折成两行。收窄返回与开始，把省下的宽度还给时长。 */
   @media (max-width:460px){
-    #back2,#drill{min-width:3.4em;font-size:12px;padding:9px 6px}
+    #back2{min-width:3.4em;font-size:12px;padding:9px 6px}
     #go,#go2{flex:0 0 27%;font-size:15px;letter-spacing:.12em;text-indent:.12em}
     .chip{padding:9px 4px;font-size:13px}
   }
@@ -321,14 +337,13 @@
     <div class="sub">
       一个人举起手机、<b>屏幕朝外</b>，另一个人看词往外传 —— 横着竖着都行。<br>
       猜对了<b>往下翻</b>，说不出来<b>往上翻</b>；怎么描述随便，但<b>不能说词里的字</b>。<br>
-      词包<b>可以多选</b> —— 选中几个就在这几个里混着抽；只选一个时才能再「细分」。
+      词包<b>可以多选</b>，混着抽；卡片右上角的 <b>›</b> 进去还能各挑各的子类。
     </div>
   </div>
 
   <div id="packs" role="group" aria-label="词包（可多选）"></div>
 
   <div class="foot">
-    <button id="drill" class="chip" type="button" disabled>细分</button>
     <div class="chips" id="secs" role="radiogroup" aria-label="一局时长"></div>
     <button id="go">开 始</button>
   </div>
@@ -338,7 +353,7 @@
 <div class="screen" id="subs">
   <div class="head">
     <h2 id="subTitle">动物</h2>
-    <div class="sub">挑一类，或者选「全部」—— 在整个大类里随机。</div>
+    <div class="sub">挑一类，或者选「全部」= 整个大类；别的包照旧一起抽。</div>
   </div>
 
   <div id="subPacks" role="radiogroup" aria-label="子包"></div>
@@ -950,17 +965,20 @@
 
   // 随机包是【跨包混抽】，不是随机挑一个包。空包自然不贡献词。
   // 一局可以选【好几个词包】：packs 是个列表，空列表 = 全部（也就是「随机」）。
-  // 子包只在【恰好选中一个包】时有意义 —— 选了三个包还谈「哪个子包」是无解的，
-  // 所以 start() 那头会在多选时把 sub 直接丢掉，而不是留着装作还生效。
-  function pool(packs, sub) {
+  // 子包是【每个包各挑各的】：subs 是 {包名: 子包名}，没给的包就整包参战。
+  // 早先它是「一局一个子包、多选时丢掉」—— 但细分入口挪到每张卡片上之后，
+  // 那条规则等于「点进子包就得放弃其它包」，跟入口在哪儿自相矛盾。
+  // 子包名不认识时退回整个大类，而不是抽空 —— 空池子会让 draw() 转死。
+  function pool(packs, subs) {
     const list = (packs && packs.length) ? packs : PACKS;
-    if (list.length === 1 && sub) {
-      const p = list[0], w = WORDS[p] || [];
-      const r = (SUBS[p] || []).find(x => x[0] === sub);
-      return r ? w.slice(r[1], r[2]) : w.slice();
-    }
     const all = [];
-    for (const p of list) for (const w of (WORDS[p] || [])) all.push(w);
+    for (const p of list) {
+      const w = WORDS[p] || [];
+      const sn = subs && subs[p];
+      const r = sn ? (SUBS[p] || []).find(x => x[0] === sn) : null;
+      if (r) for (let i = r[1]; i < r[2]; i++) all.push(w[i]);
+      else for (const x of w) all.push(x);
+    }
     return all;
   }
 
@@ -969,18 +987,22 @@
     // pack（单个，'随机' = 全部）和 packs（一组）都收 —— 量具里那一堆 start({pack:...}) 照旧能用
     let packs = o.packs ? o.packs.slice() : (o.pack && o.pack !== '随机' ? [o.pack] : []);
     packs = packs.filter(p => PACKS.indexOf(p) >= 0);
-    let sub = (packs.length === 1 && o.sub) ? o.sub : null;
+    // subs 是权威形式；sub（单数）留着当【只选了一个包】时的糖 —— 量具里
+    // 那一堆 start({pack, sub}) 照旧能用。多选时传单数 sub 是无解的，丢掉。
+    let subs = {};
+    if (o.subs) { for (const p of packs) if (o.subs[p]) subs[p] = o.subs[p]; }
+    else if (packs.length === 1 && o.sub) subs[packs[0]] = o.sub;
     const secs = SECS.indexOf(o.secs) >= 0 ? o.secs : 60;
     // 种子只有这两个来源，start 里一个 Date.now() 都不许有（霓虹教训四）。
     const q = /[?&]seed=(-?\d+)/.exec((location && location.search) || '');
     const seed = o.seed != null ? o.seed : (q ? +q[1] : 1);
 
-    let base = pool(packs, sub);
-    if (!base.length) { packs = []; sub = null; base = pool(packs, null); }   // 空池兜底，别让 draw() 转死
+    let base = pool(packs, subs);
+    if (!base.length) { packs = []; subs = {}; base = pool(packs, null); }   // 空池兜底，别让 draw() 转死
 
     const rnd = mul(seed);
     st = {
-      packs, sub, secs, seed, rnd,
+      packs, subs, sub: (packs.length === 1 ? (subs[packs[0]] || null) : null), secs, seed, rnd,
       state: '起手', armed: false, readyLeft: READY_MS,
       total: secs * 1000, left: secs * 1000,
       base, order: shuffle(base, rnd), i: 0,
@@ -1275,7 +1297,7 @@
   // 接线
   // ===================================================================
   // packs 空 = 全部（也就是「随机」）。sub 只在 packs 恰好一个时才成立。
-  let pick = { packs: [], sub: null, secs: 60 };
+  let pick = { packs: [], subs: {}, secs: 60 };
 
   // 每个词包一枚线条图标。全是 24×24 里的基本形（圆、矩形、折线），
   // 跟这个仓库其余几款一样：美术由代码生成，不外挂任何文件。
@@ -1301,12 +1323,21 @@
   };
   const iconSVG = n => '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + (ICON[n] || '') + '</svg>';
 
-  // 大类卡片现在是【勾选】，不是「进入」—— 可以同时选中好几个包，在它们里混着抽。
-  // 「细分」挪到了底栏一个按钮上，而且只在恰好选中一个包时才可点：
-  // 选了三个包还谈「哪个子包」是无解的，所以宁可让按钮灰着，也不让它装作能用。
+  // 大类卡片是【勾选】：可以同时选中好几个包，在它们里混着抽。
+  // 细分入口在【每张卡自己的右上角】。它曾经是底栏上的一个按钮，只在恰好选中
+  // 一个包时才可点 —— 那等于「想细分就只能选一个包」，多选和细分二选一。
+  // 现在每个包各挑各的子类，互不影响：选了动漫+游戏，动漫还能只抽 V家。
+  // 造卡片时就把这三个节点记下来，markPacks 直接照着刷 —— 不回头去 querySelector。
+  // 一来省掉一次全树查找，二来量具那份 DOM 桩没有选择器引擎，而桩不该为了
+  // 迁就实现去长出一个 CSS 解析器：知道自己造了什么，就别再去问一遍。
+  const cells = [];
   function buildMenu() {
     const pb = $('packs');
+    cells.length = 0;
     const mk = (name, enabled) => {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.pack = name;
       const b = document.createElement('button');
       b.className = 'card';
       b.type = 'button';
@@ -1321,17 +1352,30 @@
       nm.className = 'nm';
       nm.textContent = name;
       b.appendChild(nm);
+      const sn = document.createElement('small');
+      sn.className = 'sn';
+      b.appendChild(sn);                 // 挑了子包才填字，平时是空的
       if (GROUP[name]) b.setAttribute('data-g', String(GROUP[name]));
       if (!enabled) { b.disabled = true; const s = document.createElement('small'); s.textContent = '待补'; b.appendChild(s); }
       b.addEventListener('click', () => {
         if (!enabled) return;
-        if (name === '随机') { pick.packs = []; pick.sub = null; markPacks(); return; }
+        if (name === '随机') { pick.packs = []; pick.subs = {}; markPacks(); return; }
         const i = pick.packs.indexOf(name);
-        if (i >= 0) pick.packs.splice(i, 1); else pick.packs.push(name);
-        pick.sub = null;        // 选中的包一变，原来挑的子包就不再成立
+        if (i >= 0) { pick.packs.splice(i, 1); delete pick.subs[name]; }   // 取消勾选连子包一起撤
+        else pick.packs.push(name);
         markPacks();
       });
-      pb.appendChild(b);
+      cell.appendChild(b);
+      cells.push({ name, cell, card: b, sn });
+      // 有子包的才给细分入口。随机没有，「待补」的空包也没有 —— 点进去是一屏空卡片。
+      if (enabled && (SUBS[name] || []).length) {
+        const m = document.createElement('button');
+        m.className = 'more'; m.type = 'button'; m.textContent = '\u203a';
+        m.setAttribute('aria-label', name + ' · 细分');
+        m.addEventListener('click', e => { e.stopPropagation(); openSubs(name); });
+        cell.appendChild(m);
+      }
+      pb.appendChild(cell);
     };
     mk('随机', true);
     PACKS.forEach(p => mk(p, WORDS[p].length > 0));
@@ -1359,17 +1403,19 @@
   }
   function markPacks() {
     const sel = pick.packs;
-    [...$('packs').children].forEach(c => {
-      const n = c.dataset.pack;
-      c.setAttribute('aria-checked', String(n === '随机' ? sel.length === 0 : sel.indexOf(n) >= 0));
+    cells.forEach(({ name, cell, card, sn }) => {
+      const on = name === '随机' ? sel.length === 0 : sel.indexOf(name) >= 0;
+      card.setAttribute('aria-checked', String(on));
+      // 「›」的颜色靠它读，不用 :has() —— 那个选择器在旧一点的手机浏览器上还不保准
+      if (on) cell.dataset.on = '1'; else delete cell.dataset.on;
+      sn.textContent = (on && pick.subs[name]) ? pick.subs[name] : '';
     });
-    const d = $('drill');
-    d.disabled = sel.length !== 1;
-    d.textContent = sel.length === 1 ? '细分 ›' : '细分';
   }
 
   // 细分屏。第一张永远是「全部」= 在整个大类里随机 —— 它是默认选中的那张，
   // 因为大多数人进来只是想看看有什么，并不想真的挑一类。
+  // 挑任意一张都会顺手把这个包【勾上】：为一个不参战的包挑子类没有意义。
+  // 但它不会碰别的包 —— 从动漫的细分屏出来，刚才选的游戏还在。
   function openSubs(pack) {
     $('subTitle').textContent = pack;
     const box = $('subPacks');
@@ -1388,17 +1434,18 @@
       const c = document.createElement('small'); c.textContent = count + ' 词'; b.appendChild(c);
       if (g) b.setAttribute('data-g', g);
       b.addEventListener('click', () => {
-        pick.sub = subName || null;
+        if (subName) pick.subs[pack] = subName; else delete pick.subs[pack];
+        if (pick.packs.indexOf(pack) < 0) pick.packs.push(pack);
         [...box.children].forEach(x => x.setAttribute('aria-checked',
-          String((x.dataset.sub || null) === pick.sub)));
+          String((x.dataset.sub || null) === (pick.subs[pack] || null))));
+        markPacks();
       });
       box.appendChild(b);
     };
     mkSub('全部', null, WORDS[pack].length);
     (SUBS[pack] || []).forEach(r => mkSub(r[0], r[0], r[2] - r[1]));
-    // 进得来就说明 pick.packs 恰好是 [pack]（细分按钮只有这时才可点）
     [...box.children].forEach(x => x.setAttribute('aria-checked',
-      String((x.dataset.sub || null) === pick.sub)));
+      String((x.dataset.sub || null) === (pick.subs[pack] || null))));
     markPacks();
     view = 'subs';
     render();
@@ -1413,7 +1460,7 @@
     try { const c = ac(); if (c && c.resume) c.resume(); } catch (_) {}   // 手势里解锁音频
     // ?seed= 在的时候不覆盖它 —— 调试要钉得死；平时每局换一颗种子
     const pinned = /[?&]seed=(-?\d+)/.test(location.search || '');
-    const o = { packs: pick.packs, sub: pick.sub, secs: pick.secs };
+    const o = { packs: pick.packs, subs: pick.subs, secs: pick.secs };
     start(pinned ? o : Object.assign(o, { seed: (Date.now() & 0x7fffffff) }));
     relayout();
     askSensor().then(on => { sensorGranted = on; smooth = null; render(); });
@@ -1424,7 +1471,6 @@
     buildMenu();
     $('go').addEventListener('click', beginRound);
     $('go2').addEventListener('click', beginRound);
-    $('drill').addEventListener('click', () => { if (pick.packs.length === 1) openSubs(pick.packs[0]); });
     $('back2').addEventListener('click', () => { view = 'menu'; markPacks(); render(); });
     $('again').addEventListener('click', beginRound);
     $('back').addEventListener('click', () => { st = null; view = 'menu'; lastWord = null; lastOver = -1; render(); });
@@ -1468,7 +1514,8 @@
     render, paint, normalZ, pace, SUBS,
     packOf: w => OF[w] || null,
     subsOf: p => (SUBS[p] || []).map(r => r[0]),
-    sub: () => (st ? st.sub : null),
+    sub: () => (st ? st.sub : null),          // 只选一个包时的那一个；多选时是 null
+    subs: () => (st ? Object.assign({}, st.subs) : {}),
     packs: () => (st ? st.packs.slice() : []),
     word: () => (st && st.state === '进行' ? st.word : null),
     left: () => (st ? st.left : 0),

@@ -54,7 +54,7 @@ const NOD = run({});
   const need = ['PACKS', 'WORDS', 'SECS', 'TH', 'start', 'ready', 'tick',
     'verdict', 'release', 'feedNormal', 'feedTap', 'amend',
     'word', 'left', 'score', 'log', 'usedMs', 'pace', 'shown', 'state', 'packOf',
-    'SUBS', 'subsOf', 'sub', 'packs'];
+    'SUBS', 'subsOf', 'sub', 'subs', 'packs'];
   const miss = need.filter(k => NOD[k] === undefined);
   ok(miss.length === 0, `契约 ${need.length} 项，缺 ${miss.length} 项${miss.length ? '：' + miss.join(' ') : ''}`);
 
@@ -313,10 +313,47 @@ sec('多选');
   }
   ok(hit.size === 2 && outside === 0, `连抽 60 个词跨了 ${hit.size} 个包，跑到包外的 ${outside} 个`);
 
-  // 选多个包时「子包」是无解的，所以必须被丢掉，而不是留着装作还生效
+  // 单数 sub 说的是「这一局的子包」，多选时它无解 —— 丢掉，而不是留着装作还生效。
+  // 要在多选里细分得用 subs（复数），下面那一段。
   NOD.start({ packs: [a, b], sub: '鸟类', secs: 180, seed: 81 });
   ok(NOD.sub() === null && NOD.poolSize() === want,
-    `多选时传进来的子包被丢掉：sub() 是 ${NOD.sub()}，池子仍是 ${NOD.poolSize()}`);
+    `多选时传进来的单数 sub 被丢掉：sub() 是 ${NOD.sub()}，池子仍是 ${NOD.poolSize()}`);
+
+  // ---- 每个包各挑各的子包：细分入口在每张卡上，所以细分不该再逼人只选一个包 ----
+  {
+    const sa = NOD.subsOf(a)[1], ra = NOD.SUBS[a].find(x => x[0] === sa);
+    const nA = ra[2] - ra[1];
+    NOD.start({ packs: [a, b], subs: { [a]: sa }, secs: 180, seed: 82 });
+    ok(NOD.poolSize() === nA + NOD.WORDS[b].length,
+      `「${a} 只要 ${sa}」+「${b} 整包」= ${NOD.poolSize()} 个词 = ${nA} + ${NOD.WORDS[b].length}`);
+    ok(NOD.packs().length === 2, `另一个包没被细分挤掉：packs() 仍是 ${NOD.packs().length} 个`);
+    ok(NOD.sub() === null && NOD.subs()[a] === sa,
+      `多选时 sub() 是 ${NOD.sub()}（无解），subs() 里 ${a} 是「${NOD.subs()[a]}」`);
+
+    // 抽出来的词：属于 a 的必须都在那个子包里，属于 b 的哪儿都行
+    const inA = new Set(NOD.WORDS[a].slice(ra[1], ra[2]));
+    NOD.feedNormal(0); NOD.ready(3000);
+    let leak = 0, fromB = 0;
+    for (let i = 0; i < 80; i++) {
+      const w = NOD.word(), p = NOD.packOf(w);
+      if (p === a && !inA.has(w)) leak++;
+      if (p === b) fromB++;
+      NOD.verdict('跳过'); NOD.release();
+    }
+    ok(leak === 0 && fromB > 0,
+      `连抽 80 个：漏到「${a}」子包外面的 ${leak} 个，来自「${b}」的 ${fromB} 个`);
+
+    // 两个包各挑各的，互不串
+    const sb = NOD.subsOf(b)[0], rb = NOD.SUBS[b].find(x => x[0] === sb);
+    NOD.start({ packs: [a, b], subs: { [a]: sa, [b]: sb }, secs: 180, seed: 83 });
+    ok(NOD.poolSize() === nA + (rb[2] - rb[1]),
+      `两个包各挑各的：${NOD.poolSize()} 个词 = ${nA} + ${rb[2] - rb[1]}`);
+
+    // subs 里写了个没选的包，不该把它偷偷拉进来
+    NOD.start({ packs: [a], subs: { [b]: sb }, secs: 180, seed: 84 });
+    ok(NOD.poolSize() === NOD.WORDS[a].length && NOD.subs()[b] === undefined,
+      `subs 里那个没被选中的包没被拉进来：池子 ${NOD.poolSize()} = ${a} 整包`);
+  }
 
   // 空列表 = 全部；不认识的包名被过滤掉
   NOD.start({ packs: [], secs: 180, seed: 81 });
