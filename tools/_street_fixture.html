@@ -1,0 +1,585 @@
+<!doctype html><meta charset="utf-8"><title>静街 · 量具自检靶子</title>
+<canvas id="cv"></canvas>
+<!--
+  这不是游戏，是【量具的靶子】。
+  verify-street.js / probe-street.js 是在游戏本体之前写的；量具自己也会有 bug，
+  而量具的 bug 会被当成游戏的 bug（霓虹教训十九、二十三）。所以这里放一份
+  已知正确的最小实现：它按数据规格实现了那几条不变量，量具跑它必须全绿。
+  游戏本体出现在 games/quiet-street/index.html 之后，桩会自动改用真的那份。
+  数字取自 docs/静街数据规格.md，但只做够验收用的那一部分 —— 别往这里加玩法。
+-->
+<script>
+(function () {
+  'use strict';
+  // 不用 Math.random（仓库规矩）
+  const mul = s => () => (s = s + 0x6D2B79F5 | 0, ((h => (h ^ h >>> 15) >>> 0)(
+    (Math.imul((s ^ s >>> 15) | 1, 1 | s) ^ Math.imul(s, 61)) >>> 0)) / 4294967296);
+  let rnd = mul(1);
+  const ri = n => Math.floor(rnd() * n);
+  const pick = a => a[ri(a.length)];
+
+  const W = 96, H = 80;
+  const HOUSE_TYPE = {
+    民宅:   { n: 18, w: [8, 12],  h: [6, 9],  lock: .45, rooms: ['客厅', '厨房', '卧室', '卫生间'] },
+    商铺:   { n: 4,  w: [10, 10], h: [7, 7],  lock: .60, rooms: ['店面', '库房'] },
+    超市:   { n: 1,  w: [20, 20], h: [14, 14], lock: .80, rooms: ['卖场', '库房'] },
+    药房:   { n: 1,  w: [10, 10], h: [8, 8],  lock: .90, rooms: ['店面', '卫生间', '库房'] },
+    五金:   { n: 1,  w: [12, 12], h: [9, 9],  lock: .70, rooms: ['店面', '库房'] },
+    仓库:   { n: 3,  w: [16, 16], h: [12, 12], lock: .50, rooms: ['库房', '办公'] },
+    加油站: { n: 1,  w: [12, 12], h: [8, 8],  lock: .40, rooms: ['店面', '库房'] },
+    警局:   { n: 1,  w: [14, 14], h: [10, 10], lock: .95, rooms: ['办公', '枪械柜'] },
+    诊所:   { n: 1,  w: [14, 14], h: [10, 10], lock: .85, rooms: ['店面', '卫生间', '库房'] },
+    教堂:   { n: 1,  w: [14, 14], h: [12, 12], lock: .20, rooms: ['客厅', '库房'] },
+  };
+  const ROOM_GRAMMAR = {
+    客厅:   ['电视柜', '书架'],
+    厨房:   ['冰箱', '橱柜', '橱柜'],
+    卧室:   ['衣柜', '床头柜'],
+    卫生间: ['药柜'],
+    店面:   ['货架', '货架', '收银台'],
+    卖场:   ['货架', '货架', '货架', '冰箱'],
+    库房:   ['木箱', '木箱'],
+    办公:   ['书架', '木箱'],
+    枪械柜: ['枪柜', '枪柜'],
+  };
+  const CONTAINER = {
+    床头柜: { slots: 2, min: 2, noise: 2 }, 药柜: { slots: 3, min: 2, noise: 2 },
+    衣柜:   { slots: 6, min: 4, noise: 2 }, 橱柜: { slots: 5, min: 3, noise: 2 },
+    冰箱:   { slots: 6, min: 3, noise: 3 }, 电视柜: { slots: 3, min: 2, noise: 2 },
+    书架:   { slots: 4, min: 3, noise: 2 }, 货架: { slots: 8, min: 4, noise: 2 },
+    收银台: { slots: 3, min: 2, noise: 3 }, 木箱: { slots: 10, min: 6, noise: 4 },
+    工具架: { slots: 8, min: 4, noise: 3 }, 枪柜: { slots: 4, min: 12, noise: 8 },
+  };
+  const w = o => o;   // 权重表就是 {物品: 权重}，'空' 也是一项
+  const LOOT = {
+    橱柜:      w({ 罐头: 30, 干粮: 18, 米: 12, 盐: 8, 火柴: 10, 空: 30 }),
+    冰箱:      w({ 生肉: 14, 蔬菜: 20, 鸡蛋: 10, 汽水: 12, 空: 44 }),
+    药柜:      w({ 绷带: 22, 止痛药: 16, 酒精: 10, 抗生素: 4, 空: 48 }),
+    '药柜@药房': w({ 绷带: 30, 酒精: 26, 抗生素: 20, 止痛药: 20, 针线: 12, 空: 12 }),
+    '药柜@诊所': w({ 绷带: 26, 酒精: 22, 抗生素: 16, 针线: 14, 夹板: 10, 空: 14 }),
+    衣柜:      w({ 布: 26, 毛衣: 14, 外套: 10, 手套: 8, 靴: 8, 雨衣: 6, 背包: 5, 空: 32 }),
+    床头柜:    w({ 止痛药: 10, 电池: 14, 打火机: 10, 书: 8, 空: 50 }),
+    电视柜:    w({ 电池: 16, 胶带: 10, 空: 60 }),
+    书架:      w({ 书: 26, 布: 8, 空: 52 }),
+    货架:      w({ 罐头: 22, 干粮: 16, 瓶装水: 20, 空瓶: 10, 电池: 8, 空: 34 }),
+    '货架@五金': w({ 木板: 26, 钉: 24, 锤: 10, 螺丝刀: 12, 胶带: 14, 绳: 12, 撬棍: 6, 斧: 4, 空: 20 }),
+    '货架@加油站': w({ 汽油: 34, 瓶装水: 16, 干粮: 14, 打火机: 10, 空: 26 }),
+    收银台:    w({ 打火机: 14, 电池: 12, 空: 60 }),
+    木箱:      w({ 木板: 20, 钉: 16, 绳: 12, 塑料布: 12, 汽油: 8, 空瓶: 10, 空: 30 }),
+    工具架:    w({ 钉: 26, 锤: 10, 螺丝刀: 14, 胶带: 16, 绳: 12, 撬棍: 6, 斧: 4, 空: 22 }),
+    枪柜:      w({ 手枪: 34, 霰弹枪: 18, 手枪弹: 40, 霰弹壳: 26, 空: 6 }),
+  };
+  const ITEMS = {
+    罐头: { slot: 1, kg: .4 }, 干粮: { slot: 1, kg: .2 }, 米: { slot: 2, kg: 1 },
+    生肉: { slot: 1, kg: .5 }, 蔬菜: { slot: 1, kg: .3 }, 鸡蛋: { slot: 1, kg: .1 },
+    盐: { slot: 1, kg: .3 }, 瓶装水: { slot: 1, kg: .5 }, 汽水: { slot: 1, kg: .4 },
+    空瓶: { slot: 1, kg: .1 }, 绷带: { slot: 1, kg: .1 }, 布: { slot: 1, kg: .2 },
+    酒精: { slot: 1, kg: .3 }, 针线: { slot: 1, kg: .05 }, 抗生素: { slot: 1, kg: .1 },
+    止痛药: { slot: 1, kg: .1 }, 夹板: { slot: 2, kg: .5 }, 撬棍: { slot: 2, kg: 2 },
+    斧: { slot: 2, kg: 2.5 }, 锤: { slot: 1, kg: 1.2 }, 螺丝刀: { slot: 1, kg: .2 },
+    木板: { slot: 2, kg: 1.5 }, 钉: { slot: 1, kg: .2 }, 绳: { slot: 1, kg: .5 },
+    胶带: { slot: 1, kg: .2 }, 塑料布: { slot: 1, kg: .3 }, 汽油: { slot: 2, kg: 3 },
+    电池: { slot: 1, kg: .1 }, 外套: { slot: 3, kg: 1.5 }, 毛衣: { slot: 2, kg: .8 },
+    雨衣: { slot: 2, kg: .6 }, 手套: { slot: 1, kg: .2 }, 靴: { slot: 2, kg: 1 },
+    手枪: { slot: 2, kg: 1.1 }, 霰弹枪: { slot: 4, kg: 3.2 }, 手枪弹: { slot: 1, kg: .3 },
+    霰弹壳: { slot: 1, kg: .3 }, 火柴: { slot: 1, kg: .05 }, 打火机: { slot: 1, kg: .05 },
+    书: { slot: 2, kg: .7 }, 背包: { slot: 0, kg: 1 }, 腌菜: { slot: 1, kg: .6 },
+    熏肉: { slot: 1, kg: .4 }, 长矛: { slot: 3, kg: 1.8 }, 燃烧瓶: { slot: 1, kg: .6 },
+  };
+  // 校验器第 4 条会反查：每一样材料都必须能在某张 LOOT 表里找到
+  const RECIPES = [
+    { out: '绷带', need: { 布: 2 } },
+    { out: '腌菜', need: { 蔬菜: 2, 盐: 1 } },
+    { out: '熏肉', need: { 生肉: 2, 盐: 1 } },
+    { out: '长矛', need: { 木板: 1, 菜刀: 0, 绳: 1 } },
+    { out: '燃烧瓶', need: { 空瓶: 1, 汽油: 1, 布: 1 } },
+    { out: '雨水收集器', need: { 空瓶: 4, 塑料布: 1, 木板: 2 } },
+    { out: '火堆', need: { 木板: 2, 火柴: 1 } },
+    { out: '窗板', need: { 木板: 1, 钉: 1 } },
+  ];
+  delete RECIPES[3].need.菜刀;   // 菜刀不在 LOOT 里，这条材料先去掉（真游戏里要给它一张表）
+
+  const WOUND = {
+    咬:   { bleed: 2, zomb: .35, inf: .40, steps: ['清洗', '消毒', '缝合', '包扎'] },
+    抓:   { bleed: 1, zomb: .07, inf: .25, steps: ['消毒', '包扎'] },
+    撕裂: { bleed: 3, zomb: 0,   inf: .30, steps: ['清洗', '缝合', '包扎'] },
+    骨折: { bleed: 0, zomb: 0,   inf: 0,   steps: ['夹板'] },
+    烧:   { bleed: 0, zomb: 0,   inf: .35, steps: ['清洗', '包扎'] },
+    划:   { bleed: 1, zomb: 0,   inf: .15, steps: ['消毒', '包扎'] },
+  };
+  const NOISE = { 蹲行: 0, 走: 2, 挥击: 4, 破窗: 12, 撬门: 8, 锤钉: 10, 手枪: 40, 霰弹: 55, 发电机: 18, 喇叭: 70, 跑: 7 };
+  const SPEED = { 蹲行: .30, 走: .60, 跑: 1.50, 僵尸游荡: .35, 僵尸追击: .75 };
+  // 冲刺尸：唯一"跑得动"的僵尸。冲刺 1.7 > 玩家跑 1.5（这 20 秒你跑不掉），
+  // 冲完 0.40 < 玩家走 0.60（付过代价之后你一定跑得掉）。
+  // 【全程跑的僵尸不做】—— 那会让"逃跑永远正确"这条前提失效，那是另一个游戏。
+  const ZOMBIE_KIND = {
+    普通:   { share: .88, chase: .75 },
+    冲刺尸: { share: .12, chase: .75, burst: 1.70, burstSec: 20, after: .40, cooldownMin: 10 },
+  };
+  // 两套词汇严格分开 —— 校验器第 7 条会比它们有没有重词
+  const INFECT_TEXT = {
+    // 原来叫「发炎」、提示写「伤口在发炎」，被 verify 的二字词比对抓到：
+    // 它和感染二阶段「在发热」共用「在发」。改成「红肿」，两套词汇再无交集。
+    wound:  { name: '红肿', bad: '脓毒', color: '#d8b13a', tip: '左小臂的伤口红肿了', cure: '抗生素' },
+    zombie: { name: '已感染', stages: ['有点不舒服', '在发热', '一直在吐', '抽搐'], color: '#c0392b', tip: '你被咬了。这个不会好', cure: null },
+  };
+  const DRAW_PATHS = ['地面', '建筑', '僵尸', '玩家', '贴花', '光', '噪音圈', '热度小地图', '状态面板', '容器面板', '日志页', '死亡回溯'];
+
+  const BLOCK_DEF = [
+    { id: 'A', name: '老街区', init: 60, adj: ['B', 'E'] },
+    { id: 'B', name: '新街区', init: 55, adj: ['A', 'C'] },
+    { id: 'C', name: '商业街', init: 70, adj: ['B', 'D', 'E', 'F'] },
+    { id: 'D', name: '工业区', init: 45, adj: ['C', 'E', 'F'] },
+    { id: 'E', name: '公共区', init: 60, adj: ['A', 'C', 'D'] },
+    { id: 'F', name: '镇外',   init: 30, adj: ['C', 'D'] },
+  ];
+
+  const QS = {
+    HOUSE_TYPE, ROOM_GRAMMAR, CONTAINER, LOOT, ITEMS, RECIPES, WOUND, NOISE, SPEED, ZOMBIE_KIND,
+    INFECT_TEXT, DRAW_PATHS, W, H,
+    TOWN: null, BLOCKS: [], Z: [], P: null, LOG: [], death: null,
+    kills: 0, waves: 0, seeped: 0, SEEP_CAP: 60, __drawn: new Set(), __flows: [], __ui: 'none', __night: false,
+  };
+
+  function genTown(seed) {
+    rnd = mul(seed >>> 0);
+    const houses = [], containers = [], ITEMINDEX = {};
+    let hid = 0;
+    for (const t in HOUSE_TYPE) {
+      const T = HOUSE_TYPE[t];
+      for (let k = 0; k < T.n; k++) {
+        const hw = T.w[0] + ri(T.w[1] - T.w[0] + 1), hh = T.h[0] + ri(T.h[1] - T.h[0] + 1);
+        const bx = 2 + ri(W - hw - 4), by = 2 + ri(H - hh - 4);
+        const blk = BLOCK_DEF[Math.min(5, (by < 20 ? 0 : by < 40 ? 2 : 4) + (bx < 46 ? 0 : 1))].id;
+        // 红线：至少两条出路（一扇门 + 至少一扇窗），生成后检查
+        const exits = [{ kind: '门', locked: rnd() < T.lock }];
+        const nw = 1 + ri(3);
+        for (let i = 0; i < nw; i++) exits.push({ kind: '窗', boards: 0 });
+        const hs = { id: hid++, type: t, x: bx, y: by, w: hw, h: hh, block: blk, exits, rooms: [] };
+        for (const r of T.rooms) {
+          const room = { type: r, cont: [], water: r === '厨房' || r === '卫生间' };
+          for (const c of (ROOM_GRAMMAR[r] || [])) {
+            const cid = containers.length;
+            const key = LOOT[c + '@' + t] ? c + '@' + t : c;
+            const items = rollLoot(key, CONTAINER[c].slots);
+            containers.push({ id: cid, kind: c, house: hs.id, htype: t, lootKey: key, items });
+            for (const it of items) (ITEMINDEX[it] = ITEMINDEX[it] || []).push(hs.id);
+            room.cont.push(cid);
+          }
+          hs.rooms.push(room);
+        }
+        houses.push(hs);
+      }
+    }
+    QS.TOWN = { seed, day: 1, hhmm: '06:00', hour: 6, season: '秋', W, H, houses, containers,
+                searched: new Uint8Array(containers.length), ITEMINDEX, built: [], corpses: [],
+                waterDay: 7 + ri(4), powerDay: 14, waterOn: true,
+                deeds: {}, legacy: [], harvested: false };   // 拐点日期开局就定死（决策 6）
+    QS.BLOCKS = BLOCK_DEF.map(b => ({ ...b, pop: b.init, heat: 0, lock: 0 }));
+    QS.Z = [];
+    for (const b of QS.BLOCKS) for (let i = 0; i < b.pop; i++) QS.Z.push({ x: ri(W), y: ri(H), block: b.id, state: '游荡' });
+  }
+  function rollLoot(key, slots) {
+    const tab = LOOT[key]; if (!tab) return [];
+    const keys = Object.keys(tab), tot = keys.reduce((a, k) => a + tab[k], 0);
+    const out = [];
+    for (let i = 0; i < Math.min(slots, 4); i++) {
+      let r = rnd() * tot;
+      for (const k of keys) { r -= tab[k]; if (r <= 0) { if (k !== '空') out.push(k); break; } }
+    }
+    return out;
+  }
+
+  QS.tileHash = () => {
+    let h = 2166136261;
+    for (const o of QS.TOWN.houses) for (const v of [o.x, o.y, o.w, o.h, o.type.length, o.exits.length])
+      h = (Math.imul(h ^ v, 16777619)) >>> 0;
+    for (const c of QS.TOWN.containers) h = (Math.imul(h ^ (c.kind.length + c.items.length * 7), 16777619)) >>> 0;
+    return h >>> 0;
+  };
+
+  QS.start = seed => {
+    genTown(seed >>> 0);
+    QS.kills = 0; QS.waves = 0; QS.seeped = 0; QS.LOG = [{ day: 1, lines: ['电台说电力还能撑两周。'] }]; QS.death = null;
+    QS.__flows = []; QS.__ev = null;
+    QS.P = { x: 8, y: 70, stance: '走', dead: false, seen: new Set(),
+      body: { 饥饿: 100, 口渴: 100, 疲劳: 100, 体温: 100, 恐慌: 0, 情绪: 80 },
+      wounds: [], infect: null, inv: ['撬棍', '罐头', '瓶装水'], snaps: [],
+      worn: [], inside: true, wet: false, atHouse: null };
+    QS.bus = [];
+    return QS;
+  };
+
+  const ev = (kind, o) => { QS.bus.push({ t: QS.TOWN.hour, day: QS.TOWN.day, hhmm: QS.TOWN.hhmm, kind, ...o }); };
+  const blk = id => QS.BLOCKS.find(b => b.id === id);
+
+  QS.noise = (x, y, r, durSec) => {
+    const b = QS.BLOCKS[Math.min(5, (y < 20 ? 0 : y < 40 ? 2 : 4) + (x < 46 ? 0 : 1))];
+    b.heat += r * durSec / 100;
+    ev('noiseMade', { r, src: 'test', block: b.id });
+    for (const z of QS.Z) if (z.block === b.id && Math.hypot(z.x - x, z.y - y) < r) { z.state = '追击'; z.tx = x; z.ty = y; }
+    return b;
+  };
+
+  // 每天 04:00 的迁移结算。只沿邻接表 —— 校验器第 6 条会查跨区流量
+  QS.migrate = () => {
+    const flows = [];
+    for (const i of QS.BLOCKS) for (const jid of i.adj) {
+      const j = blk(jid); if (!j || i.id >= j.id) continue;
+      for (const [a, b] of [[i, j], [j, i]]) {
+        const d = b.heat - a.heat; if (d <= 0) continue;
+        if (b.lock > 0) continue;
+        let f = .25 * a.pop * d / (a.heat + b.heat + 1);
+        f = Math.min(f, a.pop * .30);
+        f = Math.floor(f);
+        if (f <= 0) continue;
+        a.pop -= f; b.pop += f; flows.push({ from: a.id, to: b.id, n: f });
+        for (let k = 0, moved = 0; k < QS.Z.length && moved < f; k++)
+          if (QS.Z[k].block === a.id) { QS.Z[k].block = b.id; moved++; }
+      }
+    }
+    // 扩散：密度差两倍以上的邻区，平掉差额的 8%
+    for (const i of QS.BLOCKS) for (const jid of i.adj) {
+      const j = blk(jid); if (!j || i.pop < j.pop * 2 || j.lock > 0) continue;
+      const f = Math.floor((i.pop - j.pop) * .08);
+      if (f > 0) { i.pop -= f; j.pop += f; flows.push({ from: i.id, to: j.id, n: f }); }
+    }
+    for (const b of QS.BLOCKS) {
+      b.heat *= .4;
+      if (b.lock > 0) b.lock--;
+      else if (b.pop / b.init < .10) b.lock = 7;
+    }
+    // 渗入：每天从镇外两条路进来一点点，让"安静"需要维护 ——
+    // 但【不是】给存量补货，所以有硬上限（见 docs/adr/0001）
+    const f = blk('F');
+    if (QS.seeped < QS.SEEP_CAP) { const k = 1 + ri(3); f.pop += k; QS.seeped += k;
+      for (let i = 0; i < k; i++) QS.Z.push({ x: ri(W), y: H - 2, block: 'F', state: '游荡' }); }
+    QS.__flows = flows;
+    return flows;
+  };
+
+  QS.wave = () => { QS.waves++; const f = blk('F'); f.pop += 120; for (let i = 0; i < 120; i++) QS.Z.push({ x: ri(W), y: H - 2, block: 'F', state: '游荡' }); };
+  QS.kill = n => { for (let i = 0; i < n; i++) { const z = QS.Z.pop(); if (!z) break; blk(z.block).pop--; QS.kills++; } };
+
+  // 遭遇判定：只为了让探针的【死因分布】有东西可分。
+  // 真游戏里这是 T3（密度与感知）+ T6（近战与踉跄链）的事，不是一行概率。
+  QS.__risk = 1;
+  const blockAt = (x, y) => QS.BLOCKS[Math.min(5, (y < 20 ? 0 : y < 40 ? 2 : 4) + (x < 46 ? 0 : 1))];
+  function encounter(kind) {
+    const b = blockAt(QS.P.x, QS.P.y);
+    const dens = b.pop / b.init;
+    const st = QS.P.stance === '蹲行' ? .4 : QS.P.stance === '跑' ? 1.8 : 1;
+    // 这几个数是【编的】，只为了让四张表有东西可算 —— 真实数值是 T3/T6 的事。
+    // 第一版编得太狠（0.012 / 0.28），探针立刻报「被围占 60%」：量具是对的，靶子太脆。
+    if (rnd() > .005 * dens * st * QS.__risk * (kind === 'loot' ? 2 : 1)) return null;
+    if (rnd() < .12 && dens > .85 && QS.P.stance !== '跑') { ev('hurtByHorde', { n: 3 }); return QS.die('被围'); }
+    return QS.bite(rnd() < .5 ? '左小臂' : '右手');
+  }
+  QS.encounter = encounter;
+  // 自来水：厨房和卫生间有水源，停水那天之后全镇取不到
+  QS.drinkFrom = houseId => {
+    const hs = QS.TOWN.houses[houseId];
+    if (!hs || !QS.TOWN.waterOn) return false;
+    if (!hs.rooms.some(r => r.water)) return false;
+    QS.P.body.口渴 = 100;
+    ev('drink', { src: '自来水', house: houseId });
+    return true;
+  };
+  QS.lootContainer = id => {
+    const c = QS.TOWN.containers[id]; if (!c || QS.TOWN.searched[id]) return [];
+    QS.TOWN.searched[id] = 1;
+    QS.noise(QS.P.x, QS.P.y, CONTAINER[c.kind].noise, 20);
+    QS.P.inv.push(...c.items);
+    QS.P.seen.add(c.house);
+    ev('loot', { item: c.items[0] || '空', container: c.kind, house: c.house });
+    encounter('loot');
+    return c.items;
+  };
+  QS.move = (dx, dy, stance) => {
+    QS.P.stance = stance || '走';
+    const sp = SPEED[QS.P.stance] || SPEED.走;
+    QS.P.x = Math.max(0, Math.min(W - 1, QS.P.x + dx * sp));
+    QS.P.y = Math.max(0, Math.min(H - 1, QS.P.y + dy * sp));
+    const r = NOISE[QS.P.stance === '跑' ? '跑' : QS.P.stance === '蹲行' ? '蹲行' : '走'];
+    if (r) QS.noise(QS.P.x, QS.P.y, r, 1);
+    if (!QS.P.inside) encounter('move');
+  };
+  QS.bite = part => {
+    const W1 = WOUND.咬;
+    QS.P.wounds.push({ part, type: '咬', treated: [] });
+    ev('bite', { part, block: 'C', place: '肉铺后巷', what: '你为了省一发子弹改用撬棍，被咬中' + part });
+    if (rnd() < W1.zomb) QS.P.infect = { kind: 'zombie', part, left: 36 + ri(61), stage: 0 };
+    return QS.P.infect;
+  };
+  QS.treat = (part, step) => {
+    const wd = QS.P.wounds.find(x => x.part === part); if (!wd) return false;
+    const need = WOUND[wd.type].steps;
+    const item = { 清洗: '瓶装水', 消毒: '酒精', 缝合: '针线', 包扎: '绷带', 夹板: '夹板' }[step];
+    const has = QS.P.inv.includes(item);
+    if (has) { QS.P.inv.splice(QS.P.inv.indexOf(item), 1); wd.treated.push(step); }
+    ev('treat', { part, step, item, ok: has });
+    return has && need.includes(step);
+  };
+  const USE = { 罐头: ['饥饿', 22], 干粮: ['饥饿', 14], 瓶装水: ['口渴', 30], 汽水: ['口渴', 24], 抗生素: ['治', 0] };
+  const WARM = { 外套: 38, 毛衣: 22, 雨衣: 8, 手套: 6, 靴: 8 };
+  QS.useItem = name => {
+    const i = QS.P.inv.indexOf(name); if (i < 0) return false;
+    QS.P.inv.splice(i, 1);
+    if (WARM[name]) { QS.P.worn.push(name); return true; }     // 衣服是穿上，不是吃掉
+    const u = USE[name]; if (!u) { QS.P.inv.push(name); return false; }
+    if (u[0] === '治') { if (QS.P.infect && QS.P.infect.kind === 'wound') QS.P.infect = null; return true; }
+    QS.P.body[u[0]] = Math.min(100, QS.P.body[u[0]] + u[1]);
+    return true;
+  };
+  QS.TEMP_BASE = { 秋: { 户外: -2, 室内: 1 }, 冬: { 户外: -23, 室内: -6 } };
+  QS.warmth = () => QS.P.worn.reduce((a, w) => a + (WARM[w] || 0), 0);
+  QS.snap = () => {
+    QS.P.snaps.push({ t: QS.TOWN.hour, day: QS.TOWN.day,
+      有: { 瓶装水: QS.P.inv.includes('瓶装水'), 酒精: QS.P.inv.includes('酒精'),
+            针线: QS.P.inv.includes('针线'), 绷带: QS.P.inv.includes('绷带'),
+            抗生素: QS.P.inv.includes('抗生素') } });
+    if (QS.P.snaps.length > 48) QS.P.snaps.shift();
+  };
+  QS.advanceHours = h => {
+    for (let i = 0; i < h; i++) {
+      const B = QS.P.body;
+      B.饥饿 = Math.max(0, B.饥饿 - 2.1);
+      B.口渴 = Math.max(0, B.口渴 - 4.2);
+      B.疲劳 = Math.max(0, B.疲劳 - 6.25);
+      const base = QS.TEMP_BASE[QS.TOWN.season][QS.P.inside ? '室内' : '户外'];
+      B.体温 = Math.max(0, Math.min(100, B.体温 + base + QS.warmth() / 6 - (QS.P.wet ? 9 : 0)));
+      QS.TOWN.hour++; if (QS.TOWN.hour % 2 === 0) QS.snap();
+      if (QS.TOWN.hour >= 24) { QS.TOWN.hour = 0; QS.TOWN.day++; QS.migrate(); QS.LOG.push({ day: QS.TOWN.day, lines: [] });
+        if (QS.TOWN.day >= 21) QS.TOWN.season = '冬';
+        QS.checkDeeds();
+        if (QS.TOWN.day >= QS.TOWN.waterDay && QS.TOWN.waterOn) {
+          QS.TOWN.waterOn = false;
+          QS.LOG[QS.LOG.length - 1].lines.push('水龙头出不来水了。');
+          ev('waterOff', {});
+        } }
+      QS.TOWN.hhmm = String(QS.TOWN.hour).padStart(2, '0') + ':00';
+      if (QS.P.infect) {
+        QS.P.infect.left--;
+        QS.P.infect.stage = Math.min(3, 3 - Math.floor(QS.P.infect.left / 24));
+        if (QS.P.infect.left <= 0) return QS.die(QS.P.infect.kind === 'zombie' ? '感染' : '脓毒');
+      }
+      const bleeding = QS.P.wounds.filter(x => !x.treated.includes('包扎')).length;
+      if (bleeding) { B.体温 -= bleeding * .4; if ((QS.P.bleed = (QS.P.bleed || 0) + bleeding) > 160) return QS.die('失血'); }
+      if (B.口渴 <= 0) return QS.die('脱水');
+      if (B.饥饿 <= 0) return QS.die('饿死');
+      if (B.体温 <= 10) return QS.die('冻死');
+    }
+  };
+  QS.die = cause => {
+    QS.P.dead = true;
+    QS.death = { cause, day: QS.TOWN.day, hhmm: QS.TOWN.hhmm };
+    QS.TOWN.legacy.push({ name: QS.P.name || '无名', days: QS.TOWN.day, cause,
+      deeds: Object.keys(QS.TOWN.deeds).length });
+    if (QS.TOWN.legacy.length > 5) QS.TOWN.legacy.shift();
+    ev('death', { cause });
+    return QS.death;
+  };
+
+  // 三段模板。段三要具体到"最近的一瓶在哪、你什么时候路过" ——
+  // 所以生成时就建了 ITEMINDEX，采样时就存了背包快照。
+  const NEEDOF = { 感染: '酒精', 脓毒: '抗生素', 脱水: '瓶装水', 饿死: '罐头', 冻死: '外套', 失血: '绷带', 被围: null };
+  // 【急性】死因的 origin 是"那一下"（被咬、被按住）；
+  // 【慢性】死因的 origin 是"最后一次还有机会的时候" —— 探针第一次跑出来时这里取错了，
+  // 于是渴死的人被告知"你身上有瓶装水"。慢性死因问的不是"什么时候开始难受"，
+  // 而是"从哪一刻起就没救了"。
+  const CHRONIC = { 脱水: 1, 饿死: 1, 冻死: 1, 脓毒: 1 };
+  QS.deathReport = () => {
+    if (!QS.death) return null;
+    const d = QS.death, lines = [];
+    const need = NEEDOF[d.cause];
+    lines.push('你死于' + d.cause + '，第 ' + d.day + ' 天 ' + d.hhmm + '。');
+    let origin = null, tail = '';
+    if (CHRONIC[d.cause] && need) {
+      // 最后一条"身上还有它"的快照
+      for (let i = QS.P.snaps.length - 1; i >= 0; i--) if (QS.P.snaps[i].有[need]) { origin = QS.P.snaps[i]; break; }
+      const last = origin || QS.P.snaps[0];
+      const gone = last ? (d.day - last.day) * 24 + (QS.TOWN.hour - last.t) : 0;
+      if (last) lines.push('真正的死因在第 ' + last.day + ' 天 ' + String(last.t).padStart(2, '0')
+        + ':00 —— 那是你身上最后一份' + need + '，' + (origin ? '之后的 ' + Math.max(1, gone) + ' 小时里再没找到' : '而你从头到尾都没有过') + '。');
+      const src = QS.bus.filter(e => e.kind === 'waterOff').length && need === '瓶装水';
+      tail = src ? '停水那天电台播过，你没去做雨水收集器。' : '';
+    } else {
+      origin = QS.bus.find(e => e.kind === (d.cause === '被围' ? 'hurtByHorde' : 'bite')) || QS.bus.find(e => e.kind === 'bite') || QS.bus[0];
+      if (origin) lines.push('真正的死因在第 ' + origin.day + ' 天 ' + origin.hhmm + ' —— '
+        + (origin.place || '镇上') + '，' + (origin.what || (origin.n ? '三只把你按在墙上' : '你在那里出了声')) + '。');
+    }
+    if (need) {
+      const where = (QS.TOWN.ITEMINDEX[need] || [])[0];
+      const hs = QS.TOWN.houses[where];
+      lines.push('最近的一份在' + (hs ? hs.type : '镇上某处')
+        + (hs && QS.P.seen.has(hs.id) ? '，你从门口路过' : '，你从没进去过') + '。' + tail);
+    }
+    return { cause: d.cause, lines };
+  };
+
+  // ---- 据点：不是特殊对象，是「这栋房里有你的床和储物箱」这个事实 ----
+  // 归属一个字都不存（见 docs/adr/0002）—— 谁下一个进来就是谁的
+  QS.place = (kind, houseId) => {
+    const hs = QS.TOWN.houses[houseId]; if (!hs) return false;
+    if (kind === '床' || kind === '储物箱') {
+      const need = kind === '床' ? { 木板: 2 } : { 木板: 1, 钉: 1 };
+      for (const m in need) if (!QS.P.inv.includes(m)) return false;
+      for (const m in need) QS.P.inv.splice(QS.P.inv.indexOf(m), 1);
+      QS.TOWN.built.push({ kind, house: houseId, x: hs.x + 1, y: hs.y + 1 });   // 没有 owner 字段
+      QS.noise(hs.x, hs.y, NOISE.锤钉, 6);
+      return true;
+    }
+    return false;
+  };
+  // 返回 { did, lack }：钉不上要说清是没木板还是没钉 ——
+  // 「用不了也要说一声」（市井 T29）。第一版只返回数字，测试红的时候
+  // 界面上只会说"还有两扇窗没钉"，不会说"你没木板了"。
+  QS.board = houseId => {
+    const hs = QS.TOWN.houses[houseId]; if (!hs) return { did: 0, lack: '没这栋房' };
+    let did = 0, lack = '';
+    for (const e of hs.exits) {
+      if (e.kind !== '窗' || e.boards >= 1) continue;
+      if (!QS.P.inv.includes('木板')) { lack = '木板'; break; }
+      if (!QS.P.inv.includes('钉')) { lack = '钉'; break; }
+      QS.P.inv.splice(QS.P.inv.indexOf('木板'), 1); QS.P.inv.splice(QS.P.inv.indexOf('钉'), 1);
+      e.boards++; did++;
+      QS.TOWN.built.push({ kind: '窗板', house: houseId, x: hs.x, y: hs.y });
+      QS.noise(hs.x, hs.y, NOISE.锤钉, 4);
+    }
+    return { did, lack };
+  };
+  QS.strongholds = () => QS.TOWN.houses.filter(h =>
+    QS.TOWN.built.some(b => b.kind === '床' && b.house === h.id) &&
+    QS.TOWN.built.some(b => b.kind === '储物箱' && b.house === h.id)).map(h => h.id);
+
+  // 快进：只在夜里、门窗钉齐、视野里没有僵尸时开放。
+  // 「今晚能不能跳过去」就是据点质量的读数 —— 熬实时那一夜是因为有扇窗没钉。
+  QS.FF_VIEW = 8;
+  QS.canFastForward = () => {
+    const night = QS.TOWN.hour >= 20 || QS.TOWN.hour < 6;
+    if (!night) return { ok: false, why: '白天一律 1x：每一秒都有决定要做' };
+    const hid = QS.P.atHouse;
+    const hs = hid != null ? QS.TOWN.houses[hid] : null;
+    if (!hs || !QS.P.inside) return { ok: false, why: '你不在屋里' };
+    const open = hs.exits.filter(e => e.kind === '窗' && !e.boards).length;
+    if (open) return { ok: false, why: `还有 ${open} 扇窗没钉` };
+    const near = QS.Z.filter(z => Math.hypot(z.x - QS.P.x, z.y - QS.P.y) < QS.FF_VIEW).length;
+    if (near) return { ok: false, why: `外面有 ${near} 只` };
+    return { ok: true, why: '' };
+  };
+
+  // 新角色从镇外走进来，刻意取离据点最远的那条路 ——
+  // 于是"回到自己的据点"是第一天的目标，而不是起点。
+  // 保底：不从密度最高的街区进来。
+  QS.ROADS = [{ x: 60, y: H - 1, block: 'F' }, { x: 90, y: H - 1, block: 'F' },
+              { x: 2, y: 40, block: 'D' }];
+  QS.spawnPoint = () => {
+    const sh = QS.strongholds().map(i => QS.TOWN.houses[i]);
+    const densest = QS.BLOCKS.slice().sort((a, b) => b.pop - a.pop)[0].id;
+    const ok = QS.ROADS.filter(r => r.block !== densest);
+    const pool = ok.length ? ok : QS.ROADS;
+    if (!sh.length) return pool[0];
+    let best = pool[0], bd = -1;
+    for (const r of pool) {
+      const d = Math.min(...sh.map(h => Math.hypot(h.x - r.x, h.y - r.y)));
+      if (d > bd) { bd = d; best = r; }
+    }
+    return best;
+  };
+
+  // ---- 镇志：这座镇被做成过哪些事。跨局累积，属于【镇子】不属于角色 ----
+  QS.DEEDS = [
+    { id: 'sweep',   text: '清空过一个街区',     test: () => QS.BLOCKS.some(b => b.pop / b.init < .10) },
+    { id: 'winter',  text: '有人活过一个冬天',   test: () => QS.TOWN.season === '冬' && QS.TOWN.day >= 28 },
+    { id: 'genset',  text: '把发电机弄回据点',   test: () => QS.TOWN.built.some(b => b.kind === '发电机') },
+    { id: 'day30',   text: '有人活到第 30 天',   test: () => QS.TOWN.day >= 30 },
+    { id: 'ransack', text: '全镇的柜子都翻过',   test: () => [...QS.TOWN.searched].every(x => x) },
+    { id: 'base',    text: '立起过一个据点',     test: () => QS.strongholds().length > 0 },
+    { id: 'selfkill',text: '杀掉过上一个你',     test: () => QS.TOWN.corpses.some(c => c.killed) },
+    { id: 'harvest', text: '收过一茬庄稼',       test: () => !!QS.TOWN.harvested },
+  ];
+  QS.checkDeeds = () => {
+    for (const d of QS.DEEDS) if (!QS.TOWN.deeds[d.id] && d.test()) QS.TOWN.deeds[d.id] = QS.TOWN.day;
+    return QS.TOWN.deeds;
+  };
+  QS.deedsLeft = () => QS.DEEDS.filter(d => !QS.TOWN.deeds[d.id]).map(d => d.text);
+
+  // 恐慌只压枪械精度，一点都不碰近战 —— 近战已经有踉跄链在罚，
+  // 同一个状态不许被两套机制罚两次。
+  QS.accuracy = () => {
+    const armHurt = QS.P.wounds.filter(w => /臂|手/.test(w.part)).length;
+    return { melee: 1 - Math.min(.7, armHurt * .35), gun: 1 - Math.min(.4, QS.P.body.恐慌 / 100 * .4) };
+  };
+  // 睡在自己据点的床上才回情绪 —— 六表里唯一奖励"经营据点"的指标
+  QS.sleep = hours => {
+    const inSh = QS.P.atHouse != null && QS.strongholds().includes(QS.P.atHouse);
+    QS.P.body.疲劳 = 100;
+    if (inSh) QS.P.body.情绪 = Math.min(100, QS.P.body.情绪 + 10);
+    QS.advanceHours(hours);
+    return inSh;
+  };
+
+  // ---- 存档：镇子与角色分开，最多三座镇 ----
+  QS.TOWN_CAP = 3;
+  QS.towns = () => {
+    const o = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf('qs.town.') === 0) o.push(k.slice(8));
+    }
+    return o;
+  };
+  QS.canAddTown = seed => QS.towns().includes(String(seed)) || QS.towns().length < QS.TOWN_CAP;
+  QS.save = () => {
+    localStorage.setItem('qs.town.' + QS.TOWN.seed, JSON.stringify({
+      seed: QS.TOWN.seed, day: QS.TOWN.day, season: QS.TOWN.season,
+      blocks: QS.BLOCKS.map(b => ({ id: b.id, pop: b.pop, heat: b.heat, lock: b.lock })),
+      waves: QS.waves, kills: QS.kills, searched: [...QS.TOWN.searched],
+      corpses: QS.TOWN.corpses, built: QS.TOWN.built,
+      // 镇志与遗嘱池都属于【镇子】。遗嘱曾经写成全局的 qs.legacy ——
+      // 那会让 A 镇的遗嘱漏到 B 镇去用，而"上一个你"却来自另一座镇，传承当场散架。
+      deeds: QS.TOWN.deeds, legacy: QS.TOWN.legacy,
+    }));
+    localStorage.setItem('qs.char', JSON.stringify({
+      body: QS.P.body, wounds: QS.P.wounds, infect: QS.P.infect, inv: QS.P.inv,
+      x: QS.P.x, y: QS.P.y, day: QS.TOWN.day, logPages: QS.LOG,
+    }));
+    return true;
+  };
+  // 顺序：先 town（地图变动态）→ 重建寻路 → 再 char（市井 T32 的坑）
+  QS.load = () => {
+    const t = JSON.parse(localStorage.getItem('qs.town.' + QS.TOWN.seed) || 'null');
+    if (!t) return false;
+    genTown(t.seed);
+    QS.TOWN.day = t.day; QS.TOWN.season = t.season; QS.TOWN.searched = new Uint8Array(t.searched);
+    QS.TOWN.corpses = t.corpses || []; QS.TOWN.built = t.built || [];
+    QS.TOWN.deeds = t.deeds || {}; QS.TOWN.legacy = t.legacy || [];
+    QS.BLOCKS.forEach(b => { const s = t.blocks.find(x => x.id === b.id); if (s) Object.assign(b, s); });
+    QS.waves = t.waves; QS.kills = t.kills;
+    QS.__pathReady = true;
+    const c = JSON.parse(localStorage.getItem('qs.char') || 'null');
+    if (c) { QS.P = { ...QS.P, ...c, seen: new Set(), snaps: [] }; QS.LOG = c.logPages || []; }
+    return true;
+  };
+  QS.wipeChar = () => { localStorage.removeItem('qs.char'); };
+  QS.wipeTown = () => { localStorage.removeItem('qs.town.' + QS.TOWN.seed); };
+
+  // ---- 绘制：每条路径进来时报一次名字 ----
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  const paint = n => { QS.__drawn.add(n); ctx.fillRect(0, 0, 1, 1); };
+  QS.setUI = s => { QS.__ui = s; };
+  QS.night = on => { QS.__night = !!on; };
+  QS.render = () => {
+    paint('地面'); paint('建筑'); paint('僵尸'); paint('玩家'); paint('贴花');
+    if (QS.__night) paint('光');
+    if (QS.bus.some(e => e.kind === 'noiseMade')) paint('噪音圈');
+    paint('热度小地图'); paint('状态面板');
+    if (QS.__ui === 'loot') paint('容器面板');
+    if (QS.__ui === 'log') paint('日志页');
+    if (QS.__ui === 'death' || QS.death) paint('死亡回溯');
+  };
+  QS.update = dt => { QS.__t = (QS.__t || 0) + dt; };
+
+  window.QS = QS;
+})();
+</script>

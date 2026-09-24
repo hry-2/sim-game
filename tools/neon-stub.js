@@ -8,14 +8,22 @@ const FILE = path.resolve(__dirname, '..', 'games', 'neon-scrapline', 'index.htm
 const html = fs.readFileSync(FILE, 'utf8');
 const js = html.match(/<script>([\s\S]*)<\/script>/)[1];
 
+// 画布默认是个黑洞，但可以打开录制：ctx.__rec() 之后每次调用和每次赋值
+// 都进 ctx.__ops。这是为了能验「屏幕上分得清吗」——「经验点像敌人子弹」
+// 「跟班像掉落物」这类 bug 在数据层全是对的，只有画出来的东西能证伪。
+const _ops = [];
+let _rec = false;
 const ctxStub = new Proxy({}, {
   get: (t, k) => {
     if (k === 'canvas') return { width: 320, height: 180 };
+    if (k === '__rec') return on => { _rec = on !== false; _ops.length = 0; };
+    if (k === '__ops') return _ops;
     if (k === 'createLinearGradient' || k === 'createRadialGradient') return () => ({ addColorStop() {} });
     if (k === 'measureText') return () => ({ width: 10 });
     if (k === 'getImageData') return () => ({ data: new Uint8Array(4) });
-    return () => {};
-  }, set: () => true,
+    return (...a) => { if (_rec) _ops.push([k, ...a]); };
+  },
+  set: (t, k, v) => { if (_rec) _ops.push(['=' + k, v]); return true; },
 });
 // classList 是真的（一个 Set），元素按 id 缓存 —— 否则 getElementById 每次返回新对象，
 // 「按钮被置灰了没有」这类状态改动在离线环境里根本观察不到。
@@ -97,4 +105,4 @@ function run(touch) {
   return global.NS;
 }
 
-module.exports = { html, js, run, pad, padOff, FAKEPAD, realTimeout, byId, key, fire };
+module.exports = { html, js, run, pad, padOff, FAKEPAD, realTimeout, byId, key, fire, ctx: ctxStub };

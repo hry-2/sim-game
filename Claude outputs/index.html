@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="炮塔拆方块灰盒原型：视线遮挡 + 有限槽位 + 保证有解的关卡生成器。">
+<style>html,body{margin:0;background:#0e1116}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>炮塔拆方块 · 灰盒</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Noto+Sans+SC:wght@400;500&display=swap">
+<style>
+  :root{
+    --bg:#0c0f15; --panel:#151a22; --panel2:#1c232d; --line:#28313d;
+    --ink:#e3eaf3; --muted:#8996a9; --dim:#57636f;
+    --ok:#5fe3a1; --bad:#ff6b6b; --hot:#ffc857;
+    --cjk:'Noto Sans SC',system-ui,-apple-system,'PingFang SC',sans-serif;
+    --disp:'Chakra Petch','Noto Sans SC',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--cjk);
+       overflow:hidden;height:100vh;user-select:none;-webkit-user-select:none;
+       -webkit-tap-highlight-color:transparent}
+  #app{position:relative;height:100vh;display:flex;flex-direction:column}
+  #view{flex:1;min-height:0;position:relative;cursor:grab;
+        background:
+          radial-gradient(56% 42% at 50% 44%,rgba(96,128,180,.15),transparent 72%),
+          radial-gradient(130% 95% at 50% 122%,rgba(26,36,54,.6),transparent 62%),
+          linear-gradient(#090c11,#111722 60%,#0a0e14)}
+  #view.grabbing{cursor:grabbing}
+  canvas{display:block;width:100%;height:100%}
+
+  /* ══════ HUD ══════ */
+  #hud{position:absolute;inset:0;padding:14px;pointer-events:none;
+       display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+  .col{display:flex;flex-direction:column;gap:10px}
+  .col.right{align-items:flex-end}
+
+  #prog{background:rgba(9,12,17,.76);border:1px solid var(--line);
+        padding:10px 12px 11px;min-width:216px}
+  #prog .top{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+  #prog .lv{font-family:var(--disp);font-size:10px;letter-spacing:.2em;color:var(--dim);
+            text-transform:uppercase}
+  #prog .big{font-family:var(--disp);font-weight:700;font-size:26px;line-height:1;
+             font-variant-numeric:tabular-nums;margin-left:auto;transition:color .25s}
+  #prog .unit{font-size:10px;color:var(--dim);letter-spacing:.14em}
+  #bars{display:flex;gap:2px;height:7px}
+  #bars i{display:block;height:100%;transition:flex-grow .3s cubic-bezier(.2,.8,.3,1);
+          flex-grow:1;flex-basis:0;min-width:0}
+
+  #dial{position:relative;width:62px;height:62px;background:rgba(9,12,17,.76);
+        border:1px solid var(--line);display:grid;place-items:center}
+  #dial svg{position:absolute;inset:0;width:100%;height:100%}
+  #dial .num{font-family:var(--disp);font-size:11px;font-weight:600;color:var(--muted);
+             font-variant-numeric:tabular-nums;z-index:1}
+
+  #waste{background:rgba(9,12,17,.76);border:1px solid var(--line);
+         padding:6px 10px;font-family:var(--disp);font-size:11px;letter-spacing:.08em;
+         color:var(--dim);display:flex;gap:7px;align-items:baseline;
+         transition:color .18s,border-color .18s,transform .12s}
+  #waste b{font-size:15px;font-variant-numeric:tabular-nums}
+  #waste.hit{color:var(--bad);border-color:#5a2f2f;transform:scale(1.15)}
+
+  #tools{display:flex;gap:6px;pointer-events:auto}
+  button.mini{font-family:var(--disp);font-size:11px;letter-spacing:.08em;
+    background:rgba(9,12,17,.76);color:var(--muted);border:1px solid var(--line);
+    padding:7px 11px;cursor:pointer;transition:color .14s,border-color .14s}
+  button.mini:hover{color:var(--ink);border-color:#3f4c5c}
+  button.mini:active{transform:translateY(1px)}
+  #hint{font-size:10px;color:var(--dim);letter-spacing:.05em;text-align:right;
+        max-width:20ch;line-height:1.7}
+
+  /* ══════ 槽位 ══════ */
+  #slots{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;
+         padding:10px 14px 0;background:var(--bg)}
+  .slot{
+    position:relative;border:1px solid var(--line);background:var(--panel);
+    padding:8px;height:88px;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+    transition:border-color .16s,background .16s;
+  }
+  .slot::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;
+    background:var(--accent,transparent);transition:background .16s}
+  .slot .no{position:absolute;left:7px;top:5px;font-family:var(--disp);font-size:9px;color:#3c4652}
+  .slot .empty{font-size:11px;color:var(--dim)}
+  .slot .gun{width:22px;height:22px;border-radius:3px}
+  .slot .can{font-size:10px;color:var(--dim);letter-spacing:.03em;white-space:nowrap}
+  .slot.next{border-color:#33574a;background:#131e1a}
+  .slot.next .empty{color:var(--ok)}
+  .slot.dry{border-color:#4d2b2b;background:#1b1414}
+  .slot.dry .can{color:var(--bad)}
+  .slot.live .can{color:var(--ok)}
+  .slot.pulse{animation:slotPulse .34s cubic-bezier(.2,1.2,.4,1)}
+  @keyframes slotPulse{0%{transform:translateY(9px);opacity:.3}100%{transform:none;opacity:1}}
+
+  .pips{display:flex;gap:3px;justify-content:center;height:10px}
+  .pips i{width:5px;height:10px;background:currentColor;opacity:.92}
+  .pips.small{gap:2px;height:8px}
+  .pips.small i{width:4px;height:8px}
+  .num{font-family:var(--disp);font-size:15px;font-weight:700;line-height:1;
+       font-variant-numeric:tabular-nums;display:block;height:10px}
+  .num.small{font-size:13px;height:8px;line-height:8px}
+
+  /* ══════ 货架 ══════ */
+  #shelfwrap{background:var(--bg);padding:10px 14px 14px}
+  #shelfhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+  #shelfhead .t{font-size:10px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase}
+  #shelfhead .t b{color:var(--muted);font-weight:400}
+  #shelf{display:flex;gap:6px;overflow-x:auto;padding:2px 0 5px;min-height:62px}
+  #shelf::-webkit-scrollbar{height:4px}
+  #shelf::-webkit-scrollbar-thumb{background:#28313d}
+  .turret{
+    position:relative;flex:0 0 auto;width:52px;height:56px;
+    border:1px solid var(--line);background:var(--panel);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    opacity:.3;transition:transform .14s cubic-bezier(.2,.8,.3,1),opacity .14s,
+               border-color .14s,background .14s;
+  }
+  .turret .sw{width:22px;height:16px;border-radius:2px}
+  .turret.hot{opacity:1;cursor:pointer}
+  .turret.hot:hover{transform:translateY(-4px);border-color:#46566a;background:var(--panel2)}
+  .turret.hot:active{transform:translateY(-1px)}
+  .turret .hitn{position:absolute;right:-1px;top:-1px;font-family:var(--disp);font-size:9px;
+    font-weight:600;padding:0 4px;line-height:14px;
+    background:#16291f;color:var(--ok);border:1px solid #2b4e3a}
+  .turret .hitn.zero{background:#2a1618;color:var(--bad);border-color:#50292c}
+  .turret.gone{opacity:0;transform:translateY(-18px) scale(.78)}
+
+  /* ══════ 结算 ══════ */
+  #over{position:absolute;inset:0;display:none;place-content:center;justify-items:center;
+        background:rgba(8,11,16,.9);text-align:center;padding:20px;animation:fade .28s ease-out}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  #over.show{display:grid}
+  #over h2{font-family:var(--disp);font-size:32px;margin:0;font-weight:700;letter-spacing:.06em;
+           animation:pop .42s cubic-bezier(.2,1.5,.4,1)}
+  @keyframes pop{from{transform:scale(.82);opacity:0}to{transform:none;opacity:1}}
+  #over p{margin:14px 0 0;color:var(--muted);font-size:13px;max-width:42ch;line-height:1.8}
+  #overStats{margin:20px 0 0;display:flex;gap:1px;background:var(--line);border:1px solid var(--line)}
+  #overStats div{background:#0d1219;padding:11px 18px}
+  #overStats span{display:block;font-size:9px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase}
+  #overStats b{display:block;margin-top:5px;font-family:var(--disp);font-size:17px;font-weight:600}
+  #over .btns{margin-top:24px;display:flex;gap:10px}
+  #over button{font-family:var(--disp);font-size:13px;padding:11px 22px;cursor:pointer;
+    background:transparent;border:1px solid var(--ink);color:var(--ink);letter-spacing:.08em;
+    transition:background .14s,color .14s}
+  #over button:hover{background:var(--ink);color:var(--bg)}
+  #over button.ghost{border-color:var(--line);color:var(--muted)}
+  #over button.ghost:hover{background:var(--panel2);color:var(--ink)}
+
+  @media (max-width:600px){
+    #hud{padding:10px}
+    #prog{min-width:0}
+    #hint{display:none}
+    .slot{height:78px;padding:6px 4px}
+    #slots{gap:5px;padding:8px 10px 0}
+    #shelfwrap{padding:8px 10px 10px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  }
+</style>
+
+<div id="app">
+  <div id="view">
+    <div id="hud">
+      <div class="col">
+        <div id="prog">
+          <div class="top">
+            <span class="lv">LV <b id="sLevel">1</b></span>
+            <span class="big" id="sLeft">0</span><span class="unit">块</span>
+          </div>
+          <div id="bars"></div>
+        </div>
+      </div>
+      <div class="col right">
+        <div id="tools">
+          <button class="mini" id="btnNew">换一关</button>
+          <button class="mini" id="btnRetry">重开</button>
+        </div>
+        <div id="dial">
+          <svg viewBox="0 0 62 62" id="dialSvg"></svg>
+          <span class="num" id="sRot">1</span>
+        </div>
+        <div id="waste"><span>打空</span><b id="sWaste">0</b></div>
+        <div id="hint">左右拖动转图案<br>角标＝当前朝向能打几个</div>
+      </div>
+    </div>
+
+    <div id="over">
+      <h2 id="overTitle">过关</h2>
+      <p id="overText"></p>
+      <div id="overStats"></div>
+      <div class="btns">
+        <button id="btnNext">下一关</button>
+        <button class="ghost" id="btnAgain">再来一次</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="slots"></div>
+
+  <div id="shelfwrap">
+    <div id="shelfhead">
+      <span class="t">货架 · 点一下直接上槽位</span>
+      <span class="t" id="shelfInfo"></span>
+    </div>
+    <div id="shelf"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+if (typeof THREE === 'undefined') {
+  document.getElementById('view').innerHTML =
+    '<div style="display:grid;place-content:center;height:100%;color:#8996a9;font-size:13px;text-align:center;padding:24px">'+
+    '3D 库没加载成功<br><span style="color:#57636f;font-size:11px">检查一下网络能不能访问 cdnjs.cloudflare.com</span></div>';
+}
+</script>
+<script>
+/* =========================================================================
+   核心逻辑 —— 不依赖渲染，可直接在 node 里跑
+   ─────────────────────────────────────────────────────────────────────────
+   关键优化：cube 只会消失、不会出现，所以「视线」是单调的 —— 一个 cube
+   一旦从某槽位看得见，就永远看得见。于是可以在建关时一次性算出
+   「A 挡住了哪些 B」，之后每死一个 cube 只需给受影响的 B 计数器减一，
+   减到 0 就把 B 推进该(槽位,颜色)的最小堆。每次开火 O(log n)。
+   ========================================================================= */
+(function (root) {
+  'use strict';
+
+  /* ---------- 可复现随机 ---------- */
+  function makeRng(seed) {
+    let s = (seed >>> 0) || 1;
+    return function () {
+      s ^= s << 13; s >>>= 0;
+      s ^= s >> 17;
+      s ^= s << 5;  s >>>= 0;
+      return s / 4294967296;
+    };
+  }
+  const ri = (rng, n) => Math.min(n - 1, Math.floor(rng() * n));
+
+  /* ---------- 体素结构（只在建关阶段用） ---------- */
+  const K = (x, y, z) => x + ',' + y + ',' + z;
+  class Structure {
+    constructor() { this.v = new Map(); }
+    add(x, y, z, c) { this.v.set(K(x, y, z), { x, y, z, c }); }
+    has(x, y, z) { return this.v.has(K(x, y, z)); }
+    get size() { return this.v.size; }
+    list() { return Array.from(this.v.values()); }
+    bounds() {
+      const a = { x: 1e9, y: 1e9, z: 1e9 }, b = { x: -1e9, y: -1e9, z: -1e9 };
+      this.v.forEach(o => {
+        a.x = Math.min(a.x, o.x); a.y = Math.min(a.y, o.y); a.z = Math.min(a.z, o.z);
+        b.x = Math.max(b.x, o.x); b.y = Math.max(b.y, o.y); b.z = Math.max(b.z, o.z);
+      });
+      return { min: a, max: b };
+    }
+  }
+
+  /* ---------- 形状 ---------- */
+  const SHAPES = {
+    pyramid(rng) {
+      const st = new Structure(), h = 4 + ri(rng, 2);
+      for (let y = 0; y < h; y++) {
+        const r = h - y;
+        for (let x = -r; x <= r; x++) for (let z = -r; z <= r; z++)
+          if (Math.abs(x) + Math.abs(z) <= r) st.add(x, y, z, 0);
+      }
+      return st;
+    },
+    ball(rng) {
+      const st = new Structure(), R = 2.7 + rng() * .9;
+      for (let y = -4; y <= 4; y++) for (let x = -4; x <= 4; x++) for (let z = -4; z <= 4; z++)
+        if (x * x + y * y + z * z <= R * R) st.add(x, y + 4, z, 0);
+      return st;
+    },
+    tower(rng) {
+      const st = new Structure(), h = 6 + ri(rng, 3), r = 2 + ri(rng, 1);
+      for (let y = 0; y < h; y++) for (let x = -r; x <= r; x++) for (let z = -r; z <= r; z++)
+        if (Math.abs(x) === r || Math.abs(z) === r || y === 0 || y === h - 1) st.add(x, y, z, 0);
+      return st;
+    },
+    cross(rng) {
+      const st = new Structure(), a = 1, L = 3 + ri(rng, 2);
+      for (let i = -L; i <= L; i++) for (let p = -a; p <= a; p++) for (let q = -a; q <= a; q++) {
+        st.add(i, q + L + 1, p, 0); st.add(p, i + L + 1, q, 0); st.add(p, q + L + 1, i, 0);
+      }
+      return st;
+    },
+    arch(rng) {
+      const st = new Structure(), w = 3 + ri(rng, 2), h = 5, d = 1 + ri(rng, 1);
+      for (let z = -d; z <= d; z++) {
+        for (let y = 0; y < h; y++) { st.add(-w, y, z, 0); st.add(w, y, z, 0); }
+        for (let x = -w; x <= w; x++) { st.add(x, h, z, 0); st.add(x, h + 1, z, 0); }
+      }
+      return st;
+    },
+    slab(rng) {
+      const st = new Structure(), w = 3 + ri(rng, 2), h = 4 + ri(rng, 2), d = 1 + ri(rng, 2);
+      for (let x = -w; x <= w; x++) for (let y = 0; y < h; y++) for (let z = -d; z <= d; z++)
+        if (rng() > .22) st.add(x, y, z, 0);
+      return st;
+    }
+  };
+  const SHAPE_NAMES = Object.keys(SHAPES);
+
+  /** 同色成片 —— 否则可达性没有难度 */
+  function paint(st, rng, nColors) {
+    const cells = st.list(), seeds = [];
+    for (let i = 0; i < nColors; i++) seeds.push(cells[ri(rng, cells.length)]);
+    cells.forEach(o => {
+      let best = 0, bd = 1e9;
+      for (let i = 0; i < seeds.length; i++) {
+        const s = seeds[i];
+        const d = Math.abs(o.x - s.x) + Math.abs(o.y - s.y) + Math.abs(o.z - s.z) + rng() * 2.4;
+        if (d < bd) { bd = d; best = i; }
+      }
+      o.c = best;
+    });
+    return st;
+  }
+
+  /* ---------- 槽位与转向 ----------
+     立体图案是浮空的、可以转。炮塔固定在下方不动，所以「转动图案」＝「炮塔绕着
+     图案的竖轴反向转」。转向量化成 ROT 档，于是一共 ROT×5 个等效炮塔位置，
+     每个位置照样可以预计算遮挡关系。                                        */
+  const SLOTS = 5, WINDOW = 6, ROT = 8;
+
+  function slotPositions(st) {
+    const b = st.bounds();
+    const cx = (b.min.x + b.max.x) / 2;
+    const cz = (b.min.z + b.max.z) / 2;
+    const spread = Math.max(2.6, (b.max.x - b.min.x) / 2 * .78 + 1);
+    const depth = Math.max(4.2, (b.max.z - b.min.z) / 2 + 3.4);
+    const out = [];
+    for (let i = 0; i < SLOTS; i++) {
+      const t = (i - 2) / 2;
+      out.push({ x: cx + t * spread, y: b.min.y - 2.8, z: cz + depth, i, cx, cz });
+    }
+    return out;
+  }
+
+  /** ROT×SLOTS 个等效炮塔位置；index = rot * SLOTS + slot */
+  function firePositions(slots) {
+    const cx = slots[0].cx, cz = slots[0].cz, out = [];
+    for (let r = 0; r < ROT; r++) {
+      const a = -r * 2 * Math.PI / ROT;          // 图案转 +θ ＝ 炮塔转 −θ
+      const ca = Math.cos(a), sa = Math.sin(a);
+      for (let i = 0; i < SLOTS; i++) {
+        const dx = slots[i].x - cx, dz = slots[i].z - cz;
+        out.push({ x: cx + dx * ca - dz * sa, y: slots[i].y, z: cz + dx * sa + dz * ca, rot: r, slot: i });
+      }
+    }
+    return out;
+  }
+  const PI = (rot, slot) => rot * SLOTS + slot;
+
+  /* ---------- 预计算几何：谁挡住了谁 ---------- */
+  function buildGeometry(st) {
+    const vox = st.list();
+    const n = vox.length;
+    const idx = new Map();
+    vox.forEach((o, i) => idx.set(K(o.x, o.y, o.z), i));
+    const slots = slotPositions(st);
+    const positions = firePositions(slots);
+
+    const dist = [], blockersCount = [], blocks = [];
+    for (let s = 0; s < positions.length; s++) {
+      const P = positions[s];
+      const dArr = new Float64Array(n);
+      const cnt = new Int32Array(n);
+      const bl = new Array(n);
+      for (let i = 0; i < n; i++) bl[i] = [];
+
+      for (let i = 0; i < n; i++) {
+        const t = vox[i];
+        const dx = t.x - P.x, dy = t.y - P.y, dz = t.z - P.z;
+        const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        dArr[i] = len;
+        const steps = Math.ceil(len / 0.3);
+        const seen = new Set();
+        for (let k = 1; k < steps; k++) {
+          const f = k / steps;
+          const key = K(Math.round(P.x + dx * f), Math.round(P.y + dy * f), Math.round(P.z + dz * f));
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const j = idx.get(key);
+          if (j === undefined || j === i) continue;
+          bl[j].push(i);          // j 挡住了 i
+          cnt[i]++;
+        }
+      }
+      dist.push(dArr);
+      blockersCount.push(cnt);
+      blocks.push(bl.map(a => Int32Array.from(a)));
+    }
+    return { vox, n, slots, positions, dist, blockersCount, blocks };
+  }
+
+  /* ---------- 运行时状态（每局一份，几何是共享只读的） ---------- */
+  function newState(geom) {
+    const n = geom.n;
+    const alive = new Uint8Array(n).fill(1);
+    const cnt = geom.blockersCount.map(a => Int32Array.from(a));
+    const nColors = 1 + geom.vox.reduce((m, o) => Math.max(m, o.c), 0);
+    // heaps[slot][color] = 最小堆（按距离），存 voxel 下标
+    const heaps = [];
+    for (let s = 0; s < geom.positions.length; s++) {
+      heaps.push(Array.from({ length: nColors }, () => []));
+    }
+    const st = { geom, alive, cnt, heaps, remaining: n, nColors };
+    for (let s = 0; s < geom.positions.length; s++)
+      for (let i = 0; i < n; i++)
+        if (cnt[s][i] === 0) push(st, s, geom.vox[i].c, i);
+    return st;
+  }
+
+  function push(st, s, c, i) {
+    const h = st.heaps[s][c], d = st.geom.dist[s];
+    h.push(i);
+    let k = h.length - 1;
+    while (k > 0) {
+      const p = (k - 1) >> 1;
+      if (d[h[p]] <= d[h[k]]) break;
+      const t = h[p]; h[p] = h[k]; h[k] = t; k = p;
+    }
+  }
+  function popHeap(st, s, c) {
+    const h = st.heaps[s][c], d = st.geom.dist[s];
+    const top = h[0], last = h.pop();
+    if (h.length) {
+      h[0] = last;
+      let k = 0;
+      for (;;) {
+        const l = 2 * k + 1, r = l + 1;
+        let m = k;
+        if (l < h.length && d[h[l]] < d[h[m]]) m = l;
+        if (r < h.length && d[h[r]] < d[h[m]]) m = r;
+        if (m === k) break;
+        const t = h[m]; h[m] = h[k]; h[k] = t; k = m;
+      }
+    }
+    return top;
+  }
+  /** 该槽位此刻能打到的、离得最近的该色 cube 下标；没有则 -1 */
+  function peek(st, s, c) {
+    if (c < 0 || c >= st.nColors) return -1;
+    const h = st.heaps[s][c];
+    while (h.length && !st.alive[h[0]]) popHeap(st, s, c);
+    return h.length ? h[0] : -1;
+  }
+  /** 开一炮：打掉最近的该色 cube，返回下标；打不到返回 -1 */
+  function shoot(st, s, c) {
+    const i = peek(st, s, c);
+    if (i < 0) return -1;
+    popHeap(st, s, c);
+    kill(st, i);
+    return i;
+  }
+  function kill(st, i) {
+    if (!st.alive[i]) return;
+    st.alive[i] = 0;
+    st.remaining--;
+    const g = st.geom;
+    for (let s = 0; s < g.positions.length; s++) {
+      const lst = g.blocks[s][i], cnt = st.cnt[s];
+      for (let k = 0; k < lst.length; k++) {
+        const j = lst[k];
+        if (--cnt[j] === 0 && st.alive[j]) push(st, s, g.vox[j].c, j);
+      }
+    }
+  }
+
+  /* ---------- 生成：正向随机解一遍，把解法记成炮塔序列 ---------- */
+  function generate(seed, opt) {
+    opt = opt || {};
+    const rng = makeRng(seed);
+    const shape = opt.shape || SHAPE_NAMES[ri(rng, SHAPE_NAMES.length)];
+    const nColors = opt.colors || (4 + ri(rng, 2));
+    const maxAmmo = opt.maxAmmo || 7;
+
+    const structure = paint(SHAPES[shape](rng), rng, nColors);
+    const geom = buildGeometry(structure);
+    const st = newState(geom);
+    const turrets = [];
+    let guard = 0;
+
+    while (st.remaining > 0 && guard++ < 8000) {
+      // 随机一个「转向 + 槽位」，看它此刻能打什么颜色
+      const pi = PI(ri(rng, ROT), ri(rng, SLOTS));
+      const cand = [];
+      for (let c = 0; c < st.nColors; c++) if (peek(st, pi, c) >= 0) cand.push(c);
+      if (!cand.length) continue;
+      const c = cand[ri(rng, cand.length)];
+      const want = 1 + ri(rng, maxAmmo);
+      let fired = 0;
+      for (let k = 0; k < want; k++) { if (shoot(st, pi, c) < 0) break; fired++; }
+      if (fired) turrets.push({ c, ammo: fired });
+    }
+
+    // 弹药冗余：允许玩家打空一些，否则严格守恒下任何一发空放都必输
+    const slack = opt.slack === undefined ? .18 : opt.slack;
+    if (slack > 0) {
+      const extra = Math.round(turrets.length * slack);
+      for (let i = 0; i < extra; i++) {
+        const t = turrets[ri(rng, turrets.length)];
+        t.ammo += 1 + ri(rng, 2);
+      }
+    }
+
+    return {
+      seed, shape, nColors, structure, geom,
+      slots: geom.slots,
+      turrets,
+      leftover: st.remaining,
+      totalCubes: geom.n
+    };
+  }
+
+  /* ---------- 按真实规则跑一局 ---------- */
+  function shuffled(arr, rng) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = ri(rng, i + 1);
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  /**
+   * 按真实规则跑一局。
+   * 炮塔固定在槽位里不动，图案可以随时转 —— 所以所有在场炮塔的视线都跟着当前朝向变。
+   * 代价是：轮到某个炮塔开火时如果这个朝向没有它能打的目标，**这一发就打空了**。
+   * 没有这条，自由转动会让死局不可能出现，游戏就没有失败条件了。
+   *
+   * strategy:
+   *   'fill'    —— 见空槽就塞满（新手打法：五个炮塔抢一个朝向，疯狂打空）
+   *   'careful' —— 最多同时开 maxActive 个，选能被同一朝向喂饱的组合
+   *   'random'  —— 乱放乱转
+   */
+  function playout(level, rng, strategy, opt) {
+    opt = opt || {};
+    const maxActive = opt.maxActive || 2;
+    const st = newState(level.geom);
+    const shelf = level.shelf.map(t => ({ c: t.c, ammo: t.ammo }));
+    const occ = new Array(SLOTS).fill(null);
+    let rot = 0, guard = 0, placed = 0, wasted = 0, hits = 0;
+
+    const canHit = (r, s, c) => peek(st, PI(r, s), c) >= 0;
+    const activeCount = () => occ.reduce((n, o) => n + (o ? 1 : 0), 0);
+
+    /** 选一个能让最多在场炮塔命中的朝向 */
+    const bestRot = () => {
+      let br = rot, bn = -1;
+      for (let r = 0; r < ROT; r++) {
+        let n = 0;
+        for (let s = 0; s < SLOTS; s++) if (occ[s] && canHit(r, s, occ[s].c)) n++;
+        if (n > bn) { bn = n; br = r; }
+      }
+      return br;
+    };
+
+    while (guard++ < 8000) {
+      if (st.remaining === 0) return { win: true, placed, wasted, hits };
+
+      /* ---- 放炮塔 ---- */
+      const want = strategy === 'fill' ? SLOTS
+                 : strategy === 'careful' ? maxActive
+                 : 1 + ri(rng, SLOTS);
+      while (activeCount() < want && shelf.length) {
+        const free = [];
+        for (let s = 0; s < SLOTS; s++) if (!occ[s]) free.push(s);
+        if (!free.length) break;
+        const avail = Math.min(WINDOW, shelf.length);
+        let pick = null;
+        if (strategy === 'careful' || strategy === 'fill') {
+          // 选「和已在场炮塔能共用同一个朝向」且命中数最高的
+          let best = null;
+          for (let k = 0; k < avail; k++)
+            for (let q = 0; q < free.length; q++)
+              for (let r = 0; r < ROT; r++) {
+                if (!canHit(r, free[q], shelf[k].c)) continue;
+                let n = 1;
+                for (let s2 = 0; s2 < SLOTS; s2++)
+                  if (occ[s2] && canHit(r, s2, occ[s2].c)) n++;
+                if (!best || n > best.n) best = { k, s: free[q], r, n };
+              }
+          pick = best;
+        }
+        if (!pick) {
+          const k = ri(rng, avail), sq = free[ri(rng, free.length)];
+          pick = { k, s: sq, r: ri(rng, ROT) };
+        }
+        rot = pick.r;
+        const t = shelf.splice(pick.k, 1)[0];
+        occ[pick.s] = { c: t.c, ammo: t.ammo };
+        placed++;
+      }
+
+      if (!activeCount()) {
+        if (!shelf.length) return { win: false, reason: 'out-of-turrets', left: st.remaining, placed, wasted, hits };
+        continue;
+      }
+
+      /* ---- 选朝向，然后所有在场炮塔各开一发 ---- */
+      rot = strategy === 'random' ? ri(rng, ROT) : bestRot();
+      for (let s = 0; s < SLOTS; s++) {
+        const t = occ[s];
+        if (!t) continue;
+        if (shoot(st, PI(rot, s), t.c) >= 0) hits++;
+        else wasted++;                       // 这个朝向没目标 —— 打空
+        if (--t.ammo === 0) occ[s] = null;
+        if (st.remaining === 0) return { win: true, placed, wasted, hits };
+      }
+    }
+    return { win: st.remaining === 0, reason: 'timeout', left: st.remaining, placed, wasted, hits };
+  }
+
+  function evaluate(level, n, seed, opt) {
+    const rng = makeRng(seed || 12345);
+    let rand = 0, fill = 0, careful = 0;
+    for (let i = 0; i < n; i++) if (playout(level, rng, 'random', opt).win) rand++;
+    for (let i = 0; i < n; i++) if (playout(level, rng, 'fill', opt).win) fill++;
+    for (let i = 0; i < n; i++) if (playout(level, rng, 'careful', opt).win) careful++;
+    return { winRate: rand / n, fillRate: fill / n, carefulRate: careful / n,
+             greedySolvable: careful > 0 };
+  }
+
+  /** 生成一个「洗牌后仍有解、但不是闭眼能过」的关卡 */
+  function makeLevel(seed, opt) {
+    opt = opt || {};
+    const lo = (opt.targetWinRate || [0.35, 0.9])[0];
+    const hi = (opt.targetWinRate || [0.35, 0.9])[1];
+    const samples = opt.samples || 20;
+    let fallback = null;
+    const maxCubes = opt.maxCubes || 140;
+    for (let a = 0; a < 16; a++) {
+      const lv = generate(seed + a * 7919, opt);
+      if (lv.totalCubes > maxCubes && a < 12) continue;
+      lv.shelf = shuffled(lv.turrets, makeRng(seed + a * 31 + 1));
+      lv.eval = evaluate(lv, samples, seed + a, opt);
+      lv.attempt = a;
+      if (!fallback || lv.eval.carefulRate > fallback.eval.carefulRate) fallback = lv;
+      if (lv.eval.carefulRate >= lo && lv.eval.carefulRate <= hi) return lv;
+    }
+    return fallback;
+  }
+
+  const api = {
+    makeRng, Structure, SHAPES, SHAPE_NAMES, paint, slotPositions,
+    buildGeometry, newState, peek, shoot, kill,
+    firePositions, PI,
+    generate, shuffled, playout, evaluate, makeLevel,
+    SLOTS, WINDOW, ROT
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  root.CubeCore = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+(() => {
+'use strict';
+if (typeof THREE === 'undefined') return;
+const C = window.CubeCore;
+const ROT = C.ROT, TAU = Math.PI * 2, STEP = TAU / ROT;
+
+const COLORS = [0xff5a5f, 0x4fc3f7, 0xffd54f, 0x81c784, 0xba68c8, 0xff9e40];
+const CSS    = ['#ff5a5f', '#4fc3f7', '#ffd54f', '#81c784', '#ba68c8', '#ff9e40'];
+const FIRE_MS = 620;
+const $ = id => document.getElementById(id);
+
+/* ══════ 音效：全部现场合成，没有音频文件 ══════ */
+const Sfx = {
+  ac: null, master: null, noise: null, on: true,
+  init() {
+    if (this.ac) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ac = new AC();
+    this.master = this.ac.createGain();
+    this.master.gain.value = .3;
+    this.master.connect(this.ac.destination);
+    const n = this.ac.createBuffer(1, (this.ac.sampleRate * .5) | 0, this.ac.sampleRate);
+    const d = n.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    this.noise = n;
+  },
+  tone(f1, f2, dur, type, vol, delay) {
+    if (!this.ac || !this.on) return;
+    const t = this.ac.currentTime + (delay || 0);
+    const o = this.ac.createOscillator(), g = this.ac.createGain();
+    o.type = type || 'square';
+    o.frequency.setValueAtTime(f1, t);
+    if (f2 !== f1) o.frequency.exponentialRampToValueAtTime(Math.max(24, f2), t + dur);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + .006);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t + dur + .03);
+  },
+  burst(dur, vol, f0, f1, q, delay) {
+    if (!this.ac || !this.on) return;
+    const t = this.ac.currentTime + (delay || 0);
+    const s = this.ac.createBufferSource(); s.buffer = this.noise;
+    const bp = this.ac.createBiquadFilter();
+    bp.type = 'bandpass'; bp.Q.value = q || 1;
+    bp.frequency.setValueAtTime(f0, t);
+    bp.frequency.exponentialRampToValueAtTime(Math.max(60, f1), t + dur);
+    const g = this.ac.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(bp); bp.connect(g); g.connect(this.master);
+    s.start(t); s.stop(t + dur + .03);
+  },
+  // 命中音随连击升调，连着打会有旋律感
+  hit(c, streak) {
+    const base = [262, 330, 392, 440, 523, 587][c % 6];
+    const f = base * Math.pow(1.0595, Math.min(12, streak));
+    this.tone(f, f * 1.5, .085, 'triangle', .15);
+    this.burst(.05, .09, 2600, 700, 1.6);
+  },
+  miss()  { this.burst(.17, .12, 420, 90, .7); this.tone(96, 52, .2, 'sawtooth', .07); },
+  place() { this.burst(.06, .13, 1500, 400, 2); this.tone(180, 320, .07, 'square', .08); },
+  tick()  { this.tone(1500, 1500, .022, 'square', .03); },
+  win()   { [523, 659, 784, 1046].forEach((f, i) => this.tone(f, f, .22, 'triangle', .12, i * .09)); },
+  lose()  { [330, 262, 196].forEach((f, i) => this.tone(f, f * .96, .32, 'sawtooth', .09, i * .13)); }
+};
+addEventListener('pointerdown', () => Sfx.init(), { once: true });
+
+/* ══════ 场景 ══════ */
+const view = $('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+renderer.setClearColor(0x000000, 0);
+view.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, .1, 300);
+scene.add(new THREE.AmbientLight(0xffffff, .6));
+const key = new THREE.DirectionalLight(0xffffff, .74); key.position.set(6, 12, 9); scene.add(key);
+const rim = new THREE.DirectionalLight(0x7fb4ff, .36); rim.position.set(-8, 3, -7); scene.add(rim);
+const und = new THREE.DirectionalLight(0xff9a6a, .18); und.position.set(0, -8, 4); scene.add(und);
+
+const boxGeo   = new THREE.BoxGeometry(.96, .96, .96);
+const chipGeo  = new THREE.BoxGeometry(.3, .3, .3);
+const flashGeo = new THREE.SphereGeometry(.42, 8, 6);
+const beamGeo  = new THREE.BoxGeometry(1, 1, 1);
+
+const world   = new THREE.Group(); scene.add(world);
+const spinner = new THREE.Group(); world.add(spinner);   // 只有它会转
+const rig     = new THREE.Group(); world.add(rig);       // 槽位炮塔，永远不动
+const fxLayer = new THREE.Group(); world.add(fxLayer);
+
+const cam = { el: .34, r: 26, tx: 0, ty: 0, tz: 0, shake: 0 };
+function applyCam() {
+  const ce = Math.cos(cam.el), se = Math.sin(cam.el);
+  const jx = cam.shake ? (Math.random() - .5) * cam.shake : 0;
+  const jy = cam.shake ? (Math.random() - .5) * cam.shake : 0;
+  camera.position.set(cam.tx + jx, cam.ty + cam.r * se + jy, cam.tz + cam.r * ce);
+  camera.lookAt(cam.tx, cam.ty, cam.tz);
+}
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+if (window.ResizeObserver) new ResizeObserver(resize).observe(view);
+
+/* ══════ 拖动只转图案 ══════ */
+let yaw = 0, yawTarget = 0, yawVel = 0, dragging = false, px = 0, moved = 0, lastDetent = 0;
+const rotIndex = () => ((Math.round(yawTarget / STEP) % ROT) + ROT) % ROT;
+
+view.addEventListener('pointerdown', e => {
+  if (e.target.closest('#tools') || e.target.closest('#over')) return;
+  dragging = true; px = e.clientX; moved = 0; yawVel = 0;
+  view.classList.add('grabbing');
+});
+addEventListener('pointerup', () => {
+  if (!dragging) return;
+  dragging = false; view.classList.remove('grabbing');
+  yawTarget = Math.round((yaw + yawVel * 5) / STEP) * STEP;   // 带一点甩动惯性
+  renderUI();
+});
+addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - px;
+  moved += Math.abs(dx);
+  yawVel = dx * .008;
+  yaw += yawVel; yawTarget = yaw;
+  px = e.clientX;
+  const d = rotIndex();
+  if (d !== lastDetent) { lastDetent = d; Sfx.tick(); }
+  if (moved > 10) renderUI();
+});
+view.addEventListener('wheel', e => {
+  e.preventDefault();
+  cam.r = Math.max(13, Math.min(52, cam.r + Math.sign(e.deltaY) * 1.8));
+  applyCam();
+}, { passive: false });
+
+/* ══════ 状态 ══════ */
+let lv = null, st = null, meshes = [], instOf = null, hlMesh = null,
+    guns = [], occ = new Array(C.SLOTS).fill(null), shelf = [], hover = -1,
+    levelNo = 1, seedBase = (Date.now() / 1000) | 0, finished = false,
+    tracers = [], anim = [], chips = [], flashes = [], beams = [],
+    cx = 0, cz = 0, bob = 0, wasted = 0, hitStreak = 0, streakT = 0, totalCubes = 1;
+
+const dummy = new THREE.Object3D();
+const KEEP = [boxGeo, chipGeo, flashGeo, beamGeo];
+const clearGroup = g => {
+  while (g.children.length) {
+    const o = g.children.pop();
+    o.traverse && o.traverse(n => {
+      if (n.geometry && KEEP.indexOf(n.geometry) < 0) n.geometry.dispose();
+      if (n.material) (Array.isArray(n.material) ? n.material : [n.material]).forEach(m => m.dispose());
+    });
+  }
+};
+
+/* ── 碎屑 / 闪光池 ── */
+function makeChipPool(n) {
+  const pool = [];
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(chipGeo, new THREE.MeshLambertMaterial({ color: 0xffffff }));
+    m.visible = false; fxLayer.add(m);
+    pool.push({ m, life: 0, max: 1, vx: 0, vy: 0, vz: 0 });
+  }
+  return pool;
+}
+function spawnChips(x, y, z, col) {
+  let n = 0;
+  for (const c of chips) {
+    if (c.life > 0) continue;
+    const a = Math.random() * TAU;
+    c.vx = Math.cos(a) * (1.4 + Math.random() * 3.2);
+    c.vy = 2.6 + Math.random() * 3.8;
+    c.vz = Math.sin(a) * (1.4 + Math.random() * 3.2);
+    c.life = c.max = .42 + Math.random() * .3;
+    c.m.position.set(x, y, z);
+    c.m.material.color.setHex(col);
+    c.m.visible = true;
+    c.m.scale.setScalar(.7 + Math.random() * .7);
+    if (++n >= 5) break;
+  }
+}
+function makeBeamPool(n) {
+  const pool = [];
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
+    m.visible = false; rig.add(m);      // 挂在不旋转的那层
+    pool.push(m);
+  }
+  return pool;
+}
+const AXIS_Z = new THREE.Vector3(0, 0, 1);
+const vA = new THREE.Vector3(), vB = new THREE.Vector3(), vD = new THREE.Vector3();
+function drawBeam(m, ax, ay, az, bx, by, bz, col, w, op, additive) {
+  vA.set(ax, ay, az); vB.set(bx, by, bz);
+  vD.subVectors(vB, vA);
+  const len = vD.length() || .001;
+  m.visible = true;
+  m.position.copy(vA).addScaledVector(vD, .5);
+  m.quaternion.setFromUnitVectors(AXIS_Z, vD.normalize());
+  m.scale.set(w, w, len);
+  m.material.color.setHex(col);
+  m.material.opacity = op;
+  m.material.blending = additive ? THREE.AdditiveBlending : THREE.NormalBlending;
+}
+
+function makeFlashPool(n) {
+  const pool = [];
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(flashGeo, new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0, depthWrite: false,
+      blending: THREE.AdditiveBlending }));
+    m.visible = false; fxLayer.add(m);
+    pool.push({ m, life: 0, max: 1, size: 1 });
+  }
+  return pool;
+}
+function spawnFlash(x, y, z, col, size) {
+  for (const f of flashes) {
+    if (f.life > 0) continue;
+    f.life = f.max = .16; f.size = size || 1;
+    f.m.position.set(x, y, z);
+    f.m.material.color.setHex(col);
+    f.m.visible = true;
+    return;
+  }
+}
+
+/* ══════ 建场 ══════ */
+function buildScene() {
+  clearGroup(spinner); clearGroup(rig); clearGroup(fxLayer);
+  meshes = []; instOf = new Int32Array(lv.geom.n).fill(-1);
+  tracers = []; anim = []; guns = [];
+
+  const b = lv.structure.bounds();
+  cx = (b.min.x + b.max.x) / 2; cz = (b.min.z + b.max.z) / 2;
+  spinner.position.set(cx, 0, cz);
+
+  const byColor = [];
+  lv.geom.vox.forEach((v, i) => { (byColor[v.c] = byColor[v.c] || []).push(i); });
+  byColor.forEach((list, c) => {
+    if (!list) return;
+    const m = new THREE.InstancedMesh(boxGeo,
+      new THREE.MeshLambertMaterial({ color: COLORS[c % COLORS.length] }), list.length);
+    list.forEach((vi, k) => { instOf[vi] = (c << 20) | k; });
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    meshes[c] = m; spinner.add(m);
+  });
+
+  hlMesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1.09, 1.09, 1.09),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true,
+                                  transparent: true, opacity: 1, depthWrite: false }),
+    Math.max(1, lv.geom.n));
+  hlMesh.count = 0; spinner.add(hlMesh);
+
+  lv.slots.forEach(s => {
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(.5, .6, .18, 6),
+      new THREE.MeshLambertMaterial({ color: 0x2a3444, emissive: 0x0a0f16 }));
+    pad.position.set(s.x, s.y + .09, s.z);
+    rig.add(pad);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(.62, .72, 6),
+      new THREE.MeshBasicMaterial({ color: 0x3b4a5d, transparent: true, opacity: .3,
+                                    side: THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(s.x, s.y + .19, s.z);
+    rig.add(ring);
+  });
+
+  guns = lv.slots.map(s => {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(.72, .56, .72),
+      new THREE.MeshLambertMaterial({ color: 0xffffff }));
+    body.position.y = .5;
+    const barrel = new THREE.Mesh(new THREE.BoxGeometry(.22, .22, 1.0),
+      new THREE.MeshLambertMaterial({ color: 0xffffff }));
+    barrel.position.set(0, .58, -.7);
+    g.add(body); g.add(barrel);
+    g.visible = false;
+    g.position.set(s.x, s.y, s.z);
+    g.rotation.y = Math.atan2(s.x - cx, s.z - cz);
+    g.userData = { barrel, recoil: 0, shake: 0, drop: 0, baseY: s.y, baseX: s.x };
+    rig.add(g);
+    return g;
+  });
+
+  chips = makeChipPool(40);
+  flashes = makeFlashPool(10);
+  beams = makeBeamPool(10);
+
+  const span = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z + 5);
+  cam.tx = cx; cam.ty = (b.min.y - 2.8 + b.max.y) / 2 + .6; cam.tz = cz + 2.2;
+  cam.r = Math.max(19, span * 1.95); cam.el = .34; cam.shake = 0;
+  yaw = yawTarget = 0; lastDetent = 0;
+  applyCam();
+
+  // 进关：方块从下往上依次弹出
+  for (let i = 0; i < lv.geom.n; i++) {
+    const v = lv.geom.vox[i];
+    anim.push({ i, kind: 'in', t: -(v.y * .05 + Math.random() * .1) });
+    setVoxel(i, 0, 0);
+  }
+}
+
+function setVoxel(i, scale, dy) {
+  const packed = instOf[i];
+  if (packed < 0) return;
+  const c = packed >> 20, k = packed & 0xfffff, m = meshes[c];
+  if (!m) return;
+  const v = lv.geom.vox[i];
+  dummy.position.set(v.x - cx, v.y + .5 + (dy || 0), v.z - cz);
+  dummy.scale.setScalar(Math.max(0, scale));
+  dummy.updateMatrix();
+  m.setMatrixAt(k, dummy.matrix);
+  m.instanceMatrix.needsUpdate = true;
+}
+
+function newLevel(seed) {
+  lv = C.makeLevel(seed, { samples: 12 });
+  st = C.newState(lv.geom);
+  totalCubes = lv.geom.n;
+  shelf = lv.shelf.map(t => ({ c: t.c, ammo: t.ammo }));
+  occ = new Array(C.SLOTS).fill(null);
+  hover = -1; finished = false; wasted = 0; hitStreak = 0;
+  buildScene(); buildDial();
+  // 开局摆到「货架前六个里可用炮塔最多」的朝向，别让人一上来就面对一堆 0
+  let bestR = 0, bestN = -1;
+  for (let r = 0; r < ROT; r++) {
+    let n = 0;
+    for (let k = 0; k < Math.min(C.WINDOW, shelf.length); k++)
+      if (visCount(0, r, shelf[k].c) > 0) n++;
+    if (n > bestN) { bestN = n; bestR = r; }
+  }
+  yaw = yawTarget = bestR * STEP; lastDetent = bestR;
+  renderUI();
+  $('over').classList.remove('show');
+}
+
+/* ══════ 可达性 ══════ */
+const posOf = (slot, rot) => C.PI(rot, slot);
+function visCount(slot, rot, color) {
+  const h = st.heaps[posOf(slot, rot)][color];
+  let n = 0;
+  for (let i = 0; i < h.length; i++) if (st.alive[h[i]]) n++;
+  return n;
+}
+function visList(slot, rot, color) {
+  const h = st.heaps[posOf(slot, rot)][color], out = [];
+  for (let i = 0; i < h.length; i++) if (st.alive[h[i]]) out.push(h[i]);
+  return out;
+}
+function nextSlot() {
+  for (let i = 0; i < C.SLOTS; i++) if (!occ[i]) return i;
+  return -1;
+}
+
+/* ══════ UI ══════ */
+function buildDial() {
+  let svg = '';
+  for (let i = 0; i < ROT; i++) {
+    const a = i * STEP - Math.PI / 2;
+    const x1 = 31 + Math.cos(a) * 20, y1 = 31 + Math.sin(a) * 20;
+    const x2 = 31 + Math.cos(a) * 25, y2 = 31 + Math.sin(a) * 25;
+    svg += '<line id="tk' + i + '" x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) +
+           '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) +
+           '" stroke="#2f3a48" stroke-width="2"/>';
+  }
+  svg += '<circle cx="31" cy="31" r="14" fill="none" stroke="#222b36" stroke-width="1"/>';
+  svg += '<path id="dialPtr" d="M31 13 L34.4 21 L27.6 21 Z" fill="#5fe3a1"/>';
+  $('dialSvg').innerHTML = svg;
+}
+function pips(n, cls) {
+  if (n > 5) return '<span class="num' + (cls || '') + '">' + n + '</span>';
+  return '<span class="pips' + (cls || '') + '">' + '<i></i>'.repeat(n) + '</span>';
+}
+
+function renderUI() {
+  const r = rotIndex();
+  const next = nextSlot();
+
+  const box = $('slots'); box.innerHTML = '';
+  for (let i = 0; i < C.SLOTS; i++) {
+    const el = document.createElement('div');
+    el.className = 'slot';
+    const t = occ[i];
+    let html = '<div class="no">' + (i + 1) + '</div>';
+    if (t) {
+      const n = visCount(i, r, t.c);
+      el.style.setProperty('--accent', CSS[t.c % CSS.length]);
+      el.classList.add(n ? 'live' : 'dry');
+      if (t.fresh) { el.classList.add('pulse'); t.fresh = false; }
+      html += '<div class="gun" style="background:' + CSS[t.c % CSS.length] + '"></div>' +
+              '<div style="color:' + CSS[t.c % CSS.length] + '">' + pips(t.ammo) + '</div>' +
+              '<div class="can">' + (n ? '打得到 ' + n : '没目标 · 打空') + '</div>';
+    } else {
+      html += '<div class="empty">' + (i === next ? '下一个进这里' : '空槽位') + '</div>';
+      if (i === next) el.classList.add('next');
+    }
+    el.innerHTML = html;
+    box.appendChild(el);
+  }
+
+  const sh = $('shelf'); sh.innerHTML = '';
+  shelf.forEach((t, k) => {
+    const el = document.createElement('div');
+    const takeable = k < C.WINDOW && next >= 0;
+    el.className = 'turret' + (k < C.WINDOW ? ' hot' : '');
+    const n = next >= 0 ? visCount(next, r, t.c) : 0;
+    el.innerHTML = '<div class="sw" style="background:' + CSS[t.c % CSS.length] + '"></div>' +
+                   '<div style="color:' + CSS[t.c % CSS.length] + '">' + pips(t.ammo, ' small') + '</div>' +
+                   (k < C.WINDOW ? '<div class="hitn' + (n ? '' : ' zero') + '">' + n + '</div>' : '');
+    if (takeable) {
+      el.onclick = () => takeTurret(k, el);
+      el.onmouseenter = () => { hover = k; updateHighlight(rotIndex()); showPreview(k); };
+      el.onmouseleave = () => { hover = -1; updateHighlight(rotIndex()); showPreview(-1); };
+    }
+    sh.appendChild(el);
+  });
+
+  $('sLevel').textContent = levelNo;
+  const leftEl = $('sLeft');
+  leftEl.textContent = st.remaining;
+  leftEl.style.color = st.remaining / totalCubes < .25 ? 'var(--ok)' : 'var(--ink)';
+
+  const counts = new Map();
+  for (let i = 0; i < lv.geom.n; i++) if (st.alive[i]) {
+    const c = lv.geom.vox[i].c;
+    counts.set(c, (counts.get(c) || 0) + 1);
+  }
+  const bars = $('bars');
+  const keys = Array.from(counts.keys()).sort((a, b) => a - b);
+  if (bars.dataset.k !== keys.join()) {
+    bars.dataset.k = keys.join();
+    bars.innerHTML = keys.map(c => '<i style="background:' + CSS[c % CSS.length] + '"></i>').join('');
+  }
+  keys.forEach((c, idx) => {
+    const el = bars.children[idx];
+    if (el) el.style.flexGrow = Math.max(.04, counts.get(c) / totalCubes);
+  });
+
+  $('sRot').textContent = (r + 1);
+  const ptr = document.getElementById('dialPtr');
+  if (ptr) ptr.setAttribute('transform', 'rotate(' + (r * 360 / ROT) + ' 31 31)');
+  for (let i = 0; i < ROT; i++) {
+    const tk = document.getElementById('tk' + i);
+    if (tk) tk.setAttribute('stroke', i === r ? '#5fe3a1' : '#2f3a48');
+  }
+  $('sWaste').textContent = wasted;
+
+  showPreview(hover);
+  updateHighlight(r);
+}
+
+function showPreview(k) {
+  if (k < 0 || !shelf[k]) { $('shelfInfo').innerHTML = '还剩 <b>' + shelf.length + '</b> 个'; return; }
+  const sIdx = nextSlot();
+  const n = sIdx < 0 ? 0 : visCount(sIdx, rotIndex(), shelf[k].c);
+  $('shelfInfo').innerHTML = sIdx < 0 ? '槽位满了'
+    : '进 <b>' + (sIdx + 1) + '</b> 号槽 · 这个朝向能打 <b>' + n + '</b> 个' +
+      (n ? '' : ' · <span style="color:#ff6b6b">会一直打空</span>');
+}
+
+function updateHighlight(r) {
+  if (!hlMesh) return;
+  let list = [];
+  if (hover >= 0 && shelf[hover]) {
+    const sIdx = nextSlot();
+    if (sIdx >= 0) list = visList(sIdx, r, shelf[hover].c);
+  }
+  if (hover >= 0 && shelf[hover])
+    hlMesh.material.color.setHex(COLORS[shelf[hover].c % COLORS.length]);
+  hlMesh.count = list.length;
+  list.forEach((vi, k) => {
+    const v = lv.geom.vox[vi];
+    dummy.position.set(v.x - cx, v.y + .5, v.z - cz);
+    dummy.scale.setScalar(1); dummy.updateMatrix();
+    hlMesh.setMatrixAt(k, dummy.matrix);
+  });
+  hlMesh.instanceMatrix.needsUpdate = true;
+}
+
+function takeTurret(k, el) {
+  if (finished || k >= C.WINDOW || !shelf[k]) return;
+  const sIdx = nextSlot();
+  if (sIdx < 0) return;
+  const t = shelf.splice(k, 1)[0];
+  occ[sIdx] = { c: t.c, ammo: t.ammo, cd: FIRE_MS * .45, fresh: true };
+  guns[sIdx].userData.drop = 1;
+  hover = -1;
+  Sfx.place();
+  if (el) el.classList.add('gone');
+  renderUI();
+}
+
+/* ══════ 开火 ══════ */
+function tryFire(dt) {
+  if (finished) return;
+  const r = rotIndex();
+  let acted = false;
+  for (let s = 0; s < C.SLOTS; s++) {
+    const t = occ[s];
+    if (!t) continue;
+    const gd = guns[s].userData;
+    if (gd.drop > .05) continue;
+    t.cd -= dt;
+    if (t.cd > 0) continue;
+    t.cd = FIRE_MS; t.ammo--; acted = true;
+
+    const sp = lv.slots[s];
+    const vi = C.shoot(st, posOf(s, r), t.c);
+    if (vi >= 0) {
+      gd.recoil = 1;
+      tracers.push({ slot: s, vi, t: 0, c: t.c, miss: false });
+      const v = lv.geom.vox[vi];
+      anim.push({ i: vi, kind: 'out', t: 0 });
+      spawnChips(v.x - cx, v.y + .5, v.z - cz, COLORS[t.c % COLORS.length]);
+      spawnFlash(v.x - cx, v.y + .5, v.z - cz, 0xffffff, 1.1);
+      spawnFlashWorld(sp.x, sp.y + 1, sp.z, COLORS[t.c % COLORS.length], .75);
+      hitStreak++; streakT = 1.1;
+      Sfx.hit(t.c, hitStreak);
+      cam.shake = Math.min(.2, cam.shake + .075);
+    } else {
+      wasted++; hitStreak = 0;
+      gd.shake = 1;
+      tracers.push({ slot: s, vi: -1, t: 0, c: t.c, miss: true });
+      Sfx.miss();
+      const w = $('waste');
+      w.classList.add('hit');
+      setTimeout(() => w.classList.remove('hit'), 260);
+    }
+    if (t.ammo === 0) occ[s] = null;
+  }
+  if (acted) renderUI();
+  checkEnd();
+}
+// 炮口闪光挂在不旋转的那一层
+function spawnFlashWorld(x, y, z, col, size) {
+  for (const f of flashes) {
+    if (f.life > 0) continue;
+    f.life = f.max = .12; f.size = size;
+    f.m.position.set(x, y, z);
+    f.m.material.color.setHex(col);
+    f.m.visible = true;
+    return;
+  }
+}
+
+function checkEnd() {
+  if (finished) return;
+  if (st.remaining === 0) { finished = true; Sfx.win(); setTimeout(() => showOver(true), 420); return; }
+  if (!shelf.length && occ.every(o => !o)) { finished = true; Sfx.lose(); setTimeout(() => showOver(false), 320); }
+}
+
+function showOver(win) {
+  $('overTitle').textContent = win ? '拆 完 了' : '弹 药 用 尽';
+  $('overTitle').style.color = win ? 'var(--ok)' : 'var(--bad)';
+  $('overText').textContent = win ? '打空越少，说明你转得越准。'
+                                  : '同时开的炮塔越多，一个朝向越喂不饱它们。';
+  $('overStats').innerHTML =
+    '<div><span>打空</span><b style="color:' + (wasted > 12 ? '#ff6b6b' : '#e3eaf3') + '">' + wasted + '</b></div>' +
+    '<div><span>剩余炮塔</span><b>' + shelf.length + '</b></div>' +
+    '<div><span>' + (win ? '已拆除' : '没拆掉') + '</span><b>' + (win ? totalCubes : st.remaining) + '</b></div>';
+  $('over').classList.add('show');
+}
+
+/* ══════ 主循环 ══════ */
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(64, now - last); last = now;
+  const sec = dt / 1000;
+  if (st) tryFire(dt);
+
+  if (!dragging) {
+    const d = yawTarget - yaw;
+    yaw += d * Math.min(1, sec * 11);
+    if (Math.abs(d) < .0005) yaw = yawTarget;
+  }
+  spinner.rotation.y = yaw;
+  bob += sec;
+  spinner.position.y = Math.sin(bob * .9) * .2;
+
+  /* 方块出场 / 炸掉 */
+  for (let i = anim.length - 1; i >= 0; i--) {
+    const a = anim[i];
+    a.t += sec * (a.kind === 'in' ? 2.8 : 4.6);
+    if (a.t < 0) continue;
+    const p = Math.min(1, a.t);
+    if (a.kind === 'in') {
+      const s = 1.16 * Math.sin(p * Math.PI * .5) - .16 * (1 - p);
+      setVoxel(a.i, s, (1 - p) * (1 - p) * -1.6);
+      if (p >= 1) { setVoxel(a.i, 1, 0); anim.splice(i, 1); }
+    } else {
+      const s = p < .2 ? 1 + p * 1.9 : 1.38 * (1 - (p - .2) / .8);
+      setVoxel(a.i, s, p * .55);
+      if (p >= 1) { setVoxel(a.i, 0, 0); anim.splice(i, 1); }
+    }
+  }
+
+  for (const c of chips) {
+    if (c.life <= 0) continue;
+    c.life -= sec;
+    if (c.life <= 0) { c.m.visible = false; continue; }
+    c.vy -= 16 * sec;
+    c.m.position.x += c.vx * sec;
+    c.m.position.y += c.vy * sec;
+    c.m.position.z += c.vz * sec;
+    c.m.rotation.x += sec * 7; c.m.rotation.y += sec * 5;
+    c.m.scale.setScalar(Math.max(.01, c.life / c.max));
+  }
+
+  for (const f of flashes) {
+    if (f.life <= 0) continue;
+    f.life -= sec;
+    if (f.life <= 0) { f.m.visible = false; continue; }
+    const p = f.life / f.max;
+    f.m.material.opacity = p * .85;
+    f.m.scale.setScalar(f.size * (1.7 - p * .9));
+  }
+
+  /* 炮塔：落下、后坐、空放抖动 */
+  const r = rotIndex();
+  guns.forEach((g, i) => {
+    const t = occ[i], d = g.userData;
+    g.visible = !!t;
+    if (!t) return;
+    const col = COLORS[t.c % COLORS.length];
+    const dry = visCount(i, r, t.c) === 0;
+    g.children.forEach(m => {
+      m.material.color.setHex(col);
+      if (m.material.emissive) m.material.emissive.setHex(dry ? 0x4a1414 : 0x000000);
+    });
+    if (d.drop > 0) d.drop = Math.max(0, d.drop - sec * 4.2);
+    if (d.recoil > 0) d.recoil = Math.max(0, d.recoil - sec * 6);
+    if (d.shake > 0) d.shake = Math.max(0, d.shake - sec * 3.5);
+    const dropE = d.drop * d.drop;
+    g.position.y = d.baseY + dropE * 5.5;
+    g.position.x = d.baseX + (d.shake ? (Math.random() - .5) * d.shake * .24 : 0);
+    d.barrel.position.z = -.7 + d.recoil * .34;
+    g.scale.setScalar(1 + d.recoil * .07 - dropE * .12);
+  });
+
+  /* 弹道 */
+  const cyaw = Math.cos(yaw), syaw = Math.sin(yaw);
+  for (let i = tracers.length - 1; i >= 0; i--) {
+    const tr = tracers[i];
+    tr.t += sec / (tr.miss ? .34 : .17);
+    if (tr.t >= 1) {
+      if (tr.beam >= 0) beams[tr.beam].visible = false;
+      tracers.splice(i, 1); continue;
+    }
+    const sp = lv.slots[tr.slot];
+    let bx, by, bz;
+    if (tr.miss) {
+      const dx = cx - sp.x, dz = cz - sp.z, L = Math.hypot(dx, dz) || 1;
+      bx = sp.x + dx / L * 24; by = sp.y + 7; bz = sp.z + dz / L * 24;
+    } else {
+      const v = lv.geom.vox[tr.vi];
+      const lx = v.x - cx, lz = v.z - cz;
+      bx = cx + lx * cyaw + lz * syaw;
+      by = v.y + .5 + spinner.position.y;
+      bz = cz - lx * syaw + lz * cyaw;
+    }
+    if (tr.beam === undefined) {
+      tr.beam = -1;
+      for (let q = 0; q < beams.length; q++) if (!beams[q].visible) { tr.beam = q; break; }
+    }
+    if (tr.beam >= 0) {
+      const fade = 1 - tr.t * tr.t;
+      drawBeam(beams[tr.beam], sp.x, sp.y + 1, sp.z, bx, by, bz,
+               tr.miss ? 0x4d5866 : COLORS[tr.c % COLORS.length],
+               (tr.miss ? .07 : .13) * (.5 + fade * .5),
+               (tr.miss ? .45 : 1) * fade, !tr.miss);
+    }
+  }
+
+  if (streakT > 0) { streakT -= sec; if (streakT <= 0) hitStreak = 0; }
+  if (cam.shake > 0) { cam.shake = Math.max(0, cam.shake - sec * 1.1); applyCam(); }
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+
+/* ══════ 启动 ══════ */
+$('btnNew').onclick   = () => { levelNo++; newLevel(seedBase + levelNo * 9176); };
+$('btnRetry').onclick = () => newLevel(seedBase + levelNo * 9176);
+$('btnNext').onclick  = () => { levelNo++; newLevel(seedBase + levelNo * 9176); };
+$('btnAgain').onclick = () => newLevel(seedBase + levelNo * 9176);
+
+resize();
+newLevel(seedBase + 9176);
+requestAnimationFrame(loop);
+
+window.__G = { get lv(){return lv}, get st(){return st}, get shelf(){return shelf},
+               get occ(){return occ}, get rot(){return rotIndex()},
+               take: takeTurret, setSel: k => { hover = k; renderUI(); },
+               spin: r => { yaw = yawTarget = r * STEP; renderUI(); } };
+})();
+</script>
+
+</html>

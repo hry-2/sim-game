@@ -7,6 +7,7 @@ const only = process.argv[2];
 const files = fs.readdirSync(dir)
   .filter(f => /^verify-.*\.js$/.test(f) && f !== 'verify-all.js')
   .filter(f => f !== 'verify-neon.js')             // 那是另一个游戏
+  .filter(f => f !== 'verify-street.js')           // 静街，用 npm run check:street
   .concat('smoke-test.js')
   .filter(f => !only || f.includes(only));
 let bad = [];

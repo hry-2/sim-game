@@ -8,7 +8,7 @@
 // 这里用一个最小 DOM 桩把整段脚本真的跑一遍，再检查几件肉眼难看准的事：
 // 精灵每行宽度一致、武器表字段齐全、词条不会把武器数值写死。
 'use strict';
-const { html, js, run, pad, padOff, realTimeout, byId, key } = require('./neon-stub');
+const { html, js, run, pad, padOff, realTimeout, byId, key, ctx } = require('./neon-stub');
 
 let fail = 0;
 const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) fail++; };
@@ -234,7 +234,7 @@ P0.chassis = 'std';
 // 没有一条解锁是纯数值永久加成 —— 那会把前期削简单
 // 里程碑只能给【新东西】，不能给永久数值加成 —— 否则元进度会变成数值跑步机，
 // 新号和老号打的不是同一个游戏。危险等级是更难的模式，比发新内容更贴这条本意。
-ok(NS.MILES.every(m => /卡池|词条|底座|涂装|危险等级/.test(m.n)),
+ok(NS.MILES.every(m => /卡池|词条|底座|涂装|危险等级|宠物/.test(m.n)),
   '每条里程碑发的都是新内容或新难度档，没有一条是数值加成');
 ok(!NS.MILES.some(m => /\+\d|提升|加成|永久|上限 ?\+/.test(m.n)), '奖励文案里没有任何数值加成的字样');
 
@@ -1298,7 +1298,14 @@ console.log('构筑面板');
   ok(h.indexOf(dmg.n) >= 0 && h.indexOf(rof.n) >= 0, '拿过的词条都在面板上');
   ok(h.indexOf('2/' + dmg.max) >= 0, `叠了几层写几层（${dmg.n} 2/${dmg.max}）`);
   ok(h.indexOf(dmg.n) < h.indexOf(rof.n), '按层数排序，专精在哪一眼看得出（2 层的排在 1 层前面）');
-  ok(h.indexOf('3 / ') >= 0, '总层数也写出来 —— 一局只拿得到一半，这个数字是有意义的');
+  // 这一行原来写的是「已装载 3 / 72 层」。72 = 全部 23 条一条不落叠满，
+  // 而一局也就三十层左右 —— 一个永远到不了的分母，玩家直接问了「72 是什么意思」。
+  // 现在报的是构筑真正的两个维度：摊了几种、叠了几层。
+  ok(h.indexOf('2 种 · 3 层') >= 0,
+    `已装载报的是「几种 · 几层」（拿了 ${dmg.n}×2 + ${rof.n}×1）`);
+  const capAll = NS.UPGRADES.filter(u => !/^w_/.test(u.id)).reduce((n, u) => n + u.max, 0);
+  ok(h.indexOf('/ ' + capAll) < 0,
+    `面板上不出现 ${capAll} 这种一局到不了的理论上限`);
   // 满级要标出来：满了就不会再进卡池，玩家得知道
   for (let i = NS.G.stacks.dmg; i < dmg.max; i++) NS.takeUpgrade(dmg);
   h = NS.buildHTML();
@@ -1482,7 +1489,16 @@ console.log('手机 UI');
     '吸底栏是实底的 —— 按钮本身透明，后面一排排 chip 会透上来');
   ok(/\.startbar\{display:contents\}/.test(html), '桌面上这层壳不参与布局，视觉一点不变');
   // 六、菜单页不显示局内 HUD
-  ok(/body\.menu #hud, body\.menu #buffs\{display:none\}/.test(html), '标题和结算页藏掉局内 HUD（占位的「整合度 100」会压在标题上）');
+  // 盯的不是「这条 CSS 长什么样」，而是「局内那几层有没有漏下的」——
+  // 上一版写死了 #hud 和 #buffs 两个名字，于是后来加的连击数和掉落物名字
+  // 漏在外面都没红：回标题页时正在淡出的「x17 COMBO」会挂在标题上。
+  const layerIds = [...html.matchAll(/<div class="layer" id="(\w+)"/g)].map(m => m[1]);
+  const menuRule = (html.match(/body\.menu [^{]*\{display:none\}/) || [''])[0];
+  // #tc 自己有一套（只有 state==='play' 才显示）；#banner 在菜单页本来就是空的
+  const exempt = ['tc', 'banner'];
+  const leaked = layerIds.filter(id => exempt.indexOf(id) < 0 && menuRule.indexOf('#' + id) < 0);
+  ok(layerIds.length >= 5 && !leaked.length,
+    `局内那几层在菜单页全藏掉了（共 ${layerIds.length} 层，漏的：${leaked.join(' ') || '无'}）`);
   NS.start(31);
 }
 
@@ -1552,15 +1568,24 @@ console.log('图鉴');
   ok(h.indexOf(NS.TIPS.shieldbot[0]) >= 0 && h.indexOf(NS.TIPS.shieldbot[1]) >= 0,
     '重开一局，图鉴里还留着 —— 这才是「之后能查」');
   ok(h.indexOf(NS.TIPS.relay[1]) < 0, '没遇到过的仍然锁着');
-  // 暂停面板的两页
+  // 暂停面板的页签。断言写成「哪一页亮着」而不是「有没有某个类」——
+  // 上一版写的是 !contains('dex-on')，页签从布尔改成具名之后它恒为真，
+  // 变成了一条永远绿的废断言，比直接红了还糟。
+  const onTab = () => ['build', 'bag', 'dex']
+    .filter(k => byId('pauseBox').classList.contains('tab-' + k));
   NS.G.state = 'play'; NS.setPaused(true);
-  ok(!byId('pauseBox').classList.contains('dex-on'), '每次暂停都先回到构筑页');
+  ok(onTab().join() === 'build', `每次暂停都先回到构筑页（现在是 ${onTab()}）`);
   NS.showDex(true);
-  ok(byId('pauseBox').classList.contains('dex-on') && byId('dexPause').innerHTML.length > 40, '切到图鉴页');
+  ok(onTab().join() === 'dex' && byId('dexPause').innerHTML.length > 40, '切到图鉴页');
   ok(byId('tabDex').classList.contains('on') && !byId('tabBuild').classList.contains('on'), '页签跟着高亮');
   NS.showDex(false);
-  ok(!byId('pauseBox').classList.contains('dex-on'), '能切回构筑页');
-  ok(/#pauseBox\.dex-on \.build\{display:none\}/.test(html), '两页互斥，不会叠在一起');
+  ok(onTab().join() === 'build', '能切回构筑页');
+  // 任何时候只有一页亮着，而且每一页都有对应的「藏起另外两页」的规则
+  ok(['build', 'bag', 'dex'].every(k => {
+    NS.showTab(k);
+    return onTab().length === 1 && onTab()[0] === k;
+  }), '三页互斥，不会叠在一起');
+  NS.showTab('build');
   NS.setPaused(false);
 }
 
@@ -2086,6 +2111,1009 @@ console.log('新增益');
   NS.spawn('grunt'); const v2 = G6.mobs[G6.mobs.length - 1]; v2.x = 700; v2.y = 700;
   const vh1 = P6.hp; NS.killMob(v2);
   ok(P6.hp > vh1, `血偿期间击杀回了 ${Math.round(P6.hp - vh1)} 血`);
+}
+
+// ---- 41) 精英词缀 ----
+// 之前精英只是 ×2.6 血 ×1.12 速 ×3 经验 —— 一圈金环底下所有精英完全一样，
+// 「那只精英是什么货色」不是个要读的信息。
+console.log('精英词缀');
+{
+  const D = 1 / 60;
+  ok(NS.AFFIX_IDS.length >= 4, `有 ${NS.AFFIX_IDS.length} 种词缀`);
+  ok(NS.AFFIX_IDS.every(a => NS.AFFIX[a].n && NS.AFFIX[a].d && NS.AFFIX[a].c), '每种都有名字、一句应对、一个颜色');
+  ok(new Set(NS.AFFIX_IDS.map(a => NS.AFFIX[a].c)).size === NS.AFFIX_IDS.length, '颜色互不重复 —— 环要认得出是哪种');
+  ok(NS.AFFIX_IDS.every(a => /打|绕|挑|别|拆/.test(NS.AFFIX[a].d)), '每句说的都是怎么应对，不是它长什么样');
+  // 每只精英都带一个，而且不给重复的
+  NS.setMode('free'); NS.start(100);
+  const AG = NS.G;
+  AG.phase = 'break'; AG.budget = 0; AG.mobs.length = 0;
+  const got = {};
+  for (let i = 0; i < 80; i++) { NS.spawn('grunt'); const m = AG.mobs[AG.mobs.length - 1]; NS.makeElite(m); got[m.aff] = 1; }
+  ok(AG.mobs.every(m => !!m.aff), '每只精英都带一个词缀');
+  ok(Object.keys(got).length >= 3, `摇出了 ${Object.keys(got).length} 种，不是老同一个`);
+  // 不给重复的，也不给无解的
+  AG.mobs.length = 0;
+  for (let i = 0; i < 60; i++) { NS.spawn('bomber'); NS.makeElite(AG.mobs[AG.mobs.length - 1]); }
+  ok(AG.mobs.every(m => m.aff !== 'blast'), '爆囊不会再挂「殉爆」—— 重复的词缀没有信息量');
+  // 正面盾只给转身慢的：刀锋犬这类一直朝着你，挂上等于「别打它」
+  for (const t of ['rusher', 'drone', 'bomber', 'hauler', 'sniper']) {
+    AG.mobs.length = 0;
+    for (let i = 0; i < 40; i++) { NS.spawn(t); NS.makeElite(AG.mobs[AG.mobs.length - 1]); }
+    ok(AG.mobs.every(m => m.aff !== 'ward'), `${NS.MOB[t].nm} 不会挂「护盾」—— 它一直正面朝你，绕不过去`);
+  }
+  AG.mobs.length = 0;
+  for (let i = 0; i < 60; i++) { NS.spawn('shieldbot'); NS.makeElite(AG.mobs[AG.mobs.length - 1]); }
+  ok(AG.mobs.every(m => m.aff !== 'ward'), '铁闸本来就有盾，不会再挂一层');
+  // 自愈真的在回血
+  AG.mobs.length = 0; NS.spawn('grunt');
+  const rg = AG.mobs[0]; NS.makeElite(rg); rg.aff = 'regen'; rg.x = 800; rg.y = 800;
+  rg.hp = rg.max * .4;
+  const h0 = rg.hp;
+  for (let i = 0; i < 120; i++) NS.update(D);
+  ok(rg.hp > h0 + rg.max * .04, `自愈两秒回了 ${Math.round(rg.hp - h0)} 血 —— 得一口气打掉`);
+  // 护盾真的挡正面
+  AG.mobs.length = 0; NS.spawn('grunt');
+  const wd = AG.mobs[0]; NS.makeElite(wd); wd.aff = 'ward'; wd.affWard = 1;
+  wd.x = NS.P.x + 40; wd.y = NS.P.y; wd.ang = Math.PI; wd.hp = 9999; wd.max = 9999;
+  const f0 = wd.hp; NS.hurtMob(wd, 100, 0, 0, NS.P.x, NS.P.y);
+  const front = f0 - wd.hp;
+  wd.hp = 9999; wd.ang = 0;                            // 转过去 = 从背后打
+  NS.hurtMob(wd, 100, 0, 0, NS.P.x, NS.P.y);
+  ok(9999 - wd.hp > front * 3, `正面只进 ${Math.round(front)}，背后进 ${Math.round(9999 - wd.hp)} —— 要绕后`);
+  // 殉爆真的炸
+  AG.mobs.length = 0; NS.spawn('grunt'); NS.spawn('grunt');
+  const bm = AG.mobs[0], by = AG.mobs[1];
+  NS.makeElite(bm); bm.aff = 'blast'; bm.x = 700; bm.y = 700;
+  by.x = 712; by.y = 700; by.hp = 9999; by.max = 9999; by.elite = 0;
+  NS.killMob(bm);
+  ok(by.hp < 9999, `殉爆波及了旁边的（掉了 ${Math.round(9999 - by.hp)}）`);
+  // 「崩解」这条词缀被删掉了：逐条 A/B 量出来它一条就把平均波次从 19.2 砍到 9.0，
+  // 而其余四条都是中性的（20.6~21.8）。而且「死了会裂」这个教训裂解体那个怪种
+  // 已经在讲了，词缀再讲一遍是重复的。这条断言守住「别再加回来」。
+  ok(!NS.AFFIX.split, '没有「崩解」词缀 —— 它跟裂解体重复，而且实测单独一条就砍掉一半波次');
+  ok(NS.AFFIX_IDS.every(a => {
+    // 词缀不许往场上加身体，除了「呼叫」那一条 —— 而它受密度上限管
+    return a !== 'split';
+  }), '没有别的词缀会在死亡时生成新单位');
+  // 裂解体这个【怪种】照旧会裂，那条路没动
+  AG.mobs.length = 0; AG.overheat = 0; NS.spawn('splitter');
+  const sp = AG.mobs[0]; sp.x = 500; sp.y = 500; sp.elite = 0;
+  NS.killMob(sp);
+  ok(AG.mobs.filter(m => m.type === 'shard' && !m.dead).length === 2, '裂解体这个怪种照旧裂两只');
+  ok(AG.mobs.filter(m => m.type === 'shard').every(m => m.isShard && !m.elite), '裂片带标记且一律不是精英');
+  // 呼叫真的叫人
+  NS.start(100); const CG = NS.G;
+  CG.phase = 'break'; CG.budget = 0; CG.wave = 8; CG.mobs.length = 0; CG.overheat = 0;
+  NS.spawn('grunt'); const cl = CG.mobs[0]; NS.makeElite(cl); cl.aff = 'call'; cl.affT = .1;
+  cl.x = 600; cl.y = 600;
+  const n0 = CG.mobs.length;
+  for (let i = 0; i < 60 * 6; i++) NS.update(D);
+  ok(CG.mobs.length > n0, `呼叫叫来了增援（${n0} → ${CG.mobs.length}）`);
+  // 环要按词缀变色，否则这套东西白加
+  ok(/const af = AFFIX\[m\.aff\]/.test(html) && /ctx\.strokeStyle = af \? af\.c/.test(html),
+    '标记环染成词缀的颜色 —— 看不出来的话「那只是什么货色」还是不存在的信息');
+  ok(/G\.seenAff\[m0\.aff\]/.test(html), '第一次遇见某个词缀会给一句应对');
+}
+
+// ---- 42) 场地互动物 ----
+// 三张场地原来只差尺寸和四个颜色字段，那 60~98 个装饰物只在绘制时读一次。
+console.log('场地互动物');
+{
+  const D = 1 / 60;
+  ok(NS.ARENAS.every(a => a.haz && a.hazN > 0), '每张场地都有自己的互动物');
+  ok(new Set(NS.ARENAS.map(a => a.haz)).size === NS.ARENAS.length,
+    `三张场地三种互动物（${NS.ARENAS.map(a => a.haz).join(' / ')}）—— 换场地要换打法，不是换配色`);
+  NS.setMode('free'); NS.start(101);
+  const HG = NS.G, HP = NS.P;
+  HG.phase = 'break'; HG.budget = 0; HG.mobs.length = 0;
+  // 传送带：推人也推怪
+  NS.setArena(0, false);
+  ok(NS.HAZ.length > 0 && NS.HAZ.every(h => h.k === 'belt'), `回收线上有 ${NS.HAZ.length} 条传送带`);
+  {
+    const b = NS.HAZ[0];
+    HP.x = b.x; HP.y = b.y;
+    const px0 = HP.x, py0 = HP.y;
+    for (let i = 0; i < 30; i++) NS.update(D);
+    ok(Math.hypot(HP.x - px0, HP.y - py0) > 8, `站上去被推着走了 ${Math.round(Math.hypot(HP.x - px0, HP.y - py0))}px`);
+    HG.mobs.length = 0; NS.spawn('grunt');
+    const m = HG.mobs[0]; m.x = b.x; m.y = b.y; m.spd = 0;
+    const mx0 = m.x, my0 = m.y;
+    for (let i = 0; i < 30; i++) NS.update(D);
+    ok(Math.hypot(m.x - mx0, m.y - my0) > 8, '敌人也一样被推 —— 只对玩家生效的话它就是添堵，不是战术');
+  }
+  // 熔渣：烧人也烧怪，而且无视盾
+  NS.setArena(1, false);
+  ok(NS.HAZ.every(h => h.k === 'slag'), '熔渣池上是熔渣');
+  {
+    const g = NS.HAZ[0];
+    HG.mobs.length = 0; HP.hp = HP.maxhp; HP.inv = 0;
+    HP.x = g.x; HP.y = g.y;
+    const hp0 = HP.hp;
+    for (let i = 0; i < 90; i++) { HP.inv = 0; NS.update(D); }
+    ok(HP.hp < hp0, `站在熔渣里掉了 ${Math.round(hp0 - HP.hp)} 血`);
+    HP.x = g.x + g.r + 200; HP.hp = HP.maxhp;
+    NS.spawn('shieldbot');
+    const sb = HG.mobs[HG.mobs.length - 1];
+    sb.x = g.x; sb.y = g.y; sb.ang = 0; sb.hp = 9999; sb.max = 9999;
+    for (let i = 0; i < 90; i++) NS.update(D);
+    ok(sb.hp < 9999, `把带盾的引进熔渣，它照样掉了 ${Math.round(9999 - sb.hp)} 血（熔渣无视盾）`);
+  }
+  // 冷凝罐：打爆炸一片
+  NS.setArena(2, false);
+  ok(NS.HAZ.every(h => h.k === 'tank'), '冷却塔上是冷凝罐');
+  {
+    const t = NS.HAZ[0];
+    HG.mobs.length = 0; HP.x = t.x - 260; HP.y = t.y; HP.hp = HP.maxhp;
+    NS.spawn('grunt');
+    const m = HG.mobs[0]; m.x = t.x + 14; m.y = t.y; m.hp = 9999; m.max = 9999;
+    HG.bullets.length = 0;
+    for (let i = 0; i < 40 && !t.gone; i++) {
+      HG.bullets.push({ x: t.x, y: t.y, vx: 0, vy: 0, life: 1, dmg: 20, crit: false,
+        pierce: 0, hits: [], px: 0, py: 0, bounce: 0, col: '69,240,255', wep: 'pulse' });
+      NS.update(D);
+    }
+    ok(t.gone === 1, '罐子被打爆了');
+    ok(m.hp < 9999, `爆炸波及了旁边的敌人（掉了 ${Math.round(9999 - m.hp)}）`);
+  }
+  // 换场地要重新生成
+  NS.setArena(0, false);
+  ok(NS.HAZ.every(h => h.k === 'belt'), '换回第一张场地，互动物跟着换了');
+  // 画得出来
+  let threw = null;
+  for (let i = 0; i < 3; i++) {
+    NS.setArena(i, false);
+    try { NS.render(); } catch (e) { threw = `第 ${i + 1} 张场地抛错：${e.message}`; }
+  }
+  ok(!threw, threw || '三张场地的互动物都画得出来');
+}
+
+// ---- 43) 据点与生产链 ----
+// 废钢原来只有一个去处：8 把起手武器 × 150 = 总共 1200，
+// 而一局能存 1500~3800 —— 打两局就把元经济买空了，之后废钢彻底没用。
+console.log('据点与生产链');
+{
+  const D = 1 / 60;
+  const fresh = () => { for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+    Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf(); };
+  // 一、废钢有了长尾
+  const hqTotal = NS.HQ_IDS.reduce((n, id) => n + NS.HQ[id].lv.reduce((a, l) => a + l.c, 0), 0);
+  ok(hqTotal > 15000, `据点全盖满要 ${hqTotal} 废钢 —— 一局存 1500~3800，这是几十局的长尾`);
+  ok(NS.HQ_IDS.length >= 4, `${NS.HQ_IDS.length} 栋建筑`);
+  ok(NS.HQ_IDS.every(id => NS.HQ[id].lv.every((l, i, a) => i === 0 || l.c > a[i - 1].c)), '每栋的等级价钱递增');
+  // 二、建筑只给选择，不给数值 —— 跟里程碑同一条规矩
+  const allTxt = NS.HQ_IDS.map(id => NS.HQ[id].d + NS.HQ[id].lv.map(l => l.t).join('')).join('');
+  ok(!/伤害|射速|移速|生命上限|暴击/.test(allTxt),
+    '没有一栋建筑是加战斗数值的 —— 那条线由词条负责，元进度插手就成了数值跑步机');
+  // 三、生产链：废钢 → 精炼钢
+  fresh();
+  ok(NS.refineRate() === 0 && NS.refine(1) === 0, '没盖精炼炉时炼不了');
+  NS.PROF.scrap = 10000;
+  NS.buyHQ('smelt');
+  ok(NS.hqLv('smelt') === 1 && NS.refineRate() > 0, `盖了精炼炉，比率 ${NS.refineRate()} 废钢 → 1`);
+  const sc0 = NS.PROF.scrap;
+  ok(NS.refine(3) === 3 && NS.PROF.ingot === 3, '炼出了 3 块精炼钢');
+  ok(sc0 - NS.PROF.scrap === 3 * NS.refineRate(), '废钢按比率扣掉了');
+  const r1 = NS.refineRate(); NS.buyHQ('smelt');
+  ok(NS.refineRate() < r1, `升级精炼炉后更省（${r1} → ${NS.refineRate()}）`);
+  NS.PROF.scrap = 10;
+  ok(NS.refine(5) === 0, '废钢不够时炼不出来，也不扣钱');
+  // 四、武器改装：每一个都是【交换】，不是升级
+  ok(Object.keys(NS.WMOD).length === NS.WEP_ORDER.length, `九把枪各有一个改装件`);
+  ok(Object.values(NS.WMOD).every(m => m.n && m.d && m.c > 0), '每个都有名字、说明、价钱');
+  ok(Object.values(NS.WMOD).every(m => /但|不再|砍半|减半|-\d+%/.test(m.d)),
+    '每个改装件的说明里都写了代价 —— 纯加强的改装会让元进度变成数值跑步机');
+  // 真的是交换：逐个验「有得有失」
+  fresh(); NS.PROF.scrap = 99999; NS.buyHQ('smelt'); NS.buyHQ('bench');
+  NS.PROF.ingot = 999;
+  NS.setMode('free'); NS.start(110);
+  for (const w of Object.keys(NS.WMOD)) {
+    NS.PROF.unlocked['w_' + w] = 1;
+    NS.PROF.mods = {}; NS.PROF.modsOn = {};
+    NS.equip(w);
+    const before = { dmg: NS.P.dmg, rate: NS.P.fireRate, pierce: NS.P.pierce, spread: NS.P.spread,
+      range: NS.P.range, chain: NS.P.chain, reach: NS.P.reach, splash: NS.P.splash };
+    NS.PROF.mods[w] = 1; NS.PROF.modsOn[w] = 1;
+    NS.equip(w);
+    const after = { dmg: NS.P.dmg, rate: NS.P.fireRate, pierce: NS.P.pierce, spread: NS.P.spread,
+      range: NS.P.range, chain: NS.P.chain, reach: NS.P.reach, splash: NS.P.splash };
+    const flags = NS.P.railSplit || NS.P.nadeProx || NS.P.bladeKick || NS.P.beamWide || NS.P.mineRemote || NS.P.discTwin;
+    const up = Object.keys(before).filter(k => after[k] > before[k]);
+    const down = Object.keys(before).filter(k => after[k] < before[k]);
+    ok(down.length > 0 || flags, `${NS.WEAPONS[w].n}·${NS.WMOD[w].n} 有代价（降了 ${down.join('/') || '—'}，行为标记 ${flags ? '有' : '无'}）`);
+    ok(up.length > 0 || flags, `${NS.WEAPONS[w].n}·${NS.WMOD[w].n} 也有好处`);
+  }
+  // 五、槽位：装配台等级 = 同时能开几个
+  fresh(); NS.PROF.scrap = 99999; NS.buyHQ('bench'); NS.PROF.ingot = 999;
+  ok(NS.modSlots() === 1, '装配台 1 级 = 1 个槽位');
+  ok(NS.buyMod('pulse') === true && NS.modOn('pulse'), '买了就自动装上（有空位）');
+  ok(NS.buyMod('shot') === true && !NS.modOn('shot'), '第二个买得到，但槽位满了不自动装');
+  ok(NS.toggleMod('shot') === false, '槽位满时开不了第二个');
+  NS.toggleMod('pulse');
+  ok(NS.toggleMod('shot') === true, '先关掉一个，才能开另一个');
+  NS.buyHQ('bench');
+  ok(NS.modSlots() === 2 && NS.toggleMod('pulse') === true, '升级装配台后能同时开两个');
+  ok(NS.buyMod('pulse') === false, '已经有的不会重复买');
+  NS.PROF.ingot = 0;
+  ok(NS.buyMod('rail') === false, '精炼钢不够买不了');
+  // 六、每日局不吃改装 —— 大家的枪得一样
+  NS.PROF.ingot = 999; NS.PROF.mods = { pulse: 1 }; NS.PROF.modsOn = { pulse: 1 };
+  NS.setMode('daily'); NS.start(110); NS.equip('pulse');
+  const dailyRate = NS.P.fireRate;
+  NS.setMode('free'); NS.start(110); NS.equip('pulse');
+  ok(NS.P.fireRate !== dailyRate, `每日局不吃改装（自由局射速 ${NS.P.fireRate.toFixed(2)}，每日局 ${dailyRate.toFixed(2)}）`);
+  // 七、弹药库真的多一格货、还能打折
+  fresh(); NS.PROF.scrap = 99999;
+  const n0 = NS.shopList().length;
+  NS.buyHQ('depot');
+  ok(NS.shopList().length === n0 + 1, `弹药库 Lv1 让商店从 ${n0} 格变成 ${NS.shopList().length} 格`);
+  const it = NS.shopList()[0], c0 = NS.shopCost(it);
+  NS.buyHQ('depot');
+  ok(NS.shopCost(it) < c0, `Lv2 打折（${c0} → ${NS.shopCost(it)}）`);
+  // 八、情报站给的是「知道」，不是「变强」
+  fresh(); NS.PROF.scrap = 99999;
+  NS.setMode('free'); NS.start(111);
+  ok(NS.intelText() === '', '没盖情报站时没有情报');
+  NS.buyHQ('intel'); NS.start(111);
+  const itx = NS.intelText();
+  ok(itx.length > 0 && /情报/.test(itx), `盖了就有情报（「${itx.slice(0, 40)}...」）`);
+  NS.setMode('daily'); NS.start(111);
+  ok(NS.intelText() === '', '每日局没有情报 —— 那会变成信息差');
+  NS.setMode('free');
+  // 九、义体车间：保底首抽
+  fresh(); NS.PROF.scrap = 99999; NS.buyHQ('train');
+  NS.PROF.pity = ['dmg'];
+  let hit = 0;
+  for (let i = 0; i < 12; i++) {
+    NS.start(120 + i); NS.G.state = 'play'; NS.showLevelup();
+    if (NS.G.offer.some(u => u.id === 'dmg')) hit++;
+  }
+  ok(hit === 12, `指定的保底词条 12 次升级里出现了 ${hit} 次 —— 第一次升级必定有它`);
+  NS.start(130); NS.G.state = 'play'; NS.showLevelup();
+  NS.takeUpgrade(NS.G.offer[0]);
+  NS.G.state = 'play'; NS.showLevelup();
+  ok(NS.G.pityDone === 1, '保底只管第一次，之后照常摇');
+  // 保底得能选，不能只有数据没有入口
+  NS.PROF.pity = [];
+  ok(NS.togglePity('dmg') === true && NS.PROF.pity[0] === 'dmg', '能指定一条');
+  ok(NS.togglePity('rof') === false, `车间 ${NS.hqLv('train')} 级只能指定 ${NS.hqLv('train')} 条`);
+  ok(NS.togglePity('dmg') === true && NS.PROF.pity.length === 0, '再点一次取消');
+  NS.PROF.scrap = 99999; NS.buyHQ('train');
+  ok(NS.togglePity('dmg') && NS.togglePity('rof') && NS.PROF.pity.length === 2, '升级后能指定两条');
+  NS.showHQ(true);
+  ok(byId('hqPity').innerHTML.indexOf('已指定') >= 0, '据点里有保底词条的入口');
+  NS.showHQ(false);
+  // 每日局不吃保底 —— 跟改装同一条规矩
+  NS.setMode('daily'); NS.start(140); NS.G.state = 'play'; NS.showLevelup();
+  const dailyHasPity = NS.G.offer.some(u => u.id === 'dmg');
+  NS.setMode('free');
+  ok(/MODE !== 'daily' && \(PROF\.pity/.test(html), '每日局不吃保底 —— 大家的牌池得一样');
+}
+
+// ---- 44) 战利品与货摊 ----
+// 「用捡的东西开店」。做坏了就是「点一下卖掉」的杂活 ——
+// 分界线只有一条：定价要有牙齿。下面这些断言就是守这条线的。
+console.log('战利品与货摊');
+{
+  const D = 1 / 60;
+  const fresh = () => { for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+    Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf(); };
+  // 一、零件跟「你打了谁」绑定 —— 这才让敌人选择有了战斗之外的理由
+  ok(NS.PART_IDS.length >= 8, `${NS.PART_IDS.length} 种零件`);
+  ok(NS.PART_IDS.every(k => NS.PART[k].n && NS.PART[k].base > 0 && NS.PART[k].from.length), '每种都有名字、基准价、来源');
+  ok(new Set(NS.PART_IDS.map(k => NS.PART[k].c)).size === NS.PART_IDS.length, '颜色互不重复 —— 掉在地上要分得清');
+  const covered = Object.keys(NS.PART_OF);
+  for (const t of ['tank', 'drone', 'shieldbot', 'relay', 'hauler', 'splitter', 'bomber'])
+    ok(covered.indexOf(t) >= 0, `${NS.MOB[t].nm} 有对应的零件（想要它就得去打它）`);
+  ok(NS.PART_OF.boss && NS.PART_OF.boss === NS.PART_OF.boss2, 'BOSS 掉的是同一种高价零件');
+  ok(NS.PART.core.base > NS.PART.cap.base * 4, `核心碎片 ${NS.PART.core.base} 远贵于电容组 ${NS.PART.cap.base}`);
+  // 二、真的掉、真的捡得到、真的进货箱
+  fresh(); NS.setMode('free'); NS.start(150);
+  const LG = NS.G, LP = NS.P;
+  LG.phase = 'break'; LG.budget = 0; LG.mobs.length = 0; LG.drops.length = 0; LG.loot = {};
+  let got = 0;
+  for (let i = 0; i < 200; i++) { NS.spawn('tank'); const m = LG.mobs[LG.mobs.length - 1]; m.x = 900; m.y = 900; m.elite = 0; NS.killMob(m); }
+  got = LG.drops.filter(d => d.kind === 'part').length;
+  ok(got > 5 && got < 120, `200 台重装掉了 ${got} 个零件 —— 稀缺才谈得上行情`);
+  ok(LG.drops.filter(d => d.kind === 'part').every(d => d.pk === 'servo'), '重装只掉伺服马达，不掉别的');
+  LG.drops.length = 0; LG.loot = {};
+  LG.drops.push({ x: LP.x, y: LP.y, vx: 0, vy: 0, t: 0, kind: 'part', pk: 'optic' });
+  for (let i = 0; i < 20; i++) NS.update(D);
+  ok(LG.loot.optic === 1, '捡起来进这一局的货箱');
+  LG.wave = 5; NS.bankRun();
+  ok((NS.PROF.parts.optic | 0) === 1, '局末进档案的货箱 —— 死了也算，不然会逼人苟');
+  // 三、行情每局变，而且有缺货有积压
+  fresh();
+  const m0 = NS.market();
+  ok(m0.hot.length === 2 && m0.cold, `行情：缺货 ${m0.hot.join(' ')} · 积压 ${m0.cold}`);
+  ok(m0.hot.indexOf(m0.cold) < 0, '缺货和积压不会是同一种');
+  ok(NS.mktMul(m0.hot[0]) > 1 && NS.mktMul(m0.cold) < 1, '缺货涨价、积压跌价');
+  NS.PROF.runs = 5;
+  const m1 = NS.market();
+  ok(m1.n !== m0.n, '打完一局行情就换 —— 「今天该打谁」每局都在变');
+  ok(NS.rollMarket(3).hot.join() === NS.rollMarket(3).hot.join(), '同一局数的行情是确定的，不会每次读都变');
+  // 四、定价有牙齿：出价高会流失客人
+  fresh();
+  NS.PROF.parts = { cap: 60 };
+  NS.PROF.fame = 100;
+  const band = NS.priceBand('cap');
+  ok(band.lo < band.mid && band.mid < band.hi, `价位带 ${band.lo} ~ ${band.hi}`);
+  NS.setPrice('cap', Math.round(band.lo * .8));        // 贱卖
+  const cheapRun = NS.openStore();
+  ok(cheapRun.sold === cheapRun.log.filter(l => l.k === 'ok' || l.k === 'cheap').length, '贱卖时几乎人人都买');
+  const cheapSold = cheapRun.sold;
+  NS.PROF.parts = { cap: 60 }; NS.PROF.fame = 100;
+  NS.setPrice('cap', Math.round(band.hi * 1.6));       // 漫天要价
+  const greedRun = NS.openStore();
+  ok(greedRun.sold < cheapSold, `要价高就卖不动（贱卖 ${cheapSold} 件 → 高价 ${greedRun.sold} 件）`);
+  ok(greedRun.log.some(l => l.k === 'far' || l.k === 'over'), '有客人明确表示嫌贵 —— 这是教你价位带的反馈');
+  // 但高价单件更赚：这才叫「决定」而不是「越低越好」
+  NS.PROF.parts = { cap: 60 }; NS.PROF.fame = 100;
+  NS.setPrice('cap', band.mid);
+  const midRun = NS.openStore();
+  ok(midRun.earned > 0, `按中位价进账 ${midRun.earned}`);
+  ok(Math.round(midRun.earned / Math.max(1, midRun.sold)) > Math.round(cheapRun.earned / Math.max(1, cheapSold)),
+    '中位价的单件收入高于贱卖 —— 所以「卖多少钱」是个真决定，不是越低越好');
+  // 五、名声：赶走客人有后果
+  fresh(); NS.PROF.parts = { cap: 99 }; NS.PROF.fame = 80;
+  NS.setPrice('cap', 9999);
+  const n0 = NS.customerCount();
+  NS.openStore();
+  ok(NS.fame() < 80, `一直赶客人，名声掉了（80 → ${NS.fame()}）`);
+  ok(NS.customerCount() < n0, `名声低了来的人也少（${n0} → ${NS.customerCount()}）—— 贪一次没事，一直贪就没人来`);
+  fresh(); NS.PROF.parts = { cap: 99 }; NS.PROF.fame = 40;
+  NS.setPrice('cap', 1);
+  NS.openStore();
+  ok(NS.fame() > 40, '好好做生意名声会回来');
+  // 六、钱进的是废钢 —— 经营层不产战斗力，还是那条规矩
+  fresh(); NS.PROF.parts = { servo: 20 }; NS.PROF.scrap = 0;
+  NS.setPrice('servo', NS.priceBand('servo').lo);
+  const r6 = NS.openStore();
+  ok(NS.PROF.scrap === r6.earned && r6.earned > 0, `卖的钱进废钢（+${r6.earned}），喂给据点，不直接变战斗力`);
+  // 七、空货箱不会报错
+  fresh(); NS.PROF.parts = {};
+  const r7 = NS.openStore();
+  ok(r7.sold === 0 && r7.log.length === 1, '货箱空的时候说一句就好，不会崩');
+  // 八、界面上看得见行情和定价
+  NS.PROF.parts = { cap: 3, servo: 1 };
+  NS.showHQ(true);
+  ok(byId('hqMkt').innerHTML.indexOf('缺货') >= 0, '货摊上写着今天什么缺货');
+  ok(byId('hqStock').innerHTML.indexOf('data-pr') >= 0, '每种货都有加减价的按钮');
+  ok(/body\.touch \.pitem button\{width:34px/.test(html), '触屏上加减价按钮放大到 34px —— 这是唯一要反复点的地方');
+  NS.showHQ(false);
+
+  // 九、据点得说清楚「它有什么用」—— 三个栏目标题说得清「这是什么」，
+  // 说不清「它们怎么串起来」。玩家问过这个。
+  fresh();
+  const c0 = NS.chainText();
+  const names = NS.chainSteps().map(x => x.n.replace(/ /g, ''));
+  ok(['打一局', '卖零件', '盖建筑', '炼精炼钢', '装改装件'].every(n => names.indexOf(n) > -1),
+    `顶上把整条链列全了（${names.join(' › ')}）`);
+  // 中文可以在任何字之间断行 ——「装配台装改装件」原来在手机上被劈成两行
+  ok(/\.cstep\{[^}]*white-space:nowrap/.test(html), '每一格自己不许换行');
+  // 每一步都得能跳到对应那一栏，否则它只是句话，不是目录
+  const gos = NS.chainSteps().filter(x => x.go).map(x => x.go);
+  ok(gos.length >= 4 && gos.every(g => html.indexOf('id="' + g + '"') > -1),
+    `能点的步骤都指向真存在的栏目（${gos.join(' ')}）`);
+  // 这一跳是长滚动里唯一的导航，不能因为系统关了动画就变成「点了没反应」
+  ok(/scrollIntoView\(\{ behavior: REDUCE \? 'auto' : 'smooth'/.test(html),
+    '开了「减少动态效果」就直接跳，不滑');
+  ok(/货箱是空的/.test(c0), '空手进来时先说「零件从哪来」');
+  NS.PROF.parts = { cap: 3 };
+  ok(/先卖零件/.test(NS.chainText()), '有货了就说「先卖」');
+  NS.PROF.scrap = 9999;
+  NS.buyHQ('smelt');
+  ok(/装配台/.test(NS.chainText()), '有了精炼炉就指向装配台');
+  NS.buyHQ('bench');
+  ok(/精炼/.test(NS.chainText()), '两栋都有了就说「去炼精炼钢」');
+  NS.PROF.ingot = 9;
+  ok(/交换/.test(NS.chainText()), '有精炼钢了就提醒「改装件是交换不是升级」');
+  // 提示要跟着进度变，不是一句写死的
+  const seen = new Set();
+  fresh(); seen.add(NS.chainText());
+  NS.PROF.parts = { cap: 1 }; seen.add(NS.chainText());
+  NS.PROF.scrap = 9999; NS.buyHQ('smelt'); seen.add(NS.chainText());
+  NS.buyHQ('bench'); seen.add(NS.chainText());
+  NS.PROF.ingot = 9; seen.add(NS.chainText());
+  ok(seen.size >= 4, `走到不同阶段给的是不同的提示（${seen.size} 种）—— 讲全套只会糊在眼前，讲下一步才有用`);
+  // 已经走到的那一步要高亮，没走到的是灰的
+  // 三档，不是两档：走过的、没走到的、以及【现在卡在哪一步】。
+  // 只有亮/暗两档的话「我该干什么」还得自己数到第一个暗的。
+  fresh();
+  const st0 = NS.chainSteps(), t0 = NS.chainText();
+  ok(st0.filter(x => x.on).length < st0.length, '空档案时有没走到的步骤');
+  ok((t0.match(/class="cstep now"/g) || []).length === 1,
+    '永远只有一步被标成「现在该做这个」');
+  ok(/class="cstep on"/.test(t0) && /class="cstep"/.test(t0),
+    '走过的和没走到的长得不一样');
+  NS.PROF.parts = { cap: 1 }; NS.PROF.scrap = 9999; NS.buyHQ('smelt'); NS.buyHQ('bench');
+  const t1 = NS.chainText();
+  ok(NS.chainSteps().every(x => x.on) && !/cstep now/.test(t1),
+    '整条链走通之后不再有「卡住」那一档');
+}
+
+// ---- 45) 宠物：据点养的管经营，局内抽的会打架 ----
+// 会打架的宠物 = 白送的 DPS，而元进度这条线明确不给战斗力。
+// 所以分两条：据点那三只改的是掉率/客流/情报，局内那个是词条召唤的。
+console.log('宠物');
+{
+  const D = 1 / 60;
+  const fresh = () => { for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+    Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf(); };
+  // 一、据点宠物一个都不碰战斗数值
+  ok(NS.PET_IDS.length === 3, `据点有 ${NS.PET_IDS.length} 只宠物`);
+  ok(NS.PET_IDS.every(k => NS.PET[k].n && NS.PET[k].d && NS.GRID[NS.PET[k].spr]), '每只都有名字、说明、精灵');
+  ok(!NS.PET_IDS.some(k => /伤害|射速|移速|生命|暴击|护盾/.test(NS.PET[k].d)),
+    '没有一只是加战斗数值的 —— 它们改的是掉率、客流、情报');
+  ok(NS.PET_IDS.every(k => NS.MILES.some(m => m.id === NS.PET[k].req)), '每只都有解锁的里程碑');
+  // 二、拾荒犬真的翻倍掉率，而且只翻它指定的那一种
+  fresh();
+  NS.PROF.unlocked.p_dog = 1; NS.pickPet('dog'); NS.setDogPart('servo');
+  ok(NS.activePet() === 'dog' && NS.dogPart() === 'servo', '带着拾荒犬，指定伺服马达');
+  NS.setMode('free'); NS.start(160);
+  const PG = NS.G;
+  const count = (type, n) => {
+    PG.phase = 'break'; PG.budget = 0; PG.mobs.length = 0; PG.drops.length = 0;
+    NS.seedRun(9);
+    for (let i = 0; i < n; i++) { NS.spawn(type); const m = PG.mobs[PG.mobs.length - 1]; m.x = 900; m.y = 900; m.elite = 0; NS.killMob(m); }
+    return PG.drops.filter(d => d.kind === 'part').length;
+  };
+  const withDog = count('tank', 300);
+  NS.pickPet('dog');                                   // 再点一次收回去
+  ok(NS.activePet() === null, '再点一次把宠物收回去');
+  const noDog = count('tank', 300);
+  ok(withDog > noDog * 1.4, `拾荒犬让伺服马达掉得更多（${noDog} → ${withDog}）`);
+  NS.pickPet('dog'); NS.setDogPart('optic');           // 换成指定别的
+  const otherPart = count('tank', 300);
+  ok(Math.abs(otherPart - noDog) < noDog * .45, `只翻指定的那一种（指定光学镜组时重装掉 ${otherPart}，跟没带狗的 ${noDog} 差不多）`);
+  // 三、账房猫真的多来客人
+  fresh(); NS.PROF.fame = 60;
+  const c0 = NS.customerCount();
+  NS.PROF.unlocked.p_cat = 1; NS.pickPet('cat');
+  ok(NS.customerCount() === c0 + 3, `账房猫多来 3 位客人（${c0} → ${NS.customerCount()}）`);
+  // 四、信鸦真的多看几波，而且没盖情报站也能看
+  fresh(); NS.setMode('free'); NS.start(161);
+  ok(NS.intelText() === '', '没情报站也没信鸦时，没有情报');
+  NS.PROF.unlocked.p_crow = 1; NS.pickPet('crow'); NS.start(161);
+  ok(NS.intelText().length > 0, '光带信鸦也能看到一点情报');
+  NS.PROF.scrap = 99999; NS.buyHQ('intel'); NS.start(161);
+  const both = NS.intelText();
+  NS.pickPet('crow'); NS.start(161);
+  ok(both.length >= NS.intelText().length, '信鸦叠在情报站上能多看几波');
+  NS.setMode('daily'); NS.start(161);
+  ok(NS.intelText() === '', '每日局照旧没有情报 —— 那会变成信息差');
+  NS.setMode('free');
+  // 五、没带宠物就没有，带了局内真的跟着跑
+  fresh(); NS.start(162);
+  ok(NS.G.pet === null, '没带宠物时局内没有它');
+  NS.PROF.unlocked.p_dog = 1; NS.pickPet('dog'); NS.start(162);
+  ok(NS.G.pet && NS.G.pet.id === 'dog', '带了就在局内出现');
+  const P5 = NS.P, pt = NS.G.pet;
+  P5.x += 260; P5.y += 180;                            // 人跑远
+  const d0 = Math.hypot(pt.x - P5.x, pt.y - P5.y);
+  for (let i = 0; i < 90; i++) NS.update(D);
+  const d1 = Math.hypot(pt.x - P5.x, pt.y - P5.y);
+  ok(d1 < d0 * .5, `宠物会追上来（${Math.round(d0)}px → ${Math.round(d1)}px）`);
+  ok(/G\.pet\) \{\s*\n\s*const pt = G\.pet/.test(html) || /宠物：拖在身后/.test(html),
+    '宠物纯装饰，不参与战斗 —— 它的本事在据点那头结算');
+  // 停下来之后它得站在你的光圈外面。第一版跟 15px，玩家自己的光晕半径就有 13、
+  // 身子高 16，狗整个埋在里面 —— 数据层一切正常，屏幕上根本没有狗。
+  for (let i = 0; i < 240; i++) NS.update(D);           // 停下来等它归位
+  const rest = Math.hypot(pt.x - P5.x, pt.y - P5.y);
+  ok(rest > 18, `站着不动时宠物停在光圈外（离你 ${Math.round(rest)}px，光晕半径 13）`);
+  // 只转枪口不挪脚，它不能跟着甩。锚点是「你往哪走」不是「你往哪瞄」。
+  const px0 = pt.x, py0 = pt.y;
+  for (let i = 0; i < 60; i++) { P5.ang += .1; NS.update(D); }
+  ok(Math.hypot(pt.x - px0, pt.y - py0) < 6,
+    `原地转枪口宠物不动（挪了 ${Math.round(Math.hypot(pt.x - px0, pt.y - py0))}px）—— 它跟的是脚不是枪`);
+
+  // 六、战斗跟班是【局内词条】，不是元进度
+  const esc = NS.UPGRADES.find(u => u.id === 'escort');
+  ok(!!esc && esc.max >= 2, `护航无人机是词条，最多叠 ${esc.max} 架`);
+  ok(!!NS.DECAL.escort, '它在人身上也有外显');
+  fresh(); NS.start(163);
+  const EG = NS.G, EP = NS.P;
+  EG.phase = 'break'; EG.budget = 0; EG.mobs.length = 0;
+  ok(EG.escorts.length === 0, '没抽到词条时没有跟班');
+  NS.takeUpgrade(esc); NS.takeUpgrade(esc);
+  ok(EG.escorts.length === 2, `抽两次就有 ${EG.escorts.length} 架`);
+  // 真的绕着你转
+  const e0 = EG.escorts[0];
+  NS.update(D);                                        // 跟班是第一帧才被放上轨道的，要先跑一帧再量
+  const r0 = Math.hypot(e0.x - EP.x, e0.y - EP.y);
+  for (let i = 0; i < 40; i++) NS.update(D);
+  const r1 = Math.hypot(e0.x - EP.x, e0.y - EP.y);
+  ok(Math.abs(r1 - r0) < 14 && r1 > 8, `跟班绕着你转，半径稳定（${Math.round(r0)} → ${Math.round(r1)}px）`);
+  // 轨道最窄的地方（正上正下）也不能从你身子里穿过去，否则一圈里有一半时间看不见它
+  let minDy = 1e9;
+  for (let i = 0; i < 400; i++) {
+    NS.update(D);
+    for (const e of EG.escorts) if (Math.abs(e.x - EP.x) < 3) minDy = Math.min(minDy, Math.abs(e.y - EP.y));
+  }
+  ok(minDy > 14, `跟班绕到正上方时也在身子外面（最近 ${Math.round(minDy)}px，人高 16）`);
+  // 画出来分不分得清：跟班是青色胶囊，电容掉落和经验尾迹也是青色胶囊。
+  // 颜色救不了（泛光会洗白），得有条线把它和你连起来 —— 没有掉落物会连着你。
+  ctx.__rec();
+  NS.render();
+  const ops = ctx.__ops.slice();
+  ctx.__rec(false);
+  const link = ops.some((o, i) => o[0] === 'moveTo' && ops[i + 1] && ops[i + 1][0] === 'lineTo' &&
+    Math.hypot(o[1] - (EP.x - EG.cam.x), o[2] - (EP.y - EG.cam.y)) < 2 &&
+    EG.escorts.some(e => Math.hypot(ops[i + 1][1] - (e.x - EG.cam.x), ops[i + 1][2] - (e.y - EG.cam.y)) < 2));
+  ok(link, '每架跟班都有一根线连回你身上 —— 这是它和掉落物唯一不会撞车的区别');
+  // 真的会自己打
+  NS.spawn('grunt');
+  const tg = EG.mobs[0]; tg.x = EP.x + 40; tg.y = EP.y; tg.hp = 99999; tg.max = 99999;
+  EG.bullets.length = 0;
+  for (let i = 0; i < 150; i++) NS.update(D);
+  ok(tg.hp < 99999, `跟班自己找最近的打（掉了 ${Math.round(99999 - tg.hp)} 血）`);
+  // 但它不该盖过玩家：伤害是玩家的一个零头
+  ok(/P\.dmg \* \.42/.test(html), '跟班的伤害是玩家的四成多一点 —— 是补充不是主力');
+  // 重开一局要清掉
+  NS.start(163);
+  ok(NS.G.escorts.length === 0, '重开一局跟班清零 —— 它是这一局的构筑，不是永久的');
+}
+
+// ---- 46) 首页写的数字必须还是真的 ----
+// 首页那段介绍里全是具体数字，加东西的时候最容易忘记回去改。
+// 「22 条改装词条」就这么过期了一阵子 —— 实际已经 23 条。
+console.log('首页文案');
+{
+  const home = require('fs').readFileSync(
+    require('path').resolve(__dirname, '..', 'index.html'), 'utf8');
+  const seg = home.slice(home.indexOf('霓虹废钢线'), home.indexOf('霓虹废钢线') + 4000);
+  // 文案里数字有时写汉字（「九把武器」「三十波」），断言得两种都认
+  const CN = '零一二三四五六七八九';
+  const val = t => {
+    if (/^\d+$/.test(t)) return +t;
+    const i = t.indexOf('十');
+    if (i < 0) return CN.indexOf(t);
+    return (i === 0 ? 1 : CN.indexOf(t[0])) * 10 + (i === t.length - 1 ? 0 : CN.indexOf(t[i + 1]));
+  };
+  const num = (re, real, what) => {
+    const m = seg.match(re);
+    ok(!!m && val(m[1]) === real, `首页说${what} ${m ? m[1] : '没写'}，实际 ${real}`);
+  };
+  const N = k => Object.keys(NS.MOB).filter(x => !NS.MOB[x].boss).length;
+  num(/([零一二三四五六七八九十\d]+)\s*把武器/, NS.UPGRADES.filter(u => u.id.indexOf('w_') === 0).length + 1, '武器');
+  num(/(\d+) 条改装词条/, NS.UPGRADES.filter(u => u.id.indexOf('w_') !== 0).length, '改装词条');
+  num(/([零一二三四五六七八九十\d]+)波机兵/, NS.LAST_WAVE, '一局打多少波');
+  ok(/十一种敌人/.test(seg) && N() === 11, `首页说十一种敌人，实际 ${N()} 种（不算 BOSS）`);
+  // 这一版新加的东西在首页上有没有交代
+  ok(/拾荒犬|账房猫|信鸦/.test(seg), '宠物写进首页了');
+  ok(/护航无人机/.test(seg), '护航无人机写进首页了');
+
+  // 游戏自己那份 README 更容易掉队 —— 它一度还写着「六把武器」「五种敌人」，
+  // 那时候实际已经是九把和十一种了。
+  const rd = require('fs').readFileSync(
+    require('path').resolve(__dirname, '..', 'games', 'neon-scrapline', 'README.md'), 'utf8');
+  const wep = NS.UPGRADES.filter(u => u.id.indexOf('w_') === 0).length + 1;
+  const mob = Object.keys(NS.MOB).filter(x => !NS.MOB[x].boss).length;
+  const rnum = (re, real, what) => {
+    const m = rd.match(re);
+    ok(!!m && val(m[1]) === real, `README 说${what} ${m ? m[1] : '没写'}，实际 ${real}`);
+  };
+  rnum(/## ([零一二三四五六七八九十\d]+)把武器/, wep, '武器');
+  rnum(/敌人 ([零一二三四五六七八九十\d]+) 种/, mob, '敌人');
+  rnum(/一局 ([零一二三四五六七八九十\d]+) 波/, NS.LAST_WAVE, '一局多少波');
+  rnum(/([零一二三四五六七八九十\d]+) 条改装词条/, NS.UPGRADES.filter(u => u.id.indexOf('w_') !== 0).length, '改装词条');
+  // 「现在有几档危险等级」这种也会掉队
+  rnum(/([零一二三四五六七八九十\d]+)档危险等级/, NS.DANGER.length, '危险等级档数');
+}
+
+// ---- 47) 手机上的版面：不重叠、不拆散、不铺成一长条 ----
+// 这一节全是几何，而 DOM 桩的 getBoundingClientRect 是个死值 ——
+// 所以只能验「让几何不可能出错的那些约束」，真的量还得开浏览器。
+console.log('手机版面');
+{
+  // 文件里不止一个 <style>，拼起来再找；只切第一个会静默拿到 138 字节的那块。
+  const css = (html.match(/<style>([\s\S]*?)<\/style>/g) || []).join('\n');
+  const px = re => { const m = css.match(re); return m ? +m[1] : null; };
+  const hud = html.slice(html.indexOf('id="hud"'), html.indexOf('id="tc"'));
+
+  // 一、每个标签都得紧跟在一个 .u 单元的开头。单独摆在行里的话，
+  // 375 宽上量到过「废钢」在 y37、它的值在 y58 —— 中间隔着一整行。
+  const lbls = [...hud.matchAll(/<span class="lbl">([^<]*)<\/span>/g)];
+  // 「整合度」这种标签本身在手机上是藏的，但它后面的条和数字必须绑在一起，
+  // 所以合格的写法有两种：标签自己在单元里，或者它后面紧跟一个单元。
+  const loose = lbls.filter((m, i) => {
+    if (/class="u(?: keep)?">$/.test(hud.slice(0, m.index))) return false;
+    const end = lbls[i + 1] ? lbls[i + 1].index : hud.length;
+    return !/<span class="u grow">/.test(hud.slice(m.index, end));
+  });
+  ok(loose.length === 0,
+    `HUD 里没有游离的标签（${loose.map(m => m[1]).join('/') || '零个'}）`);
+  ok(/\.u\{[^}]*white-space:nowrap/.test(css), '.u 单元内部不许换行');
+
+  // 二、手机上藏掉哪些标签是有标准的：值本身说不说得清自己是什么。
+  // 只看到下一个标签为止 —— 开个 200 字符的窗会读到隔壁单元的控件上去
+  const kind = (m, i) => {
+    const end = lbls[i + 1] ? lbls[i + 1].index : hud.length;
+    const after = hud.slice(m.index + m[0].length, end);
+    // 条优先于框：「整合度」后面先是血条再是隔壁的 WAVE 框，
+    // 先判 tag 的话会把它报成 tag —— 结论仍然对，但说明是错的。
+    return /class="bar"/.test(after) ? 'bar' : /id="dashPip"/.test(after) ? 'pip'
+      : /class="tag"/.test(after) ? 'tag' : 'num';
+  };
+  const isKeep = m => /class="u keep">$/.test(hud.slice(0, m.index));
+  const keep = lbls.filter(isKeep), drop = lbls.filter(m => !isKeep(m));
+  ok(keep.length === 2, `手机上留了 ${keep.length} 个标签：${keep.map(m => m[1]).join('/')}`);
+  ok(keep.every(m => kind(m, lbls.indexOf(m)) === 'num'),
+    '留下的标签后面都是裸数字 —— 旁边没有任何东西说它是什么');
+  ok(drop.every(m => kind(m, lbls.indexOf(m)) !== 'num'),
+    `藏掉的标签后面都是自带说明的控件（${drop.map(m => m[1] + ':' + kind(m, lbls.indexOf(m))).join(' ')}）`);
+  ok(/body\.touch #hud \.lbl\{display:none\}/.test(css), '手机上默认藏标签');
+
+  // 三、右上角是暂停/音乐的地盘，HUD 得让开 —— 量到过四处重叠
+  //（btnPause×武器框、×废钢、×废钢值，btnMute×废钢值）。
+  const btnW = px(/#tc \.tsys button\{[^}]*width:(\d+)px/);
+  const gap = px(/#tc \.tsys\{[^}]*gap:(\d+)px/);
+  const right = px(/#tc \.tsys\{[^}]*right:calc\((\d+)px/);
+  const reserve = px(/body\.touch #hud\{padding-right:calc\((\d+)px/);
+  const corner = btnW * 2 + gap + right;
+  ok(reserve >= corner, `HUD 给右上角让出 ${reserve}px，圆键那一块占 ${corner}px`);
+
+  // 四、据点的钱要钉住：整屏 1300px，而每个决定都是「买不买得起」。
+  const rule = css.slice(css.indexOf('body.touch #hqBox .hint{')).split('}')[0];
+  ok(/position:sticky/.test(rule), '据点的钱在手机上吸顶');
+  // #hqBox 是 grid + justify-items:center，横向得用 justify-*。
+  // 写成 align-self:stretch 的时候条只有内容那么宽，两边照样漏 —— 踩过。
+  ok(/justify-self:stretch|width:100%/.test(rule), '吸顶条横向铺满，不然两边漏出滚过去的内容');
+  ok(/background:rgba\(\d+,\s*\d+,\s*\d+,\s*\.9\d\)|background:#/.test(rule),
+    '吸顶条是实底 —— 半透明的话后面一排排建筑会直接透上来');
+  // 容器有上内边距的话，吸顶元素顶不到那上面去，顶上会漏一条缝让内容钻出来。
+  // 两种修法都行：把容器那点内边距挪走，或者拿投影把缝糊住。
+  // （先用的投影，但条还没吸住时它会盖掉上面的链条提示，所以换成了前者。）
+  ok(/body\.touch #hqBox\{padding-top:0\}/.test(css) || /box-shadow:0 -\d+px 0/.test(rule),
+    '顶上不漏缝：要么容器没有上内边距，要么投影把缝盖住');
+}
+
+// ---- 48) 弹窗开着的时候触屏控件要收起来 ----
+// 右上角那两个圆键浮在所有层之上，商店标题「买的东西只在这一局有效」
+// 被暂停键盖掉过半句；摇杆和冲刺这时候本来也是死的，留着只挡视线。
+{
+  const tc = byId('tc');
+  NS.start(7); NS.syncTC();
+  ok(tc.classList.contains('play') && !tc.classList.contains('modal'),
+    '正常打的时候触屏控件在');
+  NS.openShop(); NS.syncTC();
+  ok(tc.classList.contains('modal'), '开商店时收起来 —— 商店自带「下一波」，不需要这些');
+  NS.closeShop(); NS.syncTC();
+  ok(!tc.classList.contains('modal'), '关了商店再回来');
+  NS.G.state = 'levelup'; NS.syncTC();
+  ok(tc.classList.contains('modal'), '选牌时也收起来');
+  NS.G.state = 'play'; NS.G.paused = true; NS.syncTC();
+  ok(tc.classList.contains('paused') && !tc.classList.contains('modal'),
+    '暂停不能一起藏 —— 藏了就点不回来');
+  NS.G.paused = false; NS.syncTC();
+  const css = (html.match(/<style>([\s\S]*?)<\/style>/g) || []).join('\n');
+  ok(/body\.touch #tc\.play\.modal\{display:none\}/.test(css),
+    'CSS 里 modal 的权重压得过 .play，否则这个类加了也白加');
+}
+
+// ---- 49) 九选一用格子，不用九条通栏 ----
+{
+  const fresh = () => { for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+    Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf(); };
+  fresh();
+  NS.PROF.unlocked.p_dog = 1;
+  if (NS.activePet() !== 'dog') NS.pickPet('dog');
+  NS.syncPet();
+  const box = byId('hqPet');
+  const chips = (box.innerHTML.match(/class="pchip/g) || []).length;
+  ok(chips === NS.PART_IDS.length,
+    `拾荒犬的零件是 ${chips} 个格子 —— 九条通栏在手机上是 600px 一模一样的列表`);
+  ok(!/data-dog="[^"]*"><span class="t"/.test(box.innerHTML),
+    '格子里只有名字：九个选项是同一种东西，不需要副标题和价格栏');
+  ok((box.innerHTML.match(/class="pchip on"/g) || []).length === 1, '永远只有一个选中');
+  const other = NS.PART_IDS.find(k => k !== NS.dogPart());
+  NS.setDogPart(other); NS.syncPet();
+  ok(NS.dogPart() === other && byId('hqPet').innerHTML.indexOf('data-dog="' + other + '" ') > -1
+     || byId('hqPet').innerHTML.indexOf('pchip on" data-dog="' + other) > -1,
+    '点另一个能换过去');
+}
+
+// ---- 50) 捡到的零件必须有地方看 ----
+// 被问过「我的背包和货箱在哪看」。当时的答案是：只有据点货摊，
+// 而且那张表只列手上有的 —— 空箱子等于这一栏不存在；
+// 局内和结算页则一个字都不提。三处都得能看到。
+console.log('货箱');
+{
+  const fresh = () => { for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+    Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf(); };
+
+  // 一、局内：暂停页第三个页签
+  fresh(); NS.start(71);
+  NS.G.loot = { cap: 3, servo: 1 };
+  NS.showTab('bag');
+  const bag = byId('bagPause').innerHTML;
+  ok(byId('pauseBox').classList.contains('tab-bag'), '暂停页有「货箱」这一页');
+  ok(NS.PART_IDS.every(k => bag.indexOf(NS.PART[k].n) > -1),
+    `九种零件全列出来，没捡到的也在（${NS.PART_IDS.length} 种）`);
+  ok(/\+3/.test(bag) && /\+1/.test(bag), '这一局捡了多少单独标出来');
+  ok((bag.match(/class="bagrow zero"/g) || []).length === NS.PART_IDS.length - 2,
+    '一件都没有的那些压暗，一眼能看出「今天什么都没出」');
+  // .brow 这个类名构筑面板已经在用了 —— 撞上的话构筑面板会跟着变样
+  ok(!/class="brow/.test(bag), '货箱不蹭构筑面板的类名');
+  ok(/缺 货|积 压/.test(bag), '带上今天的行情 —— 不然「捡到了」没法换算成「值不值」');
+  // 页签切走再切回来，三个页签互斥
+  NS.showTab('dex');
+  ok(byId('pauseBox').classList.contains('tab-dex')
+    && !byId('pauseBox').classList.contains('tab-bag'), '三个页签只亮一个');
+  NS.showDex(false);
+  ok(byId('pauseBox').classList.contains('tab-build'), '老的 showDex(false) 还是回构筑页');
+
+  // 二、结算页：这一局捡了什么
+  NS.G.loot = { cap: 2, core: 1 };
+  NS.gameOver(false);
+  const gain = byId('overGain').textContent;
+  ok(/废钢/.test(gain) && /电容组×2/.test(gain) && /核心碎片×1/.test(gain),
+    `结算页写明捡到的零件（${gain}）`);
+  NS.G.loot = {};
+  NS.gameOver(false);
+  ok(byId('overGain').textContent.indexOf('零件') < 0, '一件没捡到就不写这一段，不留空壳');
+
+  // 三、据点货摊：永远列全九种，空箱也有得看
+  fresh(); NS.syncStore();
+  const grid = byId('hqBag').innerHTML;
+  ok(NS.PART_IDS.every(k => grid.indexOf(NS.PART[k].n) > -1), '据点货箱空着也列全九种');
+  ok((grid.match(/bchip zero/g) || []).length === NS.PART_IDS.length, '一件都没有时九种全是暗的');
+  NS.PROF.parts = { plate: 4 }; NS.syncStore();
+  const grid2 = byId('hqBag').innerHTML;
+  ok((grid2.match(/bchip zero/g) || []).length === NS.PART_IDS.length - 1,
+    '有货的那种亮起来');
+}
+
+// ---- 51) 地上的东西得写名字 ----
+// 被问「显示掉落道具的名字，要不不认识」。零件九种、增益六种，
+// 光靠形状和颜色分不出是哪一个。
+console.log('掉落物名字');
+{
+  NS.start(72);
+  const G = NS.G, P = NS.P;
+  G.drops.length = 0;
+  const mk = o => G.drops.push(Object.assign({ x: P.x, y: P.y - 30, vx: 0, vy: 0, t: 0 }, o));
+  mk({ kind: 'part', pk: 'servo' });
+  mk({ kind: 'rush' });
+  mk({ kind: 'coin', v: 3 });
+  mk({ kind: 'hp' });
+  mk({ kind: 'xp' });
+  NS.render();
+  const tags = byId('dtags').children.filter(e => !e.hidden).map(e => e.textContent);
+  ok(tags.indexOf('伺服马达') > -1, `零件写名字（${tags.join(' ')}）`);
+  ok(tags.indexOf('超频') > -1, '增益写名字');
+  // 只标「同一类里有好几种」的。经验/废钢/治疗包各只有一种意思，
+  // 全标只会在战场上糊一层字。
+  ok(tags.length === 2, `一种形状一个意思的不标（现在标了 ${tags.length} 个）`);
+  // 画布是 320×180，在上面画字必糊 —— 全游戏的文字都在 DOM 层
+  ok(!/ctx\.fillText/.test(html), '名字走 DOM，不往画布上写字');
+  // 屏幕外的不标，否则贴在边上会积一堆
+  G.drops.length = 0;
+  mk({ kind: 'part', pk: 'servo', x: P.x + 4000, y: P.y });
+  NS.render();
+  ok(byId('dtags').children.filter(e => !e.hidden).length === 0, '屏幕外的不标');
+  // 暂停的时候收起来 —— 暂停面板要盖住战场，底下漂一层字会串味
+  G.drops.length = 0; mk({ kind: 'part', pk: 'servo' });
+  NS.render();
+  ok(byId('dtags').children.filter(e => !e.hidden).length === 1, '打的时候在');
+  NS.G.paused = true; NS.render();
+  ok(byId('dtags').children.filter(e => !e.hidden).length === 0, '暂停时收起来');
+  NS.G.paused = false;
+
+  // 名字只说「这是什么」，说不出「它干什么」——「超频」两个字本身没有信息。
+  // 敌人那边靠图鉴解决，增益原来只有捡起来那一瞬间的横幅。
+  const dex = NS.dexHTML();
+  ok(NS.BUFF_IDS.every(k => dex.indexOf(NS.BUFFS[k].n) > -1 && dex.indexOf(NS.BUFFS[k].d) > -1),
+    '六种增益都进了图鉴，写明各自干什么');
+  ok(/8 秒/.test(dex) && /立刻生效/.test(dex), '图鉴里写着能管几秒 —— 值不值得跑过去全看这个');
+}
+
+// ---- 52) 指路要在问题产生的那一刻给 ----
+// 「我的背包在哪看」被问了两次。第一次我只在聊天里答了，游戏里一个字没说 ——
+// 那第二次是必然的。加了货箱页签还不够，得有人把玩家领过去。
+console.log('第一次指路');
+{
+  const fresh = () => { for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+    Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf(); };
+  fresh(); NS.start(73);
+  const G = NS.G, P = NS.P;
+  G.tipQ.length = 0; G.tipT = 0;
+  // 走完整条捡拾路径，不去直接调 firstTime —— 要验的就是「捡到时会不会触发」
+  const grab = o => {
+    G.drops.length = 0;
+    G.drops.push(Object.assign({ x: P.x, y: P.y, vx: 0, vy: 0, t: 0 }, o));
+    NS.update(1 / 60);
+  };
+  grab({ kind: 'part', pk: 'servo' });
+  ok(G.tipQ.indexOf('ht:bag') > -1 || G.seen['ht:bag'], '捡到第一件零件就指路');
+  const say = NS.HOWTO.bag.join(' ');
+  ok(/货箱/.test(say) && /暂停/.test(say) && /货摊/.test(say),
+    `这句话说清了去哪看、怎么去、之后拿它干什么（${say}）`);
+  // 只播一次，而且跨局也记着
+  const n0 = G.tipQ.length;
+  grab({ kind: 'part', pk: 'cap' });
+  ok(G.tipQ.length === n0, '第二件不再播');
+  ok(NS.PROF.seen['ht:bag'], '记进档案 —— 下一局也不该再看到');
+  NS.start(73);
+  NS.G.tipQ.length = 0;
+  NS.G.drops.push({ x: NS.P.x, y: NS.P.y, vx: 0, vy: 0, t: 0, kind: 'part', pk: 'cap' });
+  NS.update(1 / 60);
+  ok(NS.G.tipQ.indexOf('ht:bag') < 0, '重开一局也不再播');
+  // 增益那条同理
+  fresh(); NS.start(74);
+  NS.G.tipQ.length = 0;
+  NS.G.drops.push({ x: NS.P.x, y: NS.P.y, vx: 0, vy: 0, t: 0, kind: 'rush' });
+  NS.update(1 / 60);
+  ok(NS.G.tipQ.indexOf('ht:buff') > -1 || NS.G.seen['ht:buff'], '捡到第一个增益也指路');
+  ok(/图鉴/.test(NS.HOWTO.buff.join(' ')), '增益那条指向图鉴 —— 名字说不出它干什么');
+  // 指的路必须真的存在
+  ok(!!byId('tabBag') && !!byId('tabDex'), '指过去的两个页签真的在');
+}
+
+// ---- 53) 玩法说明 ----
+// 「X 是什么意思 / Y 在哪看」被问了一串。单独答一条是打补丁，
+// 得有一处从头把「这游戏怎么玩」讲清楚。
+console.log('玩法说明');
+{
+  const h = NS.howToHTML();
+  const txt = h.replace(/<[^>]+>/g, ' ');
+
+  // 一、该讲的都讲了
+  const topics = ['怎么操作', '一局是怎么走的', '地上会掉什么', '升级牌怎么算',
+    '枪怎么来', '据点是干什么的', '难度和每日局'];
+  const missing = topics.filter(t => txt.replace(/\s/g, '').indexOf(t) < 0);
+  ok(!missing.length, `该讲的都讲了（缺：${missing.join('、') || '无'}）`);
+  // 五类掉落一个都不能漏 —— 这是玩家最先问的
+  ok(['经验', '废钢', '治疗包', '零件', '增益'].every(k => txt.indexOf(k) > -1),
+    '五类掉落全写了');
+
+  // 二、数字从数据里读，不写死。首页那段就是写死之后过期的。
+  const n = (re, real, what) => {
+    const m = txt.match(re);
+    ok(!!m && +m[1] === real, `说明里${what}写的是 ${m ? m[1] : '没写'}，实际 ${real}`);
+  };
+  n(/打穿 (\d+) 波就算赢/, NS.LAST_WAVE, '一局多少波');
+  n(/一共 (\d+) 张牌/, NS.UPGRADES.filter(u => !/^w_/.test(u.id)).length, '词条张数');
+  n(/一共 (\d+) 把/, NS.WEP_ORDER.length, '武器把数');
+  n(/敌人 (\d+) 种/, Object.keys(NS.MOB).filter(k => !NS.MOB[k].boss).length, '敌人种数');
+  n(/一共 (\d+) 种轮着来/, Object.keys(NS.MOB).filter(k => NS.MOB[k].boss).length, 'BOSS 种数');
+  n(/花 (\d+) 废钢/, NS.WEP_COST, '买起手武器的价钱');
+
+  // 三、说人话：不许拿游戏内造词开头。这一份是给没玩过的人看的。
+  const jargon = ['整合度', '义体等级', '拆解数'];
+  ok(jargon.every(w => txt.indexOf(w) < 0),
+    `不用游戏内造词（${jargon.filter(w => txt.indexOf(w) > -1).join('、') || '没有'}）`);
+
+  // 四、操作按设备各给一套，手机上不该出现 WASD
+  ok(/class="honly-kb"/.test(h) && /class="honly-tc"/.test(h), '键鼠和触屏各一套');
+  const css = (html.match(/<style>([\s\S]*?)<\/style>/g) || []).join('\n');
+  ok(/\.honly-tc\{display:none\}/.test(css) && /body\.touch \.honly-kb\{display:none\}/.test(css),
+    '按设备只显示一套');
+  ok(/W A S D/.test(h.split('honly-tc')[0]) && !/W A S D/.test(h.split('honly-tc')[1] || ''),
+    'WASD 只在键鼠那一套里');
+
+  // 五、「卡住了看哪里」指的路必须真的存在
+  ok(/卡\s*住\s*了\s*看\s*哪\s*里/.test(txt), '末尾有一张速查表');
+  ['构筑', '货箱', '图鉴'].forEach(t =>
+    ok(txt.indexOf(t) > -1, `速查表提到「${t}」`));
+  ok(!!byId('tabBuild') && !!byId('tabBag') && !!byId('tabDex'),
+    '指过去的三个页签真的在 —— 写死的路标最容易变成假路标');
+
+  // 六、开关：跟据点一样要把标题页收起来。
+  // .screen 是 absolute + z-index:auto 不成层叠上下文，吸底开始按钮的 z-index:2
+  // 是直接跟根层比的，光靠 DOM 顺序压不住它。
+  NS.showHow(true);
+  ok(byId('howBox').classList.contains('show') && !byId('title').classList.contains('show'),
+    '打开说明时标题页收起来');
+  ok(byId('howBody').innerHTML.length > 500, '内容是打开时才生成的');
+  NS.showHow(false);
+  ok(!byId('howBox').classList.contains('show') && byId('title').classList.contains('show'),
+    '关掉之后回标题页');
+}
+
+// ---- 54) 一局结束之后得回得去标题页 ----
+// 结算屏原来只有「重新接入」，一按就直接开下一局 —— 换模式、换危险档、
+// 换起手武器、进据点全都够不着。「放弃这局」之后尤其别扭：
+// 你放弃多半就是想去改点什么。
+console.log('结算出口');
+{
+  NS.start(91);
+  NS.G.deathBy = 'giveup';
+  NS.gameOver(false);
+  ok(byId('over').classList.contains('show') && !byId('title').classList.contains('show'),
+    '结算屏出来了');
+  NS.backToTitle();
+  ok(!byId('over').classList.contains('show'), '回标题页：结算屏收起来');
+  ok(byId('title').classList.contains('show'), '标题页出来了');
+  ok(NS.G.state === 'menu' && !NS.G.paused, '状态回到菜单，暂停也解掉');
+  // 回来之后档案面板那些入口必须真的能用 —— 这才是回来的目的
+  ok(byId('prof').innerHTML.length > 100, '档案面板重新画了（模式 / 危险档 / 起手 / 涂装）');
+  ok(!!byId('hqBtn') && !!byId('howBtn'), '据点和怎么玩够得着');
+  // 从暂停页放弃走一遍完整路径
+  NS.start(92);
+  NS.setPaused(true);
+  NS.armGiveup();                                      // 第一下只是上膛
+  ok(!byId('over').classList.contains('show'), '放弃要按两下，第一下不生效');
+  NS.armGiveup();
+  ok(byId('over').classList.contains('show'), '第二下才结算');
+  NS.backToTitle();
+  ok(byId('title').classList.contains('show'), '放弃之后也回得去标题页');
+}
+
+// ---- 55) 连击数不能被右上角圆键盖住 ----
+{
+  const css = (html.match(/<style>([\s\S]*?)<\/style>/g) || []).join('\n');
+  const px = re => { const m = css.match(re); return m ? +m[1] : null; };
+  const top = px(/#tc \.tsys\{[^}]*top:calc\((\d+)px/);
+  const h = px(/#tc \.tsys button\{[^}]*height:(\d+)px/);
+  const combo = px(/body\.touch #comboWrap\{top:calc\((\d+)px/);
+  ok(combo !== null && combo >= top + h,
+    `手机上连击数排在圆键下面（${combo}px vs 圆键到 ${top + h}px）`);
+}
+
+// ---- 56) 点了没成，必须说为什么 ----
+// 报的是「选了霰弹枪之后框变高亮了，但是脉冲步枪还是选中态」。
+// 查下来：买不起时 buyWep 静默返回 false，什么都不变也什么都不说；
+// 而手机上点过的那个 chip 会挂着 :hover 边框不掉 —— 看着就像选中了两个。
+console.log('点了没反应');
+{
+  const fresh = () => { for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+    Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf(); };
+  const prof = () => byId('prof').innerHTML;
+  const sayOf = () => { const m = prof().match(/class="prow say">([^<]*)</); return m ? m[1] : ''; };
+
+  // 一、废钢不够：要说差多少，还要说「不买也能抽到」
+  fresh();
+  NS.PROF.unlocked.w_shot = 1; NS.PROF.scrap = 80;
+  ok(NS.pickWep('shot') === false, '买不起就是买不起');
+  ok(NS.PROF.wep === 'pulse', '起手武器没被改掉');
+  const s1 = sayOf();
+  ok(/还差 70/.test(s1), `说清还差多少（${s1}）`);
+  ok(/卡池|三选一/.test(s1), '同时说清「不买也能在局内抽到」—— 否则看着像必须花钱');
+
+  // 二、没解锁：理由不一样，话也得不一样
+  fresh(); NS.PROF.scrap = 9999;
+  NS.pickWep('rail');
+  ok(/没解锁/.test(sayOf()) && sayOf() !== s1, `没解锁给的是另一句（${sayOf()}）`);
+  ok(!NS.PROF.bought.rail && NS.PROF.scrap === 9999, '钱再多也买不了没解锁的');
+  // 上面那条第一次跑是红的：清空档案之后磁轨枪居然买得下来。
+  // 根因是 loadProf 用 Object.assign 浅合并 —— 存档里缺哪个键，
+  // PROF 的那个字段就直接是 PROF_DEF 里的同一个对象，写进去会改掉默认值本身。
+  const defs = ['unlocked', 'bought', 'seen', 'parts', 'base', 'mods', 'modsOn', 'price'];
+  const shared = defs.filter(k => NS.PROF[k] && NS.PROF[k] === NS.PROF_DEF[k]);
+  ok(!shared.length, `档案的每个字段都是自己的副本，不跟默认值共用（共用的：${shared.join(' ') || '无'}）`);
+  NS.PROF.unlocked.w_probe = 1;
+  ok(!NS.PROF_DEF.unlocked.w_probe, '往档案里写东西不会污染默认值');
+  delete NS.PROF.unlocked.w_probe;
+
+  // 三、成了就换过去，而且旧的那句要消失
+  fresh(); NS.PROF.unlocked.w_shot = 1; NS.PROF.scrap = 80;
+  NS.pickWep('shot');
+  NS.PROF.scrap = 500; NS.pickWep('shot');
+  ok(NS.PROF.wep === 'shot' && NS.PROF.bought.shot, '钱够了就买下并换成起手');
+  ok(!/还差/.test(sayOf()), '上一次的「还差多少」不会挂着不走');
+  NS.pickWep('pulse');
+  ok(NS.PROF.wep === 'pulse' && sayOf() === '', '在已买下的两把之间切换，不留提示');
+
+  // 四、提示要紧跟在「起手」那一排下面。挂在面板末尾等于没说 ——
+  // 你在顶上点的枪，解释出现在四百像素以外。
+  fresh(); NS.PROF.unlocked.w_shot = 1; NS.PROF.scrap = 80;
+  NS.pickWep('shot');
+  const html2 = prof();
+  ok(html2.indexOf('class="prow say"') < html2.indexOf('新枪先靠里程碑'),
+    '提示排在「起手」那一排下面，不在面板末尾');
+
+  // 五、打完一局回标题页，上一次的提示不该还在
+  NS.start(95); NS.gameOver(false); NS.backToTitle();
+  ok(sayOf() === '', '回标题页时清掉旧提示');
+
+  // 六、触屏上 :hover 会粘住。带选中态的那几类必须关进 @media (hover:hover)，
+  // 否则点过的那个挂着边框，真正选中的那个填着色，看上去是两个。
+  const css = (html.match(/<style>([\s\S]*?)<\/style>/g) || []).join('\n');
+  const sel = ['#prof .chip:hover', '#levelup .chip:hover', '#hqBox .chip:hover',
+    '.hqi:hover', '.pchip:hover'];
+  const naked = sel.filter(x =>
+    !new RegExp('@media \\(hover:hover\\)\\{' + x.replace(/[.#()[\]]/g, '\\$&')).test(css));
+  ok(!naked.length, `带选中态的 hover 都关进了 @media（裸着的：${naked.join(' ') || '无'}）`);
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');
