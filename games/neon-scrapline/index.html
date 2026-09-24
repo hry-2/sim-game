@@ -537,12 +537,20 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   .mkt{font-size:10px;color:#6e7f9e;line-height:1.6;margin-bottom:8px}
   .mkt b{font-weight:600}
   .mkt .hot{color:var(--tox)} .mkt .cold{color:#c07a55}
-  .pitem{display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:6px 9px;
+  .pitem{display:flex;align-items:center;gap:6px;margin-bottom:3px;padding:5px 9px;
     background:rgba(12,18,30,.7);border:1px solid #22304f;font-family:var(--mono);font-size:10px}
   .pitem .dot{width:8px;height:8px;flex:0 0 8px}
   .pitem .pn{color:#cfe8ff;flex:1;white-space:nowrap}
-  .pitem .qt{color:#6e7f9e}
-  .pitem .pv{color:var(--amber);min-width:34px;text-align:right;font-weight:600}
+  .pitem .qt{color:#8fa4c6}
+  /* 要价是这一行里唯一能改的东西，也是整套经营玩法唯一的决策 ——
+     它得是这一行的视觉重心，不能跟旁边的小字一样大。 */
+  .pitem .pv{color:var(--amber);min-width:34px;text-align:right;font-weight:600;
+    font-family:var(--disp);font-size:13px}
+  /* 没货的那几种压暗成一行：还在表里（货箱要列全九种），但不占加减价的位置 */
+  .pitem.zero{background:rgba(10,14,24,.5);border-color:#182541;padding:3px 9px;opacity:.66}
+  .pitem.zero .pn{color:#7f8da8} .pitem.zero .qt{color:#4a5a78}
+  .pfoot{font-size:10px;color:#6e7f9e;letter-spacing:.06em;margin:6px 0 8px;padding:0 2px}
+  .pfoot b{color:var(--amber);font-weight:600;font-size:12px;font-family:var(--disp)}
   /* 列头。三个字段里只有「要价」是能改的，而它原来是一排里唯一没标注的数字。
      宽度必须跟 .pitem 一栏一栏对上 —— 对不齐的列头比没有列头还糟，它会指错。
      .h1 的 14px 左边距 = 色点 8 + 间隔 6；
@@ -552,6 +560,9 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   .pcols .h1{flex:1;margin-left:14px}
   .pcols .h2{width:26px;text-align:right}
   .pcols .h3{width:90px;text-align:center}
+  /* 触屏上加减按钮放大到 34px，列头宽度得跟着换一套，否则整排错位 25px。
+     第一版只写了桌面那套，手机上量出来 存量列头[228,254] 对着 ×14[203,229]。 */
+  body.touch .pcols .h3{width:114px}
   .pitem .qt{min-width:26px;text-align:right}
   .pitem .hot{color:var(--amber)} .pitem .cold{color:#4e6a8a}
   .pitem button{font:inherit;font-size:11px;line-height:1;color:#a9c0dc;cursor:pointer;
@@ -785,7 +796,6 @@ img{max-width:100%}[hidden]{display:none!important}</style>
         <div class="hqh">货 摊 <b id="hqhMkt"></b></div>
         <canvas id="hqScene" width="168" height="60"></canvas>
         <div id="hqMkt" class="mkt"></div>
-        <div id="hqBag" class="bgrid"></div>
         <div id="hqStock"></div>
         <div class="sbtns" style="margin:8px 0 14px">
           <button class="chip" id="hqOpen">开 门 营 业</button>
@@ -6025,6 +6035,18 @@ function howToHTML() {
     + '<p>废钢：在标题页买起手武器，或者在据点盖房子。<br>'
     + '零件：在据点的货摊上摆出来卖。</p>')
 
+  + sec('摆 摊 卖 货 怎 么 定 价',
+    '<p>据点的<b>货摊</b>上，每种零件你自己开价（一下 ±10）。</p>'
+    + dl([
+      ['开高了', '客人嫌贵转身走。走的人多了<b>砸名声</b>，第二天来的人就少'],
+      ['开低了', '秒卖光，但钱少赚'],
+      ['心理价位带', '<b>看不见的</b>。每个客人心里的数还不一样 —— 靠开几次门试出来'],
+      ['名字后面 ↑', '今天缺货，卖得上价'],
+      ['名字后面 ↓', '今天积压，只卖得动低价'],
+    ])
+    + '<p>行情每局都会变，所以「今天该打谁」也跟着变 —— '
+    + '缺货的那种由哪些敌人掉，去打它们。</p>')
+
   + sec('据 点 是 干 什 么 的',
     '<p>一条链：<b>打一局捡零件 → 货摊卖成废钢 → 盖建筑 → 精炼炉炼出精炼钢 → '
     + '装配台给枪装改装件</b>。标题页点「据点」进去，顶上那排就是这条链，'
@@ -6086,34 +6108,34 @@ function syncStore() {
   mk.innerHTML = `名声 <b>${fame()}</b> · 今天来 <b>${customerCount()}</b> 位客人<br>`
     + `缺货 <b class="hot">${m.hot.map(k => PART[k].n).join(' ')}</b>`
     + ` · 积压 <b class="cold">${PART[m.cold].n}</b>`;
-  // 下面那张表只列「手上有的」，于是货箱空的时候整栏就没了，
-  // 「我的货箱在哪看」这个问题就是这么来的。这一条永远列全九种。
-  const bag = el('hqBag');
-  if (bag) bag.innerHTML = PART_IDS.map(k => {
-    const q = (PROF.parts && PROF.parts[k]) | 0;
-    return `<span class="bchip${q ? '' : ' zero'}" title="${PART[k].n}">`
-      + `<i style="background:${PART[k].c}"></i>${PART[k].n}<b>${q}</b></span>`;
-  }).join('');
-  const rows = PART_IDS.filter(k => (PROF.parts && PROF.parts[k]) > 0);
-  // 被问过「开门营业上面可以加减的是什么」—— 那一排原来只有一个光秃秃的数字，
-  // 前后什么都没写。定价是这一整套经营玩法唯一的决策，它不能是个谜。
-  const head = rows.length
-    ? '<div class="phint">下面是<b>你的要价</b>（每件，一下 ±10）。'
-      + '要高了客人转身走、走多了砸名声；要低了秒卖但赚得少。<br>'
-      + '心理价位带是<b>看不见</b>的 —— 开几次门自己试出来。'
-      + '名字后面 <span class="hot">↑</span> 是今天缺货（卖得上价）、'
-      + '<span class="cold">↓</span> 是积压（只卖得动低价）。</div>'
-      + '<div class="pcols"><span class="h1">零 件</span><span class="h2">存 量</span>'
-      + '<span class="h3">要 价 / 件</span></div>'
-    : '';
-  st.innerHTML = head + (rows.length ? rows.map(k => {
-    const q = PROF.parts[k], p = priceOf(k), mul = mktMul(k);
+  // 一张表管到底：九种全列（空箱子也看得见 —— 「我的货箱在哪看」就是这么来的），
+  // 有货的那几行带加减价，没货的压暗成一行。
+  // 原来是「货箱格子」+「存量要价表」上下两块，同一个数量显示了两遍。
+  const own = PART_IDS.filter(k => (PROF.parts && PROF.parts[k]) > 0);
+  const worth = own.reduce((n, k) => n + PROF.parts[k] * priceOf(k), 0);
+  // 说明只留一行。展开讲的那几句挪进了标题页的「怎么玩」——
+  // 四行小字压在表头上，看一遍之后每次进来都在碍事。
+  let h = '<div class="phint">一下 ±10 改<b>要价</b>（每件）。'
+    + '高了客人转身走、砸名声；低了秒卖但赚得少 —— '
+    + '<span class="hot">↑</span> 今天缺货、<span class="cold">↓</span> 积压。</div>'
+    + '<div class="pcols"><span class="h1">零 件</span><span class="h2">存 量</span>'
+    + '<span class="h3">要 价 / 件</span></div>';
+  h += PART_IDS.map(k => {
+    const q = (PROF.parts && PROF.parts[k]) | 0, mul = mktMul(k);
     const tag = mul > 1 ? ' <span class="hot">↑</span>' : mul < 1 ? ' <span class="cold">↓</span>' : '';
+    if (!q) {
+      return `<div class="pitem zero"><span class="dot" style="background:${PART[k].c}"></span>`
+        + `<span class="pn">${PART[k].n}${tag}</span><span class="qt">—</span></div>`;
+    }
     return `<div class="pitem"><span class="dot" style="background:${PART[k].c}"></span>`
       + `<span class="pn">${PART[k].n}${tag}</span><span class="qt">×${q}</span>`
-      + `<button data-pr="${k}:-10">–</button><span class="pv">${p}</span>`
+      + `<button data-pr="${k}:-10">–</button><span class="pv">${priceOf(k)}</span>`
       + `<button data-pr="${k}:10">+</button></div>`;
-  }).join('') : '<div class="pitem"><span class="pn">货箱是空的</span></div>');
+  }).join('');
+  // 一个总数比每行都挂个小计清爽，而且「这箱货值多少」才是你真正在优化的东西
+  h += `<div class="pfoot">${own.length ? `按现在的要价全卖掉 <b>${worth}</b> 废钢`
+    : '货箱是空的 —— 零件从敌人身上掉，打谁就掉什么'}</div>`;
+  st.innerHTML = h;
 }
 /* ================= 货摊的画面 =================
    开店原来是点一下、瞬间吐一整段文字。「客人嫌贵走了」这件事只剩一行字，

@@ -55,7 +55,8 @@
     text-indent:.3em;cursor:pointer;font-family:inherit;
   }
 
-  /* 矮屏压缩档。横屏手机的高度本来就只有 320~430px，包一多就顶到底 ——
+  /* 矮屏压缩档。竖着拿的时候高度充裕，这一档实际只会在【横着拿】时生效 ——
+     横屏手机的可用高度只有 320~430px，包一多就顶到底 ——
      这一档把标题、说明、按钮内边距一起收，量下来能省出 60px 左右。 */
   @media (max-height:380px){
     #menu{padding-top:calc(10px + var(--safe-t))}
@@ -77,8 +78,8 @@
   #bar{position:fixed;top:0;left:0;height:4px;background:var(--ink);width:100%;transition:background .2s}
   #bar.hot{background:var(--hot)}
   #word{
-    font-weight:700;line-height:1.08;text-align:center;
-    max-width:100%;word-break:break-word;padding:0 2vw;
+    font-weight:700;line-height:1.1;text-align:center;
+    max-width:100%;word-break:break-all;
   }
   #tally{
     position:fixed;left:calc(10px + var(--safe-l));bottom:calc(8px + var(--safe-b));
@@ -128,12 +129,6 @@
   #over .foot button.pri{background:var(--ink);color:#0b0d10;border-color:var(--ink);font-weight:700}
   #over .tip{color:#4a5262;font-size:11px;text-align:center}
 
-  /* ---------- 竖屏盖层 ---------- */
-  #portrait{background:var(--bg);z-index:9}
-  #portrait .rot{font-size:64px;margin-bottom:14px;display:block;transform:rotate(0);animation:tw 1.6s ease-in-out infinite}
-  @keyframes tw{0%,100%{transform:rotate(0)}50%{transform:rotate(90deg)}}
-  #portrait .t{font-size:20px;font-weight:600}
-  #portrait .s{color:var(--dim);font-size:13px;margin-top:8px}
 </style>
 
 <!-- ================= 菜单 ================= -->
@@ -141,7 +136,7 @@
   <div style="text-align:center">
     <h1>点头</h1>
     <div class="sub">
-      一个人横着举起手机、<b>屏幕朝外</b>，另一个人看着词往外传。<br>
+      一个人举起手机、<b>屏幕朝外</b>，另一个人看着词往外传。横竖都行。<br>
       猜对了把手机<b>往下翻</b>，说不出来就<b>往上翻</b>。<br>
       看词的人怎么描述都行 —— 比划、说话、演 —— 只有一条：<b>不能说词里出现过的字</b>。
     </div>
@@ -192,13 +187,6 @@
     <button id="again" class="pri">再来一局</button>
     <button id="back">换词包</button>
   </div>
-</div>
-
-<!-- ================= 竖屏 ================= -->
-<div class="screen" id="portrait">
-  <span class="rot">▯</span>
-  <div class="t">把手机横过来</div>
-  <div class="s">竖着没法玩 —— 计时已经暂停</div>
 </div>
 
 <script>
@@ -560,7 +548,7 @@
   const TH = { 判定: Math.sin(45 * Math.PI / 180), 中位: Math.sin(20 * Math.PI / 180) };
   const READY_MS = 3000;
   const HOT_MS = 10000;                 // 最后十秒：每秒一响 + 进度条变色
-  const PAINT_PATHS = ['菜单', '倒数', '词', '确认', '总结', '竖屏盖层'];
+  const PAINT_PATHS = ['菜单', '倒数', '词', '确认', '总结'];
 
   // ===================================================================
   // 判定层
@@ -604,7 +592,7 @@
       state: '起手', armed: false, readyLeft: READY_MS,
       total: secs * 1000, left: secs * 1000,
       base, order: shuffle(base, rnd), i: 0,
-      word: null, last: null, log: [], portrait: false, cycles: 0,
+      word: null, last: null, log: [], cycles: 0,
       beeped: -1,
     };
     return NOD;
@@ -630,7 +618,6 @@
   function tick(ms) {
     if (!st) return;
     if (st.state !== '进行' && st.state !== '确认') return;
-    if (st.portrait) return;                       // 竖屏暂停计时
     st.left -= ms;
     if (st.left <= HOT_MS && st.left > 0) {        // 最后十秒每秒一响
       const s = Math.ceil(st.left / 1000);
@@ -776,7 +763,7 @@
   // ===================================================================
   const $ = id => document.getElementById(id);
   const S = {};
-  ['menu', 'ready', 'play', 'confirm', 'over', 'portrait'].forEach(k => (S[k] = $(k)));
+  ['menu', 'ready', 'play', 'confirm', 'over'].forEach(k => (S[k] = $(k)));
   let scr = 'menu';
   function show(k) {
     if (scr === k) return;
@@ -785,22 +772,29 @@
   }
   function paint(n) { painted.add(n); }
 
-  // 词越长字越小 —— 桩里的 measureText 也是按这个规律做的，所以这条能被量到
+  // 字号按【当前可用宽高】实算，允许折行。
+  // 旧版是一串写死的 vw 阶梯，那是照横屏调的：同样一个九字词，
+  // 竖屏下挤一行只有 39px，折成三行能到 117px —— 阶梯做不到这件事。
+  // 折行有 1.5 倍的门槛：折了要比不折大一半以上才折，
+  // 否则横屏上大部分词会无谓地变成两行。
   function fitWord(w) {
-    const n = (w || '').length;
-    // 最后一档是给「我很丑可是我很温柔」这种 9 字歌名留的 —— 歌曲包进来之后，
-    // 最宽的词从 7 字变成 9 字，横向余量从 123px 缩到 96px。再长就换更小一档。
-    const vw = n <= 2 ? 26 : n <= 3 ? 21 : n <= 4 ? 17 : n <= 5 ? 14 : n <= 7 ? 11 : n <= 9 ? 9 : 7;
-    return 'min(' + vw + 'vw, ' + (n <= 4 ? 34 : 24) + 'vh)';
+    const n = (w || '').length || 1;
+    const W = (window.innerWidth || 800) - 24;          // 左右各留一点
+    const H = (window.innerHeight || 360) - 60;         // 顶上进度条、底下比分
+    const LH = 1.1;
+    let one = 0, best = 0;
+    for (let lines = 1; lines <= 3; lines++) {
+      const per = Math.ceil(n / lines);
+      const size = Math.min(W / per, H / (lines * LH)) * .98;
+      if (lines === 1) { one = size; best = size; }
+      else if (size > best && size > one * 1.5) best = size;
+    }
+    return Math.max(16, Math.min(best, 190)).toFixed(1) + 'px';
   }
 
   let lastWord = null, lastOver = -1;
-  // 竖屏盖层只在【玩的时候】盖。菜单和总结页竖着看反而更顺 ——
-  // 而且盖层上写着「计时已暂停」，扣在一个已经结束的局上纯属胡说。
-  const PLAYING = s => s === '起手' || s === '进行' || s === '确认';
   function render() {
     if (!st) { paint('菜单'); show('menu'); return; }
-    if (st.portrait && PLAYING(st.state)) { paint('竖屏盖层'); show('portrait'); return; }
 
     if (st.state === '起手') {
       paint('倒数'); show('ready');
@@ -904,9 +898,9 @@
     });
   }
 
-  function setPortrait() {
-    const p = window.innerHeight > window.innerWidth;
-    if (st) st.portrait = p;
+  // 窗口或方向一变，字号要按新的宽高重算 —— 竖屏和横屏算出来差得远
+  function relayout() {
+    lastWord = null;
     render();
   }
 
@@ -916,7 +910,7 @@
     const pinned = /[?&]seed=(-?\d+)/.test(location.search || '');
     start(pinned ? { pack: pick.pack, secs: pick.secs }
                  : { pack: pick.pack, secs: pick.secs, seed: (Date.now() & 0x7fffffff) });
-    setPortrait();
+    relayout();
     askSensor().then(on => { sensorGranted = on; smooth = null; render(); });
     render();
   }
@@ -929,7 +923,7 @@
 
     // 点击兜底：总结页和菜单不吃，别把「改判」误判成「跳过」
     document.addEventListener('pointerdown', e => {
-      if (!st || st.state === '总结' || st.portrait) return;
+      if (!st || st.state === '总结') return;
       feedTap(e.clientY, window.innerHeight || 1);
       render();
     });
@@ -943,9 +937,8 @@
       render();
     });
 
-    window.addEventListener('resize', setPortrait);
-    window.addEventListener('orientationchange', setPortrait);
-    setPortrait();
+    window.addEventListener('resize', relayout);
+    window.addEventListener('orientationchange', relayout);
 
     // 主循环。桌面 / 手机都靠它，量具则直接调 tick/ready —— 两条路推同一个状态机。
     let t0 = 0;
@@ -972,12 +965,10 @@
     log: () => (st ? st.log.slice() : []),
     score,
     state: () => (st ? st.state : null),
-    portrait(on) { if (st) { st.portrait = !!on; } },
     cycles: () => (st ? st.cycles : 0),
     poolSize: () => (st ? st.base.length : 0),
     shown() {
       if (!st) return { kind: '无' };
-      if (st.portrait && PLAYING(st.state)) return { kind: '竖屏' };
       if (st.state === '起手') return { kind: '倒数', n: Math.ceil(st.readyLeft / 1000) };
       if (st.state === '进行') return { kind: '词', word: st.word };
       if (st.state === '确认') return { kind: '确认', verdict: st.last };

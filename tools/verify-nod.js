@@ -53,8 +53,7 @@ const NOD = run({});
 
   const need = ['PACKS', 'WORDS', 'SECS', 'TH', 'start', 'ready', 'tick',
     'verdict', 'release', 'feedNormal', 'feedTap', 'amend',
-    'word', 'left', 'score', 'log', 'usedMs', 'pace', 'shown', 'state', 'portrait',
-    'packOf'];
+    'word', 'left', 'score', 'log', 'usedMs', 'pace', 'shown', 'state', 'packOf'];
   const miss = need.filter(k => NOD[k] === undefined);
   ok(miss.length === 0, `契约 ${need.length} 项，缺 ${miss.length} 项${miss.length ? '：' + miss.join(' ') : ''}`);
 
@@ -324,26 +323,27 @@ sec('没传感器');
   ok(N5.state() === '进行', '传感器权限被拒时，点击那条路照样开局');
 }
 
-// ---- 10) 竖屏：盖提示层并暂停计时 -------------------------------------
+// ---- 10) 竖屏也能玩：方向不再参与任何逻辑 ---------------------------
 sec('竖屏');
 {
-  open(NOD, { pack: '动物', secs: 60, seed: 23 });
-  NOD.tick(5000);
-  const before = NOD.left();
-  NOD.portrait(true);
-  for (let i = 0; i < 10; i++) NOD.tick(1000);
-  const during = NOD.left();
-  ok(during === before, `竖屏 10 秒，剩余时间纹丝不动：${before} -> ${during}`);
-  NOD.render();
-  ok(NOD.__painted.has('竖屏盖层'), '竖屏时画的是盖层');
-  NOD.portrait(false);
-  NOD.tick(1000);
-  ok(NOD.left() === before - 1000, `转回横屏继续走：${before} -> ${NOD.left()}`);
+  // 桩按竖屏起一份（innerWidth/Height 对调、matchMedia 报 portrait），
+  // 整局必须跟横屏跑出【一模一样】的结果 —— 方向一旦进了逻辑，这条就会红
+  const mk = portrait => {
+    const N = S.run({ portrait });
+    N.start({ pack: '动物', secs: 60, seed: 61 });
+    N.feedNormal(0); N.ready(3000);
+    const words = [];
+    while (N.state() !== '总结') { words.push(N.word()); N.verdict('猜中'); N.release(); N.tick(4000); }
+    return { n: words.length, sc: N.score(), first: words[0], pace: N.pace() };
+  };
+  const L = mk(false), P = mk(true);
+  ok(P.n === L.n && P.sc.猜中 === L.sc.猜中 && P.first === L.first && P.pace === L.pace,
+    `竖屏跑完一局：${P.n} 个词 / 猜中 ${P.sc.猜中} / 节奏 ${P.pace.toFixed(1)}"，和横屏完全一致`);
 
-  // 总结页竖着看更顺，而且盖层上「计时已暂停」那句话在一个已经结束的局上是胡说
-  while (NOD.state() !== '总结') NOD.tick(1000);
-  NOD.portrait(true);
-  ok(NOD.shown().kind === '总结', `总结页转竖屏，屏幕上还是「${NOD.shown().kind}」 —— 不盖`);
+  ok(NOD.PAINT_PATHS.indexOf('竖屏盖层') < 0,
+    `渲染路径里没有竖屏盖层了（现在 ${NOD.PAINT_PATHS.length} 条：${NOD.PAINT_PATHS.join(' / ')}）`);
+  ok(NOD.portrait === undefined && NOD.shown().kind !== '竖屏',
+    '契约里没有方向的残留 —— portrait() 撤了，shown() 也不会再报「竖屏」');
 }
 
 // ---- 11) 渲染路径：每一条都得真的走到一次 -----------------------------
@@ -356,8 +356,6 @@ sec('渲染路径');
   N6.feedNormal(0); N6.ready(3000); N6.render(); // 词
   N6.verdict('猜中'); N6.render();               // 确认
   N6.release();
-  N6.portrait(true); N6.render();                // 竖屏盖层（玩到一半转竖了）
-  N6.portrait(false);
   while (N6.state() !== '总结') N6.tick(1000);
   N6.render();                                   // 总结
   const miss = N6.PAINT_PATHS.filter(p => !N6.__painted.has(p));

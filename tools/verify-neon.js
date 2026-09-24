@@ -2859,15 +2859,20 @@ console.log('货箱');
   NS.gameOver(false);
   ok(byId('overGain').textContent.indexOf('零件') < 0, '一件没捡到就不写这一段，不留空壳');
 
-  // 三、据点货摊：永远列全九种，空箱也有得看
+  // 三、据点货摊：永远列全九种，空箱也有得看。
+  // 原来这是「货箱格子」+「存量要价表」两块，同一个数量显示了两遍，现在并成一张表。
   fresh(); NS.syncStore();
-  const grid = byId('hqBag').innerHTML;
-  ok(NS.PART_IDS.every(k => grid.indexOf(NS.PART[k].n) > -1), '据点货箱空着也列全九种');
-  ok((grid.match(/bchip zero/g) || []).length === NS.PART_IDS.length, '一件都没有时九种全是暗的');
+  const grid = byId('hqStock').innerHTML;
+  ok(NS.PART_IDS.every(k => grid.indexOf(NS.PART[k].n) > -1), '据点货摊空着也列全九种');
+  ok((grid.match(/pitem zero/g) || []).length === NS.PART_IDS.length, '一件都没有时九行全是暗的');
+  ok(grid.indexOf('data-pr') < 0, '没货的行不给加减价的按钮 —— 定不了不存在的东西的价');
   NS.PROF.parts = { plate: 4 }; NS.syncStore();
-  const grid2 = byId('hqBag').innerHTML;
-  ok((grid2.match(/bchip zero/g) || []).length === NS.PART_IDS.length - 1,
-    '有货的那种亮起来');
+  const grid2 = byId('hqStock').innerHTML;
+  ok((grid2.match(/pitem zero/g) || []).length === NS.PART_IDS.length - 1,
+    '有货的那一行亮起来');
+  ok((grid2.match(/data-pr/g) || []).length === 2, '只有那一行有加减价按钮');
+  ok(/全卖掉/.test(grid2) && grid2.indexOf(String(4 * NS.priceOf('plate'))) > -1,
+    '底下有一行「按现在的要价全卖掉值多少」');
 }
 
 // ---- 51) 地上的东西得写名字 ----
@@ -3331,7 +3336,10 @@ console.log('货摊画面');
   ok(/每件/.test(stock) && /±10/.test(stock), '说清是每件的价、一下加减多少');
   ok(/客人转身走|砸名声/.test(stock) && /赚得少/.test(stock),
     '说清定高定低各自的代价 —— 这是这套玩法唯一的决策，不能靠猜');
-  ok(/看不见/.test(stock), '同时说清心理价位带是看不见的，得自己试');
+  // 展开讲的那几句挪进了「怎么玩」—— 四行小字压在表头上，看一遍之后每次进来都碍事
+  const how = NS.howToHTML();
+  ok(/看不见/.test(how) && /砸名声/.test(how) && /定 价/.test(how.replace(/\s/g, ' ')),
+    '「怎么玩」里有完整的定价说明');
   ok(/缺货/.test(stock) && /积压/.test(stock), '名字后面那个箭头也解释了');
   // 列头的宽度得跟行里的格子对上。对不齐的列头比没有列头还糟 —— 它会指错。
   const css2 = (html.match(/<style>([\s\S]*?)<\/style>/g) || []).join('\n');
@@ -3339,10 +3347,15 @@ console.log('货摊画面');
   ok(w(/\.pcols \.h2\{width:(\d+)px/) === w(/\.pitem \.qt\{min-width:(\d+)px/),
     '「存量」列头和存量格同宽');
   const btn = w(/\.pitem button\{[^}]*width:(\d+)px/);
+  const btnT = w(/body\.touch \.pitem button\{width:(\d+)px/);
   const pv = w(/\.pitem \.pv\{[^}]*min-width:(\d+)px/);
   const gap = w(/\.pitem\{[^}]*gap:(\d+)px/);
   ok(w(/\.pcols \.h3\{width:(\d+)px/) === btn * 2 + pv + gap * 2,
-    `「要价」列头宽 = 减号 ${btn} + ${gap} + 价格 ${pv} + ${gap} + 加号 ${btn}`);
+    `桌面：「要价」列头宽 = 减号 ${btn} + ${gap} + 价格 ${pv} + ${gap} + 加号 ${btn}`);
+  // 触屏上按钮放大到 34px，列头得跟着换一套 —— 只写桌面那套的话手机上整排错 25px。
+  // 第一版就是这么错的，而且断言只查了桌面，一点没红。
+  ok(w(/body\.touch \.pcols \.h3\{width:(\d+)px/) === btnT * 2 + pv + gap * 2,
+    `触屏：列头跟着放大的按钮走（${btnT} × 2 + ${pv} + ${gap} × 2）`);
 
   // 八、客人的颜色不许跟着玩家的涂装变。SPR 是按涂装烤出来的，
   // 用了 B/S/L/C/O/H 这六个会被重映射的字母就会跟着变色。

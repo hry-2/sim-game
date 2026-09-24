@@ -51,7 +51,7 @@
   // z 的符号：0 = 屏幕朝前（中位），负 = 屏幕朝下（下翻），正 = 屏幕朝上（上翻）。
   const TH = { 判定: Math.sin(45 * Math.PI / 180), 中位: Math.sin(20 * Math.PI / 180) };
 
-  const PAINT_PATHS = ['菜单', '倒数', '词', '确认', '总结', '竖屏盖层'];
+  const PAINT_PATHS = ['菜单', '倒数', '词', '确认', '总结'];
 
   // ---- 局状态 ------------------------------------------------------
   let st = null;
@@ -89,7 +89,7 @@
       state: '起手', armed: false, readyLeft: 3000,
       total: secs * 1000, left: secs * 1000,
       base: pool(pack), order: [], i: 0,
-      word: null, last: null, log: [], portrait: false, cycles: 0,
+      word: null, last: null, log: [], cycles: 0,
     };
     st.order = shuffle(st.base, st.rnd);
     return NOD;
@@ -117,7 +117,6 @@
   function tick(ms) {
     if (!st) return;
     if (st.state !== '进行' && st.state !== '确认') return;
-    if (st.portrait) return;            // 竖屏盖提示层并【暂停计时】
     st.left -= ms;
     if (st.left <= 0) { st.left = 0; st.state = '总结'; st.word = null; }
   }
@@ -183,11 +182,8 @@
 
   // ---- 渲染（只报路径名，不真画）------------------------------------
   function paint(n) { painted.add(n); }
-  const PLAYING = s => s === '起手' || s === '进行' || s === '确认';
   function render() {
     if (!st) { paint('菜单'); return; }      // 还没开局，屏幕上是菜单
-    // 盖层只在玩的时候盖 —— 总结页竖着看更顺，而且它上面写的「计时已暂停」也不成立
-    if (st.portrait && PLAYING(st.state)) { paint('竖屏盖层'); return; }
     if (st.state === '起手') paint('倒数');
     else if (st.state === '进行') paint('词');
     else if (st.state === '确认') paint('确认');
@@ -196,7 +192,6 @@
 
   function shown() {
     if (!st) return { kind: '无' };
-    if (st.portrait && PLAYING(st.state)) return { kind: '竖屏' };
     if (st.state === '起手') return { kind: '倒数', n: Math.ceil(st.readyLeft / 1000) };
     if (st.state === '进行') return { kind: '词', word: st.word };
     if (st.state === '确认') return { kind: '确认', verdict: st.last };
@@ -214,7 +209,6 @@
     log: () => (st ? st.log.slice() : []),
     score,
     state: () => (st ? st.state : null),
-    portrait(on) { if (st) st.portrait = !!on; },
     cycles: () => (st ? st.cycles : 0),
     poolSize: () => (st ? st.base.length : 0),
     __painted: painted,
