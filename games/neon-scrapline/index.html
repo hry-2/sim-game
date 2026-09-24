@@ -2598,7 +2598,13 @@ function rollOffer() {
   // 所以新加的那几条机制牌延后进池，让开局的牌池保持紧凑。
   const pool = UPGRADES.filter(u => (G.stacks[u.id] || 0) < u.max
     && (!u.req || open || PROF.unlocked[u.req])
-    && (!u.from || G.wave >= u.from));
+    && (!u.from || G.wave >= u.from)
+    // 已经拿着的枪不许再进池。局内抽到的那次会记进 G.stacks，所以不会重复；
+    // 但【买成起手武器】的那把 stacks 里是 0，于是它照样会被发出来 ——
+    // 玩家抽到「霰弹枪」、以为是新枪、拿了，`f` 只是 equip 一把他早就有的枪，
+    // 什么都没变，白白浪费一次三选一。玩家问「又捡了霰弹枪有什么增益」，
+    // 答案是零，这张牌不该出现在那里。
+    && !(u.wep && P && P.owned.indexOf(u.wep) >= 0));
   const out = [];
   while (out.length < 3 && pool.length) {
     const i = (RNG.card() * pool.length) | 0;

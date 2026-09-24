@@ -3365,5 +3365,60 @@ console.log('货摊画面');
   ok(!bad.length, `摊位和客人不用会被涂装重映射的颜色（用了的：${bad.join(' ') || '无'}）`);
 }
 
+// ---- 60) 已经拿着的枪不许再发牌 ----
+// 玩家问「我已有霰弹枪，在游戏里又捡了霰弹枪有什么增益」。答案是零 ——
+// 那张牌的 f 只是 equip 一把他早就有的枪。这是纯陷阱：看着像新枪，
+// 拿了什么都没变，还白白浪费一次三选一。
+console.log('重复的枪');
+{
+  const fresh = () => { for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+    Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf(); };
+  const gunsInPool = () => {
+    const out = {};
+    // 连摇一百次，把发得出来的枪都收集起来 —— 直接读 rollOffer 比看实现可靠
+    for (let i = 0; i < 100; i++) NS.rollOffer().forEach(u => { if (u.wep) out[u.id] = 1; });
+    return Object.keys(out).sort();
+  };
+
+  // 一、买成起手武器的那把，不该再出现在卡池里
+  fresh();
+  NS.PROF.unlocked.w_shot = 1; NS.PROF.unlocked.w_rail = 1;
+  NS.PROF.bought.shot = 1; NS.PROF.wep = 'shot';
+  NS.start(77);
+  ok(NS.P.owned.indexOf('shot') >= 0, '开局手里就有霰弹枪');
+  const g1 = gunsInPool();
+  ok(g1.indexOf('w_shot') < 0, `手里那把不再进卡池（现在能发的：${g1.join(' ') || '无'}）`);
+  ok(g1.indexOf('w_rail') > -1, '没拿到的那把照旧能发 —— 别把整类都封掉了');
+
+  // 二、局内抽到之后同样不再出现
+  NS.takeUpgrade(NS.UPGRADES.find(u => u.id === 'w_rail'));
+  const g2 = gunsInPool();
+  ok(g2.indexOf('w_rail') < 0, '局内抽到之后也不再发第二次');
+  ok(NS.P.owned.indexOf('rail') >= 0, '而且真的拿到手了');
+
+  // 三、这条规矩要对九把枪一视同仁
+  fresh();
+  NS.MILES.forEach(m => { NS.PROF.unlocked[m.id] = 1; });
+  NS.start(78);
+  const all = gunsInPool();
+  const dup = all.filter(id => {
+    const u = NS.UPGRADES.find(x => x.id === id);
+    return u && NS.P.owned.indexOf(u.wep) >= 0;
+  });
+  ok(!dup.length, `全解锁时也没有一张是「已经拿着的」（${dup.join(' ') || '无'}）`);
+  // 每拿一把就少一张，拿到最后一把都不剩
+  let n = all.length;
+  while (n > 0) {
+    const g = gunsInPool();
+    if (!g.length) break;
+    NS.takeUpgrade(NS.UPGRADES.find(u => u.id === g[0]));
+    const left = gunsInPool().length;
+    ok(left < n, `拿走 ${g[0]} 之后卡池里的枪从 ${n} 张减到 ${left} 张`);
+    n = left;
+  }
+  ok(NS.P.owned.length === NS.WEP_ORDER.length,
+    `一路抽下来九把枪全到手（${NS.P.owned.length}/${NS.WEP_ORDER.length}）`);
+}
+
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');
 process.exit(fail ? 1 : 0);
