@@ -75,32 +75,34 @@
   }
 
   // 池子 = 这一局能抽的全部词。随机包是【跨包混抽】，不是随机挑一个包。
-  function pool(pack, sub) {
-    if (pack === '随机') {
-      const all = [];
-      for (const p of PACKS) for (const w of (WORDS[p] || [])) all.push(w);
-      return all;
+  // 一局可以选好几个包；空列表 = 全部。子包只在恰好一个包时成立。
+  function pool(packs, sub) {
+    const list = (packs && packs.length) ? packs : PACKS;
+    if (list.length === 1 && sub) {
+      const p = list[0], w = WORDS[p] || [];
+      const r = (SUBS[p] || []).find(x => x[0] === sub);
+      return r ? w.slice(r[1], r[2]) : w.slice();
     }
-    const w = WORDS[pack] || [];
-    if (!sub) return w.slice();
-    const r = (SUBS[pack] || []).find(x => x[0] === sub);
-    return r ? w.slice(r[1], r[2]) : w.slice();
+    const all = [];
+    for (const p of list) for (const w of (WORDS[p] || [])) all.push(w);
+    return all;
   }
 
   function start(opt) {
     const o = opt || {};
-    const pack = o.pack || '随机';
-    const sub = o.sub || null;
+    let packs = o.packs ? o.packs.slice() : (o.pack && o.pack !== '随机' ? [o.pack] : []);
+    packs = packs.filter(p => PACKS.indexOf(p) >= 0);
+    const sub = (packs.length === 1 && o.sub) ? o.sub : null;
     const secs = SECS.indexOf(o.secs) >= 0 ? o.secs : 60;
     // 种子【只能】来自参数或 ?seed=（霓虹教训四）。这里一个 Date.now() 都不许有。
     const q = /[?&]seed=(-?\d+)/.exec(location.search || '');
     const seed = o.seed != null ? o.seed : (q ? +q[1] : 1);
 
     st = {
-      pack, sub, secs, seed, rnd: mul(seed),
+      packs, sub, secs, seed, rnd: mul(seed),
       state: '起手', armed: false, readyLeft: 3000,
       total: secs * 1000, left: secs * 1000,
-      base: pool(pack, sub), order: [], i: 0,
+      base: pool(packs, sub), order: [], i: 0,
       word: null, last: null, log: [], cycles: 0,
     };
     st.order = shuffle(st.base, st.rnd);
@@ -215,6 +217,7 @@
     packOf: w => OF[w] || null,
     subsOf: p => (SUBS[p] || []).map(r => r[0]),
     sub: () => (st ? st.sub : null),
+    packs: () => (st ? st.packs.slice() : []),
     start, ready, tick, verdict, release, feedNormal, feedTap, amend,
     render, paint, shown, pace,
     word: () => (st && st.state === '进行' ? st.word : null),

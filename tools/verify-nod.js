@@ -54,7 +54,7 @@ const NOD = run({});
   const need = ['PACKS', 'WORDS', 'SECS', 'TH', 'start', 'ready', 'tick',
     'verdict', 'release', 'feedNormal', 'feedTap', 'amend',
     'word', 'left', 'score', 'log', 'usedMs', 'pace', 'shown', 'state', 'packOf',
-    'SUBS', 'subsOf', 'sub'];
+    'SUBS', 'subsOf', 'sub', 'packs'];
   const miss = need.filter(k => NOD[k] === undefined);
   ok(miss.length === 0, `契约 ${need.length} 项，缺 ${miss.length} 项${miss.length ? '：' + miss.join(' ') : ''}`);
 
@@ -292,6 +292,39 @@ sec('子包');
     `不给子包时是整个大类：${NOD.poolSize()} 个词，sub() 是 ${NOD.sub()}`);
   NOD.start({ pack: p0, sub: '这个子包不存在', secs: 180, seed: 71 });
   ok(NOD.poolSize() === NOD.WORDS[p0].length, `给一个不存在的子包名，退回整个大类而不是抽空（${NOD.poolSize()} 个词）`);
+}
+
+// ---- 6e) 多选：一局可以同时选好几个词包 -------------------------------
+sec('多选');
+{
+  const a = '动物', b = '食物', c = '游戏';
+  NOD.start({ packs: [a, b], secs: 180, seed: 81 });
+  const want = NOD.WORDS[a].length + NOD.WORDS[b].length;
+  ok(NOD.poolSize() === want, `选「${a} + ${b}」后池子 ${NOD.poolSize()} 个词 = 两包之和 ${want}`);
+  ok(NOD.packs().join('+') === a + '+' + b, `packs() 报的是「${NOD.packs().join(' + ')}」`);
+
+  // 抽出来的词确实横跨这两包，而且一个都不来自第三个包
+  NOD.feedNormal(0); NOD.ready(3000);
+  const hit = new Set(); let outside = 0;
+  for (let i = 0; i < 60; i++) {
+    const p = NOD.packOf(NOD.word());
+    hit.add(p); if (p !== a && p !== b) outside++;
+    NOD.verdict('跳过'); NOD.release();
+  }
+  ok(hit.size === 2 && outside === 0, `连抽 60 个词跨了 ${hit.size} 个包，跑到包外的 ${outside} 个`);
+
+  // 选多个包时「子包」是无解的，所以必须被丢掉，而不是留着装作还生效
+  NOD.start({ packs: [a, b], sub: '鸟类', secs: 180, seed: 81 });
+  ok(NOD.sub() === null && NOD.poolSize() === want,
+    `多选时传进来的子包被丢掉：sub() 是 ${NOD.sub()}，池子仍是 ${NOD.poolSize()}`);
+
+  // 空列表 = 全部；不认识的包名被过滤掉
+  NOD.start({ packs: [], secs: 180, seed: 81 });
+  const total = NOD.PACKS.reduce((s, p) => s + NOD.WORDS[p].length, 0);
+  ok(NOD.poolSize() === total, `packs 传空 = 全部 ${NOD.poolSize()} 个词`);
+  NOD.start({ packs: [c, '这个包不存在'], secs: 180, seed: 81 });
+  ok(NOD.poolSize() === NOD.WORDS[c].length && NOD.packs().length === 1,
+    `不认识的包名被过滤，只剩「${NOD.packs()[0]}」${NOD.poolSize()} 个词`);
 }
 
 // ---- 7) 阅后即焚 -----------------------------------------------------
