@@ -1334,6 +1334,59 @@ const GRID = {
       '...KK.......',
     ],
   ],
+  // 两把新的近战。武器的形状要一眼分得出打法：
+  // 撞角是尖的、往前捅；链锯是一排齿、贴着磨。
+  gun_lance: [
+    [
+      '..KK........',
+      '.KGGK.......',
+      'KGLLGKKK....',
+      'KGLLLLLLKK..',
+      'KGLLLLLLLLKW',
+      'KGLLLLLLKK..',
+      'KGLLGKKK....',
+      '.KGGK.......',
+      '..KK........',
+    ],
+  ],
+  gun_saw: [
+    [
+      '..KK........',
+      '.KGGK.KTKTK.',
+      'KGLLGKTTTTTK',
+      'KGLLLLTTTTTT',
+      'KGLLGKTTTTTK',
+      '.KGGK.KTKTK.',
+      '..KK........',
+    ],
+    [
+      '..KK........',
+      '.KGGK.TKTKT.',
+      'KGLLGKTTTTTK',
+      'KGLLLLTTTTTT',
+      'KGLLGKTTTTTK',
+      '.KGGK.TKTKT.',
+      '..KK........',
+    ],
+  ],
+  // 身上的挂件
+  w_horn: [                                            // 撞角：肩上的尖角
+    [
+      '....K',
+      '..KGK',
+      'KGGK.',
+      'KGK..',
+      'KK...',
+    ],
+  ],
+  w_fuel: [                                            // 链锯：背后的油箱
+    [
+      'KKTKK',
+      'KTWTK',
+      'KTWTK',
+      'KKTKK',
+    ],
+  ],
   gun_beam: [
     [
       '..KKKK...KK..',
@@ -2540,8 +2593,18 @@ const WEAPONS = {
     col:'124,255,79', d:'飞出去再飞回来，来回各穿一次。站得让他们排成一条线' },
   blade: { n:'振动刀',   s:'振刀', ic:'/',  kind:'melee',  rate:2.4, dmg:26, reach:42, arc:110, knock:150, heal:0.8,
     col:'69,240,255', d:'身前扇形一刀砍一片，命中击退并回一点血。但你得贴上去' },
+  // 近战原来只有一把，而近战最难的从来不是「砍」，是「怎么贴上去」和「贴上去之后怎么活」。
+  // 这两把各解一个，而且解法互相排斥：
+  //   撞角：攻击就是位移。冲的那一下无敌，但方向一按下就改不了 ——
+  //         冲进爆囊堆里是自己的问题。
+  //   链锯：贴住不放，咬住同一个越磨越疼。刻意【不带击退】——
+  //         振动刀是把人推开腾空间，链锯反过来要他们别走，两把的走位是相反的。
+  lance: { n:'冲锋撞角', s:'撞角', ic:'^^', kind:'lunge', rate:1.15, dmg:34, reach:30, arc:70, dash:118, iframe:.22,
+    col:'255,157,61', d:'按一下冲出去，冲的那一下无敌、撞到谁伤谁。方向按下就改不了' },
+  saw:   { n:'裂解链锯', s:'链锯', ic:'%%', kind:'grind', rate:11, dmg:2.6, reach:26, arc:64, ramp:.09, rampMax:2.4,
+    col:'124,255,79', d:'贴住不放，咬住同一个越磨越疼（最高 2.4 倍）。不击退 —— 你要他们留在锯上' },
 };
-const WEP_ORDER = ['pulse', 'shot', 'rail', 'arc', 'nade', 'blade', 'beam', 'mine', 'disc'];
+const WEP_ORDER = ['pulse', 'shot', 'rail', 'arc', 'nade', 'blade', 'lance', 'saw', 'beam', 'mine', 'disc'];
 
 /* ================= 词条 ================= */
 const UPGRADES = [
