@@ -114,7 +114,16 @@ function play(seed, maxWave, dg, hq) {
     // 能让它干等三分钟 —— 量具自己的毛病比游戏里的更难发现。
     let near = 0;
     for (const m of G.mobs) if (!m.dead && len(m.x - P.x, m.y - P.y) < 145) near++;
-    const keepOut = Math.min(130, 70 + near * 9);
+    // 拿近战的时候「边打边退」就是零输出 —— 它的射程只有 26~42px。
+    // 原来机器人对近战只有一种反应：退到 130px 外，然后对着空气挥刀。
+    // 所以三把近战的平衡数据一直是空的（`full` 档平均只到 7.3 波，
+    // 一多半是它抽到刀之后自己饿死的）。
+    // 近战就贴到砍得到的距离上；人越多贴得越浅，别一头扎进堆里。
+    const MELEE = { melee: 1, lunge: 1, grind: 1 };
+    const isMelee = !!MELEE[P.kind];
+    const keepOut = isMelee
+      ? Math.max(14, (P.reach || 30) * .7 + near * 2)
+      : Math.min(130, 70 + near * 9);
     let chasing = false;
     if (tg && td < keepOut) { mx = (P.x - tg.x) / td; my = (P.y - tg.y) / td; }
     else if (tg && td > keepOut + 22) { mx = (tg.x - P.x) / td; my = (tg.y - P.y) / td; chasing = true; }

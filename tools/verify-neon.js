@@ -1941,9 +1941,21 @@ console.log('新武器');
     ok(!!W && !!NS.GRID[NS.GUN_OF[id]], `${id} 有定义和枪的精灵`);
     ok(W.n && W.s && [...W.s].length === 2 && W.d, `${W.n} 有全名、两字简称和一句说明`);
   }
-  ok(new Set(NS.WEP_ORDER.map(id => NS.WEAPONS[id].kind)).size >= 6,
-    `九把枪一共 ${new Set(NS.WEP_ORDER.map(id => NS.WEAPONS[id].kind)).size} 种开火方式 —— 不是一把枪的九个数值版本`);
-  ok(NS.WEP_ORDER.length === 9, `一共 ${NS.WEP_ORDER.length} 把`);
+  // 不写死「九」。写死的数字每加一把枪就要回来改一次，而且改的时候
+  // 很容易顺手把它改成新的数字了事 —— 那这条断言就退化成了一个计数器。
+  // 真正要守的是：枪的种类数不许比枪的把数掉队太多。
+  const kinds = new Set(NS.WEP_ORDER.map(id => NS.WEAPONS[id].kind)).size;
+  ok(kinds >= Math.ceil(NS.WEP_ORDER.length * .7),
+    `${NS.WEP_ORDER.length} 把枪一共 ${kinds} 种开火方式 —— 不是一把枪的 ${NS.WEP_ORDER.length} 个数值版本`);
+  ok(NS.WEP_ORDER.length === Object.keys(NS.WEAPONS).length,
+    `WEP_ORDER 列全了所有定义过的枪（${NS.WEP_ORDER.length} / ${Object.keys(NS.WEAPONS).length}）`);
+  // 近战不能只有一把。近战最难的是「怎么贴上去」和「贴上去之后怎么活」，
+  // 一把枪解不了两个问题。
+  const MELEE = ['melee', 'lunge', 'grind'];
+  const melee = NS.WEP_ORDER.filter(id => MELEE.indexOf(NS.WEAPONS[id].kind) >= 0);
+  ok(melee.length >= 3, `近战有 ${melee.length} 把：${melee.map(id => NS.WEAPONS[id].n).join(' ')}`);
+  ok(new Set(melee.map(id => NS.WEAPONS[id].kind)).size === melee.length,
+    '每把近战的开火方式都不一样 —— 不是同一把刀的三个数值版本');
 
   // 光束：只咬最前面那一个，不穿透 —— 这是它的代价
   NS.setMode('free'); NS.start(90);
@@ -2003,7 +2015,7 @@ console.log('新武器');
 
   // 九把枪都得有里程碑把它放进卡池
   const wc = NS.UPGRADES.filter(u => /^w_/.test(u.id));
-  ok(wc.length === 8, `除起手那把，其余 ${wc.length} 把都有换装卡`);
+  ok(wc.length === NS.WEP_ORDER.length - 1, `除起手那把，其余 ${wc.length} 把都有换装卡`);
   for (const u of wc) ok(NS.MILES.some(m => m.id === u.req), `${u.n} 有里程碑`);
 }
 
@@ -2317,12 +2329,17 @@ console.log('据点与生产链');
     NS.PROF.unlocked['w_' + w] = 1;
     NS.PROF.mods = {}; NS.PROF.modsOn = {};
     NS.equip(w);
-    const before = { dmg: NS.P.dmg, rate: NS.P.fireRate, pierce: NS.P.pierce, spread: NS.P.spread,
-      range: NS.P.range, chain: NS.P.chain, reach: NS.P.reach, splash: NS.P.splash };
+    // 量的字段得跟着武器种类一起长。原来只有远程那几个，
+    // 加了近战之后 dash / iframe / arc / rampMax 的涨跌一个都看不见 ——
+    // 于是「每个改装件都有代价」这条对新的两把枪直接失效。
+    const snap = () => ({ dmg: NS.P.dmg, rate: NS.P.fireRate, pierce: NS.P.pierce, spread: NS.P.spread,
+      range: NS.P.range, chain: NS.P.chain, reach: NS.P.reach, splash: NS.P.splash,
+      arc: NS.P.arc, knock: NS.P.knock, heal: NS.P.heal,
+      dash: NS.P.dash, iframe: NS.P.iframe, ramp: NS.P.ramp, rampMax: NS.P.rampMax });
+    const before = snap();
     NS.PROF.mods[w] = 1; NS.PROF.modsOn[w] = 1;
     NS.equip(w);
-    const after = { dmg: NS.P.dmg, rate: NS.P.fireRate, pierce: NS.P.pierce, spread: NS.P.spread,
-      range: NS.P.range, chain: NS.P.chain, reach: NS.P.reach, splash: NS.P.splash };
+    const after = snap();
     const flags = NS.P.railSplit || NS.P.nadeProx || NS.P.bladeKick || NS.P.beamWide || NS.P.mineRemote || NS.P.discTwin;
     const up = Object.keys(before).filter(k => after[k] > before[k]);
     const down = Object.keys(before).filter(k => after[k] < before[k]);
@@ -3417,7 +3434,7 @@ console.log('重复的枪');
     n = left;
   }
   ok(NS.P.owned.length === NS.WEP_ORDER.length,
-    `一路抽下来九把枪全到手（${NS.P.owned.length}/${NS.WEP_ORDER.length}）`);
+    `一路抽下来所有枪全到手（${NS.P.owned.length}/${NS.WEP_ORDER.length}）`);
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');

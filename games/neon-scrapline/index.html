@@ -2643,6 +2643,8 @@ const UPGRADES = [
   { id:'w_beam', n:'熔切光束', ic:'|', d:WEAPONS.beam.d,  max:1, rare:1, wep:'beam', req:'w_beam', f:p=>equip('beam') },
   { id:'w_mine', n:'布雷器',   ic:'#', d:WEAPONS.mine.d,  max:1, rare:1, wep:'mine', req:'w_mine', f:p=>equip('mine') },
   { id:'w_disc', n:'回旋刃',   ic:'0', d:WEAPONS.disc.d,  max:1, rare:1, wep:'disc', req:'w_disc', f:p=>equip('disc') },
+  { id:'w_lance',n:'冲锋撞角', ic:'^^', d:WEAPONS.lance.d, max:1, rare:1, wep:'lance', req:'w_lance', f:p=>equip('lance') },
+  { id:'w_saw',  n:'裂解链锯', ic:'%%', d:WEAPONS.saw.d,   max:1, rare:1, wep:'saw',   req:'w_saw',   f:p=>equip('saw') },
   // 下面三条要先在档案里解锁才会进池。都带代价 —— 纯加强的卡不会被记住。
   { id:'u_cap',    n:'过载电容', ic:'!!', d:'射速 +45%，但生命上限 -15', max:3, rare:1, req:'u_cap',
     f:p=>{ p.mul.rate*=1.45; p.maxhp-=15; p.hp=Math.min(p.hp,p.maxhp); equip(p.wep); } },
@@ -3161,6 +3163,10 @@ const MILES = [
   { id: 'w_disc',  d: '活到第 15 波',       n: '回旋刃进卡池',   ok: p => p.bestWave >= 15 },
   { id: 'w_mine',  d: '拆掉 40 台重装机甲', n: '布雷器进卡池',   ok: p => p.tankKills >= 40 },
   { id: 'w_beam',  d: '拆掉 3 个 BOSS',     n: '熔切光束进卡池', ok: p => p.bossKills >= 3 },
+  // 两把新近战。解锁条件照旧是「先把那种打法预演一遍」：
+  // 撞角要你先敢往前冲（近身拆重装机甲），链锯要你能在人堆里活下来（连杀）。
+  { id: 'w_lance', d: '近身拆掉 25 台重装机甲', n: '冲锋撞角进卡池', ok: p => p.tankKills >= 25 },
+  { id: 'w_saw',   d: '累计拆解 900 个',        n: '裂解链锯进卡池', ok: p => p.kills >= 900 },
   { id: 'd_two',   d: '打穿一次 30 波',     n: '危险等级：高危', ok: p => (p.wins | 0) >= 1 },
   { id: 'd_all',   d: '在高危以上打穿一次', n: '危险等级：熔毁 / 归零', ok: p => (p.dangerMax | 0) >= 2 },
 ];
@@ -3360,6 +3366,10 @@ const WMOD = {
     f: p => { p.nadeProx = 1; p.splash *= .6; } },
   blade: { n: '反 冲 刃', c: 5, d: '每次挥砍把自己弹开 —— 能当位移，但也会把你弹离目标',
     f: p => { p.bladeKick = 1; } },
+  lance: { n: '穿 刺 尖 端', c: 5, d: '冲得更远、撞得更疼，但无敌时间砍半',
+    f: p => { p.dash *= 1.45; p.dmg *= 1.3; p.iframe *= .5; } },
+  saw:   { n: '双 排 链 齿', c: 6, d: '锯面变宽能咬住两个，但越磨越疼的上限降到 1.5 倍',
+    f: p => { p.arc *= 1.9; p.rampMax = 1.5; } },
   beam:  { n: '散 焦 透 镜', c: 6, d: '改成扫一个扇形能打到多个，但单体伤害减半',
     f: p => { p.beamWide = 1; p.dmg *= .5; } },
   mine:  { n: '遥 爆 模 块', c: 5, d: '雷不再自动触发，改成按开火键一起引爆',
@@ -3563,6 +3573,8 @@ const WRIG = {
   beam:  { g: 'w_fin',    on: 'back', x: -7, y: -5 },   // 背后散热鳍
   mine:  { g: 'w_pouch',  on: 'body', x: 7,  y: 3 },    // 腰侧雷囊
   disc:  { g: 'w_rack',   on: 'back', x: -7, y: 4 },    // 背后环刃架
+  lance: { g: 'w_horn',   on: 'body', x: -6, y: -8 },   // 肩上的尖角
+  saw:   { g: 'w_fuel',   on: 'back', x: -7, y: 2 },    // 背后的油箱
 };
 const SKIN_ORDER = ['std', 'core', 'rail', 'scrap', 'neon', 'ghost'];
 
@@ -3598,7 +3610,8 @@ function dailySkin() { return SKIN_ORDER[strSeed('skin-' + dayKey()) % SKIN_ORDE
    所以这里：身体朝镜头（往左瞄就水平翻转），只有【枪】绕胸口的支点跟着准心转。
    道具升级了就往固定槽位上挂一片贴花 —— 枪上的挂枪上，背上的挂背上。 */
 const GUN_OF = { pulse: 'gun_pulse', shot: 'gun_shot', rail: 'gun_rail', arc: 'gun_arc', nade: 'gun_nade',
-  blade: 'gun_blade', beam: 'gun_beam', mine: 'gun_mine', disc: 'gun_disc' };
+  blade: 'gun_blade', lance: 'gun_lance', saw: 'gun_saw',
+  beam: 'gun_beam', mine: 'gun_mine', disc: 'gun_disc' };
 // on: 'gun' 跟着枪转 / 'body' 贴在身上 / 'back' 画在身体后面
 // x,y 是相对精灵中心的偏移（身体 16×20，枪的支点在它左端中央）
 const DECAL = {
@@ -4086,15 +4099,18 @@ function equip(id) {
   P.pierce = W.kind === 'melee' ? 0 : (W.pierce || 0) + m.pierce;
   P.chain = W.chain || 0;
   P.splash = (W.splash || 0);
-  if (W.kind === 'melee') {
+  if (W.kind === 'melee' || W.kind === 'lunge' || W.kind === 'grind') {
     // 近战没有弹丸，所以这两条词条换个说法接着有用：
     // 双联发射 → 扇形更宽；穿甲钨芯 → 砍得更远。不然它们对刀就是废卡。
     P.reach = W.reach * m.range + m.pierce * 6;
     P.arc = (W.arc + m.count * 18) * Math.PI / 180;
-    P.knock = W.knock; P.heal = W.heal;
+    P.knock = W.knock || 0; P.heal = W.heal || 0;
+    P.dash = W.dash || 0; P.iframe = W.iframe || 0;
+    P.ramp = W.ramp || 0; P.rampMax = W.rampMax || 1;
   } else {
     P.reach = (W.reach || 0) * m.range;
     P.arc = 0; P.knock = 0; P.heal = 0;
+    P.dash = 0; P.iframe = 0; P.ramp = 0; P.rampMax = 1;
   }
   // 武器改装件：在所有词条倍率算完之后再叠，这样它改的是【这把枪的性格】，
   // 而不是被倍率放大成数值。每日局不吃改装 —— 大家的枪得一样。
@@ -4115,6 +4131,8 @@ function cycleWep() {
 function fire() {
   const a0 = P.ang;
   if (P.kind === 'melee') return fireMelee(a0);
+  if (P.kind === 'lunge') return fireLunge(a0);
+  if (P.kind === 'grind') return fireGrind(a0);
   if (P.kind === 'rail') return fireRail(a0);
   if (P.kind === 'arc') return fireArc();
   if (P.kind === 'nade') return fireNade(a0);
@@ -4168,6 +4186,66 @@ function fireMelee(a) {
   G.slashes.push({ x: P.x, y: P.y, a, half, reach: P.reach, dir: P.swingDir, t: .17, col: P.wcol });
   G.shake = Math.max(G.shake, n ? 3 : 1.4);
   Sfx.swing(n);
+}
+
+/* 冲锋撞角：攻击就是位移。
+   近战最难的从来不是"砍"，是"怎么贴上去"—— 这把枪把这件事变成了攻击本身。
+   代价写死在机制里：方向在按下的那一刻就定了，冲进爆囊堆里是你自己的选择。
+   冲的那一段无敌，否则"主动往人堆里钻"这件事根本不成立。 */
+function fireLunge(a) {
+  const d = P.dash;
+  const sx = P.x, sy = P.y;
+  P.x = clamp(P.x + Math.cos(a) * d, P.r, ARENA.w - P.r);
+  P.y = clamp(P.y + Math.sin(a) * d, P.r, ARENA.h - P.r);
+  P.inv = Math.max(P.inv, P.iframe);                    // 冲的那一下打不到你
+  // 判定要沿【整条冲刺路径】算，不能在终点判身前扇形 ——
+  // 被撞的人这时候已经在你身后了。第一版就是这么写的，实测伤害 0。
+  const ex = P.x - sx, ey = P.y - sy, seg = Math.max(1, ex * ex + ey * ey);
+  let n = 0;
+  for (const m of G.mobs) {
+    if (m.dead) continue;
+    // 点到线段的距离：t 夹在 [0,1] 之间，所以起点和终点之外的不算
+    const t = clamp(((m.x - sx) * ex + (m.y - sy) * ey) / seg, 0, 1);
+    const px = sx + ex * t, py = sy + ey * t;
+    const dd = len(m.x - px, m.y - py);
+    if (dd > P.reach + m.r) continue;
+    const crit = RNG.fx() < P.crit;
+    const nx = ex / Math.sqrt(seg), ny = ey / Math.sqrt(seg);
+    hurtMob(m, P.dmg * (crit ? 3 : 1), nx * 9, ny * 9, sx, sy);
+    G.wepDmg.lance = (G.wepDmg.lance || 0) + P.dmg;
+    burstFx(m.x, m.y, crit ? 10 : 6, crit ? '#ffe066' : '#ffd0a0', 170);
+    n++;
+  }
+  // 冲刺轨迹画成一道拉长的残影，让"我刚才从哪冲过来的"看得见
+  G.slashes.push({ x: P.x - Math.cos(a) * d * .5, y: P.y - Math.sin(a) * d * .5,
+    a, half: .22, reach: d * .62, dir: 1, t: .2, col: P.wcol });
+  G.shake = Math.max(G.shake, n ? 4 : 2);
+  Sfx.swing(n);
+}
+
+/* 裂解链锯：贴住不放，咬住同一个越磨越疼。
+   刻意不带击退 —— 振动刀是把人推开腾空间，链锯反过来要他们【留在锯上】，
+   两把的走位因此是相反的。换目标就从头攒，所以它打单个厚的比打一片强。 */
+function fireGrind(a) {
+  const half = P.arc / 2;
+  let best = null, bd = 1e9;
+  for (const m of G.mobs) {
+    if (m.dead) continue;
+    const dx = m.x - P.x, dy = m.y - P.y, dd = len(dx, dy);
+    if (dd > P.reach + m.r) continue;
+    if (dd > 1 && Math.abs(angDiff(Math.atan2(dy, dx), a)) > half) continue;
+    if (dd < bd) { bd = dd; best = m; }
+  }
+  if (!best) { P.grindOn = null; P.grind = 0; return; }
+  // 换目标就从头攒。这条是这把枪的全部性格 —— 不然它只是把射程短的电弧链。
+  if (P.grindOn !== best) { P.grindOn = best; P.grind = 0; }
+  P.grind = Math.min(P.rampMax - 1, P.grind + P.ramp);
+  const mul = 1 + P.grind;
+  const crit = RNG.fx() < P.crit;
+  hurtMob(best, P.dmg * mul * (crit ? 3 : 1), 0, 0, P.x, P.y);
+  G.wepDmg.saw = (G.wepDmg.saw || 0) + P.dmg * mul;
+  burstFx(best.x, best.y, mul > 1.8 ? 4 : 2, mul > 1.8 ? '#ffe066' : '#bfff9f', 120);
+  G.shake = Math.max(G.shake, .8 + mul * .4);
 }
 
 // 磁轨：一条线，线上所有人一起吃伤害
