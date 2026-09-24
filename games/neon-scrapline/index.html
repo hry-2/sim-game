@@ -547,6 +547,12 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     background:rgba(20,30,48,.9);border:1px solid #2c4260;width:22px;height:22px}
   .pitem button:hover{border-color:var(--cyan);color:#eaf6ff}
   body.touch .pitem button{width:34px;height:34px;font-size:13px}
+  /* 货摊的画面。跟主画布一样走像素放大，不做插值。 */
+  #hqScene{
+    width:100%;max-width:340px;display:block;margin:0 0 8px;
+    image-rendering:pixelated;image-rendering:-moz-crisp-edges;
+    background:#070a14;border:1px solid #1b2742;cursor:pointer;
+  }
   .slog{font-size:10px;line-height:1.65;color:#6e7f9e;max-height:150px;overflow-y:auto}
   .slog div{padding:2px 0;border-bottom:1px solid #141d30}
   .slog .ok{color:#9fb0d4} .slog .cheap{color:var(--tox)}
@@ -766,6 +772,7 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     <div class="hqcols">
       <div class="hqcol">
         <div class="hqh">货 摊 <b id="hqhMkt"></b></div>
+        <canvas id="hqScene" width="168" height="60"></canvas>
         <div id="hqMkt" class="mkt"></div>
         <div id="hqBag" class="bgrid"></div>
         <div id="hqStock"></div>
@@ -1475,6 +1482,125 @@ const GRID = {
       'KCK',
       'CWC',
       'KKK',
+    ],
+  ],
+
+  /* ---- 货摊的画面 ----
+     开店原来是点一下、瞬间吐一段文字日志。结果是「你定的价对不对」这件事
+     只剩一段可以一眼扫过去的字，没有任何「被拒绝」的体感。
+     客人一个个走过来看货，掏钱还是转身走，是这套定价玩法唯一的反馈。
+     用的颜色都避开 B/S/L/C/O/H —— 那六个字母会被涂装重映射，
+     客人不该跟着玩家的涂装一起变色。 */
+  stall: [
+    [
+      'KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK',
+      'KYYRRYYRRYYRRYYRRYYRRYYRRYYRRYYRRYYK',
+      'KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK',
+      '.K................................K.',
+      '.K................................K.',
+      '.K................................K.',
+      '.K................................K.',
+      'KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK',
+      'KGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGK',
+      'KDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDK',
+      'KDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDK',
+      'KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK',
+    ],
+  ],
+  cust_a: [                                            // 戴兜帽的
+    [
+      '..KKKK..',
+      '.KTTTTK.',
+      'KTWWWWTK',
+      'KTWKKWTK',
+      'KTWWWWTK',
+      '.KTTTTK.',
+      '.KGGGGK.',
+      'KGGGGGGK',
+      'KGGWWGGK',
+      'KGGGGGGK',
+      '.KGGGGK.',
+      '.KG..GK.',
+      '.KK..KK.',
+    ],
+    [
+      '..KKKK..',
+      '.KTTTTK.',
+      'KTWWWWTK',
+      'KTWKKWTK',
+      'KTWWWWTK',
+      '.KTTTTK.',
+      '.KGGGGK.',
+      'KGGGGGGK',
+      'KGGWWGGK',
+      'KGGGGGGK',
+      '.KGGGGK.',
+      '.KG.GK..',
+      '.KK.KK..',
+    ],
+  ],
+  cust_b: [                                            // 顶着天线的
+    [
+      '...M....',
+      '..KMK...',
+      '.KNNNNK.',
+      'KNWWWWNK',
+      'KNWKKWNK',
+      '.KNNNNK.',
+      '.KRRRRK.',
+      'KRRRRRRK',
+      'KRRYYRRK',
+      'KRRRRRRK',
+      '.KRRRRK.',
+      '.KR..RK.',
+      '.KK..KK.',
+    ],
+    [
+      '...M....',
+      '..KMK...',
+      '.KNNNNK.',
+      'KNWWWWNK',
+      'KNWKKWNK',
+      '.KNNNNK.',
+      '.KRRRRK.',
+      'KRRRRRRK',
+      'KRRYYRRK',
+      'KRRRRRRK',
+      '.KRRRRK.',
+      '.KR.RK..',
+      '.KK.KK..',
+    ],
+  ],
+  cust_c: [                                            // 戴宽檐帽的
+    [
+      'KKKKKKKK',
+      'KDDDDDDK',
+      '.KDDDDK.',
+      '.KWWWWK.',
+      '.KWKKWK.',
+      '.KWWWWK.',
+      '.KXXXXK.',
+      'KXXXXXXK',
+      'KXXTTXXK',
+      'KXXXXXXK',
+      '.KXXXXK.',
+      '.KX..XK.',
+      '.KK..KK.',
+    ],
+    [
+      'KKKKKKKK',
+      'KDDDDDDK',
+      '.KDDDDK.',
+      '.KWWWWK.',
+      '.KWKKWK.',
+      '.KWWWWK.',
+      '.KXXXXK.',
+      'KXXXXXXK',
+      'KXXTTXXK',
+      'KXXXXXXK',
+      '.KXXXXK.',
+      '.KX.XK..',
+      '.KK.KK..',
     ],
   ],
 
@@ -5967,17 +6093,160 @@ function syncStore() {
       + `<button data-pr="${k}:10">+</button></div>`;
   }).join('') : '<div class="pitem"><span class="pn">货箱是空的</span></div>';
 }
+/* ================= 货摊的画面 =================
+   开店原来是点一下、瞬间吐一整段文字。「客人嫌贵走了」这件事只剩一行字，
+   而定价是这套经营玩法的核心决策 —— 被拒绝得看得见才有体感。
+
+   关键：结算逻辑一个字不动。openStore() 照样一次性把整场算完，
+   这里只是把算好的 log【放出来】。所以经济那边的断言全都还成立，
+   画面坏了也不会算错账。 */
+const SCENE = { on: 0, raf: 0, t: 0, i: -1, res: null, cust: null, done: [] };
+const CUST_SPR = ['cust_a', 'cust_b', 'cust_c'];
+function stopStore() {
+  if (SCENE.raf) cancelAnimationFrame(SCENE.raf);
+  SCENE.raf = 0; SCENE.on = 0;
+}
+function playStore(res) {
+  stopStore();
+  SCENE.res = res; SCENE.i = -1; SCENE.t = 0; SCENE.cust = null; SCENE.done = [];
+  // openStore 已经把账结完了，PROF.scrap 是最终值。
+  // 但画面才刚开始放 —— 钱先到、客人后来，看着像穿帮。
+  // 所以显示上先退回开张前，一位一位地加回来。
+  SCENE.pend = res.earned | 0;
+  SCENE.on = 1;
+  showScrap();
+  renderStoreLog({ log: [], sold: 0, earned: 0, fameDelta: 0, partial: 1 });
+  // 按【真实时间】步进，不是每帧固定 1/60。丢帧的时候固定步长会让整场变慢，
+  // 而这一段是有节奏的表演 —— 慢下来就不对味了。
+  let last = 0;
+  const step = ts => {
+    if (!SCENE.on) return;
+    SCENE.raf = requestAnimationFrame(step);
+    const dt = last ? Math.min(.25, (ts - last) / 1000) : 1 / 60;
+    last = ts;
+    tickStore(dt);
+    drawStore();
+  };
+  SCENE.raf = requestAnimationFrame(step);
+}
+// 一位客人一段：走进来 → 看货 → 掏钱 / 转身走。
+const CUST_IN = .55, CUST_LOOK = .5, CUST_OUT = .55;
+const CUST_ALL = CUST_IN + CUST_LOOK + CUST_OUT;
+function tickStore(dt) {
+  const res = SCENE.res;
+  if (!res || !SCENE.on) return;
+  SCENE.t += dt || 0;
+  if (SCENE.i < 0 || SCENE.t >= CUST_ALL) {
+    // 上一位结算完了，把他那一行写进日志再换下一位
+    if (SCENE.i >= 0 && res.log[SCENE.i]) {
+      const l = res.log[SCENE.i];
+      SCENE.done.push(l);
+      if ((l.k === 'ok' || l.k === 'cheap') && l.v) { SCENE.pend -= l.v; showScrap(); }
+    }
+    SCENE.i++;
+    SCENE.t = 0;
+    if (SCENE.i >= res.log.length) {
+      SCENE.pend = 0; showScrap();
+      renderStoreLog(res);                             // 全部走完，补上汇总那一行
+      stopStore();
+      return;
+    }
+    renderStoreLog({ log: SCENE.done, sold: 0, earned: 0, fameDelta: 0, partial: 1 });
+    const r = SCENE.i;
+    SCENE.cust = { spr: CUST_SPR[r % CUST_SPR.length] };
+  }
+}
+function skipStore() {                                  // 点一下画面直接看结果
+  if (!SCENE.on || !SCENE.res) return;
+  const res = SCENE.res;
+  stopStore();
+  SCENE.pend = 0; showScrap();
+  renderStoreLog(res);
+  SCENE.i = res.log.length;
+  drawStore();
+}
+// 显示用的废钢数。放动画的时候要减掉「还没走到的那几笔」。
+function showScrap() {
+  const e = el('hqScrap');
+  if (e) e.textContent = PROF.scrap - (SCENE.pend | 0);
+}
+function drawStore() {
+  const cv = el('hqScene');
+  if (!cv || !cv.getContext) return;
+  const g = cv.getContext('2d');
+  const W = cv.width, H = cv.height, GY = H - 8;        // 地面
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = '#070a14'; g.fillRect(0, 0, W, H);
+  // 地面和背景格子
+  g.fillStyle = '#101a2e';
+  for (let x = 4; x < W; x += 12) g.fillRect(x, GY - 26, 1, 26);
+  g.fillStyle = '#16233d'; g.fillRect(0, GY, W, 1);
+  g.fillStyle = '#0c1424'; g.fillRect(0, GY + 1, W, H - GY - 1);
+  const put = (spr, fr, x, y) => {
+    const set = SPR[spr];
+    if (!set) return;
+    const im = set[Math.min(fr | 0, set.length - 1)];
+    g.drawImage(im, Math.round(x - im.width / 2), Math.round(y - im.height));
+  };
+  // 摊主（就是玩家自己，用当前涂装）站在台面后面：先画人，再画摊位，
+  // 台面正好挡住他的下半身 —— 这样「他在摊子后面」不用解释。
+  put('player', 0, 28, GY - 3);
+  put('stall', 0, 40, GY);
+  const res = SCENE.res;
+  if (!res || SCENE.i < 0 || SCENE.i >= res.log.length) return;   // 没开张就只有空摊位
+  const l = res.log[SCENE.i], t = SCENE.t;
+  if (l.k === 'none' || l.k === 'out') return;
+  // 客人的位置：从右边走到摊前，看一会儿，再走掉
+  const X0 = W + 8, X1 = 74;                           // 停在台面右端前面
+  let cx, walking = 1;
+  if (t < CUST_IN) { cx = X0 + (X1 - X0) * (t / CUST_IN); }
+  else if (t < CUST_IN + CUST_LOOK) { cx = X1; walking = 0; }
+  else {
+    const p = (t - CUST_IN - CUST_LOOK) / CUST_OUT;
+    cx = X1 + (X0 - X1) * p;                           // 买没买成都往右走回去
+  }
+  const fr = walking ? ((SCENE.t * 9) | 0) % 2 : 0;
+  put(SCENE.cust ? SCENE.cust.spr : 'cust_a', fr, cx, GY);
+  // 头顶：他要的那种零件 + 反应
+  if (t > CUST_IN * .8) {
+    const bad = l.k === 'over' || l.k === 'far';
+    const c = l.k === 'cheap' ? '#7cff4f' : l.k === 'ok' ? '#ffb347'
+      : l.k === 'far' ? '#ff2f4f' : '#c07a55';
+    g.fillStyle = '#0b1120'; g.fillRect(cx - 11, GY - 30, 22, 11);
+    g.strokeStyle = c; g.lineWidth = 1;
+    g.strokeRect(cx - 11.5, GY - 30.5, 23, 12);
+    g.fillStyle = c;
+    if (bad) {                                          // 叉
+      for (let i = 0; i < 5; i++) { g.fillRect(cx - 2 + i, GY - 27 + i, 1, 1); g.fillRect(cx + 2 - i, GY - 27 + i, 1, 1); }
+    } else {                                            // 勾
+      g.fillRect(cx - 3, GY - 25, 1, 1); g.fillRect(cx - 2, GY - 24, 1, 1);
+      g.fillRect(cx - 1, GY - 23, 1, 1); g.fillRect(cx, GY - 24, 1, 1);
+      g.fillRect(cx + 1, GY - 25, 1, 1); g.fillRect(cx + 2, GY - 26, 1, 1);
+    }
+    // 零件的颜色点，告诉你他看的是哪一种
+    const kid = PART_IDS.find(k => l.t.indexOf(PART[k].n) === 0);
+    if (kid) { g.fillStyle = PART[kid].c; g.fillRect(cx - 9, GY - 28, 3, 3); }
+  }
+  // 成交了就飞一枚废钢回摊位
+  if (!(l.k === 'over' || l.k === 'far') && t > CUST_IN + CUST_LOOK * .5) {
+    const p = Math.min(1, (t - CUST_IN - CUST_LOOK * .5) / (CUST_LOOK * .5 + CUST_OUT * .5));
+    const mx = X1 + (40 - X1) * p, my = GY - 16 - Math.sin(p * Math.PI) * 14;
+    g.fillStyle = '#ffb347'; g.fillRect(Math.round(mx) - 1, Math.round(my) - 1, 3, 3);
+  }
+}
 function renderStoreLog(res) {
   const lg = el('hqLog');
   if (!lg) return;
   lg.innerHTML = res.log.map(l => `<div class="${l.k}">${l.t}${l.v ? ' · ' + l.v : ''}</div>`).join('')
-    + `<div class="sum">卖出 ${res.sold} 件 · 进账 ${res.earned} 废钢`
-    + (res.fameDelta ? ` · 名声 ${res.fameDelta > 0 ? '+' : ''}${res.fameDelta}` : '') + '</div>';
+    // 还在一位一位放的时候不写汇总 —— 那一行是「这一场结束了」的信号
+    + (res.partial ? '' : `<div class="sum">卖出 ${res.sold} 件 · 进账 ${res.earned} 废钢`
+      + (res.fameDelta ? ` · 名声 ${res.fameDelta > 0 ? '+' : ''}${res.fameDelta}` : '') + '</div>');
+  lg.scrollTop = lg.scrollHeight;
 }
 function syncHQ() {
   const bb = el('hqBuild'), mb = el('hqMods');
   if (!bb) return;
-  el('hqScrap').textContent = PROF.scrap;
+  showScrap();                                         // 放动画时显示的是「已经到账的那部分」
   el('hqIngot').textContent = PROF.ingot | 0;
   const r = refineRate();
   const rb = el('hqRefine');
@@ -6080,8 +6349,10 @@ function showHQ(on) {
   const b = el('hqBox');
   if (!b) return;
   if (on) { syncHQ(); syncPity(); syncPet(); syncStore(); const c = el('hqChain'); if (c) c.innerHTML = chainText(); }
+  else stopStore();                                    // 关了据点就别让那个 rAF 循环一直跑
   b.classList.toggle('show', !!on);
   el('title').classList.toggle('show', !on);
+  if (on) drawStore();                                 // 进来先把空摊位画出来
 }
 function syncBest() {
   const t = el('titleBest');
@@ -6126,6 +6397,7 @@ el('howBtn').onclick = () => showHow(true);
 el('howBack').onclick = () => showHow(false);
 el('hqBtn').onclick = () => showHQ(true);
 el('hqBack').onclick = () => { showHQ(false); syncProf(); syncBest(); };
+el('hqScene').onclick = skipStore;                     // 不想看完就点一下
 el('hqRefine').onclick = () => { refine(1); syncHQ(); const c = el('hqChain'); if (c) c.innerHTML = chainText(); };
 el('hqBuild').onclick = e => {
   const b = e.target.closest && e.target.closest('[data-hq]');
@@ -6140,8 +6412,8 @@ el('hqStock').onclick = e => {
 };
 el('hqOpen').onclick = () => {
   const res = openStore();
-  renderStoreLog(res);
   syncStore(); syncHQ();
+  playStore(res);                                      // 一位一位放，日志跟着往下长
   const c = el('hqChain'); if (c) c.innerHTML = chainText();
 };
 el('hqPet').onclick = e => {
@@ -6281,7 +6553,7 @@ window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
   HOWTO, firstTime, howToHTML, showHow,
   sweepDrops, sweepNote, gainXp,
   WRIG,
-  backToTitle, armGiveup,
+  backToTitle, armGiveup, playStore, stopStore, skipStore, drawStore, tickStore, SCENE,
   syncTC,
   SHOP, shopGuns, shopBuy, shopWorth, openShop, closeShop, syncShop, takeUpgrade, rollOffer, showLevelup, BUFFS, BUFF_IDS, grabBuff, MODS, rollMod, eliteChance, makeElite,
   SKINS, SKIN_ORDER, GRID, applySkin, pickSkin, dailySkin, sprSet, DECAL, GUN_OF, drawPlayer,

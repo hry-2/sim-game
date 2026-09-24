@@ -18,8 +18,13 @@ const len = (x, y) => Math.sqrt(x * x + y * y);
 function freshProf(hq) {
   for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
   Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF)));
-  // 第四个参数传 hq 就把据点全盖满 —— 用来量「元进度会不会把游戏变简单」。
-  // 这是必须量的：据点说好了只给选择不给数值，那它就【不该】明显拉高波次。
+  // 'full' = 打了很多周目的档案：里程碑全开，卡池里有九把枪和全部词条。
+  // 默认那档是【新档案】，机器人手里永远只有开局那把脉冲步枪 ——
+  // 拿新档案的数据去说「老玩家会不会卡住」是答非所问。
+  if (hq === 'full') {
+    for (const m of NS.MILES) NS.PROF.unlocked[m.id] = 1;
+    NS.PROF.scrap = 4000;
+  }
   if (hq) {
     NS.PROF.base = { smelt: 3, bench: 3, depot: 2, intel: 2, train: 2 };
     NS.PROF.pity = ['dmg', 'rof'];
@@ -181,9 +186,17 @@ function play(seed, maxWave, dg, hq) {
 
 const MAXW = Number(process.argv[2] || 31);
 const DG = Number(process.argv[3] || 0);
-const HQ = process.argv[4] === 'hq';
+// hq = 据点全满；full = 据点全满 + 里程碑全开（九把枪都在卡池里）
+const HQ = process.argv[4] === 'full' ? 'full' : process.argv[4] === 'hq';
 const seeds = [1, 20260910, 777, 424242, 9];
-console.log(`每个种子最多打 ${MAXW} 波 · 危险等级 ${NS.DANGER[DG].n.replace(/ /g, '')}${HQ ? ' · 据点全满' : ' · 新档案'}`);
+console.log(`每个种子最多打 ${MAXW} 波 · 危险等级 ${NS.DANGER[DG].n.replace(/ /g, '')}${HQ === 'full' ? ' · 多周目档案（九把枪全解锁）' : HQ ? ' · 据点全满' : ' · 新档案'}`);
+if (HQ === 'full') {
+  // 量具的能力边界，必须印出来 —— 不印的话「多周目平均只到 7 波」
+  // 会被当成平衡结论读，而它其实是机器人塌了。
+  console.log('⚠ 这一档的【波数】不可比：机器人的选牌表里只有数值词条，');
+  console.log('  九把枪全进卡池之后它经常抽不到会用的，还会换上振动刀这种它不会用的近战。');
+  console.log('  这一档只看【卡住几局】—— 那是「这一波收不收得掉」，跟它会不会用枪无关。');
+}
 console.log('机器人只会瞄最近的 + 边打边退，它到的波数是这条曲线的下限\n');
 let reached = [], results = [];
 for (const s of seeds) {
