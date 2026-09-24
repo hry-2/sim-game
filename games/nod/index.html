@@ -33,7 +33,10 @@
     margin:0;font-size:clamp(28px,7vh,44px);letter-spacing:.4em;
     text-indent:.4em;font-weight:600;
   }
-  #menu .sub{color:var(--dim);font-size:13px;margin-top:6px;text-align:center;line-height:1.7}
+  #menu .sub{
+    color:var(--dim);font-size:13px;margin-top:6px;text-align:center;line-height:1.7;
+    max-width:min(46em,100%);margin-left:auto;margin-right:auto;text-wrap:balance;
+  }
   #menu .sub b{color:var(--ink);font-weight:600}
   .rows{width:100%;max-width:640px;display:flex;flex-direction:column;gap:10px}
   .row{display:flex;align-items:center;gap:8px}
@@ -46,6 +49,13 @@
   /* 词包有十一个（含随机），换行后最后一行只有三个 —— 让它们按内容宽度排，
      否则会被 flex 拉成跟上一行不同宽的大块。时长那排只有三个，仍然平分。 */
   #packs .chip{flex:0 1 auto}
+  /* 十四个包平铺成一片，扫起来慢。按大类给【未选中】的字上色 ——
+     这是唯一不占高度的分组办法，而 320px 的横屏上一点高度都挤不出来。
+     选中时一律反白，颜色让位给「哪个被选了」这件更要紧的事。 */
+  .chip[data-g="1"]{color:#9fd0a8}   /* 眼前的 */
+  .chip[data-g="2"]{color:#8fb9e8}   /* 影音 */
+  .chip[data-g="3"]{color:#d0a8c8}   /* 文字与人 */
+  .chip[data-g="4"]{color:#d8b87a}   /* 史地 */
   .chip[aria-checked=true]{background:var(--ink);color:#0b0d10;border-color:var(--ink);font-weight:600}
   .chip[disabled]{opacity:.32;cursor:default}
   .chip small{display:block;font-size:10px;opacity:.7;letter-spacing:0}
@@ -53,6 +63,12 @@
     width:100%;max-width:640px;padding:16px;border:0;border-radius:12px;
     background:var(--ink);color:#0b0d10;font-size:19px;font-weight:700;letter-spacing:.3em;
     text-indent:.3em;cursor:pointer;font-family:inherit;
+  }
+
+  /* 竖着拿的时候高度富余，space-between 会把三块推到两端、中间空出两大片。
+     改成居中 + 均匀间距，读起来才有节奏。 */
+  @media (max-aspect-ratio:1/1){
+    #menu{justify-content:center;gap:min(6vh,52px)}
   }
 
   /* 矮屏压缩档。竖着拿的时候高度充裕，这一档实际只会在【横着拿】时生效 ——
@@ -67,34 +83,65 @@
     .chip{padding:6px 9px;font-size:13px;min-width:4em}
     .row .lab{flex-basis:2.8em;font-size:11px}
     #go{padding:11px;font-size:17px}
+    /* 横屏只有 320~430px 高，总结页把数字块收窄，给词表多让出一行多 */
+    #over{gap:8px}
+    .num{padding:6px 8px}
+    .num b{font-size:clamp(22px,6.4vh,32px)}
+    #over .foot button{padding:10px;font-size:14px}
+    #list .it{padding:8px 10px 8px 12px;font-size:16px}
   }
 
   /* ---------- 起手 ---------- */
-  #ready .big{font-size:min(38vh,38vw);font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  #ready .big{
+    font-size:min(38vh,38vw);font-weight:700;line-height:1;font-variant-numeric:tabular-nums;
+    animation:breathe 1s ease-in-out infinite;
+  }
+  @keyframes breathe{
+    0%,100%{text-shadow:0 0 36px rgba(233,236,239,.16)}
+    50%{text-shadow:0 0 64px rgba(233,236,239,.34)}
+  }
   #ready .hint{color:var(--dim);margin-top:18px;font-size:clamp(14px,3.4vh,20px);text-align:center}
 
   /* ---------- 进行 ---------- */
   #play{justify-content:center}
-  #bar{position:fixed;top:0;left:0;height:4px;background:var(--ink);width:100%;transition:background .2s}
-  #bar.hot{background:var(--hot)}
+  /* 最后十秒：整屏边缘泛红并每秒跳一下。
+     为什么不是「把倒计时放大」—— 词是居中且可能占满整宽的，角落里的数字一放大就会压到词上。
+     边缘辉光在余光里，永远不跟词抢位置，而表演人在两米外一眼就知道时间要没了。 */
+  #play::after{
+    content:'';position:fixed;inset:0;pointer-events:none;
+    box-shadow:inset 0 0 0 0 rgba(224,86,74,0);transition:box-shadow .3s;
+  }
+  #play.hot::after{
+    box-shadow:inset 0 0 70px 6px rgba(224,86,74,.38);
+    animation:tick 1s steps(1,end) infinite;
+  }
+  @keyframes tick{
+    0%,55%{box-shadow:inset 0 0 70px 6px rgba(224,86,74,.38)}
+    56%,100%{box-shadow:inset 0 0 34px 2px rgba(224,86,74,.16)}
+  }
+  #bar{position:fixed;top:0;left:0;height:6px;background:var(--ink);width:100%;transition:background .25s}
+  #bar.hot{background:var(--hot);box-shadow:0 0 14px rgba(224,86,74,.7)}
   #word{
     font-weight:700;line-height:1.1;text-align:center;
     max-width:100%;word-break:break-all;
   }
-  #tally{
-    position:fixed;left:calc(10px + var(--safe-l));bottom:calc(8px + var(--safe-b));
-    color:var(--dim);font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:.05em;
+  #tally,#clock{
+    position:fixed;bottom:calc(7px + var(--safe-b));
+    color:#67707e;font-size:clamp(14px,3.6vh,20px);font-variant-numeric:tabular-nums;
+    letter-spacing:.04em;transition:color .25s,font-size .25s;
   }
-  #clock{
-    position:fixed;right:calc(10px + var(--safe-r));bottom:calc(8px + var(--safe-b));
-    color:var(--dim);font-size:13px;font-variant-numeric:tabular-nums;
-  }
+  #tally{left:calc(12px + var(--safe-l))}
+  #clock{right:calc(12px + var(--safe-r));font-weight:600}
+  #play.hot #clock{color:var(--hot);font-size:clamp(22px,5.4vh,34px)}
 
   /* ---------- 确认 ---------- */
   #confirm{color:#fff}
   #confirm.ok{background:var(--ok)}
   #confirm.pass{background:var(--pass)}
-  #confirm .k{font-size:min(20vh,18vw);font-weight:700;letter-spacing:.2em;text-indent:.2em}
+  /* 箭头把「猜中＝往下翻 / 跳过＝往上翻」这层肌肉记忆再钉一次 ——
+     这一屏是唯一能钉它的地方，因为此刻手机正好停在翻过去的那个角度上 */
+  #confirm .arw{font-size:min(13vh,12vw);line-height:1;opacity:.55;margin-bottom:-.06em}
+  #confirm .k{font-size:min(18vh,16vw);font-weight:700;letter-spacing:.2em;text-indent:.2em}
   #confirm .w{font-size:clamp(16px,4vh,26px);opacity:.85;margin-top:6px}
   #confirm .back{margin-top:22px;font-size:clamp(13px,2.6vh,17px);opacity:.75}
 
@@ -108,18 +155,34 @@
   .num span{color:var(--dim);font-size:11px;letter-spacing:.14em}
   .num.ok b{color:#5fd39a} .num.pass b{color:#e4b768}
   #list{
-    width:100%;max-width:720px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    /* min-height:0 是必须的：flex 子项默认 min-height:auto，列表会按内容把自己撑到
+       份额之外，再把下面的提示和按钮顶出容器 —— 表现出来就是提示那行压在词条上。 */
+    width:100%;max-width:720px;flex:1;min-height:0;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
     border-top:1px solid var(--line);margin-top:2px;
+    /* 底部渐隐：被裁掉半行时，让它读作「还有更多」而不是「坏了」。
+       列表不满时这段本来就是空的，看不出来。 */
+    -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 18px),transparent);
+    mask-image:linear-gradient(to bottom,#000 calc(100% - 18px),transparent);
+  }
+  /* 横着拿的时候一屏只看得见三条，太少 —— 宽度有富余就排两栏，一眼多一倍。
+     grid 是行优先的，所以「按出现顺序」这条没被破坏。 */
+  @media (min-aspect-ratio:1/1){
+    #list{display:grid;grid-template-columns:1fr 1fr;align-content:start;column-gap:14px}
   }
   #list .it{
-    display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid var(--line);
-    cursor:pointer;font-size:15px;
+    display:flex;align-items:center;gap:10px;padding:10px 10px 10px 12px;
+    border-bottom:1px solid var(--line);border-left:4px solid transparent;
+    cursor:pointer;font-size:17px;transition:background .15s;
   }
-  #list .it .n{color:#4a5262;font-size:11px;width:2em;font-variant-numeric:tabular-nums}
-  #list .it .w{flex:1}
-  #list .it .v{font-size:12px;padding:2px 8px;border-radius:99px;letter-spacing:.08em}
-  #list .it.ok .v{background:rgba(31,157,85,.18);color:#5fd39a}
-  #list .it.pass .v{background:rgba(195,134,42,.18);color:#e4b768}
+  #list .it:active{background:#161a21}
+  #list .it.ok{border-left-color:#5fd39a}
+  #list .it.pass{border-left-color:#e4b768}
+  #list .it .n{color:#3f4754;font-size:11px;width:2.2em;font-variant-numeric:tabular-nums}
+  #list .it .w{flex:1;font-weight:500}
+  #list .it .v{font-size:12px;letter-spacing:.1em;opacity:.75}
+  #list .it.ok .v{color:#5fd39a}
+  #list .it.pass .v{color:#e4b768}
   #list .it.pass .w{color:var(--dim)}
   #over .foot{display:flex;gap:8px;width:100%;max-width:720px;padding-bottom:2px}
   #over .foot button{
@@ -127,7 +190,7 @@
     color:var(--ink);font-size:15px;cursor:pointer;font-family:inherit;
   }
   #over .foot button.pri{background:var(--ink);color:#0b0d10;border-color:var(--ink);font-weight:700}
-  #over .tip{color:#4a5262;font-size:11px;text-align:center}
+  #over .tip{color:#5b6472;font-size:12px;text-align:center}
 
 </style>
 
@@ -136,9 +199,8 @@
   <div style="text-align:center">
     <h1>点头</h1>
     <div class="sub">
-      一个人举起手机、<b>屏幕朝外</b>，另一个人看着词往外传。横竖都行。<br>
-      猜对了把手机<b>往下翻</b>，说不出来就<b>往上翻</b>。<br>
-      看词的人怎么描述都行 —— 比划、说话、演 —— 只有一条：<b>不能说词里出现过的字</b>。
+      一个人举起手机、<b>屏幕朝外</b>，另一个人看词往外传 —— 横着竖着都行。<br>
+      猜对了<b>往下翻</b>，说不出来<b>往上翻</b>；怎么描述随便，但<b>不能说词里的字</b>。
     </div>
   </div>
 
@@ -169,6 +231,7 @@
 
 <!-- ================= 确认 ================= -->
 <div class="screen" id="confirm">
+  <div class="arw" id="carw">↓</div>
   <div class="k" id="ck">猜中</div>
   <div class="w" id="cw"></div>
   <div class="back" id="cb">转回来，继续</div>
@@ -215,7 +278,8 @@
   // 地标建筑（长城、金字塔、埃菲尔铁塔）一律归地理，不归历史。
   // 加词的规矩：只加【比划得出来】的。名词好比划，抽象概念不好比划 ——
   // 词库变长不会让这游戏变好玩，词库变准才会。
-  const PACKS = ['动物', '日常动作', '影视动画', '动漫', '二次元角色', '游戏', '歌曲', '古风', '成语', '食物', '名人', '中国史', '世界史', '地理'];
+  // 顺序按大类排齐（眼前的 / 影音 / 文字与人 / 史地）—— 菜单上的分组着色靠它才连得成片
+  const PACKS = ['动物', '日常动作', '食物', '影视动画', '动漫', '二次元角色', '游戏', '歌曲', '古风', '成语', '名人', '中国史', '世界史', '地理'];
   const WORDS = {
     动物: ('大象 老虎 狮子 猎豹 熊猫 北极熊 狼 狐狸 狗 猫 ' +
       '老鼠 仓鼠 松鼠 花栗鼠 土拨鼠 刺猬 兔子 袋鼠 考拉 树懒 ' +
@@ -259,6 +323,28 @@
       '翻身 打电话 发消息 扫码 付钱 数钱 撕快递 拆包裹 搬箱子 拎袋子 ' +
       '抱孩子 哄孩子 推婴儿车 量体温 吃药 打针 贴创可贴 擦汗 扇扇子 搓麻将 ' +
       '掰手腕 猜拳 抛硬币 扎头发 拔草 摘果子 擦鞋 照镜子 称体重 量身高').split(/\s+/),
+
+    食物: ('米饭 馒头 包子 饺子 馄饨 面条 拉面 刀削面 炸酱面 热干面 ' +
+      '油泼面 米线 螺蛳粉 酸辣粉 凉皮 肉夹馍 煎饼果子 手抓饼 葱油饼 烧饼 ' +
+      '油条 豆浆 皮蛋瘦肉粥 小笼包 生煎 锅贴 春卷 烧麦 肠粉 年糕 ' +
+      '汤圆 粽子 月饼 麻花 麻薯 红烧肉 糖醋里脊 宫保鸡丁 鱼香肉丝 麻婆豆腐 ' +
+      '回锅肉 水煮鱼 酸菜鱼 剁椒鱼头 烤鸭 白切鸡 叫花鸡 佛跳墙 东坡肉 狮子头 ' +
+      '蚂蚁上树 地三鲜 手撕包菜 干锅花菜 西红柿炒鸡蛋 青椒肉丝 京酱肉丝 锅包肉 毛血旺 夫妻肺片 ' +
+      '口水鸡 辣子鸡 大盘鸡 羊肉串 烤羊腿 铁板烧 火锅 麻辣烫 冒菜 串串香 ' +
+      '烧烤 汉堡 薯条 炸鸡 披萨 意大利面 三明治 热狗 沙拉 牛排 ' +
+      '培根 煎蛋 吐司 可颂 贝果 卷饼 塔可 寿司 刺身 天妇罗 ' +
+      '乌冬面 咖喱饭 石锅拌饭 泡菜 炒年糕 部队锅 冬阴功 芒果糯米饭 沙茶面 薯片 ' +
+      '爆米花 棉花糖 巧克力 饼干 蛋糕 提拉米苏 蛋挞 泡芙 甜甜圈 布丁 ' +
+      '果冻 冰淇淋 雪糕 刨冰 糖葫芦 麦芽糖 口香糖 瓜子 花生 开心果 ' +
+      '核桃 板栗 红薯 玉米 苹果 香蕉 西瓜 葡萄 草莓 芒果 ' +
+      '菠萝 荔枝 龙眼 橘子 橙子 柠檬 柚子 桃子 梨子 樱桃 ' +
+      '蓝莓 猕猴桃 榴莲 山竹 火龙果 木瓜 哈密瓜 甘蔗 石榴 柿子 ' +
+      '红枣 无花果 杨梅 李子 杏子 牛奶 酸奶 咖啡 奶茶 珍珠奶茶 ' +
+      '可乐 雪碧 啤酒 白酒 红酒 香槟 果汁 椰汁 柠檬水 绿茶 ' +
+      '红茶 乌龙茶 普洱 菊花茶 辣椒 大蒜 生姜 大葱 香菜 陈醋 ' +
+      '酱油 芝麻 蜂蜜 皮蛋 咸鸭蛋 茶叶蛋 溏心蛋 荷包蛋 豆腐 豆腐脑 ' +
+      '臭豆腐 腐竹 豆干 腊肠 火腿 鱼丸 虾饺 叉烧 烤冷面 驴打滚 ' +
+      '豌豆黄 糖炒栗子').split(/\s+/),
 
     影视动画: ('西游记 三国演义 水浒传 红楼梦 葫芦娃 黑猫警长 大闹天宫 哪吒闹海 舒克贝塔 邋遢大王 ' +
       '阿凡提 神笔马良 小蝌蚪找妈妈 九色鹿 天书奇谭 宝莲灯 三个和尚 没头脑和不高兴 雪孩子 熊出没 ' +
@@ -423,28 +509,6 @@
       '一叶障目 管中窥豹 坐井观天 高瞻远瞩 七手八脚 手忙脚乱 慢条斯理 不慌不忙 狼狈为奸 同流合污 ' +
       '掩人耳目 眼高手低 唇亡齿寒 同舟共济 抛砖引玉').split(/\s+/),
 
-    食物: ('米饭 馒头 包子 饺子 馄饨 面条 拉面 刀削面 炸酱面 热干面 ' +
-      '油泼面 米线 螺蛳粉 酸辣粉 凉皮 肉夹馍 煎饼果子 手抓饼 葱油饼 烧饼 ' +
-      '油条 豆浆 皮蛋瘦肉粥 小笼包 生煎 锅贴 春卷 烧麦 肠粉 年糕 ' +
-      '汤圆 粽子 月饼 麻花 麻薯 红烧肉 糖醋里脊 宫保鸡丁 鱼香肉丝 麻婆豆腐 ' +
-      '回锅肉 水煮鱼 酸菜鱼 剁椒鱼头 烤鸭 白切鸡 叫花鸡 佛跳墙 东坡肉 狮子头 ' +
-      '蚂蚁上树 地三鲜 手撕包菜 干锅花菜 西红柿炒鸡蛋 青椒肉丝 京酱肉丝 锅包肉 毛血旺 夫妻肺片 ' +
-      '口水鸡 辣子鸡 大盘鸡 羊肉串 烤羊腿 铁板烧 火锅 麻辣烫 冒菜 串串香 ' +
-      '烧烤 汉堡 薯条 炸鸡 披萨 意大利面 三明治 热狗 沙拉 牛排 ' +
-      '培根 煎蛋 吐司 可颂 贝果 卷饼 塔可 寿司 刺身 天妇罗 ' +
-      '乌冬面 咖喱饭 石锅拌饭 泡菜 炒年糕 部队锅 冬阴功 芒果糯米饭 沙茶面 薯片 ' +
-      '爆米花 棉花糖 巧克力 饼干 蛋糕 提拉米苏 蛋挞 泡芙 甜甜圈 布丁 ' +
-      '果冻 冰淇淋 雪糕 刨冰 糖葫芦 麦芽糖 口香糖 瓜子 花生 开心果 ' +
-      '核桃 板栗 红薯 玉米 苹果 香蕉 西瓜 葡萄 草莓 芒果 ' +
-      '菠萝 荔枝 龙眼 橘子 橙子 柠檬 柚子 桃子 梨子 樱桃 ' +
-      '蓝莓 猕猴桃 榴莲 山竹 火龙果 木瓜 哈密瓜 甘蔗 石榴 柿子 ' +
-      '红枣 无花果 杨梅 李子 杏子 牛奶 酸奶 咖啡 奶茶 珍珠奶茶 ' +
-      '可乐 雪碧 啤酒 白酒 红酒 香槟 果汁 椰汁 柠檬水 绿茶 ' +
-      '红茶 乌龙茶 普洱 菊花茶 辣椒 大蒜 生姜 大葱 香菜 陈醋 ' +
-      '酱油 芝麻 蜂蜜 皮蛋 咸鸭蛋 茶叶蛋 溏心蛋 荷包蛋 豆腐 豆腐脑 ' +
-      '臭豆腐 腐竹 豆干 腊肠 火腿 鱼丸 虾饺 叉烧 烤冷面 驴打滚 ' +
-      '豌豆黄 糖炒栗子').split(/\s+/),
-
     名人: ('孔子 孟子 老子 庄子 屈原 秦始皇 刘邦 项羽 汉武帝 司马迁 ' +
       '王昭君 貂蝉 曹操 刘备 关羽 张飞 诸葛亮 赵云 周瑜 孙权 ' +
       '华佗 李白 杜甫 白居易 王维 苏轼 李清照 辛弃疾 武则天 唐太宗 ' +
@@ -535,7 +599,7 @@
       '复活节岛石像 尼亚加拉瀑布 黄石公园 科罗拉多大峡谷 苏伊士运河 巴拿马运河 直布罗陀 火山 地震 海啸 ' +
       '台风 龙卷风 极光 绿洲 冰川 瀑布 峡谷 岛屿 半岛 海峡 ' +
       '地球仪 经纬度 时区 季风 洋流 潮汐 珊瑚礁').split(/\s+/),
-  };;;;;;
+  };;;;;;;
 
   // 词 -> 所属词包。跨包零重复是量具钉死的，所以这张反查表不会有歧义。
   const OF = {};
@@ -814,7 +878,9 @@
       }
       const p = Math.max(0, st.left / st.total);
       $('bar').style.width = (p * 100).toFixed(2) + '%';
-      $('bar').classList.toggle('hot', st.left <= HOT_MS);
+      const hot = st.left <= HOT_MS;
+      $('bar').classList.toggle('hot', hot);
+      S.play.classList.toggle('hot', hot);
       const sc = score();
       $('tally').textContent = '猜中 ' + sc.猜中 + ' · 跳过 ' + sc.跳过;
       $('clock').textContent = Math.ceil(st.left / 1000) + '"';
@@ -827,6 +893,7 @@
       S.confirm.classList.toggle('ok', ok);
       S.confirm.classList.toggle('pass', !ok);
       $('ck').textContent = st.last;
+      $('carw').textContent = ok ? '↓' : '↑';
       $('cw').textContent = (st.log[st.log.length - 1] || {}).word || '';
       $('cb').textContent = sensorLive ? '转回来，继续' : '点一下继续';
       lastWord = null;
@@ -866,11 +933,16 @@
 
   function buildMenu() {
     const pb = $('packs');
+    // 分组只为了扫得快，不参与任何逻辑 —— 词包的权威顺序仍然是 PACKS
+    const G = { 动物:1, 日常动作:1, 食物:1,
+                影视动画:2, 动漫:2, 二次元角色:2, 游戏:2, 歌曲:2, 古风:2,
+                成语:3, 名人:3, 中国史:4, 世界史:4, 地理:4 };
     const mk = (name, enabled) => {
       const b = document.createElement('button');
       b.className = 'chip';
       b.type = 'button';
       b.textContent = name;
+      if (G[name]) b.setAttribute('data-g', String(G[name]));
       // 六包现在都满了，这条走不到；留着是因为清空一个包就该让它在菜单上变灰，
       // 而不是让人点进去开一局没有词的局（start() 那头还有一道空池兜底）
       if (!enabled) { b.disabled = true; const s = document.createElement('small'); s.textContent = '待补'; b.appendChild(s); }

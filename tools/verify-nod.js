@@ -58,7 +58,7 @@ const NOD = run({});
   ok(miss.length === 0, `契约 ${need.length} 项，缺 ${miss.length} 项${miss.length ? '：' + miss.join(' ') : ''}`);
 
   // 十四个词包的名字与顺序必须和 CONTEXT.md 里钉的一致 —— 词变了可以，分类名不许飘
-  const want = ['动物', '日常动作', '影视动画', '动漫', '二次元角色', '游戏', '歌曲', '古风', '成语', '食物', '名人', '中国史', '世界史', '地理'];
+  const want = ['动物', '日常动作', '食物', '影视动画', '动漫', '二次元角色', '游戏', '歌曲', '古风', '成语', '名人', '中国史', '世界史', '地理'];
   const same = NOD.PACKS.length === want.length && want.every((w, i) => NOD.PACKS[i] === w);
   ok(same, `词包 ${NOD.PACKS.length} 个：${NOD.PACKS.join(' / ')}`);
   ok(NOD.PACKS.indexOf('随机') < 0, '「随机」不在 PACKS 里 —— 它是抽法，不是一个词包');
