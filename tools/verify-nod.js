@@ -54,7 +54,7 @@ const NOD = run({});
   const need = ['PACKS', 'WORDS', 'SECS', 'TH', 'start', 'ready', 'tick',
     'verdict', 'release', 'feedNormal', 'feedTap', 'amend',
     'word', 'left', 'score', 'log', 'usedMs', 'pace', 'shown', 'state', 'portrait',
-    'SPEAK', 'packOf', 'canSpeak'];
+    'packOf'];
   const miss = need.filter(k => NOD[k] === undefined);
   ok(miss.length === 0, `契约 ${need.length} 项，缺 ${miss.length} 项${miss.length ? '：' + miss.join(' ') : ''}`);
 
@@ -224,42 +224,18 @@ sec('节奏');
   ok(NOD.pace() === 0, `一个词都没判完的一局，节奏是 ${NOD.pace()} —— 不会除以零`);
 }
 
-// ---- 6c) 开口包：三包可以说话，其余全程闭嘴（ADR-0005）----------------
-sec('开口包');
+// ---- 6c) 词包归属：每个词都查得到出身 --------------------------------
+sec('词包归属');
 {
-  const want = ['中国史', '世界史', '地理'];
-  const same = NOD.SPEAK.length === 3 && want.every(w => NOD.SPEAK.indexOf(w) >= 0);
-  ok(same, `开口包 ${NOD.SPEAK.length} 个：${NOD.SPEAK.join(' / ')}`);
-
-  const mime = NOD.PACKS.filter(p => NOD.SPEAK.indexOf(p) < 0);
-  ok(mime.length === NOD.PACKS.length - 3, `其余 ${mime.length} 包全程不出声：${mime.join(' / ')}`);
-
-  // 每个词都查得到出身 —— 随机包全靠这张反查表逐词判断能不能张嘴
   let lost = 0, n = 0;
   for (const p of NOD.PACKS) for (const w of NOD.WORDS[p]) { n++; if (NOD.packOf(w) !== p) lost++; }
   ok(lost === 0, `${n} 个词全部查得到所属词包，查错 ${lost} 个`);
+  ok(NOD.packOf('这个词不存在') === null, '查一个不存在的词，返回 null 而不是瞎猜一个包');
 
-  // 开口包的词标可说，比划包的词标不可说
-  open(NOD, { pack: '地理', secs: 180, seed: 51 });
-  let yes = 0;
-  for (let i = 0; i < 30; i++) { if (NOD.shown().speak) yes++; NOD.verdict('猜中'); NOD.release(); }
-  ok(yes === 30, `地理包连抽 30 个词，标可说的 ${yes} 个`);
-
-  open(NOD, { pack: '动物', secs: 180, seed: 51 });
-  let no = 0;
-  for (let i = 0; i < 30; i++) { if (!NOD.shown().speak) no++; NOD.verdict('猜中'); NOD.release(); }
-  ok(no === 30, `动物包连抽 30 个词，标不可说的 ${no} 个`);
-
-  // 随机包混着抽，所以能不能张嘴要【逐词】变 —— 这是整条设计里最容易漏的一处
-  open(NOD, { pack: '随机', secs: 180, seed: 53 });
-  const seen = new Set();
-  for (let i = 0; i < 120; i++) { seen.add(!!NOD.shown().speak); NOD.verdict('跳过'); NOD.release(); }
-  ok(seen.size === 2, `随机包连抽 120 个词，可说与不可说都出现过（${seen.size}/2 种）`);
-  ok(NOD.canSpeak() === !!NOD.shown().speak, 'canSpeak() 和 shown().speak 说的是同一件事');
-
-  // 起手 / 确认 / 总结 时没有词，就不该说「可以张嘴」
-  NOD.start({ pack: '地理', secs: 60, seed: 53 });
-  ok(NOD.canSpeak() === false, '起手阶段还没有词，canSpeak() 是 false');
+  // 规则对所有词包一视同仁（ADR-0006 撤掉了按包分规则那套），
+  // 所以契约里不该再有 SPEAK / canSpeak —— 它们回来了就说明规则又被拆开了
+  ok(NOD.SPEAK === undefined && NOD.canSpeak === undefined,
+    '契约里没有按包分规则的残留（SPEAK / canSpeak 都不在）');
 }
 
 // ---- 7) 阅后即焚 -----------------------------------------------------

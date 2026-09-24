@@ -11,7 +11,7 @@
 | 霓虹废钢线 | 生存射击 · Roguelite | [`games/neon-scrapline/`](games/neon-scrapline/) | [文档](games/neon-scrapline/README.md) |
 | 夜港（原型） | 赛博朋克潜入 · 剧情 | [`games/nightharbor/`](games/nightharbor/) | [文档](games/nightharbor/README.md) · [策划](docs/夜港策划拆解.md) · [剧本](docs/夜港剧本.md) |
 | 静街（在做） | 疫后小镇生存日志 | [`games/quiet-street/`](games/quiet-street/) | [策划](docs/静街策划.md) · [拆解](docs/静街任务拆解.md) · [数据规格](docs/静街数据规格.md) —— 进度 T1（镇子生成器）|
-| 点头 | 面对面比划猜词 · 翻转判定 | [`games/nod/`](games/nod/) | 两个人玩 · 十个词包 2098 词 · [ADR-0004](docs/adr/0004-tilt-is-an-input-not-the-verdict.md) · [ADR-0005](docs/adr/0005-three-packs-may-speak.md) |
+| 点头 | 面对面猜词 · 翻转判定 | [`games/nod/`](games/nod/) | 两个人玩 · 十个词包 2098 词 · [ADR-0004](docs/adr/0004-tilt-is-an-input-not-the-verdict.md) · [ADR-0006](docs/adr/0006-one-rule-for-every-pack.md) |
 
 ## 快速开始
 

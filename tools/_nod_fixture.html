@@ -36,9 +36,7 @@
   };
 
 
-  // 开口包：允许表演人出声的三包（词里的字仍然不能说）。见 ADR-0005。
-  const SPEAK = ['中国史', '世界史', '地理'];
-  const isSpeak = p => SPEAK.indexOf(p) >= 0;
+  // 词 -> 所属词包（量具用它验随机包的混抽）
   const OF = {};
   for (const p of PACKS) for (const w of WORDS[p]) OF[w] = p;
 
@@ -98,7 +96,6 @@
       st.i = 0; st.cycles++;
     }
     st.word = st.order[st.i++];
-    st.speak = isSpeak(OF[st.word]);   // 随机包里逐词变
     return st.word;
   }
 
@@ -195,15 +192,14 @@
     if (!st) return { kind: '无' };
     if (st.portrait && PLAYING(st.state)) return { kind: '竖屏' };
     if (st.state === '起手') return { kind: '倒数', n: Math.ceil(st.readyLeft / 1000) };
-    if (st.state === '进行') return { kind: '词', word: st.word, speak: !!st.speak };
+    if (st.state === '进行') return { kind: '词', word: st.word };
     if (st.state === '确认') return { kind: '确认', verdict: st.last };
     return { kind: '总结' };
   }
 
   const NOD = {
-    PACKS, WORDS, SECS, TH, PAINT_PATHS, SPEAK,
+    PACKS, WORDS, SECS, TH, PAINT_PATHS,
     packOf: w => OF[w] || null,
-    canSpeak: () => !!(st && st.state === '进行' && st.speak),
     start, ready, tick, verdict, release, feedNormal, feedTap, amend,
     render, paint, shown, pace,
     word: () => (st && st.state === '进行' ? st.word : null),
