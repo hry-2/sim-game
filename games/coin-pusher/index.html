@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>聚宝盆 · 真 3D 推币机</title>
+<meta name="description" content="聚宝盆：一台用 Three.js 做的真 3D 推币机。立体金币、有纵深的机台、透视视角。投币、推挤、连锁掉落，电子屏集满开奖。需联网加载 Three.js（首屏一次）。">
+<!-- 真 3D 渲染依赖 Three.js（UMD 全局构建，CDN 加载一次） -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<style>
+  :root{
+    --ground:#0a0908;
+    --panel:#15120d;
+    --panel-2:#1d1810;
+    --line:#332a1c;
+    --ink:#f0e6d2;
+    --muted:#9a8b6e;
+    --dim:#5c5138;
+    --gold:#ffcf4d;
+    --gold-deep:#c98f1e;
+    --red:#e05a3a;
+    --cjk:'Noto Sans SC',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    --disp:'Chakra Petch','Noto Sans SC',system-ui,sans-serif;
+    --pix:ui-monospace,'SF Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;min-height:100vh;
+    background:var(--ground);
+    background-image:
+      repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px),
+      radial-gradient(120% 70% at 50% -8%,rgba(255,176,58,.09),transparent 58%);
+    color:var(--ink);font-family:var(--cjk);font-size:14px;line-height:1.6;
+    display:flex;justify-content:center;
+    user-select:none;-webkit-user-select:none;
+  }
+  #stage{width:100%;max-width:470px;padding:10px 12px calc(16px + env(safe-area-inset-bottom))}
+
+  /* ---------- 顶栏 ---------- */
+  header{display:flex;align-items:center;gap:10px;padding:2px 0 10px}
+  .back{
+    flex:0 0 auto;text-decoration:none;color:var(--muted);
+    border:1px solid var(--line);background:var(--panel);
+    padding:6px 10px;font-size:12px;letter-spacing:.06em;
+  }
+  .back:hover{color:var(--gold);border-color:var(--gold-deep)}
+  h1{margin:0;font-family:var(--disp);font-weight:700;font-size:21px;color:var(--gold);letter-spacing:.04em}
+  h1 small{display:block;font-family:var(--pix);font-size:9px;font-weight:400;letter-spacing:.3em;color:var(--dim)}
+  .spacer{flex:1}
+  .iconbtn{
+    border:1px solid var(--line);background:var(--panel);color:var(--muted);
+    padding:6px 10px;font-size:12px;font-family:inherit;
+  }
+  .iconbtn.on{color:var(--gold);border-color:var(--gold-deep)}
+
+  /* ---------- 资产栏 ---------- */
+  .assets{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
+  .asset{
+    background:var(--panel);border:1px solid var(--line);
+    padding:8px 12px;display:flex;align-items:baseline;gap:10px;
+  }
+  .asset .k{font-size:12px;color:var(--muted)}
+  .asset .v{font-family:var(--disp);font-weight:700;font-size:20px;color:var(--gold)}
+  .asset.score .v{color:var(--ink);font-size:16px}
+  .runinfo{text-align:center;font-size:11px;color:var(--dim);margin:2px 0 8px;letter-spacing:.04em}
+  .runinfo b{color:var(--muted);font-weight:500}
+
+  /* ---------- 台面 ---------- */
+  .cab{
+    position:relative;background:#0c0a07;border:1px solid var(--line);
+    box-shadow:inset 0 0 40px rgba(0,0,0,.7);
+    overflow:hidden;
+  }
+  canvas#cv{display:block;width:100%;height:auto}
+  .cab::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.10) 0 1px,transparent 1px 3px);
+    mix-blend-mode:multiply;
+  }
+  .flashtext{
+    position:absolute;left:0;right:0;top:34%;text-align:center;pointer-events:none;z-index:6;
+    font-family:var(--disp);font-weight:700;font-size:30px;color:var(--gold);
+    text-shadow:0 0 18px rgba(255,207,77,.8),0 2px 0 rgba(0,0,0,.6);
+    opacity:0;transform:scale(.7);
+  }
+  .flashtext.show{animation:flash 1.6s ease-out forwards}
+  @keyframes flash{
+    0%{opacity:0;transform:scale(.6)}
+    14%{opacity:1;transform:scale(1.12)}
+    26%{transform:scale(1)}
+    72%{opacity:1}
+    100%{opacity:0;transform:scale(1.05)}
+  }
+  .jpflash{
+    position:absolute;inset:0;pointer-events:none;z-index:5;
+    background:radial-gradient(circle at 50% 60%,rgba(255,207,77,.45),rgba(255,207,77,0) 60%);
+    opacity:0;
+  }
+  .fxlayer{position:absolute;inset:0;pointer-events:none;z-index:4;overflow:hidden}
+  .fxp{
+    position:absolute;font-family:var(--disp);font-weight:700;font-size:18px;
+    transform:translate(-50%,0);text-shadow:0 1px 0 rgba(0,0,0,.55);
+    animation:fxup 1s ease-out forwards;white-space:nowrap;
+  }
+  @keyframes fxup{
+    0%{opacity:0;transform:translate(-50%,10px) scale(.8)}
+    20%{opacity:1}
+    100%{opacity:0;transform:translate(-50%,-52px) scale(1.12)}
+  }
+  .webgl-warn{
+    position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    text-align:center;padding:24px;z-index:7;color:var(--muted);font-size:13px;line-height:1.8;
+  }
+
+  /* ---------- 按钮排 ---------- */
+  .row{display:grid;gap:8px;margin-top:8px}
+  .row.c3{grid-template-columns:repeat(3,1fr)}
+  .row.c4{grid-template-columns:1.2fr 1.2fr 1.2fr 1.4fr}
+  .row.c2{grid-template-columns:1fr 1fr}
+  .row.c3b{grid-template-columns:repeat(3,1fr)}
+  .btn{
+    border:1px solid var(--line);background:var(--panel);color:var(--ink);
+    font-family:var(--cjk);font-size:14px;font-weight:500;
+    padding:10px 4px;cursor:pointer;text-align:center;line-height:1.35;
+    transition:transform .08s,background .12s,border-color .12s;
+    position:relative;
+  }
+  .btn small{display:block;font-size:10px;color:var(--dim);letter-spacing:.05em}
+  .btn:active{transform:translateY(1px);background:var(--panel-2)}
+  .btn.gold{background:linear-gradient(180deg,#3a2c10,#241a08);border-color:var(--gold-deep);color:var(--gold)}
+  .btn.gold small{color:#8a6c30}
+  .btn.teal{background:linear-gradient(180deg,#12302c,#0c201d);border-color:#1f5a50;color:#5ad4bd}
+  .btn.teal small{color:#2f6f62}
+  .btn.violet{background:linear-gradient(180deg,#251636,#180e24);border-color:#4d3080;color:#b78aff}
+  .btn.violet small{color:#5f4390}
+  .btn.auto.on{border-color:var(--gold);color:var(--gold);box-shadow:inset 0 0 14px rgba(255,207,77,.15)}
+  .btn:disabled{opacity:.42;cursor:default}
+  .btn:disabled:active{transform:none}
+  .btn .badgen{
+    position:absolute;top:4px;right:6px;font-size:9px;color:var(--dim);font-family:var(--pix);
+  }
+
+  /* ---------- 滑块 ---------- */
+  .sliderbox{margin-top:10px;background:var(--panel);border:1px solid var(--line);padding:9px 12px 11px}
+  .sliderbox .lab{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:6px}
+  .sliderbox .lab b{color:var(--gold);font-weight:500;font-family:var(--pix)}
+  input[type=range]{
+    width:100%;appearance:none;-webkit-appearance:none;height:22px;background:transparent;cursor:pointer;margin:0;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:6px;background:linear-gradient(90deg,#2a2114,#4a3a1c);border:1px solid var(--line)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:22px;height:22px;margin-top:-9px;
+    background:radial-gradient(circle at 35% 30%,#ffe9a8,var(--gold) 55%,#a87a1c);
+    border:1px solid #6e5014;border-radius:50%;
+    box-shadow:0 0 10px rgba(255,207,77,.45);
+  }
+  input[type=range]::-moz-range-track{height:6px;background:#2a2114;border:1px solid var(--line)}
+  input[type=range]::-moz-range-thumb{
+    width:22px;height:22px;border:1px solid #6e5014;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#ffe9a8,var(--gold) 55%,#a87a1c);
+  }
+
+  /* ---------- 状态行 ---------- */
+  .statline{
+    margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;
+    font-family:var(--pix);font-size:11px;color:var(--dim);letter-spacing:.06em;
+  }
+  .statline b{color:var(--muted);font-weight:400}
+  .statline .en b{color:var(--gold)}
+
+  /* ---------- 模态 ---------- */
+  .modal{
+    position:fixed;inset:0;background:rgba(5,4,2,.82);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:50;padding:20px;
+  }
+  .modal.show{display:flex}
+  .sheet{
+    width:100%;max-width:400px;max-height:82vh;overflow:auto;
+    background:var(--panel);border:1px solid var(--gold-deep);
+    box-shadow:0 0 60px rgba(255,176,58,.12);padding:20px 20px 24px;
+  }
+  .sheet h2{margin:0 0 12px;font-family:var(--disp);font-size:18px;color:var(--gold);letter-spacing:.05em}
+  .sheet h3{margin:16px 0 6px;font-size:13px;color:var(--muted);letter-spacing:.1em}
+  .sheet p{margin:6px 0;font-size:13px;color:var(--ink)}
+  .sheet p.dim{color:var(--muted)}
+  .sheet table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
+  .sheet td{padding:6px 8px;border-bottom:1px solid var(--line);color:var(--ink)}
+  .sheet td:last-child{text-align:right;color:var(--gold);font-family:var(--pix)}
+  .sheet .closebtn{
+    margin-top:16px;width:100%;padding:11px;background:var(--gold);color:#1a1206;
+    border:none;font-weight:700;font-size:14px;font-family:var(--disp);letter-spacing:.2em;cursor:pointer;
+  }
+  .sheet ul{margin:6px 0;padding-left:18px;font-size:13px}
+  .sheet li{margin:4px 0}
+  .sheet .icon{font-size:15px;margin-right:4px}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <header>
+    <a class="back" href="../../index.html">← 返回选择</a>
+    <h1>聚宝盆<small>COIN PUSHER · TRUE 3D</small></h1>
+    <div class="spacer"></div>
+    <button class="iconbtn on" id="btnSound">声:开</button>
+  </header>
+
+  <div class="assets">
+    <div class="asset"><span class="k">余额</span><span class="v" id="uiBal">0</span><span class="k" style="font-size:10px">币</span></div>
+    <div class="asset score"><span class="k">积分</span><span class="v" id="uiScore">0</span></div>
+  </div>
+  <div class="runinfo">永久机台 · 本机投入 <b id="uiIn">0</b> 枚 · 电子屏 <b id="uiProg">0 / 300</b></div>
+
+  <div class="cab">
+    <canvas id="cv" width="440" height="400"></canvas>
+    <div class="jpflash" id="jp"></div>
+    <div class="fxlayer" id="fxlayer"></div>
+    <div class="flashtext" id="flash"></div>
+    <div class="webgl-warn" id="warn">没能加载 3D 引擎（Three.js）。<br>本游戏需要联网加载一次 Three.js，请检查网络后刷新。</div>
+  </div>
+
+  <div class="row c3">
+    <button class="btn" id="btnHow">玩法</button>
+    <button class="btn" id="btnBook">图鉴</button>
+    <button class="btn" id="btnPause">暂停</button>
+  </div>
+
+  <div class="sliderbox">
+    <div class="lab"><span>投币位置</span><b id="uiPos">居中 0.0</b></div>
+    <input type="range" id="posSlider" min="-100" max="100" value="0">
+  </div>
+
+  <div class="row c4">
+    <button class="btn gold" id="btnDrop1">投 1 枚<small>消耗 1 币</small></button>
+    <button class="btn violet" id="btnDrop5">投 5 枚<small>消耗 5 币</small></button>
+    <button class="btn teal" id="btnDrop10">投 10 枚<small>消耗 10 币</small></button>
+    <button class="btn auto" id="btnAuto">自动投币<small id="autoLab">点击开启</small></button>
+  </div>
+
+  <div class="row c2">
+    <button class="btn teal" id="btnShake">震 台<small>消耗 50 能量</small></button>
+    <button class="btn gold" id="btnTower">召唤币塔<small>消耗 100 能量</small></button>
+  </div>
+
+  <div class="row c3b">
+    <button class="btn" id="btnPrize">规则奖表</button>
+    <button class="btn" id="btnReset">重置机台</button>
+    <button class="btn" id="btnFull">全屏</button>
+  </div>
+
+  <div class="statline">
+    <span>能量 <b id="uiEnergy">100</b></span>
+    <span>连击 <b id="uiCombo">0</b></span>
+    <span class="en">倍率 <b id="uiMult">1.0×</b></span>
+    <span>台面 <b id="uiCoins">0</b> 枚</span>
+  </div>
+</div>
+
+<!-- 玩法 -->
+<div class="modal" id="mHow">
+  <div class="sheet">
+    <h2>玩法</h2>
+    <p>一台<b>永远在推</b>的推币机。远端那块<b>高层小台</b>就是推板，它不知疲倦地前后运动。</p>
+    <ul>
+      <li><b>投币</b>：拖动滑块选左右落点（或直接点机台选位置），币会落在<b>推板上</b>，被推板推下前缘、靠惯性掉到前方的<b>大台子</b>上；台子上的币被一路推到<b>最前缘</b>掉下去，就是你的。</li>
+      <li><b>连锁</b>：别小看一枚币——落下的那一下会挤动整排。挑币堆最满的位置投，一口吃一排。</li>
+      <li><b>侧槽</b>：前沿左右两个角是侧槽。从侧槽掉下去的币<b>必出特殊币</b>。</li>
+      <li><b>特殊币</b>：银色的凤凰币。掉落得 5 币，并推进电子屏进度；<b>300 格开奖</b>，全场币雨。</li>
+      <li><b>连击</b>：5 秒内连续有币掉落就连击叠加，倍率最高 3×；断了清零。</li>
+    </ul>
+    <h3>键盘</h3>
+    <p class="dim"><b>空格</b> 投 1 枚 · <b>←/→</b> 移动落点 · <b>S</b> 震台 · <b>T</b> 币塔 · <b>P</b> 暂停</p>
+    <button class="closebtn" data-close>开始</button>
+  </div>
+</div>
+
+<!-- 图鉴 -->
+<div class="modal" id="mBook">
+  <div class="sheet">
+    <h2>图鉴</h2>
+    <table>
+      <tr><td><span class="icon">🪙</span>通宝 · 金</td><td>1 币</td></tr>
+      <tr><td><span class="icon">🦅</span>凤凰币 · 银</td><td>5 币 + 电子屏 1 格</td></tr>
+      <tr><td><span class="icon">💰</span>元宝 · 彩</td><td>20 币 · 只从币塔与开奖中出现</td></tr>
+      <tr><td><span class="icon">🎰</span>电子屏开奖</td><td>300 格 → 币雨 + 3000 积分</td></tr>
+      <tr><td><span class="icon">📳</span>震台</td><td>50 能量 · 全场抖动 0.9 秒</td></tr>
+      <tr><td><span class="icon">🗼</span>召唤币塔</td><td>100 能量 · 一摞 14 枚砸进主台</td></tr>
+    </table>
+    <h3>机的脾气</h3>
+    <p class="dim">推板每 2.8 秒推一次，力道只够推动贴着它的那一层——后面的币靠前面的币传力。台面上限 360 枚，超了最老的币会被收进底仓（照常计入你的余额）。</p>
+    <button class="closebtn" data-close>合上</button>
+  </div>
+</div>
+
+<!-- 奖表 -->
+<div class="modal" id="mPrize">
+  <div class="sheet">
+    <h2>规则奖表</h2>
+    <table>
+      <tr><td>前沿掉落 · 普通位</td><td>面值 × 倍率</td></tr>
+      <tr><td>侧槽掉落（左右角落）</td><td>面值 × 2 · 必出凤凰币</td></tr>
+      <tr><td>凤凰币掉落</td><td>5 币 · 电子屏 +1</td></tr>
+      <tr><td>元宝掉落</td><td>20 币 · 电子屏 +3</td></tr>
+      <tr><td>连击倍率</td><td>1 + 连击 × 0.1（上限 3×）</td></tr>
+      <tr><td>电子屏 300 格</td><td>JACKPOT：35 枚币雨 + 3000 积分</td></tr>
+    </table>
+    <h3>能量</h3>
+    <p class="dim">每秒回 1.5，每投 1 枚额外回 0.3，上限 100。</p>
+    <button class="closebtn" data-close>知道了</button>
+  </div>
+</div>
+
+<!-- 暂停 -->
+<div class="modal" id="mPause">
+  <div class="sheet">
+    <h2>暂停</h2>
+    <p class="dim">推板停了。机器记得你的一切——刷新页面也不会丢。</p>
+    <table>
+      <tr><td>本机投入</td><td id="pIn">0</td></tr>
+      <tr><td>累计掉落</td><td id="pOut">0</td></tr>
+      <tr><td>累计开奖</td><td id="pJack">0</td></tr>
+    </table>
+    <button class="closebtn" data-close>继续</button>
+  </div>
+</div>
+
+<!-- 重置确认 -->
+<div class="modal" id="mReset">
+  <div class="sheet">
+    <h2>重置机台</h2>
+    <p>清空余额、积分、能量与电子屏进度，<b>从 300 币重新开始</b>。这台机器的终身记录也会一并抹掉。</p>
+    <button class="closebtn" id="btnResetYes" style="background:var(--red);color:#fff">确认重置</button>
+    <button class="closebtn" data-close style="background:var(--panel-2);color:var(--ink);border:1px solid var(--line)">手滑了</button>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ================================================================
+   聚宝盆 · 真 3D 推币机
+   渲染：Three.js（立体圆柱金币 + 有纵深的机台 + 透视相机）
+   物理：纯数据模拟（x 横向 / z 纵深 / y 高度），与渲染解耦
+   ================================================================ */
+
+const cv = document.getElementById('cv');
+const $ = id => document.getElementById(id);
+
+/* ---------- 世界坐标 ----------
+   x: 左右   z: +z 朝向玩家(前沿/掉落口)，-z 在远端
+   推板是台面层级"底下那一整个大方块"：占满宽度、长度长、顶面与台面平齐，
+   整块前后平移、行程很长；投的币落在推板方块上，被它一路推到前方的币堆，
+   再被推到最前缘掉下去，就是你的。主台面 y=0，推板最大前缘 ≈ 币堆后缘。  */
+const WORLD = {
+  wallX: 1.34,          // 侧壁内沿（台子更宽）
+  baseBack: -0.45,      // 台面后缘（最远端）
+  pusherBack: 0.0,      // 推板大方块后缘（固定参考，方块从这里往前伸）
+  pusherLen: 1.5,       // 推板大方块长度（占台面一半的"整块"）
+  PUSH_AMP: 0.9,        // 推板行程（前伸量），行程 = 2*AMP，长
+  tableFront: 2.35,     // 前台面（币堆区）起点 ≈ 推板最大前缘
+  dropZ: 3.0,           // 前沿开口（掉落口）
+  frontZ: 3.2,          // 台面外沿
+  coinR: 0.062,         // 币半径
+  coinT: 0.026,         // 币厚
+  maxCoins: 360
+};
+
+/* ---------- 状态 ---------- */
+const S = {
+  bal: 300, score: 0, energy: 100,
+  spProgress: 0, totalIn: 0, totalOut: 0, jackpots: 0,
+  combo: 0, comboTimer: 0, mult: 1,
+  pos: 0,               // 投币位置 -1..1
+  auto: false, autoT: 0,
+  shakeT: 0, muted: false,
+  paused: false, queue: 0, queueT: 0,
+  flashT: 0, jackpotT: 0
+};
+const coins = [];       // 台面上的币
+const dropLog = [];     // 最近掉落记录（连击用）
+
+/* ---------- 存档 ---------- */
+const SAVE_KEY = 'coinpusher.jubaopen.v1';
+function save() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      bal: S.bal, score: S.score, energy: S.energy, sp: S.spProgress,
+      tin: S.totalIn, tout: S.totalOut, jack: S.jackpots, muted: S.muted
+    }));
+  } catch (e) {}
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (!d) return;
+    S.bal = d.bal ?? 300; S.score = d.score ?? 0; S.energy = d.energy ?? 100;
+    S.spProgress = d.sp ?? 0; S.totalIn = d.tin ?? 0; S.totalOut = d.tout ?? 0;
+    S.jackpots = d.jack ?? 0; S.muted = !!d.muted;
+  } catch (e) {}
+}
+load();
+
+/* ---------- 音频（WebAudio 合成） ---------- */
+let AC = null;
+function ac() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (AC && AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(freq, dur, vol, type, slide) {
+  if (S.muted) return;
+  const a = ac(); if (!a) return;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'sine'; o.frequency.value = freq;
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, a.currentTime + dur);
+  g.gain.setValueAtTime(vol, a.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(); o.stop(a.currentTime + dur);
+}
+function clack(vol) {
+  if (S.muted) return;
+  tone(2400 + Math.random() * 800, 0.03, (vol || 0.5) * 0.06, 'square');
+}
+function sCoinDrop()  { tone(1800, 0.06, 0.10, 'square'); setTimeout(() => tone(2400, 0.05, 0.08, 'square'), 40); }
+function sCoinLand()  { clack(0.9); }
+function sWin(n)      { for (let i = 0; i < Math.min(n, 5); i++) setTimeout(() => tone(900 + Math.random() * 500, 0.09, 0.09, 'triangle'), i * 55); }
+function sSpecial()   { tone(1200, 0.12, 0.10, 'triangle'); setTimeout(() => tone(1800, 0.16, 0.10, 'triangle'), 90); }
+function sJackpot()   { [523, 659, 784, 1047, 1319, 1047, 1319, 1568].forEach((f, i) => setTimeout(() => tone(f, 0.22, 0.12, 'triangle'), i * 110)); }
+function sButton()    { tone(700, 0.04, 0.06, 'square'); }
+function sShake()     { tone(90, 0.5, 0.14, 'sawtooth', 55); }
+function sTower()     { tone(300, 0.3, 0.1, 'triangle', 90); }
+function sDeny()      { tone(200, 0.12, 0.08, 'square', 120); }
+
+/* ---------- 币 ---------- */
+// type: 0 通宝(金) 1 凤凰(银) 2 元宝(彩)
+// state: 0 台面 1 投币下落 2 赢得出场
+let coinId = 0;
+function makeCoin(x, z, layer, type, h) {
+  return {
+    id: ++coinId, x, z, vx: 0, vz: 0,
+    h: h || 0, type: type || 0, layer: layer || 0,
+    state: 0, y: 0, vy: 0, spin: Math.random() * Math.PI * 2,
+    spinV: (Math.random() - 0.5) * 3, born: performance.now()
+  };
+}
+function coinValue(c) { return c.type === 2 ? 20 : c.type === 1 ? 5 : 1; }
+
+function spawnPlayerCoin() {
+  if (S.bal < 1) { sDeny(); flashText('余额不足', '#e05a3a', 17); stopAuto(); return false; }
+  S.bal -= 1; S.totalIn += 1; S.energy = Math.min(100, S.energy + 0.3);
+  const r = WORLD.coinR;
+  const x = S.pos * (WORLD.wallX - r - 0.06);
+  // 投币落在台面层级的推板大方块上（靠后），带一点向前速度，被推板一路推到币堆
+  const z = WORLD.pusherBack + 0.25 + Math.random() * 0.95;
+  const c = makeCoin(x, z, 0, Math.random() < 0.085 ? 1 : 0, 0);
+  c.state = 1; c.y = 0.55; c.vy = 0; c.vz = 0.16;
+  coins.push(c);
+  sCoinDrop();
+  updateHUD();
+  return true;
+}
+function queueCoins(n) { S.queue += n; }
+
+/* 落到主台时的堆叠支撑：找邻近币的最高堆顶 */
+function supportHeight(x, z, r) {
+  let top = 0;
+  for (const o of coins) {
+    if (o.state !== 0 || o.layer !== 0) continue;
+    const dx = o.x - x, dz = o.z - z;
+    if (dx * dx + dz * dz < (r + WORLD.coinR) * (r + WORLD.coinR) * 0.55)
+      top = Math.max(top, o.h + WORLD.coinT);
+  }
+  return Math.min(top, WORLD.coinT * 3.2); // 最多堆 4 层
+}
+
+/* ---------- 掉落结算 ---------- */
+function winCoin(c) {
+  const side = Math.abs(c.x) > 0.90;
+  let v = coinValue(c);
+  if (side) v *= 2;
+  bumpCombo();
+  S.bal += v; S.totalOut += v;
+  S.score += Math.round(v * S.mult * (side ? 2 : 1));
+  let sp = c.type === 2 ? 3 : c.type === 1 ? 1 : 0;
+  if (side && sp === 0) sp = 1;
+  if (sp) { S.spProgress += sp; sSpecial(); }
+  else sWin(1);
+  addFx(c.x, 0, WORLD.dropZ + 0.1, '+' + v, c.type === 1 ? '#cfd8e8' : c.type === 2 ? '#ffb3f0' : '#ffcf4d');
+  if (S.spProgress >= 300) jackpot();
+  updateHUD(); save();
+}
+function bumpCombo() {
+  S.combo = Math.min(30, S.combo + 1);
+  S.comboTimer = 5;
+  S.mult = Math.min(3, 1 + S.combo * 0.1);
+}
+function jackpot() {
+  S.spProgress = 0; S.jackpots += 1; S.score += 3000;
+  S.jackpotT = 2.2;
+  flashText('JACKPOT!', '#ffcf4d', 34);
+  sJackpot();
+  for (let i = 0; i < 35; i++) {
+    setTimeout(() => {
+      if (S.paused) return;
+      const r = WORLD.coinR;
+      const x = (Math.random() * 2 - 1) * (WORLD.wallX - r);
+      const type = Math.random() < 0.3 ? 2 : 1;
+      const c = makeCoin(x, WORLD.tableFront + 0.2 + Math.random() * (WORLD.dropZ - WORLD.tableFront - 0.5), 0, type, 0);
+      c.state = 1; c.y = 1.6 + Math.random() * 0.5; c.vy = 0;
+      coins.push(c);
+    }, i * 85);
+  }
+  updateHUD(); save();
+}
+function flashText(txt, color, size) {
+  const el = $('flash');
+  el.textContent = txt; el.style.color = color || 'var(--gold)';
+  el.style.fontSize = (size || 30) + 'px';
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+}
+const fxlayer = $('fxlayer');
+function worldToScreen(x, y, z) {
+  if (!camera) return null;
+  const v = new THREE.Vector3(x, y, z).project(camera);
+  const rect = cv.getBoundingClientRect();
+  return [ (v.x * 0.5 + 0.5) * rect.width, (-v.y * 0.5 + 0.5) * rect.height ];
+}
+function addFx(x, y, z, txt, color) {
+  const p = worldToScreen(x, y, z);
+  if (!p) return;
+  const el = document.createElement('span');
+  el.className = 'fxp';
+  el.textContent = txt; el.style.color = color;
+  el.style.left = p[0] + 'px'; el.style.top = p[1] + 'px';
+  fxlayer.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+/* ---------- 辅助装置 ---------- */
+function doShake() {
+  if (S.energy < 50) { sDeny(); flashText('能量不足', '#e05a3a', 16); return; }
+  S.energy -= 50; S.shakeT = 0.9; sShake();
+  for (const c of coins) {
+    if (c.state !== 0) continue;
+    c.vx += (Math.random() - 0.5) * 0.9;
+    c.vz += (Math.random() - 0.35) * 0.9;
+  }
+  updateHUD(); save();
+}
+function doTower() {
+  if (S.energy < 100) { sDeny(); flashText('能量不足', '#e05a3a', 16); return; }
+  S.energy -= 100; sTower();
+  const r = WORLD.coinR;
+  const cx0 = S.pos * (WORLD.wallX - r - 0.1);
+  const n = 14;
+  for (let i = 0; i < n; i++) {
+    const type = i === 3 || i === 9 ? 1 : i === 12 ? 2 : 0;
+    const c = makeCoin(cx0 + (Math.random() - 0.5) * 0.03, 2.0 - i * 0.02, 0, type, 0);
+    c.state = 1; c.y = 1.5 + i * WORLD.coinT * 2.2; c.vy = 0;
+    c.towerD = i;
+    coins.push(c);
+  }
+  updateHUD(); save();
+}
+
+/* ---------- 物理 ---------- */
+let pushPhase = 0;
+const PUSH_PERIOD = 2.8;
+const PUSH_AMP = WORLD.PUSH_AMP;   // 推板行程（前伸量），长
+function pusherFront() {
+  return WORLD.pusherBack + WORLD.pusherLen + Math.sin(pushPhase) * PUSH_AMP;
+}
+
+function physicsStep(dt) {
+  pushPhase += dt * Math.PI * 2 / PUSH_PERIOD;
+  const pf = pusherFront();
+  const vpf = Math.cos(pushPhase) * WORLD.PUSH_AMP * (Math.PI * 2 / PUSH_PERIOD);
+  const r = WORLD.coinR, T = WORLD.coinT;
+
+  /* -- 下落状态（投币 / 币塔 / 开奖币） -- */
+  for (const c of coins) {
+    if (c.state !== 1) continue;
+    c.vy -= 3.4 * dt;
+    c.y += c.vy * dt;
+    c.z += c.vz * dt; c.x += c.vx * dt;
+    c.spin += c.spinV * dt;
+    if (c.y <= 0) {
+      c.state = 0; c.y = 0;
+      c.h = supportHeight(c.x, c.z, r);
+      c.z = Math.min(c.z, WORLD.dropZ - r * 0.5);
+      c.x = Math.max(-WORLD.wallX + r, Math.min(WORLD.wallX - r, c.x));
+      c.vx = 0; c.vz = 0; c.towerD = undefined;
+      sCoinLand();
+      for (const o of coins) {
+        if (o === c || o.state !== 0) continue;
+        const dx = o.x - c.x, dz = o.z - c.z, d2 = dx * dx + dz * dz;
+        if (d2 < 0.012 && d2 > 1e-6) {
+          const d = Math.sqrt(d2), k = 0.16 * (1 - d / 0.11);
+          o.vx += dx / d * k; o.vz += dz / d * k + 0.04;
+        }
+      }
+    }
+  }
+
+  /* -- 台面 -- */
+  for (const c of coins) {
+    if (c.state !== 0) continue;
+    c.vx *= Math.pow(0.14, dt); c.vz *= Math.pow(0.14, dt);
+    c.x += c.vx * dt; c.z += c.vz * dt;
+    // 推板大方块：把币从后往前推
+    if (c.z < pf + r * 0.8) {
+      if (c.z < pf) {                 // 币在推板顶面上，被推板带着走
+        if (vpf > 0) c.z += vpf * dt;
+        if (c.vz < vpf) c.vz = vpf;
+      } else if (vpf > 0) {           // 刚过前缘，被推板前缘顶出去
+        c.vz += 0.9 * vpf * dt * 3 + 0.2 * dt;
+      }
+    }
+    if (vpf > 0 && c.z > pf && c.z < WORLD.dropZ - 0.12) c.vz += 0.32 * dt; // 前推传导
+    if (S.shakeT > 0) { c.vx += (Math.random() - 0.5) * 0.35 * dt * 60 * 0.05; c.vz += (Math.random() - 0.3) * 0.35 * dt * 60 * 0.05; }
+    if (c.x < -WORLD.wallX + r) { c.x = -WORLD.wallX + r; c.vx = Math.abs(c.vx) * 0.3; }
+    if (c.x >  WORLD.wallX - r) { c.x =  WORLD.wallX - r; c.vx = -Math.abs(c.vx) * 0.3; }
+    if (c.z < WORLD.baseBack + r) { c.z = WORLD.baseBack + r; c.vz = Math.abs(c.vz) * 0.2; }
+    if (c.z > WORLD.dropZ) { winCoin(c); c.state = 2; c.vy = 0.4; c.vz = 0.5; }
+    if (c.h > 0) {
+      let sup = 0;
+      for (const o of coins) {
+        if (o === c || o.state !== 0) continue;
+        if (o.h >= c.h - T * 0.5) {
+          const dx = o.x - c.x, dz = o.z - c.z;
+          if (dx * dx + dz * dz < (r * 1.6) * (r * 1.6)) { sup = Math.max(sup, o.h + T); break; }
+        }
+      }
+      if (c.h > sup + 0.002) c.h = Math.max(sup, c.h - T * 4 * dt);
+    }
+  }
+  separateLayer(2);
+
+  /* -- 赢得出场动画 -- */
+  for (let i = coins.length - 1; i >= 0; i--) {
+    const c = coins[i];
+    if (c.state !== 2) continue;
+    c.vy -= 3.4 * dt;
+    c.y += c.vy * dt; c.z += c.vz * dt; c.spin += 5 * dt;
+    if (c.y < -0.9) coins.splice(i, 1);
+  }
+
+  /* -- 币数上限 -- */
+  const settled = coins.filter(c => c.state === 0);
+  if (settled.length > WORLD.maxCoins) {
+    settled.sort((a, b) => a.born - b.born);
+    const n = settled.length - WORLD.maxCoins;
+    for (let i = 0; i < n; i++) {
+      const c = settled[i];
+      S.bal += coinValue(c); S.totalOut += coinValue(c);
+      const idx = coins.indexOf(c); if (idx >= 0) coins.splice(idx, 1);
+    }
+    updateHUD();
+  }
+}
+
+/* 同层圆盘分离（单层台面） */
+function separateLayer(iters) {
+  const r2 = WORLD.coinR * 2;
+  const minD2 = r2 * r2 * 0.92;
+  const arr = coins.filter(c => c.state === 0);
+  for (let it = 0; it < iters; it++) {
+    for (let i = 0; i < arr.length; i++) {
+      const a = arr[i];
+      for (let j = i + 1; j < arr.length; j++) {
+        const b = arr[j];
+        const dx = b.x - a.x, dz = b.z - a.z;
+        const d2 = dx * dx + dz * dz;
+        if (d2 >= minD2 || d2 < 1e-9) continue;
+        if (Math.abs(a.h - b.h) > WORLD.coinT * 1.4) continue;
+        const d = Math.sqrt(d2), push = (r2 - d) / d * 0.5;
+        const px = dx * push, pz = dz * push;
+        a.x -= px; a.z -= pz; b.x += px; b.z += pz;
+        a.vx -= px * 4; a.vz -= pz * 4; b.vx += px * 4; b.vz += pz * 4;
+        if (Math.abs(px) + Math.abs(pz) > 0.004 && it === 0 && Math.random() < 0.08) clack(0.3);
+      }
+    }
+  }
+  const r = WORLD.coinR;
+  for (const c of arr) {
+    c.x = Math.max(-WORLD.wallX + r, Math.min(WORLD.wallX - r, c.x));
+    c.z = Math.max(WORLD.baseBack + r, Math.min(WORLD.dropZ + 0.02, c.z));
+  }
+}
+
+/* ================================================================
+   Three.js 真 3D 渲染
+   ================================================================ */
+let renderer = null, scene = null, camera = null, threeReady = false;
+let dispCanvas = null, dispTex = null, dispCtx = null;
+let pusher = null, pusherEdge = null, PZB = 0;
+let lamps = [];
+const coinMeshMap = new Map();
+let coinGeo = null;
+const coinMat = [];
+
+function initThree() {
+  if (typeof THREE === 'undefined') {
+    $('warn').style.display = 'flex';
+    return;
+  }
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+  } catch (e) { $('warn').style.display = 'flex'; return; }
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.shadowMap.enabled = false;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0908);
+  scene.fog = new THREE.Fog(0x0a0908, 7, 14);
+
+  // 透视相机：斜俯视整个台面，看得见后方的大推板把前方的币堆往前推
+  camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+  camera.position.set(0, 2.7, 4.4);
+  camera.lookAt(0, -0.05, 1.5);
+
+  // 灯光
+  scene.add(new THREE.AmbientLight(0xffe6c0, 0.85));
+  const dir = new THREE.DirectionalLight(0xfff0d0, 1.45);
+  dir.position.set(2.2, 5.5, 4.0); scene.add(dir);
+  const warm = new THREE.PointLight(0xffb74a, 0.7, 14);
+  warm.position.set(0, 2.4, 2.8); scene.add(warm);
+  const rim = new THREE.PointLight(0x88aaff, 0.35, 14);
+  rim.position.set(-2.5, 1.5, -3.0); scene.add(rim);
+
+  buildCabinet();
+  makeEnv();
+
+  // 金币材质（金属质感）
+  coinGeo = new THREE.CylinderGeometry(WORLD.coinR, WORLD.coinR, WORLD.coinT, 30);
+  coinMat[0] = new THREE.MeshStandardMaterial({ color: 0xffc846, metalness: 0.92, roughness: 0.34, emissive: 0x3a2700, emissiveIntensity: 0.25 });
+  coinMat[1] = new THREE.MeshStandardMaterial({ color: 0xcdd8eb, metalness: 0.95, roughness: 0.28, emissive: 0x0e1622, emissiveIntensity: 0.2 });
+  coinMat[2] = new THREE.MeshStandardMaterial({ color: 0xff96dc, metalness: 0.6, roughness: 0.4, emissive: 0x3a0f30, emissiveIntensity: 0.35 });
+
+  threeReady = true;
+  resizeThree();
+}
+
+/* 环境贴图：金属材质没有 envMap 会全黑，
+   这里用几块发光板搭一个简易"灯房"烘成 PMREM 环境 */
+function makeEnv() {
+  try {
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const es = new THREE.Scene();
+    es.background = new THREE.Color(0x181209);
+    const panel = (hex, x, y, z, w, h, rx, ry) => {
+      const p = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, h),
+        new THREE.MeshBasicMaterial({ color: hex, side: THREE.DoubleSide }));
+      p.position.set(x, y, z); p.rotation.set(rx, ry, 0);
+      es.add(p);
+    };
+    panel(0xfff4dc, 0, 5, 0, 8, 8, Math.PI / 2, 0);      // 顶灯
+    panel(0xffd9a0, 0, 1.5, 6, 8, 4, 0, 0);              // 正面暖光
+    panel(0x8fb0ff, -5, 1.5, 0, 4, 4, 0, Math.PI / 2);   // 左侧冷光
+    panel(0xffc070, 5, 1.5, 0, 4, 4, 0, -Math.PI / 2);   // 右侧暖光
+    scene.environment = pmrem.fromScene(es, 0.06).texture;
+    pmrem.dispose();
+  } catch (e) { /* 环境烘制失败就靠灯光 */ }
+}
+
+function buildCabinet() {
+  const wallX = WORLD.wallX;
+  const matFelt = new THREE.MeshStandardMaterial({ color: 0x63291b, roughness: 0.92, metalness: 0.05 });
+  const matWood = new THREE.MeshStandardMaterial({ color: 0x7a5a2e, roughness: 0.6, metalness: 0.15 });
+  const matDark = new THREE.MeshStandardMaterial({ color: 0x2a2118, roughness: 0.85 });
+
+  // 固定台面底板：从后缘铺到外沿，顶面 y=0（推板就在这块台面上滑动）
+  const baseDepth = WORLD.frontZ - WORLD.baseBack;
+  const base = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX, 0.3, baseDepth), matFelt);
+  base.position.set(0, -0.15, (WORLD.baseBack + WORLD.frontZ) / 2);
+  scene.add(base);
+
+  // 左右侧壁
+  for (const sx of [-1, 1]) {
+    const side = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, baseDepth), matDark);
+    side.position.set(sx * (wallX + 0.05), 0.1, (WORLD.baseBack + WORLD.frontZ) / 2);
+    scene.add(side);
+  }
+
+  // 后墙
+  const back = new THREE.Mesh(new THREE.BoxGeometry(2 * (wallX + 0.1), 1.7, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0x241c14, roughness: 0.9 }));
+  back.position.set(0, 0.85, WORLD.baseBack);
+  scene.add(back);
+
+  // 电子屏（CanvasTexture）—— 后墙上方
+  dispCanvas = document.createElement('canvas');
+  dispCanvas.width = 300; dispCanvas.height = 110;
+  dispCtx = dispCanvas.getContext('2d');
+  dispTex = new THREE.CanvasTexture(dispCanvas);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.55),
+    new THREE.MeshBasicMaterial({ map: dispTex }));
+  screen.position.set(0, 1.18, WORLD.baseBack + 0.05);
+  scene.add(screen);
+
+  // 可动推板大方块：占满宽度、长度长、顶面与台面平齐，整块前后平移
+  pusher = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX + 0.06, 0.32, WORLD.pusherLen),
+    new THREE.MeshStandardMaterial({ color: 0xb9863a, metalness: 0.55, roughness: 0.45, emissive: 0x3a2600, emissiveIntensity: 0.3 }));
+  scene.add(pusher);
+  pusherEdge = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX + 0.06, 0.06, 0.04),
+    new THREE.MeshStandardMaterial({ color: 0xffb13c, emissive: 0xff8a1a, emissiveIntensity: 1.2, roughness: 0.4 }));
+  scene.add(pusherEdge);
+
+  // 顶灯串
+  for (let i = 0; i < 14; i++) {
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8),
+      new THREE.MeshBasicMaterial({ color: 0xffd15a }));
+    lamp.position.set(-1.3 + 2.6 * i / 13, 1.62, WORLD.baseBack + 0.1);
+    scene.add(lamp); lamps.push(lamp);
+  }
+}
+
+function realY(c) {
+  if (c.state === 0) return c.h + WORLD.coinT / 2;
+  return c.y + WORLD.coinT / 2;
+}
+
+function syncCoins() {
+  const seen = new Set();
+  for (const c of coins) {
+    seen.add(c.id);
+    let m = c._m;
+    if (!m) {
+      m = new THREE.Mesh(coinGeo, coinMat[c.type]);
+      scene.add(m); c._m = m;
+    }
+    m.position.set(c.x, realY(c), c.z);
+    m.rotation.y = c.spin;
+  }
+  for (const [id, m] of coinMeshMap) {
+    if (!seen.has(id)) { scene.remove(m); coinMeshMap.delete(id); }
+  }
+  // 把 _m 同步进 map（新创建的）
+  for (const c of coins) if (c._m && !coinMeshMap.has(c.id)) coinMeshMap.set(c.id, c._m);
+}
+
+/* 七段数码管（离屏电子屏用） */
+function drawSeg7(g, x, y, w, h, n, onCol) {
+  const L = [
+    [1,1,1,0,1,1,1],[0,1,1,0,0,0,0],[1,1,0,1,1,0,1],[1,1,1,1,0,0,1],[0,1,1,1,0,1,0],
+    [1,0,1,1,0,1,1],[1,0,1,1,1,1,1],[1,1,1,0,0,0,0],[1,1,1,1,1,1,1],[1,1,1,1,0,1,1]
+  ];
+  const t = Math.min(w, h) * 0.16, gap = t * 0.5;
+  const s = L[n] || L[0];
+  const seg = (sx, sy, sw, sh, on) => {
+    g.fillStyle = on ? onCol : 'rgba(120,90,20,.10)';
+    g.fillRect(sx, sy, sw, sh);
+  };
+  seg(x + t, y, w - 2 * t, t, s[0]);
+  seg(x + w - t, y + t + gap / 2, t, h / 2 - t - gap, s[1]);
+  seg(x + w - t, y + h / 2 + gap / 2, t, h / 2 - t - gap, s[2]);
+  seg(x + t, y + h / 2 - t / 2, w - 2 * t, t, s[3]);
+  seg(x, y + h / 2 + gap / 2, t, h / 2 - t - gap, s[4]);
+  seg(x, y + t + gap / 2, t, h / 2 - t - gap, s[5]);
+  seg(x + t, y + h - t, w - 2 * t, t, s[6]);
+}
+function updateDisp(t) {
+  if (!dispCtx) return;
+  const g = dispCtx;
+  g.fillStyle = '#0a0d12'; g.fillRect(0, 0, 300, 110);
+  // 边框
+  g.strokeStyle = '#2a2f3a'; g.lineWidth = 3; g.strokeRect(4, 4, 292, 102);
+  const prog = Math.min(300, S.spProgress);
+  const digits = String(Math.min(999, prog)).padStart(3, '0').split('').map(Number);
+  const dw = 280 / 3;
+  for (let i = 0; i < 3; i++) {
+    const cellX = 10 + i * dw, cellW = dw;
+    g.fillStyle = 'rgba(20,26,36,.9)';
+    g.fillRect(cellX + cellW * 0.14, 14, cellW * 0.72, 60);
+    drawSeg7(g, cellX + cellW * 0.22, 18, cellW * 0.56, 52, digits[i],
+      prog >= 300 ? '#ff5a4a' : (Math.floor(t * 2) % 2 === 0 || prog % 100 !== 0) ? '#ffd23a' : '#8a6c1a');
+  }
+  g.fillStyle = 'rgba(154,139,110,.85)';
+  g.font = '13px sans-serif'; g.textAlign = 'center';
+  g.fillText('凤 凰 计 数 · 满 300 开 奖', 150, 92);
+  dispTex.needsUpdate = true;
+}
+
+function resizeThree() {
+  if (!renderer) return;
+  const w = cv.clientWidth || 440;
+  const h = Math.round(w * 400 / 440);
+  cv.style.height = h + 'px';
+  renderer.setSize(w, h, false);
+  if (camera) { camera.aspect = w / h; camera.updateProjectionMatrix(); }
+}
+
+function render(t, dt) {
+  if (!threeReady) return;
+
+  const pf = pusherFront();
+  // 推板大方块：整体前后平移（行程长），前缘推到币堆
+  const pp = Math.sin(pushPhase);
+  const center = WORLD.pusherBack + WORLD.pusherLen / 2 + pp * PUSH_AMP;
+  pusher.position.set(0, -0.154, center);
+  pusherEdge.position.set(0, 0.031, pf);
+
+  // 电子屏
+  updateDisp(t);
+
+  // 顶灯闪烁
+  const blink = (Math.floor(t * 3) % 3 !== 0);
+  for (let i = 0; i < lamps.length; i++) {
+    const on = (Math.floor(t * 3) + i) % 3 !== 0;
+    lamps[i].material.color.setHex(on ? 0xffd15a : 0x6a531c);
+    lamps[i].visible = true;
+  }
+
+  // 金币
+  syncCoins();
+
+  // 震台 / JACKPOT：相机轻微抖动
+  let ox = 0, oy = 0;
+  if (S.shakeT > 0) { ox = (Math.random() - 0.5) * 0.06; oy = (Math.random() - 0.5) * 0.04; }
+  if (S.jackpotT > 0) { ox += (Math.random() - 0.5) * 0.04; oy += (Math.random() - 0.5) * 0.03; }
+  camera.position.set(0 + ox, 3.4 + oy, 4.1);
+  camera.lookAt(0, -0.12, 1.22);
+
+  // JACKPOT 金光（HTML 叠加）
+  $('jp').style.opacity = (S.jackpotT > 0 ? (S.jackpotT / 2.2 * 0.6) : 0).toFixed(3);
+
+  renderer.render(scene, camera);
+}
+
+/* ---------- HUD ---------- */
+function updateHUD() {
+  $('uiBal').textContent = S.bal;
+  $('uiScore').textContent = S.score >= 10000 ? (S.score / 1000).toFixed(1) + 'K' : S.score;
+  $('uiEnergy').textContent = Math.floor(S.energy);
+  $('uiCombo').textContent = S.combo;
+  $('uiMult').textContent = S.mult.toFixed(1) + '×';
+  $('uiIn').textContent = S.totalIn;
+  $('uiProg').textContent = S.spProgress + ' / 300';
+  $('uiCoins').textContent = coins.filter(c => c.state === 0).length;
+  $('btnShake').disabled = S.energy < 50;
+  $('btnTower').disabled = S.energy < 100;
+  $('btnDrop1').disabled = S.bal < 1 && S.queue === 0;
+  $('btnDrop5').disabled = S.bal < 5 && S.queue === 0;
+  $('btnDrop10').disabled = S.bal < 10 && S.queue === 0;
+}
+function stopAuto() {
+  S.auto = false;
+  $('btnAuto').classList.remove('on');
+  $('autoLab').textContent = '点击开启';
+}
+
+/* ---------- 主循环 ---------- */
+let last = performance.now();
+function loop(now) {
+  requestAnimationFrame(loop);
+  let dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  const t = now / 1000;
+
+  if (!S.paused) {
+    if (S.queue > 0) {
+      S.queueT -= dt;
+      if (S.queueT <= 0) {
+        if (spawnPlayerCoin()) { S.queue--; S.queueT = 0.16; }
+        else S.queue = 0;
+      }
+    }
+    if (S.auto) {
+      S.autoT -= dt;
+      if (S.autoT <= 0) {
+        S.autoT = 0.5;
+        if (S.bal >= 1) spawnPlayerCoin(); else stopAuto();
+      }
+    }
+    S.energy = Math.min(100, S.energy + 1.5 * dt);
+    if (S.comboTimer > 0) {
+      S.comboTimer -= dt;
+      if (S.comboTimer <= 0) { S.combo = 0; S.mult = 1; updateHUD(); }
+    }
+    if (S.shakeT > 0) S.shakeT -= dt;
+    if (S.jackpotT > 0) S.jackpotT -= dt;
+    let steps = Math.ceil(dt / (1 / 60));
+    const sdt = dt / steps;
+    for (let i = 0; i < steps; i++) physicsStep(sdt);
+    if (Math.floor(t) % 5 === 0 && !loop._saved) { save(); loop._saved = true; }
+    if (Math.floor(t) % 5 !== 0) loop._saved = false;
+  }
+  render(t, dt);
+}
+
+/* ---------- 交互 ---------- */
+$('posSlider').addEventListener('input', e => {
+  S.pos = e.target.value / 100;
+  $('uiPos').textContent = (S.pos > 0.05 ? '居右 +' : S.pos < -0.05 ? '居左 ' : '居中 ') + S.pos.toFixed(1);
+});
+$('btnDrop1').addEventListener('click', () => { sButton(); queueCoins(1); updateHUD(); });
+$('btnDrop5').addEventListener('click', () => { sButton(); queueCoins(5); updateHUD(); });
+$('btnDrop10').addEventListener('click', () => { sButton(); queueCoins(10); updateHUD(); });
+$('btnAuto').addEventListener('click', () => {
+  sButton();
+  S.auto = !S.auto;
+  $('btnAuto').classList.toggle('on', S.auto);
+  $('autoLab').textContent = S.auto ? '运转中…' : '点击开启';
+});
+$('btnShake').addEventListener('click', doShake);
+$('btnTower').addEventListener('click', doTower);
+$('btnSound').addEventListener('click', () => {
+  S.muted = !S.muted;
+  $('btnSound').textContent = S.muted ? '声:关' : '声:开';
+  $('btnSound').classList.toggle('on', !S.muted);
+  if (!S.muted) sButton();
+  save();
+});
+$('btnPause').addEventListener('click', () => {
+  S.paused = !S.paused;
+  $('btnPause').textContent = S.paused ? '继续' : '暂停';
+  if (S.paused) {
+    $('pIn').textContent = S.totalIn + ' 枚';
+    $('pOut').textContent = S.totalOut + ' 枚';
+    $('pJack').textContent = S.jackpots + ' 次';
+    $('mPause').classList.add('show');
+  } else $('mPause').classList.remove('show');
+  sButton();
+});
+$('btnHow').addEventListener('click', () => { $('mHow').classList.add('show'); sButton(); });
+$('btnBook').addEventListener('click', () => { $('mBook').classList.add('show'); sButton(); });
+$('btnPrize').addEventListener('click', () => { $('mPrize').classList.add('show'); sButton(); });
+$('btnReset').addEventListener('click', () => { $('mReset').classList.add('show'); sButton(); });
+$('btnResetYes').addEventListener('click', () => {
+  S.bal = 300; S.score = 0; S.energy = 100; S.spProgress = 0;
+  S.totalIn = 0; S.totalOut = 0; S.jackpots = 0;
+  coins.length = 0; coinMeshMap.forEach(m => scene && scene.remove(m)); coinMeshMap.clear();
+  stopAuto();
+  $('mReset').classList.remove('show');
+  flashText('机台已重置', '#ffcf4d', 22);
+  save(); updateHUD(); seedCoins();
+});
+$('btnFull').addEventListener('click', () => {
+  sButton();
+  const el = document.documentElement;
+  if (!document.fullscreenElement) { if (el.requestFullscreen) el.requestFullscreen(); }
+  else document.exitFullscreen();
+});
+document.querySelectorAll('[data-close]').forEach(b =>
+  b.addEventListener('click', e => e.target.closest('.modal').classList.remove('show')));
+document.querySelectorAll('.modal').forEach(m =>
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); }));
+
+// 点击机台 = 按点击的横向位置，把一枚币投到推板上（再被推下、掉到台子）
+cv.addEventListener('pointerdown', e => {
+  if (!threeReady) return;
+  const rect = cv.getBoundingClientRect();
+  const nx = (e.clientX - rect.left) / rect.width * 2 - 1;
+  const ny = -((e.clientY - rect.top) / rect.height * 2 - 1);
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2(nx, ny), camera);
+  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -WORLD.pushY); // 推板顶面 y=pushY
+  const hit = new THREE.Vector3();
+  if (ray.ray.intersectPlane(plane, hit)) {
+    const r = WORLD.coinR;
+    const x = Math.max(-(WORLD.wallX - r), Math.min(WORLD.wallX - r, hit.x));
+    S.pos = x / (WORLD.wallX - r - 0.06);
+    $('posSlider').value = Math.round(S.pos * 100);
+    $('uiPos').textContent = (S.pos > 0.05 ? '居右 +' : S.pos < -0.05 ? '居左 ' : '居中 ') + S.pos.toFixed(1);
+    queueCoins(1); updateHUD();
+  }
+});
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); queueCoins(1); updateHUD(); }
+  else if (e.code === 'ArrowLeft') { $('posSlider').value = Math.max(-100, +$('posSlider').value - 8); $('posSlider').dispatchEvent(new Event('input')); }
+  else if (e.code === 'ArrowRight') { $('posSlider').value = Math.min(100, +$('posSlider').value + 8); $('posSlider').dispatchEvent(new Event('input')); }
+  else if (e.code === 'KeyS') doShake();
+  else if (e.code === 'KeyT') doTower();
+  else if (e.code === 'KeyP') $('btnPause').click();
+});
+window.addEventListener('resize', resizeThree);
+window.addEventListener('orientationchange', resizeThree);
+
+/* ---------- 开台：铺初始币堆（网格铺设、真堆叠成丘，集中在台面前段） ---------- */
+function seedCoins() {
+  coins.length = 0;
+  const r = WORLD.coinR, T = WORLD.coinT;
+  let rnd = 524287;
+  const rand = () => (rnd = (rnd * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  // 只在前半段铺一座厚币堆：越靠近掉落口层数越多，后段留空——
+  // 一眼能看出"币从推板掉到台子 → 滑向前面的堆 → 被推下前沿"
+  const dx = r * 2.0, dz = r * 2.15;
+  const zBack = WORLD.pushZ1 + 1.05, zFront = WORLD.dropZ - 0.62;
+  const xSpan = WORLD.wallX - r - 0.05;
+  for (let z = zBack; z <= zFront; z += dz) {
+    const t = (z - zBack) / (zFront - zBack);            // 0 后 → 1 前
+    const layers = 1 + Math.round(t * 2.5);              // 后 1 层 → 前 3~4 层
+    for (let x = -xSpan; x <= xSpan; x += dx) {
+      if (rand() < 0.10) continue;                       // 留点空洞自然些
+      for (let L = 0; L < layers; L++) {
+        if (L > 0 && rand() < 0.35) continue;            // 上层稀一点
+        const c = makeCoin(
+          Math.max(-xSpan, Math.min(xSpan, x + (rand() - 0.5) * dx * 0.7)),
+          z + (rand() - 0.5) * dz * 0.5, 0, rand() < 0.05 ? 1 : 0, 0);
+        c.h = T * L;
+        coins.push(c);
+      }
+    }
+  }
+  // 推板层上也放少许币，开局就有"推板在推"的画面
+  for (let i = 0; i < 12; i++) {
+    const x = (rand() * 2 - 1) * (WORLD.wallX - r - 0.02);
+    const c = makeCoin(x, WORLD.pushZ0 + 0.08 + rand() * 0.24, 1, rand() < 0.06 ? 1 : 0);
+    c.y = WORLD.pushY;
+    coins.push(c);
+  }
+  // 首次构建金币 mesh
+  if (threeReady) syncCoins();
+}
+
+initThree();
+seedCoins();
+updateHUD();
+$('btnSound').textContent = S.muted ? '声:关' : '声:开';
+$('btnSound').classList.toggle('on', !S.muted);
+
+const unlock = () => { ac(); window.removeEventListener('pointerdown', unlock); };
+window.addEventListener('pointerdown', unlock);
+
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

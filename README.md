@@ -1,6 +1,6 @@
 # 游戏柜
 
-五个自己写的网页游戏。都是**单个 HTML 文件**——没有构建步骤、没有 npm 依赖，
+六个自己写的网页游戏。都是**单个 HTML 文件**——没有构建步骤、没有 npm 依赖，
 美术与音效全部由代码生成或内嵌，双击即可运行，也能直接扔到任意静态托管上。
 
 首页 [`index.html`](index.html) 是合集入口。
@@ -12,6 +12,7 @@
 | 夜港（原型） | 赛博朋克潜入 · 剧情 | [`games/nightharbor/`](games/nightharbor/) | [文档](games/nightharbor/README.md) · [策划](docs/夜港策划拆解.md) · [剧本](docs/夜港剧本.md) |
 | 静街（在做） | 疫后小镇生存日志 | [`games/quiet-street/`](games/quiet-street/) | [策划](docs/静街策划.md) · [拆解](docs/静街任务拆解.md) · [数据规格](docs/静街数据规格.md) —— 进度 T1（镇子生成器）|
 | 点头 | 面对面猜词 · 翻转判定 | [`games/nod/`](games/nod/) | 两个人玩 · 十六个词包 4547 词 · [ADR-0004](docs/adr/0004-tilt-is-an-input-not-the-verdict.md) · [ADR-0006](docs/adr/0006-one-rule-for-every-pack.md) |
+| 聚宝盆 | 3D 推币机 · 街机物理 | [`games/coin-pusher/`](games/coin-pusher/) | Three.js 真 3D（联网加载）· 立体金币 · 连锁掉落 · 电子屏开奖 · 永久机台存档 |
 
 ## 快速开始
 
@@ -29,8 +30,8 @@ npm run dev          # 或起服务：http://localhost:5173
 **Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `/ (root)`**
 
 保存约一分钟后访问 `https://<用户名>.github.io/sim-game/`，
-五款分别在 `/games/sim/`、`/games/neon-scrapline/`、`/games/nightharbor/`、`/games/quiet-street/`
-和 `/games/nod/`。
+六款分别在 `/games/sim/`、`/games/neon-scrapline/`、`/games/nightharbor/`、`/games/quiet-street/`、
+`/games/nod/` 和 `/games/coin-pusher/`。
 
 > **点头必须走 HTTPS**：iOS 13+ 只在安全上下文里给陀螺仪，而且要在用户手势里申请权限。
 > `npm run dev` 起的局域网 http 上，它会静默退到点击兜底 —— 能玩，但翻不了。
@@ -44,7 +45,8 @@ npm run dev          # 或起服务：http://localhost:5173
 │   ├── neon-scrapline/index.html 霓虹废钢线（音效实时合成）
 │   ├── nightharbor/index.html    夜港（原型：潜入关卡 + 剧本驱动的对话）
 │   ├── quiet-street/index.html   静街（在做：镇子生成器 + 噪音存量模型）
-│   └── nod/index.html            点头（两个人：屏幕朝外，翻手机判定）
+│   ├── nod/index.html            点头（两个人：屏幕朝外，翻手机判定）
+│   └── coin-pusher/index.html    聚宝盆（Three.js 真 3D 推币机 + 连锁碰撞）
 ├── tools/                        sim 的美术生成脚本与自动化测试
 ├── assets/sprites/               sim 的精灵图产出
 └── docs/                         设计与授权文档

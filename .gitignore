@@ -56,3 +56,6 @@ desktop.ini
 
 # ---- 沙箱同步的中转目录（沙箱删不掉，只能忽略）----
 _to_delete/
+
+# ---- WorkBuddy 沙箱数据（本地项目数据，不入库）----
+.workbuddy/

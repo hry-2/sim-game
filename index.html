@@ -22,6 +22,7 @@
     --harbor:#45f0ff;
     --street:#d2e24a;
     --nod:#3ddc97;
+    --coin:#ffcf4d;
     --cjk:'Noto Sans SC',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
     --disp:'Chakra Petch','Noto Sans SC',system-ui,sans-serif;
     --pix:'Silkscreen','Chakra Petch',ui-monospace,monospace;
@@ -173,12 +174,12 @@
   <header>
     <div class="marquee">
       <h1>游戏柜</h1>
-      <span class="en">arcade cabinet / 5 titles</span>
+      <span class="en">arcade cabinet / 6 titles</span>
     </div>
     <div class="rule"></div>
     <div class="rule"></div>
     <p class="lede">
-      五个自己写的网页游戏。都是 <b>单个 HTML 文件</b>——没有构建步骤、没有 npm 依赖、
+      六个自己写的网页游戏。都是 <b>单个 HTML 文件</b>——没有构建步骤、没有 npm 依赖、
       美术和音效全部由代码生成，双击就能跑，扔到任何静态托管上也一样。
       挑一个开始玩。
     </p>
@@ -310,6 +311,28 @@
           <div><span class="k">看点</span><span class="v">猜的人全程看不见屏幕，整局只靠声音判断自己刚才对没对</span></div>
           <div><span class="k">一局</span><span class="v">60 / 120 / 180 秒三档 · 十六个词包 4547 词 + 跨包混抽的「随机」</span></div>
           <div><span class="k">真机</span><span class="v">iOS 要 HTTPS 才给陀螺仪，局域网 http 上会静默退到点击</span></div>
+        </div>
+        <div class="go">进入</div>
+      </div>
+    </a>
+
+    <a class="cart" href="games/coin-pusher/index.html" style="--accent:var(--coin)">
+      <canvas class="shot" id="shotCoin" width="192" height="108"></canvas>
+      <div class="body">
+        <div class="kicker">街机 · 物理 · 单人</div>
+          <h3>聚宝盆<span class="sub">COIN PUSHER · TRUE 3D</span></h3>
+        <p>
+          一台<b>永远在推</b>的推币机。上层推板每 2.8 秒拱一次，力道只够推着贴它的那一层，
+          后面的币靠前面的币传力——所以落下的那一下会挤动整排，挑币堆最满的位置投，一口吃一排。
+          拖滑块选落点，震台抖一抖，再召一座币塔砸进主台；
+          前沿左右两个角是侧槽，掉下去必出银凤凰，电子屏攒满 300 格开奖撒币雨。
+          5 秒内连掉就叠连击、倍率最高 3×，断了清零——所以「再等一枚」永远是台面上最贵的决定。
+          <b>Three.js 真 3D</b>：立体金币、有纵深的机台、透视视角（首次需联网加载引擎）。
+        </p>
+        <div class="spec">
+          <div><span class="k">操作</span><span class="v"><kbd>空格</kbd> 投币 · <kbd>←</kbd><kbd>→</kbd> 挪落点 · <kbd>S</kbd> 震台 · <kbd>T</kbd> 币塔 · 手机全触控</span></div>
+          <div><span class="k">看点</span><span class="v">连锁掉落：一枚币下去，半排在动；连击断在第四枚最难受</span></div>
+          <div><span class="k">机台</span><span class="v">永久运行 · 余额 / 积分 / 电子屏进度存档，刷新不丢</span></div>
         </div>
         <div class="go">进入</div>
       </div>
@@ -686,14 +709,78 @@
     for (let yy = 0; yy < H; yy += 2) no.fillRect(0, yy, W, 1);
   }
 
+  // 6) 聚宝盆：迷你推币机。推板往复，币被一层层拱到前沿掉下去。
+  const coCv = document.getElementById('shotCoin'), co = coCv.getContext('2d');
+  const pc = [];
+  for (let i = 0; i < 12; i++) pc.push({ u: i / 12 + Math.random() * .06, x: Math.sin(i * 7.31) * .8 });
+  function drawCoinThumb(t) {
+    co.fillStyle = '#0c0a07'; co.fillRect(0, 0, W, H);
+    // 顶灯串
+    for (let i = 0; i < 8; i++) {
+      const on = (Math.floor(t * 3) + i) % 3 !== 0;
+      co.fillStyle = on ? '#ffc85a' : '#5a4520';
+      co.fillRect(18 + i * 22, 5, 3, 3);
+    }
+    // 电子屏
+    co.fillStyle = '#0a0d12'; co.fillRect(30, 14, W - 60, 15);
+    co.strokeStyle = '#2a2f3a'; co.strokeRect(30.5, 14.5, W - 61, 14);
+    co.fillStyle = '#ffd23a';
+    for (let i = 0; i < 3; i++) co.fillRect(62 + i * 32 + (Math.floor(t * 2) % 4 === 0 && i === 1 ? 2 : 0), 18, 8, 7);
+    // 台面（透视梯形：后窄前宽）
+    const topY = 44, botY = 92, cxT = 96, topW = 118, botW = 172;
+    const halfW = u => (topW + (botW - topW) * u) / 2;
+    const rowY = u => topY + (botY - topY) * u;
+    co.fillStyle = '#2e2515';
+    co.beginPath();
+    co.moveTo(cxT - topW / 2, topY); co.lineTo(cxT + topW / 2, topY);
+    co.lineTo(cxT + botW / 2, botY); co.lineTo(cxT - botW / 2, botY);
+    co.closePath(); co.fill();
+    // 前沿发光缺口
+    const eg = .5 + .5 * Math.sin(t * 3);
+    co.strokeStyle = `rgba(255,90,60,${(.3 + eg * .3).toFixed(3)})`;
+    co.lineWidth = 2;
+    co.beginPath(); co.moveTo(cxT - 78, botY); co.lineTo(cxT + 78, botY); co.stroke();
+    co.lineWidth = 1;
+    // 币：u 从后(0)到前(1)，推板推进时走得快，越过前沿就下落
+    const adv = Math.sin(t * 2.2) * .5 + .5;
+    for (const c of pc) {
+      c.u += (0.0012 + adv * 0.0042) * (reduce ? 0 : 1);
+      if (c.u > 1.3) { c.u = Math.random() * .08; c.x = Math.sin(Math.random() * 9.7) * .8; }
+      const u = Math.min(1, c.u);
+      const y = rowY(u) + (c.u > 1 ? (c.u - 1) * 110 : 0);
+      const px = cxT + c.x * halfW(u) * .78;
+      const rx = 3.6 + u * 2.6;
+      // 影子
+      if (c.u <= 1) { co.fillStyle = 'rgba(0,0,0,.3)'; co.beginPath(); co.ellipse(px, rowY(u) + 2, rx * .9, rx * .45, 0, 0, Math.PI * 2); co.fill(); }
+      // 币身
+      co.fillStyle = c.u > 1 ? 'rgba(232,178,60,.55)' : '#e8b23c';
+      co.beginPath(); co.ellipse(px, y, rx, rx * .58, 0, 0, Math.PI * 2); co.fill();
+      co.strokeStyle = 'rgba(110,80,20,.8)';
+      co.beginPath(); co.ellipse(px, y, rx * .8, rx * .44, 0, 0, Math.PI * 2); co.stroke();
+    }
+    // 推板（横跨台面的发光条，随 adv 前后移动）
+    const pu = .12 + adv * .3;
+    const py = rowY(pu), phw = halfW(pu);
+    co.fillStyle = '#3d3323'; co.fillRect(cxT - phw, py - 8, phw * 2, 6);
+    co.fillStyle = `rgba(255,${(170 + eg * 60) | 0},60,${(.75 + eg * .25).toFixed(3)})`;
+    co.fillRect(cxT - phw, py - 3, phw * 2, 2.5);
+    // 侧壁
+    co.fillStyle = '#1a150e';
+    co.fillRect(cxT - topW / 2 - 4, topY, 4, botY - topY + 4);
+    co.fillRect(cxT + topW / 2, topY, 4, botY - topY + 4);
+    // 扫描线
+    co.fillStyle = 'rgba(0,0,0,.20)';
+    for (let yy = 0; yy < H; yy += 2) co.fillRect(0, yy, W, 1);
+  }
+
   let t0 = performance.now();
   function frame(now) {
     const t = (now - t0) / 1000;
-    drawSim(t); drawNeon(t); drawHarbor(t); drawStreet(t); drawNod(t);
+    drawSim(t); drawNeon(t); drawHarbor(t); drawStreet(t); drawNod(t); drawCoinThumb(t);
     if (!reduce) requestAnimationFrame(frame);
   }
   // 首帧【同步】画一次，别等 rAF：页面在后台标签里打开时浏览器根本不触发 rAF，
-  // 五张卡带就全是空白的，等切回来才突然出现。
+  // 六张卡带就全是空白的，等切回来才突然出现。
   frame(t0);
   if (!reduce) requestAnimationFrame(frame);
 })();
