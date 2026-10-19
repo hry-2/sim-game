@@ -61,8 +61,8 @@
     padding:8px 12px;display:flex;align-items:baseline;gap:10px;
   }
   .asset .k{font-size:12px;color:var(--muted)}
-  .asset .v{font-family:var(--disp);font-weight:700;font-size:20px;color:var(--gold)}
-  .asset.score .v{color:var(--ink);font-size:16px}
+  .asset .v{font-family:var(--disp);font-weight:700;font-size:20px;color:var(--gold);white-space:nowrap}
+  .asset.score .v{font-family:var(--disp);color:var(--ink);font-size:16px}
   .runinfo{text-align:center;font-size:11px;color:var(--dim);margin:2px 0 8px;letter-spacing:.04em}
   .runinfo b{color:var(--muted);font-weight:500}
 
@@ -321,7 +321,7 @@
       <tr><td>累计掉落</td><td id="pOut">0</td></tr>
       <tr><td>累计开奖</td><td id="pJack">0</td></tr>
     </table>
-    <button class="closebtn" data-close>继续</button>
+    <button class="closebtn" id="btnPauseCont">继续</button>
   </div>
 </div>
 
@@ -355,13 +355,15 @@ const $ = id => document.getElementById(id);
    再被推到最前缘掉下去，就是你的。主台面 y=0，推板最大前缘 ≈ 币堆后缘。  */
 const WORLD = {
   wallX: 1.34,          // 侧壁内沿（台子更宽）
-  baseBack: -0.45,      // 台面后缘（最远端）
-  pusherBack: 0.0,      // 推板大方块后缘（固定参考，方块从这里往前伸）
-  pusherLen: 1.5,       // 推板大方块长度（占台面一半的"整块"）
-  PUSH_AMP: 0.9,        // 推板行程（前伸量），行程 = 2*AMP，长
-  tableFront: 2.35,     // 前台面（币堆区）起点 ≈ 推板最大前缘
-  dropZ: 3.0,           // 前沿开口（掉落口）
-  frontZ: 3.2,          // 台面外沿
+  baseBack: -0.42,      // 台面后缘（最远端，后墙所在）
+  PUSH_AMP: 0.75,       // 推板行程（前伸量），行程 = 2*AMP
+  PUSH_TOP: 0.11,       // 推板顶面高出台面（≈1 枚币直径，看得出是个实体平台）
+  // 推板后缘 = pusherBack + sin*AMP，最大只到 pusherBack+AMP = baseBack：
+  // 推板永远贴着后墙，前伸时后面不会露出台面
+  pusherBack: -1.17,    // = baseBack - PUSH_AMP
+  pusherLen: 2.17,      // = tableFront - baseBack，保证后缘永远盖到后墙
+  tableFront: 1.75,     // 前台面（币堆区）起点 = 推板最大前缘
+  dropZ: 2.35,          // 前沿开口（掉落口）= 台面可见外沿：台面就铺到这里，不多铺
   coinR: 0.062,         // 币半径
   coinT: 0.026,         // 币厚
   maxCoins: 360
@@ -379,6 +381,12 @@ const S = {
   flashT: 0, jackpotT: 0
 };
 const coins = [];       // 台面上的币
+/* 只读调试钩子：供 tools/verify-pusher.js 断言物理状态，不参与游戏逻辑 */
+window.__coinpusher = { coins, S, WORLD,
+  // 调试：推板网格（pusherEdge.position.z 即当前推板前缘 pf）、相机、场景
+  get pusher() { return pusher; }, get pusherEdge() { return pusherEdge; },
+  get camera() { return camera; }, get scene() { return scene; },
+  get renderer() { return renderer; } };
 const dropLog = [];     // 最近掉落记录（连击用）
 
 /* ---------- 存档 ---------- */
@@ -443,7 +451,10 @@ function makeCoin(x, z, layer, type, h) {
     id: ++coinId, x, z, vx: 0, vz: 0,
     h: h || 0, type: type || 0, layer: layer || 0,
     state: 0, y: 0, vy: 0, spin: Math.random() * Math.PI * 2,
-    spinV: (Math.random() - 0.5) * 3, born: performance.now()
+    spinV: (Math.random() - 0.5) * 3, born: performance.now(),
+    bounces: 0,    // 落地回弹计数（首触散冲、二触轻响，最多弹 2 次）
+    plateMix: 0,   // 板面高度混合：1=在推板顶上，下板时按 dt*7 平滑淡出（消除高度瞬移）
+    wobT: 0        // 落定余摆强度：渲染侧指数衰减回平
   };
 }
 function coinValue(c) { return c.type === 2 ? 20 : c.type === 1 ? 5 : 1; }
@@ -452,9 +463,12 @@ function spawnPlayerCoin() {
   if (S.bal < 1) { sDeny(); flashText('余额不足', '#e05a3a', 17); stopAuto(); return false; }
   S.bal -= 1; S.totalIn += 1; S.energy = Math.min(100, S.energy + 0.3);
   const r = WORLD.coinR;
-  const x = S.pos * (WORLD.wallX - r - 0.06);
-  // 投币落在台面层级的推板大方块上（靠后），带一点向前速度，被推板一路推到币堆
-  const z = WORLD.pusherBack + 0.25 + Math.random() * 0.95;
+  let x = S.pos * (WORLD.wallX - r - 0.06);
+  if (!Number.isFinite(x)) x = 0;   // 守卫：坏位置不生成坏币
+  // 投币落在推板大方块上（靠后），带一点向前速度，被推板一路推到币堆
+  // 投币落在推板大方块上（靠后墙、推板永远盖得到的区域），带一点向前速度；
+  // 落点上限留出下落期间前滑（vz·下落时间）的余量，保证落地时币仍在推板上
+  const z = WORLD.baseBack + 0.15 + Math.random() * 0.42;
   const c = makeCoin(x, z, 0, Math.random() < 0.085 ? 1 : 0, 0);
   c.state = 1; c.y = 0.55; c.vy = 0; c.vz = 0.16;
   coins.push(c);
@@ -463,6 +477,18 @@ function spawnPlayerCoin() {
   return true;
 }
 function queueCoins(n) { S.queue += n; }
+
+/* 落地冲击把邻近币震开（首触散冲用） */
+function scatterNeighbors(c) {
+  for (const o of coins) {
+    if (o === c || o.state !== 0) continue;
+    const dx = o.x - c.x, dz = o.z - c.z, d2 = dx * dx + dz * dz;
+    if (d2 < 0.012 && d2 > 1e-6) {
+      const d = Math.sqrt(d2), k = 0.16 * (1 - d / 0.11);
+      o.vx += dx / d * k; o.vz += dz / d * k + 0.04;
+    }
+  }
+}
 
 /* 落到主台时的堆叠支撑：找邻近币的最高堆顶 */
 function supportHeight(x, z, r) {
@@ -567,14 +593,55 @@ function doTower() {
 }
 
 /* ---------- 物理 ---------- */
+/* 均匀网格：支撑查询与同层分离共用。
+   世界很小（x ±1.4，z -0.45..3.0），格边长 = 2r×1.02 ≥ 最大相互作用距离，
+   查 3×3 格即可覆盖全部接触对；原版每子步两两全扫描，360 枚 ≈ 39 万对/帧 */
+const GRID = {
+  cell: WORLD.coinR * 2 * 1.02,
+  x0: -WORLD.wallX - 0.12, z0: WORLD.baseBack - 0.12,
+  cw: 0, ch: 0, head: null,
+  next: new Int32Array(512)
+};
+GRID.cw = Math.ceil((2 * WORLD.wallX + 0.24) / GRID.cell) + 1;
+GRID.ch = Math.ceil((WORLD.dropZ + 0.14 - GRID.z0) / GRID.cell) + 1;
+GRID.head = new Int32Array(GRID.cw * GRID.ch);
+const sepBuf = [];   // 复用的台面币列表，避免逐子步分配
+
+function gridCell(x, z) {
+  let cx = Math.floor((x - GRID.x0) / GRID.cell);
+  let cz = Math.floor((z - GRID.z0) / GRID.cell);
+  if (!(cx >= 0)) cx = 0; else if (cx >= GRID.cw) cx = GRID.cw - 1;   // NaN 也落到 0，永不产出坏索引
+  if (!(cz >= 0)) cz = 0; else if (cz >= GRID.ch) cz = GRID.ch - 1;
+  return cz * GRID.cw + cx;
+}
+function gridBuild(arr) {
+  if (arr.length > GRID.next.length) GRID.next = new Int32Array(arr.length + 64);
+  GRID.head.fill(-1);
+  for (let i = 0; i < arr.length; i++) {
+    const c = arr[i];
+    if (!Number.isFinite(c.x) || !Number.isFinite(c.z)) continue;
+    const ci = gridCell(c.x, c.z);
+    GRID.next[i] = GRID.head[ci];
+    GRID.head[ci] = i;
+  }
+}
+
 let pushPhase = 0;
-const PUSH_PERIOD = 2.8;
+const PUSH_PERIOD = 4.2;  // 原 2.8 太快，推板扫掠看不清也来不及欣赏币堆运动
 const PUSH_AMP = WORLD.PUSH_AMP;   // 推板行程（前伸量），长
+const GRV = 7.5;   // 重力：原 3.4 太飘、落地像"贴"上去；调高后下落干脆，落地回弹也才有撞击速度
 function pusherFront() {
   return WORLD.pusherBack + WORLD.pusherLen + Math.sin(pushPhase) * PUSH_AMP;
 }
 
 function physicsStep(dt) {
+  /* 清除坐标损坏的币：NaN 会顺着分离/支撑传染全场，见到就回收退款（防御网） */
+  for (let i = coins.length - 1; i >= 0; i--) {
+    const c = coins[i];
+    if (Number.isFinite(c.x) && Number.isFinite(c.z) && Number.isFinite(c.y) && Number.isFinite(c.h)) continue;
+    coins.splice(i, 1);
+    S.bal += coinValue(c); S.totalOut += coinValue(c);
+  }
   pushPhase += dt * Math.PI * 2 / PUSH_PERIOD;
   const pf = pusherFront();
   const vpf = Math.cos(pushPhase) * WORLD.PUSH_AMP * (Math.PI * 2 / PUSH_PERIOD);
@@ -583,104 +650,158 @@ function physicsStep(dt) {
   /* -- 下落状态（投币 / 币塔 / 开奖币） -- */
   for (const c of coins) {
     if (c.state !== 1) continue;
-    c.vy -= 3.4 * dt;
+    c.vy -= GRV * dt;
     c.y += c.vy * dt;
     c.z += c.vz * dt; c.x += c.vx * dt;
     c.spin += c.spinV * dt;
-    if (c.y <= 0) {
+    // 落点支撑面：推板行程内=板面(+PUSH_TOP)，行程外=台面，再叠邻近币堆顶。
+    // 下落全程按支撑面判定，落定高度与最后一帧严格衔接，不会落地瞬间跳一下
+    const sup = supportHeight(c.x, c.z, r);
+    const overPlate = c.z < pf;
+    const surf = (overPlate ? WORLD.PUSH_TOP : 0) + sup;
+    if (c.y <= surf) {
+      const impact = -c.vy;
+      if (impact > 1.05 && (c.bounces || 0) < 2) {
+        // 落地轻弹一跳：把"啪地钉死"化成 小回弹→落定 两拍
+        c.bounces = (c.bounces || 0) + 1;
+        c.y = surf; c.vy = Math.min(impact * 0.3, 0.95);
+        if (c.bounces === 1) {
+          c.vz *= 0.5;   // 首触吃掉一半水平余速，弹起后不再平移乱窜
+          sCoinLand();
+          scatterNeighbors(c);
+        } else clack(0.7);
+        continue;
+      }
       c.state = 0; c.y = 0;
-      c.h = supportHeight(c.x, c.z, r);
+      c.h = sup;
+      c.plateMix = overPlate ? 1 : 0;   // 落在板上的币立即享有板面高度，下板时平滑落回
+      c.wobT = 1;                        // 落定余摆，渲染侧衰减回平
       c.z = Math.min(c.z, WORLD.dropZ - r * 0.5);
       c.x = Math.max(-WORLD.wallX + r, Math.min(WORLD.wallX - r, c.x));
       c.vx = 0; c.vz = 0; c.towerD = undefined;
-      sCoinLand();
-      for (const o of coins) {
-        if (o === c || o.state !== 0) continue;
-        const dx = o.x - c.x, dz = o.z - c.z, d2 = dx * dx + dz * dz;
-        if (d2 < 0.012 && d2 > 1e-6) {
-          const d = Math.sqrt(d2), k = 0.16 * (1 - d / 0.11);
-          o.vx += dx / d * k; o.vz += dz / d * k + 0.04;
-        }
-      }
+      if (c.bounces) clack(0.6);         // 弹过的：首触响过了，落定补一记轻响
+      else { sCoinLand(); scatterNeighbors(c); }
     }
   }
 
-  /* -- 台面 -- */
+  /* -- 台面 · 第一段：积分 + 推板力 + 边界 + 赢判定，同时收集台面币 -- */
+  const settled = sepBuf; settled.length = 0;
   for (const c of coins) {
     if (c.state !== 0) continue;
     c.vx *= Math.pow(0.14, dt); c.vz *= Math.pow(0.14, dt);
     c.x += c.vx * dt; c.z += c.vz * dt;
-    // 推板大方块：把币从后往前推
-    if (c.z < pf + r * 0.8) {
-      if (c.z < pf) {                 // 币在推板顶面上，被推板带着走
-        if (vpf > 0) c.z += vpf * dt;
-        if (c.vz < vpf) c.vz = vpf;
-      } else if (vpf > 0) {           // 刚过前缘，被推板前缘顶出去
-        c.vz += 0.9 * vpf * dt * 3 + 0.2 * dt;
-      }
+    // 推板大方块：只分两种关系——
+    // ① 币在推板上（z < pf，投币落点或被顶到板前缘前的）：整块前后都带着走；
+    // ② 前缘顶到币的后沿（z - r < pf）：把币往前顶出去，币始终留在台面上——
+    //    不许把台面上的币"铲"上板（所以 z ≥ pf 的币永远不获得板面高度）
+    if (c.z < pf) {
+      const zCarry = c.z + (vpf > 0 ? vpf * dt : 0);
+      // 携带微颤：锁步带着走的同时留一点前后蠕动；颤动不许把币拱出前缘（回钳 pf），越界照常翻落
+      const zShake = zCarry + (Math.random() - 0.5) * 0.36 * dt;
+      c.z = (zCarry < pf && zShake > pf) ? pf - 1e-6 : zShake;
+      if (c.vz < vpf) c.vz = vpf;
+      c.vx += (Math.random() - 0.5) * 0.25 * dt;
+      c.spin += (Math.random() - 0.5) * 5 * dt;   // 推挤中的自旋漂移：币不再像磁吸平移
+    } else if (vpf > 0 && c.z - r < pf) {
+      c.z = pf + r;
+      if (c.vz < vpf) c.vz = vpf;
+      c.spin += (Math.random() - 0.5) * 5 * dt;
     }
-    if (vpf > 0 && c.z > pf && c.z < WORLD.dropZ - 0.12) c.vz += 0.32 * dt; // 前推传导
+    // 板面高度过渡：上板瞬时（投币落板本就在板上），下板按 dt*7 用 0.14s 平滑落回台面——
+    // 消除回程板跨过币时 realY 布尔翻转造成的一帧高度瞬移
+    if (c.z < pf) c.plateMix = 1;
+    else if (c.plateMix > 0) c.plateMix = Math.max(0, c.plateMix - dt * 7);
+    if (c.wobT > 0) { c.wobT *= Math.pow(0.05, dt); if (c.wobT < 0.01) c.wobT = 0; }
+    // 前推传导：只作用于"传输区"（推板前缘 → 币堆区起点）。
+    // 币堆区的币只靠接触传力——推板怼到堆后缘才动，不投币时币堆不会自己漂到前沿掉光
+    if (vpf > 0 && c.z > pf && c.z < WORLD.tableFront) c.vz += 0.32 * dt;
     if (S.shakeT > 0) { c.vx += (Math.random() - 0.5) * 0.35 * dt * 60 * 0.05; c.vz += (Math.random() - 0.3) * 0.35 * dt * 60 * 0.05; }
     if (c.x < -WORLD.wallX + r) { c.x = -WORLD.wallX + r; c.vx = Math.abs(c.vx) * 0.3; }
     if (c.x >  WORLD.wallX - r) { c.x =  WORLD.wallX - r; c.vx = -Math.abs(c.vx) * 0.3; }
     if (c.z < WORLD.baseBack + r) { c.z = WORLD.baseBack + r; c.vz = Math.abs(c.vz) * 0.2; }
-    if (c.z > WORLD.dropZ) { winCoin(c); c.state = 2; c.vy = 0.4; c.vz = 0.5; }
-    if (c.h > 0) {
-      let sup = 0;
-      for (const o of coins) {
-        if (o === c || o.state !== 0) continue;
-        if (o.h >= c.h - T * 0.5) {
+    if (c.z > WORLD.dropZ) { winCoin(c); c.state = 2; c.vy = 0.4; c.vz = 0.5; continue; }
+    settled.push(c);
+  }
+
+  /* -- 台面 · 第二段：堆叠支撑（邻近格查询，原版是每枚币扫全场） -- */
+  gridBuild(settled);
+  const supR2 = (r * 1.6) * (r * 1.6);
+  for (const c of settled) {
+    if (c.h <= 0) continue;
+    let sup = 0;
+    const ci = gridCell(c.x, c.z);
+    const gcx = ci % GRID.cw, gcz = (ci / GRID.cw) | 0;
+    for (let oz = -1; oz <= 1; oz++) {
+      for (let ox = -1; ox <= 1; ox++) {
+        const nx = gcx + ox, nz = gcz + oz;
+        if (nx < 0 || nx >= GRID.cw || nz < 0 || nz >= GRID.ch) continue;
+        for (let j = GRID.head[nz * GRID.cw + nx]; j !== -1; j = GRID.next[j]) {
+          const o = settled[j];
+          if (o === c || o.h < c.h - T * 0.5) continue;
           const dx = o.x - c.x, dz = o.z - c.z;
-          if (dx * dx + dz * dz < (r * 1.6) * (r * 1.6)) { sup = Math.max(sup, o.h + T); break; }
+          if (dx * dx + dz * dz < supR2 && o.h + T > sup) sup = o.h + T;
         }
       }
-      if (c.h > sup + 0.002) c.h = Math.max(sup, c.h - T * 4 * dt);
     }
+    if (c.h > sup + 0.002) c.h = Math.max(sup, c.h - T * 4 * dt);
   }
-  separateLayer(2);
+  separateLayer(settled, 2);
 
   /* -- 赢得出场动画 -- */
   for (let i = coins.length - 1; i >= 0; i--) {
     const c = coins[i];
     if (c.state !== 2) continue;
-    c.vy -= 3.4 * dt;
+    c.vy -= GRV * dt;
     c.y += c.vy * dt; c.z += c.vz * dt; c.spin += 5 * dt;
     if (c.y < -0.9) coins.splice(i, 1);
   }
 
-  /* -- 币数上限 -- */
-  const settled = coins.filter(c => c.state === 0);
-  if (settled.length > WORLD.maxCoins) {
-    settled.sort((a, b) => a.born - b.born);
-    const n = settled.length - WORLD.maxCoins;
-    for (let i = 0; i < n; i++) {
-      const c = settled[i];
-      S.bal += coinValue(c); S.totalOut += coinValue(c);
-      const idx = coins.indexOf(c); if (idx >= 0) coins.splice(idx, 1);
+  /* -- 币数上限（先快查长度，超了才过滤排序） -- */
+  if (coins.length > WORLD.maxCoins) {
+    const over = coins.filter(c => c.state === 0);
+    if (over.length > WORLD.maxCoins) {
+      over.sort((a, b) => a.born - b.born);
+      const n = over.length - WORLD.maxCoins;
+      for (let i = 0; i < n; i++) {
+        const c = over[i];
+        S.bal += coinValue(c); S.totalOut += coinValue(c);
+        const idx = coins.indexOf(c); if (idx >= 0) coins.splice(idx, 1);
+      }
+      updateHUD();
     }
-    updateHUD();
   }
 }
 
-/* 同层圆盘分离（单层台面） */
-function separateLayer(iters) {
+/* 同层圆盘分离（单层台面）：网格邻域查询。
+   前向偏移集：本格只取 j>i，外格取这 4 个方向——每对币每迭代恰好处理一次，
+   任何一对相邻格的关系都恰好被正反两个方向之一覆盖 */
+const SEP_OFFS = [[0, 0], [1, -1], [1, 0], [1, 1], [0, 1]];
+function separateLayer(arr, iters) {
   const r2 = WORLD.coinR * 2;
   const minD2 = r2 * r2 * 0.92;
-  const arr = coins.filter(c => c.state === 0);
   for (let it = 0; it < iters; it++) {
+    gridBuild(arr);
     for (let i = 0; i < arr.length; i++) {
       const a = arr[i];
-      for (let j = i + 1; j < arr.length; j++) {
-        const b = arr[j];
-        const dx = b.x - a.x, dz = b.z - a.z;
-        const d2 = dx * dx + dz * dz;
-        if (d2 >= minD2 || d2 < 1e-9) continue;
-        if (Math.abs(a.h - b.h) > WORLD.coinT * 1.4) continue;
-        const d = Math.sqrt(d2), push = (r2 - d) / d * 0.5;
-        const px = dx * push, pz = dz * push;
-        a.x -= px; a.z -= pz; b.x += px; b.z += pz;
-        a.vx -= px * 4; a.vz -= pz * 4; b.vx += px * 4; b.vz += pz * 4;
-        if (Math.abs(px) + Math.abs(pz) > 0.004 && it === 0 && Math.random() < 0.08) clack(0.3);
+      const ci = gridCell(a.x, a.z);
+      const acx = ci % GRID.cw, acz = (ci / GRID.cw) | 0;
+      for (let k = 0; k < SEP_OFFS.length; k++) {
+        const nx = acx + SEP_OFFS[k][0], nz = acz + SEP_OFFS[k][1];
+        if (nx < 0 || nx >= GRID.cw || nz < 0 || nz >= GRID.ch) continue;
+        const same = SEP_OFFS[k][0] === 0 && SEP_OFFS[k][1] === 0;
+        for (let j = GRID.head[nz * GRID.cw + nx]; j !== -1; j = GRID.next[j]) {
+          if (same && j <= i) continue;
+          const b = arr[j];
+          const dx = b.x - a.x, dz = b.z - a.z;
+          const d2 = dx * dx + dz * dz;
+          if (!(d2 < minD2) || d2 < 1e-9) continue;   // 非接触不推；NaN 也在这里被挡掉
+          if (Math.abs(a.h - b.h) > WORLD.coinT * 1.4) continue;
+          const d = Math.sqrt(d2), push = (r2 - d) / d * 0.5;
+          const px = dx * push, pz = dz * push;
+          a.x -= px; a.z -= pz; b.x += px; b.z += pz;
+          a.vx -= px * 4; a.vz -= pz * 4; b.vx += px * 4; b.vz += pz * 4;
+          if (Math.abs(px) + Math.abs(pz) > 0.004 && it === 0 && Math.random() < 0.08) clack(0.3);
+        }
       }
     }
   }
@@ -719,8 +840,8 @@ function initThree() {
 
   // 透视相机：斜俯视整个台面，看得见后方的大推板把前方的币堆往前推
   camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-  camera.position.set(0, 2.7, 4.4);
-  camera.lookAt(0, -0.05, 1.5);
+  camera.position.set(0, 2.3, 4.6);
+  camera.lookAt(0, 0.35, 1.1);
 
   // 灯光
   scene.add(new THREE.AmbientLight(0xffe6c0, 0.85));
@@ -773,18 +894,26 @@ function buildCabinet() {
   const matWood = new THREE.MeshStandardMaterial({ color: 0x7a5a2e, roughness: 0.6, metalness: 0.15 });
   const matDark = new THREE.MeshStandardMaterial({ color: 0x2a2118, roughness: 0.85 });
 
-  // 固定台面底板：从后缘铺到外沿，顶面 y=0（推板就在这块台面上滑动）
-  const baseDepth = WORLD.frontZ - WORLD.baseBack;
+  // 固定台面底板：从后缘铺到掉落口（dropZ）为止。
+  // 不多铺：dropZ 以外没有物理支撑，多铺的那截会让赢币下落时从台面里穿出来
+  const baseDepth = WORLD.dropZ - WORLD.baseBack;
   const base = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX, 0.3, baseDepth), matFelt);
-  base.position.set(0, -0.15, (WORLD.baseBack + WORLD.frontZ) / 2);
+  base.position.set(0, -0.15, (WORLD.baseBack + WORLD.dropZ) / 2);
   scene.add(base);
 
-  // 左右侧壁
+  // 左/右侧壁：跟着台面收到掉落口，前沿敞开（币从正面掉出去）
   for (const sx of [-1, 1]) {
     const side = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, baseDepth), matDark);
-    side.position.set(sx * (wallX + 0.05), 0.1, (WORLD.baseBack + WORLD.frontZ) / 2);
+    side.position.set(sx * (wallX + 0.05), 0.1, (WORLD.baseBack + WORLD.dropZ) / 2);
     scene.add(side);
   }
+
+  // 前沿黄铜包边：给台面收个口，免得前沿是一刀切开的毛边。
+  // 顶面与台面平齐、只向前伸出 0.014，不挡币路（币是腾空翻出去的）
+  const lip = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX, 0.03, 0.014),
+    new THREE.MeshStandardMaterial({ color: 0xc9a24a, metalness: 0.7, roughness: 0.35 }));
+  lip.position.set(0, -0.015, WORLD.dropZ + 0.007);
+  scene.add(lip);
 
   // 后墙
   const back = new THREE.Mesh(new THREE.BoxGeometry(2 * (wallX + 0.1), 1.7, 0.06),
@@ -802,11 +931,12 @@ function buildCabinet() {
   screen.position.set(0, 1.18, WORLD.baseBack + 0.05);
   scene.add(screen);
 
-  // 可动推板大方块：占满宽度、长度长、顶面与台面平齐，整块前后平移
-  pusher = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX + 0.06, 0.32, WORLD.pusherLen),
-    new THREE.MeshStandardMaterial({ color: 0xb9863a, metalness: 0.55, roughness: 0.45, emissive: 0x3a2600, emissiveIntensity: 0.3 }));
+  // 可动推板大方块：厚实的钢灰色金属块（顶面亮、前缘面背光更暗），一半机身藏在台面下
+  pusher = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX + 0.06, 0.5 + WORLD.PUSH_TOP, WORLD.pusherLen),
+    new THREE.MeshStandardMaterial({ color: 0x9aa2ac, metalness: 0.55, roughness: 0.42 }));
   scene.add(pusher);
-  pusherEdge = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX + 0.06, 0.06, 0.04),
+  // 前缘黄铜压条：顶面与推板面平齐，币压过不穿模
+  pusherEdge = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX + 0.06, 0.03, 0.04),
     new THREE.MeshStandardMaterial({ color: 0xffb13c, emissive: 0xff8a1a, emissiveIntensity: 1.2, roughness: 0.4 }));
   scene.add(pusherEdge);
 
@@ -820,7 +950,14 @@ function buildCabinet() {
 }
 
 function realY(c) {
-  if (c.state === 0) return c.h + WORLD.coinT / 2;
+  const pf = pusherFront();
+  if (c.state === 0) {
+    // 板面高度走 plateMix 过渡（上板瞬时、下板 0.14s 淡出）：
+    // 消除原 onPusher 布尔翻转导致回程板跨过币时高度 1 帧瞬移的生硬感
+    return c.h + WORLD.coinT / 2 + WORLD.PUSH_TOP * (c.plateMix || 0);
+  }
+  // 下落中的币：落点在推板上时以板面为下限（物理侧按支撑面判定，这里留兜底）
+  if (c.z < pf && c.y < WORLD.PUSH_TOP) return WORLD.PUSH_TOP + WORLD.coinT / 2;
   return c.y + WORLD.coinT / 2;
 }
 
@@ -835,6 +972,17 @@ function syncCoins() {
     }
     m.position.set(c.x, realY(c), c.z);
     m.rotation.y = c.spin;
+    if (c.state !== 0) {
+      // 下落/出场：随自旋相位翻滚摇摆，落体不再是刚性平移
+      m.rotation.x = Math.sin(c.spin * 2.6) * 0.3;
+      m.rotation.z = Math.cos(c.spin * 2.1) * 0.3;
+    } else if (c.wobT > 0) {
+      // 刚落定的余摆：随 wobT 指数衰减回平
+      m.rotation.x = Math.sin(c.spin * 2.6) * 0.3 * c.wobT;
+      m.rotation.z = Math.cos(c.spin * 2.1) * 0.3 * c.wobT;
+    } else {
+      m.rotation.x = 0; m.rotation.z = 0;
+    }
   }
   for (const [id, m] of coinMeshMap) {
     if (!seen.has(id)) { scene.remove(m); coinMeshMap.delete(id); }
@@ -863,13 +1011,17 @@ function drawSeg7(g, x, y, w, h, n, onCol) {
   seg(x, y + t + gap / 2, t, h / 2 - t - gap, s[5]);
   seg(x + t, y + h - t, w - 2 * t, t, s[6]);
 }
+let dispKey = '';   // 节流：数字没变、4Hz 闪烁节拍没走就不重绘（原版每帧全画+上传纹理）
 function updateDisp(t) {
   if (!dispCtx) return;
+  const prog = Math.min(300, S.spProgress);
+  const key = prog + ':' + Math.floor(t * 4);
+  if (key === dispKey) return;
+  dispKey = key;
   const g = dispCtx;
   g.fillStyle = '#0a0d12'; g.fillRect(0, 0, 300, 110);
   // 边框
   g.strokeStyle = '#2a2f3a'; g.lineWidth = 3; g.strokeRect(4, 4, 292, 102);
-  const prog = Math.min(300, S.spProgress);
   const digits = String(Math.min(999, prog)).padStart(3, '0').split('').map(Number);
   const dw = 280 / 3;
   for (let i = 0; i < 3; i++) {
@@ -901,8 +1053,10 @@ function render(t, dt) {
   // 推板大方块：整体前后平移（行程长），前缘推到币堆
   const pp = Math.sin(pushPhase);
   const center = WORLD.pusherBack + WORLD.pusherLen / 2 + pp * PUSH_AMP;
-  pusher.position.set(0, -0.154, center);
-  pusherEdge.position.set(0, 0.031, pf);
+  // 箱高 0.5+PUSH_TOP，中心必须是 PUSH_TOP/2-0.25 才能让顶面落在 PUSH_TOP 上
+  // （原先写 PUSH_TOP-0.25，顶面变成 1.5×PUSH_TOP，落地币被钢面整个埋住看不见）
+  pusher.position.set(0, WORLD.PUSH_TOP / 2 - 0.25, center);   // 顶面 = PUSH_TOP
+  pusherEdge.position.set(0, WORLD.PUSH_TOP - 0.015, pf);  // 压条顶面与推板面平齐
 
   // 电子屏
   updateDisp(t);
@@ -922,8 +1076,8 @@ function render(t, dt) {
   let ox = 0, oy = 0;
   if (S.shakeT > 0) { ox = (Math.random() - 0.5) * 0.06; oy = (Math.random() - 0.5) * 0.04; }
   if (S.jackpotT > 0) { ox += (Math.random() - 0.5) * 0.04; oy += (Math.random() - 0.5) * 0.03; }
-  camera.position.set(0 + ox, 3.4 + oy, 4.1);
-  camera.lookAt(0, -0.12, 1.22);
+  camera.position.set(0 + ox, 2.3 + oy, 4.6);
+  camera.lookAt(0, 0.35, 1.1);
 
   // JACKPOT 金光（HTML 叠加）
   $('jp').style.opacity = (S.jackpotT > 0 ? (S.jackpotT / 2.2 * 0.6) : 0).toFixed(3);
@@ -934,7 +1088,7 @@ function render(t, dt) {
 /* ---------- HUD ---------- */
 function updateHUD() {
   $('uiBal').textContent = S.bal;
-  $('uiScore').textContent = S.score >= 10000 ? (S.score / 1000).toFixed(1) + 'K' : S.score;
+  $('uiScore').textContent = S.score.toLocaleString('en-US');   // 完整显示，不再缩写成 K
   $('uiEnergy').textContent = Math.floor(S.energy);
   $('uiCombo').textContent = S.combo;
   $('uiMult').textContent = S.mult.toFixed(1) + '×';
@@ -955,6 +1109,7 @@ function stopAuto() {
 
 /* ---------- 主循环 ---------- */
 let last = performance.now();
+let lastHudT = 0;
 function loop(now) {
   requestAnimationFrame(loop);
   let dt = Math.min(0.05, (now - last) / 1000);
@@ -977,6 +1132,8 @@ function loop(now) {
       }
     }
     S.energy = Math.min(100, S.energy + 1.5 * dt);
+    // 台面计数/能量这类"会自己变"的数字不等事件，半秒刷一次（原版不投币就冻结）
+    if (t - lastHudT >= 0.5) { lastHudT = t; updateHUD(); }
     if (S.comboTimer > 0) {
       S.comboTimer -= dt;
       if (S.comboTimer <= 0) { S.combo = 0; S.mult = 1; updateHUD(); }
@@ -1027,6 +1184,8 @@ $('btnPause').addEventListener('click', () => {
   sButton();
 });
 $('btnHow').addEventListener('click', () => { $('mHow').classList.add('show'); sButton(); });
+// 暂停弹窗的"继续"必须真的恢复运行（光关弹窗会把机器留在暂停态）
+$('btnPauseCont').addEventListener('click', () => { if (S.paused) $('btnPause').click(); });
 $('btnBook').addEventListener('click', () => { $('mBook').classList.add('show'); sButton(); });
 $('btnPrize').addEventListener('click', () => { $('mPrize').classList.add('show'); sButton(); });
 $('btnReset').addEventListener('click', () => { $('mReset').classList.add('show'); sButton(); });
@@ -1058,9 +1217,9 @@ cv.addEventListener('pointerdown', e => {
   const ny = -((e.clientY - rect.top) / rect.height * 2 - 1);
   const ray = new THREE.Raycaster();
   ray.setFromCamera(new THREE.Vector2(nx, ny), camera);
-  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -WORLD.pushY); // 推板顶面 y=pushY
+  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // 台面 y=0（推板顶面与台面平齐）
   const hit = new THREE.Vector3();
-  if (ray.ray.intersectPlane(plane, hit)) {
+  if (ray.ray.intersectPlane(plane, hit) && Number.isFinite(hit.x)) {
     const r = WORLD.coinR;
     const x = Math.max(-(WORLD.wallX - r), Math.min(WORLD.wallX - r, hit.x));
     S.pos = x / (WORLD.wallX - r - 0.06);
@@ -1081,37 +1240,45 @@ window.addEventListener('keydown', e => {
 window.addEventListener('resize', resizeThree);
 window.addEventListener('orientationchange', resizeThree);
 
-/* ---------- 开台：铺初始币堆（网格铺设、真堆叠成丘，集中在台面前段） ---------- */
+/* ---------- 开台：铺初始币堆 ----------
+   单层世界：推板大方块顶面高出台面 PUSH_TOP，推板后缘永远贴到台面后缘
+   （baseBack），前缘最大扫到 tableFront（+接触带 r·0.8）。
+   币堆就种在这个前缘与掉落口之间的"容器"里：后缘贴着推板的触及带（喂得进）、
+   前缘留一小段空档（不自己掉）。两个稳定性关键：
+   - 整列抖动、列内各层严格对齐（同列币距离为 0，分离约束直接跳过）——
+     否则叠层币会被横向摇散，开局雪崩式把币堆推下前沿；
+   - 前后左右的列距抖动保持温和，自平衡的位移远小于到掉落口的空档。 */
 function seedCoins() {
   coins.length = 0;
   const r = WORLD.coinR, T = WORLD.coinT;
   let rnd = 524287;
   const rand = () => (rnd = (rnd * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
-  // 只在前半段铺一座厚币堆：越靠近掉落口层数越多，后段留空——
-  // 一眼能看出"币从推板掉到台子 → 滑向前面的堆 → 被推下前沿"
+  const pusherMaxFront = WORLD.pusherBack + WORLD.pusherLen + WORLD.PUSH_AMP; // = tableFront
+  const zBack = pusherMaxFront + 0.02;                 // 后缘在推板触及带（≤ pf+r·0.8）内
+  const zFront = zBack + 3 * (r * 2.15);               // 4 排；最前币缘离掉落口留余量
   const dx = r * 2.0, dz = r * 2.15;
-  const zBack = WORLD.pushZ1 + 1.05, zFront = WORLD.dropZ - 0.62;
   const xSpan = WORLD.wallX - r - 0.05;
-  for (let z = zBack; z <= zFront; z += dz) {
-    const t = (z - zBack) / (zFront - zBack);            // 0 后 → 1 前
-    const layers = 1 + Math.round(t * 2.5);              // 后 1 层 → 前 3~4 层
+  for (let z = zBack; z <= zFront + 1e-9; z += dz) {
+    const t = (z - zBack) / (zFront - zBack);          // 0 后 → 1 前
+    const layers = 1 + Math.round(t * 2.5);            // 后 1 层 → 前 4 层
     for (let x = -xSpan; x <= xSpan; x += dx) {
-      if (rand() < 0.10) continue;                       // 留点空洞自然些
+      if (rand() < 0.10) continue;                     // 留点空洞自然些
+      const cx = Math.max(-xSpan, Math.min(xSpan, x + (rand() - 0.5) * dx * 0.35));
+      const cz = z + (rand() - 0.5) * dz * 0.45;
       for (let L = 0; L < layers; L++) {
-        if (L > 0 && rand() < 0.35) continue;            // 上层稀一点
-        const c = makeCoin(
-          Math.max(-xSpan, Math.min(xSpan, x + (rand() - 0.5) * dx * 0.7)),
-          z + (rand() - 0.5) * dz * 0.5, 0, rand() < 0.05 ? 1 : 0, 0);
+        // 上层稀一点：从缺层开始整列封顶（continue 会造出悬空币——
+        // 没有正下方支撑就下沉到同坐标重合，而重合的币分离约束是跳过的）
+        if (L > 0 && rand() < 0.35) break;
+        const c = makeCoin(cx, cz, 0, rand() < 0.05 ? 1 : 0, 0);  // 整列对齐
         c.h = T * L;
         coins.push(c);
       }
     }
   }
-  // 推板层上也放少许币，开局就有"推板在推"的画面
-  for (let i = 0; i < 12; i++) {
+  // 推板顶上也放少许币（靠后墙、推板永远盖得到的区域）
+  for (let i = 0; i < 14; i++) {
     const x = (rand() * 2 - 1) * (WORLD.wallX - r - 0.02);
-    const c = makeCoin(x, WORLD.pushZ0 + 0.08 + rand() * 0.24, 1, rand() < 0.06 ? 1 : 0);
-    c.y = WORLD.pushY;
+    const c = makeCoin(x, WORLD.baseBack + 0.12 + rand() * 0.5, 0, rand() < 0.06 ? 1 : 0, 0);
     coins.push(c);
   }
   // 首次构建金币 mesh

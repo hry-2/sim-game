@@ -25,6 +25,21 @@ const path = require('path');
   }));
   console.log('before:', JSON.stringify(before));
 
+  // 台面必须真的铺出币堆，且全场坐标有限。
+  // （回归史：seedCoins 引用不存在的旧常量 → 开局空台；NaN 沿分离约束传染全场 →
+  //   投出的币落地即蒸发，而旧断言全部 PASS——这两条就是补这个盲区的。）
+  const phys0 = await page.evaluate(() => {
+    const d = window.__coinpusher;
+    return {
+      total: d.coins.length,
+      bad: d.coins.filter(c => !Number.isFinite(c.x) || !Number.isFinite(c.z)).length
+    };
+  });
+  const seedOk = phys0.total >= 100;
+  const clean0 = phys0.bad === 0;
+  console.log('seeded pile >= 100:', seedOk ? 'PASS' : 'FAIL', '(' + phys0.total + ')');
+  console.log('no NaN coins at start:', clean0 ? 'PASS' : 'FAIL', '(' + phys0.bad + ')');
+
   // 投 5 枚（分批下落）
   await page.click('#btnDrop5');
   await page.waitForTimeout(2500);
@@ -35,6 +50,14 @@ const path = require('path');
     paused: document.querySelector('.modal.show') !== null
   }));
   console.log('after :', JSON.stringify(after));
+
+  // 投币落地后依然不能出现 NaN（落地是传染发生的时机）
+  const phys1 = await page.evaluate(() => {
+    const d = window.__coinpusher;
+    return { bad: d.coins.filter(c => !Number.isFinite(c.x) || !Number.isFinite(c.z)).length };
+  });
+  const clean1 = phys1.bad === 0;
+  console.log('no NaN after drops:', clean1 ? 'PASS' : 'FAIL', '(' + phys1.bad + ')');
 
   // 币堆就在前沿附近，投入的币很快会被推下前沿赢回一部分：
   // 余额净变化应介于 -5（全亏）与 +30（连赢回血）之间；投入必须 +5；台面数应发生变化
@@ -69,6 +92,19 @@ const path = require('path');
   const kb = await page.evaluate(() => +document.getElementById('uiIn').textContent);
   console.log('keyboard coin:', kb === after.in + 1 ? 'PASS' : 'FAIL', '(' + kb + ')');
 
+  // 点击机台选位：点左侧 → 落点应变为有限的负数
+  // （回归史：射线平面用了不存在的 WORLD.pushY，点击静默失效）
+  const pos = await page.evaluate(() => {
+    const cv = document.getElementById('cv');
+    const r = cv.getBoundingClientRect();
+    cv.dispatchEvent(new PointerEvent('pointerdown', {
+      clientX: r.left + r.width * 0.25, clientY: r.top + r.height * 0.5, bubbles: true
+    }));
+    return window.__coinpusher.S.pos;
+  });
+  const clickOk = Number.isFinite(pos) && pos < -0.05;
+  console.log('canvas click picks spot:', clickOk ? 'PASS' : 'FAIL', '(' + pos + ')');
+
   // ---- 首页 ----
   const home = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.goto(home);
@@ -90,7 +126,8 @@ const path = require('path');
   console.log('runtime errors:', runtimeErrors.length === 0 ? 'NONE (PASS)' : runtimeErrors.join(' | '));
 
   const allPass = okBal && okIn && okCoins && three.lib && !three.warn && three.gl
-    && saved && cartExists && thumb > 100 && errors.length === 0;
+    && saved && cartExists && thumb > 100 && errors.length === 0
+    && seedOk && clean0 && clean1 && clickOk;
   console.log(allPass ? '\nALL PASS' : '\nSOME FAILED');
   await browser.close();
   process.exit(allPass ? 0 : 1);
