@@ -60,6 +60,23 @@
     font-family:var(--pix);font-size:11px;letter-spacing:.22em;
     color:var(--dim);text-transform:uppercase;
   }
+  /* 币袋：全柜通用的那一袋币，挂在顶栏右侧 */
+  .purse{
+    margin-left:auto;display:flex;align-items:baseline;gap:8px;
+    padding:7px 12px 8px;text-decoration:none;
+    background:#0d110f;border:1px solid var(--line);
+    box-shadow:inset 0 0 0 1px rgba(255,176,58,.07);
+    transition:border-color .16s,background .16s;
+  }
+  .purse:hover{border-color:rgba(255,176,58,.5);background:#121714}
+  .purse .k{font-family:var(--pix);font-size:10px;letter-spacing:.18em;color:var(--dim)}
+  .purse b{
+    font-family:var(--disp);font-weight:700;font-size:22px;line-height:1;
+    color:var(--coin);text-shadow:0 0 14px rgba(255,207,77,.35);
+    font-variant-numeric:tabular-nums;
+  }
+  .purse .u{font-size:11px;color:var(--muted)}
+
   .rule{
     margin:18px 0 0;height:3px;
     background:linear-gradient(90deg,var(--amber),rgba(255,176,58,.15) 40%,transparent 70%);
@@ -175,13 +192,16 @@
     <div class="marquee">
       <h1>游戏柜</h1>
       <span class="en">arcade cabinet / 6 titles</span>
+      <a class="purse" href="games/coin-pusher/index.html" title="币袋：全柜通用，聚宝盆里赢">
+        <span class="k">币袋</span><b id="purseNum">300</b><span class="u">币</span>
+      </a>
     </div>
     <div class="rule"></div>
     <div class="rule"></div>
     <p class="lede">
       六个自己写的网页游戏。都是 <b>单个 HTML 文件</b>——没有构建步骤、没有 npm 依赖、
       美术和音效全部由代码生成，双击就能跑，扔到任何静态托管上也一样。
-      挑一个开始玩。
+      挑一个开始玩。<b>币袋</b>里的币全柜通用：在聚宝盆里赢来的，存进同一个袋子。
     </p>
   </header>
 
@@ -332,7 +352,7 @@
         <div class="spec">
           <div><span class="k">操作</span><span class="v"><kbd>空格</kbd> 投币 · <kbd>←</kbd><kbd>→</kbd> 挪落点 · <kbd>S</kbd> 震台 · <kbd>T</kbd> 币塔 · 手机全触控</span></div>
           <div><span class="k">看点</span><span class="v">连锁掉落：一枚币下去，半排在动；连击断在第四枚最难受</span></div>
-          <div><span class="k">机台</span><span class="v">永久运行 · 余额 / 积分 / 电子屏进度存档，刷新不丢</span></div>
+          <div><span class="k">机台</span><span class="v">永久运行 · 赢的币进<b>币袋</b>（全柜通用）· 积分 / 电子屏进度存档，刷新不丢</span></div>
         </div>
         <div class="go">进入</div>
       </div>
@@ -350,6 +370,11 @@
       <p>精灵图、音效、关卡数据全部内嵌或由代码现场生成。没有加载失败，没有跨域问题，一个文件就是完整的游戏。</p>
     </div>
     <div class="note">
+      <h4>币袋</h4>
+      <p>聚宝盆里赢的币进同一个袋子，存在这台浏览器里（<code>arcade.wallet.v1</code>）；
+         顶栏显示的就是它。以后接进来的机台读写的也是它。</p>
+    </div>
+    <div class="note">
       <h4>授权</h4>
       <p>源代码 MIT；<code>assets/</code> 下的美术与剧情数据为专有，保留一切权利。</p>
     </div>
@@ -365,6 +390,29 @@
 (() => {
   'use strict';
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- 街机币袋（和 games/coin-pusher 共用一份 localStorage）----
+     'arcade.wallet.v1' = { v:1, coins:<int>, t:<ms> }，契约：coins 是整数、非负。
+     首页只显示（第一次进来时播下 300 的初始币），真正的读写在机台里。 */
+  const WALLET_KEY = 'arcade.wallet.v1', WALLET_SEED = 300;
+  function walletRead() {
+    try {
+      const w = JSON.parse(localStorage.getItem(WALLET_KEY));
+      if (w && Number.isFinite(w.coins)) return w;
+    } catch (e) {}
+    return null;
+  }
+  const purseEl = document.getElementById('purseNum');
+  function renderPurse() {
+    const w = walletRead();
+    if (purseEl) purseEl.textContent = Math.round(w ? w.coins : WALLET_SEED).toLocaleString('en-US');
+  }
+  if (!walletRead()) {
+    try { localStorage.setItem(WALLET_KEY, JSON.stringify({ v: 1, coins: WALLET_SEED, t: Date.now() })); } catch (e) {}
+  }
+  renderPurse();
+  // 别的标签页在机台里花/赢了币，这边跟着变
+  window.addEventListener('storage', e => { if (e.key === WALLET_KEY) renderPurse(); });
 
   /* ---- 卡带缩略图：程序化像素动画（192x108 内部分辨率） ---- */
   const W = 192, H = 108;

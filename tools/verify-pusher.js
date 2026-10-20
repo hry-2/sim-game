@@ -1,4 +1,4 @@
-// 聚宝盆冒烟测试：加载无错、投币扣余额、台面币数变化、存档写入、首页缩略图绘制
+// 聚宝盆冒烟测试：加载无错、投币扣余额、台面币数变化、存档写入、币袋同步、首页缩略图绘制
 const { chromium } = require('playwright');
 const path = require('path');
 
@@ -13,8 +13,11 @@ const path = require('path');
   await page.goto(url);
   await page.waitForTimeout(1200);
 
-  // 清档，从确定状态开始
-  await page.evaluate(() => localStorage.removeItem('coinpusher.jubaopen.v1'));
+  // 清档，从确定状态开始（余额现在记在全柜通用的币袋里，两处都要清）
+  await page.evaluate(() => {
+    localStorage.removeItem('coinpusher.jubaopen.v1');
+    localStorage.removeItem('arcade.wallet.v1');
+  });
   await page.reload();
   await page.waitForTimeout(800);
 
@@ -73,6 +76,15 @@ const path = require('path');
   const okCoins = after.coins !== before.coins || after.bal !== before.bal; // 有币落/被推走/赢回，物理在动
   console.log('balance in [-5,+30] :', okBal ? 'PASS' : 'FAIL');
   console.log('invested +5:', okIn ? 'PASS' : 'FAIL');
+
+  // 币袋（全柜通用）：机台里的余额必须落在共享的那份账本上
+  // （回归史：余额只写机内存档 → 首页会显示一个永远不动的旧数字）
+  const wallet = await page.evaluate(() => {
+    const w = JSON.parse(localStorage.getItem('arcade.wallet.v1') || 'null');
+    return { coins: w && w.coins, bal: Math.round(window.__coinpusher.S.bal) };
+  });
+  const walletOk = !!wallet.coins && wallet.coins === wallet.bal;
+  console.log('wallet == balance:', walletOk ? 'PASS' : 'FAIL', JSON.stringify(wallet));
   console.log('table moved:', okCoins ? 'PASS' : 'FAIL');
 
   // WebGL 真 3D 就绪（Three.js 加载、无降级警告、WebGL 上下文存在）
@@ -147,6 +159,13 @@ const path = require('path');
     return lit;
   });
   const cartExists = await page.evaluate(() => !!document.querySelector('a.cart[href="games/coin-pusher/index.html"]'));
+  const purse = await page.evaluate(() => {
+    const el = document.getElementById('purseNum');
+    const w = JSON.parse(localStorage.getItem('arcade.wallet.v1') || 'null');
+    return { shown: el ? +el.textContent.replace(/,/g, '') : -1, coins: w && w.coins };
+  });
+  const purseOk = purse.coins > 0 && purse.shown === purse.coins;
+  console.log('home purse == wallet:', purseOk ? 'PASS' : 'FAIL', JSON.stringify(purse));
   console.log('home cart card:', cartExists ? 'PASS' : 'FAIL');
   console.log('home thumbnail lit:', thumb, thumb > 100 ? 'PASS' : 'FAIL');
 
@@ -155,7 +174,8 @@ const path = require('path');
 
   const allPass = okBal && okIn && okCoins && three.lib && !three.warn && three.gl
     && saved && cartExists && thumb > 100 && errors.length === 0
-    && seedOk && clean0 && clean1 && clickOk && openOk && reliefOk && shopOk;
+    && seedOk && clean0 && clean1 && clickOk && openOk && reliefOk && shopOk
+    && walletOk && purseOk;
   console.log(allPass ? '\nALL PASS' : '\nSOME FAILED');
   await browser.close();
   process.exit(allPass ? 0 : 1);

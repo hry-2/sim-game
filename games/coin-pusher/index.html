@@ -9,77 +9,136 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 <style>
   :root{
-    --ground:#0a0908;
-    --panel:#15120d;
-    --panel-2:#1d1810;
-    --line:#332a1c;
-    --ink:#f0e6d2;
-    --muted:#9a8b6e;
-    --dim:#5c5138;
+    --ground:#060504;
+    --lacquer:#8c1a15;
+    --lacquer-deep:#3c0b09;
+    --brass:#c8993f;
+    --brass-hi:#f4e0a6;
+    --panel:#150e0a;
+    --panel-2:#1d1410;
+    --line:#4a3018;
+    --ink:#fff0d4;
+    --muted:#cfa878;
+    --dim:#8a6a44;
+    --led:#8ef0b6;
+    --led-dim:#3f7a5e;
     --gold:#ffcf4d;
     --gold-deep:#c98f1e;
     --red:#e05a3a;
     --cjk:'Noto Sans SC',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
-    --disp:'Chakra Petch','Noto Sans SC',system-ui,sans-serif;
+    --disp:Impact,'Haettenschweiler','Arial Narrow Bold','Arial Black',var(--cjk);
     --pix:ui-monospace,'SF Mono',Menlo,monospace;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{-webkit-text-size-adjust:100%}
   body{
-    margin:0;min-height:100vh;
-    background:var(--ground);
-    background-image:
-      repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px),
-      radial-gradient(120% 70% at 50% -8%,rgba(255,176,58,.09),transparent 58%);
-    color:var(--ink);font-family:var(--cjk);font-size:14px;line-height:1.6;
-    display:flex;justify-content:center;
+    margin:0;min-height:100vh;color:var(--ink);font-family:var(--cjk);font-size:14px;line-height:1.6;
+    /* 游戏厅的暗场：机台背后一片暖光，地面反上来一点红 */
+    background:
+      radial-gradient(85% 52% at 50% 16%,rgba(255,168,60,.13),transparent 62%),
+      radial-gradient(120% 60% at 50% 104%,rgba(96,14,8,.5),transparent 70%),
+      var(--ground);
+    display:flex;justify-content:center;align-items:flex-start;
     user-select:none;-webkit-user-select:none;
   }
-  #stage{width:100%;max-width:470px;padding:10px 12px calc(16px + env(safe-area-inset-bottom))}
-
-  /* ---------- 顶栏 ---------- */
-  header{display:flex;align-items:center;gap:10px;padding:2px 0 10px}
-  .back{
-    flex:0 0 auto;text-decoration:none;color:var(--muted);
-    border:1px solid var(--line);background:var(--panel);
-    padding:6px 10px;font-size:12px;letter-spacing:.06em;
+  #stage{
+    width:100%;max-width:470px;padding:0 10px calc(14px + env(safe-area-inset-bottom));
+    position:relative;
+    background:linear-gradient(180deg,#1a0d09,#0b0705 60%);
+    box-shadow:0 0 0 1px #3a2112,0 0 0 2px #0a0503,0 26px 70px rgba(0,0,0,.85),0 0 90px rgba(255,140,40,.05);
   }
+
+  /* ---------- 顶箱 marquee（机台的招牌，整页的"脸"） ---------- */
+  .marquee{
+    position:relative;margin:0 -10px;padding:16px 12px 17px;text-align:center;
+    background:
+      radial-gradient(115% 150% at 50% -45%,rgba(255,220,150,.5),transparent 60%),
+      linear-gradient(180deg,#a8201a 0%,#7c150f 44%,#480907 100%);
+    border-bottom:2px solid var(--brass);
+    box-shadow:inset 0 -18px 30px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,228,175,.35),0 6px 18px rgba(0,0,0,.6);
+  }
+  .marquee h1{
+    margin:0;font-family:var(--cjk);font-weight:900;font-size:31px;line-height:1.1;letter-spacing:.17em;
+    text-indent:.17em;
+    background:linear-gradient(180deg,#fffbe8 0%,#ffe08f 38%,#d79c2c 52%,#a06a12 60%,#f6d68a 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 1px 0 rgba(60,8,4,.9)) drop-shadow(0 0 14px rgba(255,180,60,.45));
+  }
+  .marquee h1 small{
+    display:block;margin-top:4px;font-family:var(--pix);font-size:9px;font-weight:400;
+    letter-spacing:.34em;text-indent:.34em;
+    background:none;-webkit-text-fill-color:#ffd9a0;color:#ffd9a0;opacity:.72;
+  }
+  .back,.iconbtn{
+    position:absolute;top:9px;z-index:2;border-radius:3px;cursor:pointer;
+    border:1px solid #6b4a1b;color:#f0d5a6;font-size:11px;padding:4px 8px;
+    background:linear-gradient(180deg,#2c1b10,#150d07);
+    box-shadow:inset 0 1px 0 rgba(255,230,180,.22),0 1px 0 #000;
+  }
+  .back{left:9px;text-decoration:none;letter-spacing:.05em}
+  .iconbtn{right:9px;font-family:var(--pix);letter-spacing:0}
   .back:hover{color:var(--gold);border-color:var(--gold-deep)}
-  h1{margin:0;font-family:var(--disp);font-weight:700;font-size:21px;color:var(--gold);letter-spacing:.04em}
-  h1 small{display:block;font-family:var(--pix);font-size:9px;font-weight:400;letter-spacing:.3em;color:var(--dim)}
-  .spacer{flex:1}
-  .iconbtn{
-    border:1px solid var(--line);background:var(--panel);color:var(--muted);
-    padding:6px 10px;font-size:12px;font-family:inherit;
+  .back:active,.iconbtn:active{transform:translateY(1px)}
+  .iconbtn.on{color:#ffcf4d;border-color:#c98f1e;box-shadow:inset 0 0 12px rgba(255,207,77,.25),0 1px 0 #000}
+  /* 招牌下沿的跑马灯 */
+  .bulbs{position:absolute;left:7px;right:7px;bottom:-5px;display:flex;justify-content:space-between;pointer-events:none}
+  .bulbs i{
+    width:8px;height:8px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#ffe3a0,#e08a1c 58%,#6b3c0c);
+    box-shadow:0 0 9px rgba(255,178,52,.95),inset 0 0 2px rgba(255,255,255,.7);
+    animation:chase 1.9s linear infinite;animation-delay:calc(var(--i) * .105s);
   }
-  .iconbtn.on{color:var(--gold);border-color:var(--gold-deep)}
+  @keyframes chase{0%,52%{opacity:1}66%,100%{opacity:.24}}
 
-  /* ---------- 资产栏 ---------- */
-  .assets{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
+  /* ---------- 计分板（LED 数码屏） ---------- */
+  .hud{display:grid;grid-template-columns:1.05fr 1fr;gap:6px;padding:10px 0 0}
   .asset{
-    background:var(--panel);border:1px solid var(--line);
-    padding:8px 12px;display:flex;align-items:baseline;gap:10px;
+    position:relative;display:flex;align-items:baseline;gap:8px;padding:5px 10px 6px;
+    background:linear-gradient(180deg,#0e1812,#070c09);
+    border:1px solid #25452f;
+    box-shadow:inset 0 0 14px rgba(120,255,180,.07),inset 0 1px 0 rgba(150,255,205,.1);
   }
-  .asset .k{font-size:12px;color:var(--muted)}
-  .asset .v{font-family:var(--disp);font-weight:700;font-size:20px;color:var(--gold);white-space:nowrap}
-  .asset.score .v{font-family:var(--disp);color:var(--ink);font-size:16px}
-  .runinfo{text-align:center;font-size:11px;color:var(--dim);margin:2px 0 8px;letter-spacing:.04em}
-  .runinfo b{color:var(--muted);font-weight:500}
+  .asset .k{font-size:10px;letter-spacing:.2em;color:var(--led-dim)}
+  .asset .u{font-size:10px;color:var(--led-dim)}
+  .asset .v{
+    font-family:var(--pix);font-weight:700;font-size:22px;line-height:1.15;color:var(--led);
+    text-shadow:0 0 12px rgba(120,255,180,.65),0 0 2px rgba(200,255,225,.9);
+    font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  .asset.score .v{font-size:21px}
+  .runinfo{text-align:center;font-family:var(--pix);font-size:10px;color:#7d6242;margin:7px 0 0;letter-spacing:.09em}
+  .runinfo b{color:var(--muted);font-weight:600}
 
-  /* ---------- 台面 ---------- */
+  /* ---------- 屏幕玻璃外的机箱 ---------- */
   .cab{
-    position:relative;background:#0c0a07;border:1px solid var(--line);
-    box-shadow:inset 0 0 40px rgba(0,0,0,.7);
-    overflow:hidden;
+    position:relative;margin-top:13px;padding:7px;
+    background:linear-gradient(180deg,#2b1a11,#100a07 70%);
+    border:1px solid #3d2614;
+    box-shadow:inset 0 0 0 1px rgba(244,224,166,.15),inset 0 0 26px 6px #000,0 10px 26px rgba(0,0,0,.65);
   }
-  canvas#cv{display:block;width:100%;height:auto}
-  /* 原来这里有一层 CRT 扫描线（每 3px 一条 10% 黑、multiply）盖在整个机台上，
-     密铺的币一多就变成"一层层横道压在金币上"——已去掉。 */
+  canvas#cv{display:block;width:100%;height:auto;background:#0a0908;box-shadow:0 0 0 1px #050403}
+  .cab .sc{
+    position:absolute;width:7px;height:7px;border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle at 35% 30%,#f6e2b0,#8b6a2e 56%,#33220a);
+    box-shadow:0 1px 2px rgba(0,0,0,.85);
+  }
+  .cab .sc.tl{left:1px;top:1px}
+  .cab .sc.tr{right:1px;top:1px}
+  .cab .sc.bl{left:1px;bottom:1px}
+  .cab .sc.br{right:1px;bottom:1px}
+  /* 玻璃边缘的暗角：只压四边，币堆在中间，不挡币 */
+  .cab::after{
+    content:"";position:absolute;inset:7px;pointer-events:none;z-index:3;
+    box-shadow:inset 0 0 16px 2px rgba(0,0,0,.5);
+    background:radial-gradient(125% 105% at 50% 44%,transparent 66%,rgba(0,0,0,.3) 100%);
+  }
   .flashtext{
     position:absolute;left:0;right:0;top:34%;text-align:center;pointer-events:none;z-index:6;
-    font-family:var(--disp);font-weight:700;font-size:30px;color:var(--gold);
-    text-shadow:0 0 18px rgba(255,207,77,.8),0 2px 0 rgba(0,0,0,.6);
-    opacity:0;transform:scale(.7);
+    font-family:var(--cjk);font-weight:900;font-size:30px;letter-spacing:.08em;
+    background:linear-gradient(180deg,#fffdf0,#ffd75e 55%,#c98a18);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 16px rgba(255,207,77,.85)) drop-shadow(0 2px 0 rgba(0,0,0,.7));
+    opacity:0;transform:scale(.72);
   }
   .flashtext.show{animation:flash 1.6s ease-out forwards}
   @keyframes flash{
@@ -90,14 +149,14 @@
     100%{opacity:0;transform:scale(1.05)}
   }
   .jpflash{
-    position:absolute;inset:0;pointer-events:none;z-index:5;
+    position:absolute;inset:7px;pointer-events:none;z-index:5;
     background:radial-gradient(circle at 50% 60%,rgba(255,207,77,.45),rgba(255,207,77,0) 60%);
     opacity:0;
   }
-  .fxlayer{position:absolute;inset:0;pointer-events:none;z-index:4;overflow:hidden}
+  .fxlayer{position:absolute;inset:7px;pointer-events:none;z-index:4;overflow:hidden}
   .fxp{
-    position:absolute;font-family:var(--disp);font-weight:700;font-size:18px;
-    transform:translate(-50%,0);text-shadow:0 1px 0 rgba(0,0,0,.55);
+    position:absolute;font-family:var(--pix);font-weight:700;font-size:18px;
+    transform:translate(-50%,0);text-shadow:0 1px 0 rgba(0,0,0,.6),0 0 10px rgba(255,190,70,.5);
     animation:fxup 1s ease-out forwards;white-space:nowrap;
   }
   @keyframes fxup{
@@ -106,139 +165,193 @@
     100%{opacity:0;transform:translate(-50%,-52px) scale(1.12)}
   }
   .webgl-warn{
-    position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    position:absolute;inset:7px;display:none;align-items:center;justify-content:center;
     text-align:center;padding:24px;z-index:7;color:var(--muted);font-size:13px;line-height:1.8;
   }
 
-  /* ---------- 按钮排 ---------- */
-  .row{display:grid;gap:8px;margin-top:8px}
+  /* ---------- 按钮：街机键帽 ---------- */
+  .row{display:grid;gap:7px;margin-top:8px}
+  .row:first-child{margin-top:0}
   .row.c3{grid-template-columns:repeat(3,1fr)}
-  .row.c4{grid-template-columns:1.2fr 1.2fr 1.2fr 1.4fr}
+  .row.c4{grid-template-columns:1.15fr 1.15fr 1.15fr 1.45fr}
   .row.c2{grid-template-columns:1fr 1fr}
   .row.c3b{grid-template-columns:repeat(3,1fr)}
   .row.c4b{grid-template-columns:repeat(4,1fr)}
   .btn{
-    border:1px solid var(--line);background:var(--panel);color:var(--ink);
-    font-family:var(--cjk);font-size:14px;font-weight:500;
-    padding:10px 4px;cursor:pointer;text-align:center;line-height:1.35;
-    transition:transform .08s,background .12s,border-color .12s;
-    position:relative;
+    position:relative;border:1px solid #57391a;border-radius:5px;cursor:pointer;
+    background:linear-gradient(180deg,#2d1e12,#170f09);
+    color:#f8e8c8;font-family:var(--cjk);font-size:14px;font-weight:600;
+    padding:11px 4px;text-align:center;line-height:1.32;
+    box-shadow:inset 0 1px 0 rgba(255,232,184,.2),0 2px 0 #080504,0 4px 9px rgba(0,0,0,.5);
+    transition:transform .06s,box-shadow .06s,filter .12s;
   }
-  .btn small{display:block;font-size:10px;color:var(--dim);letter-spacing:.05em}
-  .btn:active{transform:translateY(1px);background:var(--panel-2)}
-  .btn.gold{background:linear-gradient(180deg,#3a2c10,#241a08);border-color:var(--gold-deep);color:var(--gold)}
-  .btn.gold small{color:#8a6c30}
-  .btn.teal{background:linear-gradient(180deg,#12302c,#0c201d);border-color:#1f5a50;color:#5ad4bd}
-  .btn.teal small{color:#2f6f62}
-  .btn.violet{background:linear-gradient(180deg,#251636,#180e24);border-color:#4d3080;color:#b78aff}
-  .btn.violet small{color:#5f4390}
-  .btn.auto.on{border-color:var(--gold);color:var(--gold);box-shadow:inset 0 0 14px rgba(255,207,77,.15)}
-  .btn:disabled{opacity:.42;cursor:default}
+  .btn small{display:block;margin-top:2px;font-size:9px;font-weight:400;letter-spacing:.1em;color:#a8895c}
+  .btn:active{transform:translateY(2px);box-shadow:inset 0 1px 0 rgba(255,232,184,.12),0 0 0 #000,0 1px 2px rgba(0,0,0,.6)}
+  .btn.gold{
+    background:linear-gradient(180deg,#ffe391 0%,#f0b53a 42%,#c8820f 70%,#8a5608 100%);
+    border-color:#ffe9ae;color:#2c1902;text-shadow:0 1px 0 rgba(255,246,215,.55);
+    box-shadow:inset 0 1px 0 rgba(255,250,225,.85),0 2px 0 #5c3706,0 5px 12px rgba(255,150,30,.22);
+  }
+  .btn.gold small{color:#5d3c04;text-shadow:none;opacity:.85}
+  .btn.teal{
+    background:linear-gradient(180deg,#1a4a41,#0c211d 70%,#081613);border-color:#2f7f6e;color:#8ff0d6;
+    box-shadow:inset 0 1px 0 rgba(180,255,235,.25),0 2px 0 #04100d,0 4px 9px rgba(0,0,0,.5);
+  }
+  .btn.teal small{color:#4d9a87}
+  .btn.violet{
+    background:linear-gradient(180deg,#3a2356,#1a0f27 70%,#120a1a);border-color:#6b45a8;color:#d0b0ff;
+    box-shadow:inset 0 1px 0 rgba(215,190,255,.24),0 2px 0 #0b0611,0 4px 9px rgba(0,0,0,.5);
+  }
+  .btn.violet small{color:#7e5fb0}
+  .btn.auto.on{
+    border-color:var(--gold);color:#ffe08a;
+    background:linear-gradient(180deg,#3a2a12,#241708);
+    box-shadow:inset 0 0 16px rgba(255,207,77,.22),0 2px 0 #080504,0 0 14px rgba(255,190,60,.25);
+  }
+  .btn:disabled{opacity:.4;cursor:default}
   .btn:disabled:active{transform:none}
-  .btn .badgen{
-    position:absolute;top:4px;right:6px;font-size:9px;color:var(--dim);font-family:var(--pix);
+  .btn .badgen{position:absolute;top:4px;right:6px;font-size:9px;color:#a8895c;font-family:var(--pix)}
+
+  /* 快捷键那排（玩法/图鉴/暂停）：薄一点，像机台上的服务键 */
+  .row.utility{grid-template-columns:repeat(3,1fr);margin-top:10px}
+  .row.utility .btn{padding:7px 4px;font-size:12px;border-radius:4px}
+
+  /* ---------- 控制面板 ---------- */
+  .panel{
+    margin-top:9px;padding:10px 9px 11px;border-radius:4px;
+    background:linear-gradient(180deg,#1f150e,#110b08);
+    border:1px solid #3b2412;
+    box-shadow:inset 0 1px 0 rgba(244,224,166,.13),inset 0 -12px 22px rgba(0,0,0,.5),0 6px 16px rgba(0,0,0,.5);
   }
 
-  /* ---------- 滑块 ---------- */
-  .sliderbox{margin-top:10px;background:var(--panel);border:1px solid var(--line);padding:9px 12px 11px}
-  .sliderbox .lab{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:6px}
-  .sliderbox .lab b{color:var(--gold);font-weight:500;font-family:var(--pix)}
+  /* ---------- 投币位置：台上的滑轨 ---------- */
+  .sliderbox{margin-top:0;padding:2px 2px 0}
+  .sliderbox .lab{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.18em;color:#8f6f47;margin-bottom:3px}
+  .sliderbox .lab b{color:var(--gold);font-weight:600;font-family:var(--pix);letter-spacing:0;font-size:11px}
   input[type=range]{
-    width:100%;appearance:none;-webkit-appearance:none;height:22px;background:transparent;cursor:pointer;margin:0;
+    width:100%;appearance:none;-webkit-appearance:none;height:24px;background:transparent;cursor:pointer;margin:0;
   }
-  input[type=range]::-webkit-slider-runnable-track{height:6px;background:linear-gradient(90deg,#2a2114,#4a3a1c);border:1px solid var(--line)}
+  input[type=range]::-webkit-slider-runnable-track{
+    height:8px;border-radius:4px;
+    background:linear-gradient(180deg,#0a0705,#271908);
+    border:1px solid #4a3018;box-shadow:inset 0 1px 3px #000,0 1px 0 rgba(244,224,166,.1);
+  }
   input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none;width:22px;height:22px;margin-top:-9px;
-    background:radial-gradient(circle at 35% 30%,#ffe9a8,var(--gold) 55%,#a87a1c);
-    border:1px solid #6e5014;border-radius:50%;
-    box-shadow:0 0 10px rgba(255,207,77,.45);
+    -webkit-appearance:none;width:24px;height:24px;margin-top:-9px;border-radius:50%;
+    background:radial-gradient(circle at 35% 28%,#ffa87c,#d8391f 56%,#7c1608);
+    border:2px solid #f2dcaa;
+    box-shadow:0 0 10px rgba(255,90,45,.55),0 2px 4px rgba(0,0,0,.75);
   }
-  input[type=range]::-moz-range-track{height:6px;background:#2a2114;border:1px solid var(--line)}
+  input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:#1d1309;border:1px solid #4a3018}
   input[type=range]::-moz-range-thumb{
-    width:22px;height:22px;border:1px solid #6e5014;border-radius:50%;
-    background:radial-gradient(circle at 35% 30%,#ffe9a8,var(--gold) 55%,#a87a1c);
+    width:20px;height:20px;border:2px solid #f2dcaa;border-radius:50%;
+    background:radial-gradient(circle at 35% 28%,#ffa87c,#d8391f 56%,#7c1608);
   }
 
-  /* ---------- 状态行 ---------- */
+  /* ---------- 底部状态条（LED） ---------- */
   .statline{
-    margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;
-    font-family:var(--pix);font-size:11px;color:var(--dim);letter-spacing:.06em;
+    margin-top:9px;display:flex;justify-content:space-between;gap:6px;
+    padding:6px 9px;background:#070b09;border:1px solid #1e3a2b;
+    box-shadow:inset 0 0 12px rgba(120,255,180,.05);
+    font-family:var(--pix);font-size:10px;color:var(--led-dim);letter-spacing:.06em;
   }
-  .statline b{color:var(--muted);font-weight:400}
-  .statline .en b{color:var(--gold)}
+  .statline span{display:flex;align-items:baseline;gap:5px;white-space:nowrap}
+  .statline b{color:var(--led);font-weight:700;text-shadow:0 0 9px rgba(120,255,180,.55)}
+  .statline .en b{color:var(--gold);text-shadow:0 0 9px rgba(255,200,80,.55)}
 
   /* ---------- 模态 ---------- */
   .modal{
-    position:fixed;inset:0;background:rgba(5,4,2,.82);backdrop-filter:blur(3px);
+    position:fixed;inset:0;background:rgba(4,3,2,.86);backdrop-filter:blur(3px);
     display:none;align-items:center;justify-content:center;z-index:50;padding:20px;
   }
   .modal.show{display:flex}
   .sheet{
     width:100%;max-width:400px;max-height:82vh;overflow:auto;
-    background:var(--panel);border:1px solid var(--gold-deep);
-    box-shadow:0 0 60px rgba(255,176,58,.12);padding:20px 20px 24px;
+    background:linear-gradient(180deg,#1c130c,#0e0906);
+    border:1px solid var(--brass);
+    box-shadow:0 0 0 1px #000,0 0 60px rgba(255,150,50,.16),inset 0 1px 0 rgba(244,224,166,.18);
+    padding:0 20px 22px;
   }
-  .sheet h2{margin:0 0 12px;font-family:var(--disp);font-size:18px;color:var(--gold);letter-spacing:.05em}
-  .sheet h3{margin:16px 0 6px;font-size:13px;color:var(--muted);letter-spacing:.1em}
+  .sheet h2{
+    margin:0 -20px 14px;padding:11px 20px 10px;
+    font-family:var(--cjk);font-weight:900;font-size:16px;letter-spacing:.16em;
+    color:#ffe3a6;background:linear-gradient(180deg,#8f1a13,#5a0d09);
+    border-bottom:2px solid var(--brass);
+    text-shadow:0 1px 0 rgba(0,0,0,.6),0 0 12px rgba(255,180,60,.35);
+  }
+  .sheet h3{margin:16px 0 6px;font-size:11px;color:var(--brass);letter-spacing:.2em}
   .sheet p{margin:6px 0;font-size:13px;color:var(--ink)}
   .sheet p.dim{color:var(--muted)}
   .sheet table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
-  .sheet td{padding:6px 8px;border-bottom:1px solid var(--line);color:var(--ink)}
+  .sheet td{padding:6px 8px;border-bottom:1px solid #2e2013;color:var(--ink)}
   .sheet td:last-child{text-align:right;color:var(--gold);font-family:var(--pix)}
   .sheet .closebtn{
-    margin-top:16px;width:100%;padding:11px;background:var(--gold);color:#1a1206;
-    border:none;font-weight:700;font-size:14px;font-family:var(--disp);letter-spacing:.2em;cursor:pointer;
+    margin-top:16px;width:100%;padding:12px;border:1px solid #ffe9ae;border-radius:5px;
+    background:linear-gradient(180deg,#ffe391,#f0b53a 42%,#c8820f 70%,#8a5608);
+    color:#2c1902;font-weight:900;font-size:14px;font-family:var(--cjk);letter-spacing:.22em;cursor:pointer;
+    box-shadow:inset 0 1px 0 rgba(255,250,225,.85),0 3px 0 #5c3706;
   }
+  .sheet .closebtn:active{transform:translateY(2px);box-shadow:inset 0 1px 0 rgba(255,250,225,.5),0 1px 0 #5c3706}
   .sheet ul{margin:6px 0;padding-left:18px;font-size:13px}
-  .sheet li{margin:4px 0}
+  .sheet li{margin:5px 0}
   .sheet .icon{font-size:15px;margin-right:4px}
+
+  /* 尊重系统的"减少动效"：跑马灯不闪，按钮不做位移动画 */
+  @media (prefers-reduced-motion:reduce){
+    .bulbs i{animation:none;opacity:.85}
+    .btn,.sheet .closebtn{transition:none}
+    .flashtext.show{animation-duration:.01s}
+  }
 </style>
 </head>
 <body>
 <div id="stage">
 
-  <header>
-    <a class="back" href="../../index.html">← 返回选择</a>
+  <div class="marquee">
+    <a class="back" href="../../index.html">← 返回</a>
     <h1>聚宝盆<small>COIN PUSHER · TRUE 3D</small></h1>
-    <div class="spacer"></div>
     <button class="iconbtn on" id="btnSound">声:开</button>
-  </header>
+    <div class="bulbs" id="bulbs" aria-hidden="true"></div>
+  </div>
 
-  <div class="assets">
-    <div class="asset"><span class="k">余额</span><span class="v" id="uiBal">0</span><span class="k" style="font-size:10px">币</span></div>
+  <div class="hud">
+    <div class="asset"><span class="k">币袋</span><span class="v" id="uiBal">0</span><span class="u">币</span></div>
     <div class="asset score"><span class="k">积分</span><span class="v" id="uiScore">0</span></div>
   </div>
-  <div class="runinfo">永久机台 · 本机投入 <b id="uiIn">0</b> 枚 · 电子屏 <b id="uiProg">0 / 300</b></div>
+  <div class="runinfo">币袋全柜通用 · 本机投入 <b id="uiIn">0</b> 枚 · 电子屏 <b id="uiProg">0 / 300</b></div>
 
   <div class="cab">
     <canvas id="cv" width="440" height="400"></canvas>
+    <span class="sc tl"></span><span class="sc tr"></span><span class="sc bl"></span><span class="sc br"></span>
     <div class="jpflash" id="jp"></div>
     <div class="fxlayer" id="fxlayer"></div>
     <div class="flashtext" id="flash"></div>
     <div class="webgl-warn" id="warn">没能加载 3D 引擎（Three.js）。<br>本游戏需要联网加载一次 Three.js，请检查网络后刷新。</div>
   </div>
 
-  <div class="row c3">
+  <div class="row c3 utility">
     <button class="btn" id="btnHow">玩法</button>
     <button class="btn" id="btnBook">图鉴</button>
     <button class="btn" id="btnPause">暂停</button>
   </div>
 
-  <div class="sliderbox">
-    <div class="lab"><span>投币位置</span><b id="uiPos">居中 0.0</b></div>
-    <input type="range" id="posSlider" min="-100" max="100" value="0">
-  </div>
+  <div class="panel">
+    <div class="sliderbox">
+      <div class="lab"><span>投币位置</span><b id="uiPos">居中 0.0</b></div>
+      <input type="range" id="posSlider" min="-100" max="100" value="0">
+    </div>
 
-  <div class="row c4">
-    <button class="btn gold" id="btnDrop1">投 1 枚<small>消耗 1 币</small></button>
-    <button class="btn violet" id="btnDrop5">投 5 枚<small>消耗 5 币</small></button>
-    <button class="btn teal" id="btnDrop10">投 10 枚<small>消耗 10 币</small></button>
-    <button class="btn auto" id="btnAuto">自动投币<small id="autoLab">点击开启</small></button>
-  </div>
+    <div class="row c4">
+      <button class="btn gold" id="btnDrop1">投 1 枚<small>消耗 1 币</small></button>
+      <button class="btn violet" id="btnDrop5">投 5 枚<small>消耗 5 币</small></button>
+      <button class="btn teal" id="btnDrop10">投 10 枚<small>消耗 10 币</small></button>
+      <button class="btn auto" id="btnAuto">自动投币<small id="autoLab">点击开启</small></button>
+    </div>
 
-  <div class="row c2">
-    <button class="btn teal" id="btnShake">震 台<small>消耗 50 能量</small></button>
-    <button class="btn gold" id="btnTower">召唤币塔<small>消耗 100 能量</small></button>
+    <div class="row c2">
+      <button class="btn teal" id="btnShake">震 台<small>消耗 50 能量</small></button>
+      <button class="btn gold" id="btnTower">召唤币塔<small>消耗 100 能量</small></button>
+    </div>
   </div>
 
   <div class="row c4b">
@@ -268,6 +381,7 @@
       <li><b>特殊币</b>：银色的凤凰币。掉落得 5 币，并推进电子屏进度；<b>300 格开奖</b>，全场币雨。</li>
       <li><b>连击</b>：5 秒内连续有币掉落就连击叠加，倍率最高 3×；<b>币和积分都按倍率结算</b>，断了清零。所以"一口吃一排"是这台的正确打开方式。</li>
       <li><b>积分</b>：投币、赢币都会累积分，攒够了去<b>积分兑换</b>换币或免费币塔（见奖表）。</li>
+      <li><b>币袋</b>：这台机器没有自己的余额——你投的、赢的币都在<b>全柜通用的币袋</b>里，回首页顶栏能看到它。所以「重置机台」只清分数和台面，不会退币。</li>
     </ul>
     <h3>键盘</h3>
     <p class="dim"><b>空格</b> 投 1 枚 · <b>←/→</b> 移动落点 · <b>S</b> 震台 · <b>T</b> 币塔 · <b>P</b> 暂停</p>
@@ -348,7 +462,7 @@
 <div class="modal" id="mReset">
   <div class="sheet">
     <h2>重置机台</h2>
-    <p>清空余额、积分、能量与电子屏进度，<b>从 300 币重新开始</b>。这台机器的终身记录也会一并抹掉。</p>
+    <p>清空积分、能量、电子屏进度和台面，重新铺一台满机。<b>币袋里的币不动</b>——那是全柜通用的，不属于这台机器。</p>
     <button class="closebtn" id="btnResetYes" style="background:var(--red);color:#fff">确认重置</button>
     <button class="closebtn" data-close style="background:var(--panel-2);color:var(--ink);border:1px solid var(--line)">手滑了</button>
   </div>
@@ -421,12 +535,35 @@ window.__coinpusher = { coins, S, WORLD,
   get renderer() { return renderer; } };
 const dropLog = [];     // 最近掉落记录（连击用）
 
+/* ---------- 街机币袋（全柜通用） ----------
+   全站共用一份 localStorage：'arcade.wallet.v1' = { v:1, coins:<int>, t:<ms> }
+   契约只有一条：coins 是整数、非负；谁动了余额谁写回。
+   首页 index.html 里有一份同样的实现（单文件游戏的代价：两边各留一份），
+   改字段要两边一起改，见 docs/adr/0007-arcade-wallet-shared-across-cabinets.md */
+const WALLET_KEY = 'arcade.wallet.v1', WALLET_SEED = 300;
+function walletRead() {
+  try {
+    const w = JSON.parse(localStorage.getItem(WALLET_KEY));
+    if (w && Number.isFinite(w.coins)) return w;
+  } catch (e) {}
+  return null;
+}
+function walletWrite(coins) {
+  const w = { v: 1, coins: Math.max(0, Math.round(coins)), t: Date.now() };
+  try { localStorage.setItem(WALLET_KEY, JSON.stringify(w)); } catch (e) {}
+  return w;
+}
+
 /* ---------- 存档 ---------- */
 const SAVE_KEY = 'coinpusher.jubaopen.v1';
 // 存档节流：成片赢币时 winCoin 会一枚一枚地调 save()（一次币雨就是几十次
 // localStorage 写入）。200ms 内只落盘一次；页面隐藏/关闭时强制补一次。
 let saveAt = 0;
 function save(force) {
+  // 币袋是全柜共享的账本：余额一变就得落盘（首页、别的标签页看的是它），
+  // 所以这一步不跟着节流走——节流只省机台自己那份大存档。
+  const w = walletRead();
+  if (!w || w.coins !== Math.round(S.bal)) walletWrite(S.bal);
   if (!force) {
     const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
     if (now - saveAt < 200) return;
@@ -443,15 +580,26 @@ function save(force) {
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
 window.addEventListener('pagehide', () => save(true));
 function load() {
-  try {
-    const d = JSON.parse(localStorage.getItem(SAVE_KEY));
-    if (!d) return;
-    S.bal = d.bal ?? 300; S.score = d.score ?? 0; S.energy = d.energy ?? 100;
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) {}
+  if (d) {
+    S.bal = d.bal ?? WALLET_SEED; S.score = d.score ?? 0; S.energy = d.energy ?? 100;
     S.spProgress = d.sp ?? 0; S.totalIn = d.tin ?? 0; S.totalOut = d.tout ?? 0;
     S.jackpots = d.jack ?? 0; S.muted = !!d.muted; S.reliefT = d.rel ?? 0;
-  } catch (e) {}
+  }
+  // 余额以币袋为准。币袋还没有（第一次进来 / 老存档）时，把上面这个余额带进币袋——
+  // 老玩家不会因为"换了账本"被清零。
+  const w = walletRead();
+  if (w) S.bal = w.coins; else walletWrite(S.bal);
 }
 load();
+
+// 另一个标签页/别的机台改了币袋：跟着改（storage 事件不会在本标签页触发，不会打架）
+window.addEventListener('storage', (e) => {
+  if (e.key !== WALLET_KEY) return;
+  const w = walletRead(); if (!w || w.coins === S.bal) return;
+  S.bal = w.coins; save(true); updateHUD();
+});
 
 /* ---------- 音频（WebAudio 合成） ---------- */
 let AC = null;
@@ -529,6 +677,7 @@ function spawnPlayerCoin() {
   coins.push(c);
   sCoinDrop();
   updateHUD();
+  save();          // 余额进了币袋，得马上落盘：首页/别的标签页看的是同一份账本
   return true;
 }
 function queueCoins(n) { S.queue += n; }
@@ -941,11 +1090,180 @@ function separateLayer(arr, iters) {
    ================================================================ */
 let renderer = null, scene = null, camera = null, threeReady = false;
 let dispCanvas = null, dispTex = null, dispCtx = null;
-let pusher = null, pusherEdge = null, PZB = 0;
+let pusher = null, pusherEdge = null, pusherNose = null, PZB = 0;
+let _aniso = 0;
 let lamps = [];
 const coinMeshMap = new Map();
 let coinGeo = null;
 const coinMat = [];
+
+/* ---------- 金币 / 台面 / 钢板的贴图（全部由代码画，没有外部图片） ----------
+   金币一张 512² 图集：左上 = 盘面（外圈 + 珠圈 + 面值），右上 = 侧壁滚齿。
+   盘面那张同时烘一张灰度图当 bumpMap —— 金属在斜光下才有"刻出来"的立体感。 */
+function texAniso() {
+  if (!_aniso) { try { _aniso = renderer.capabilities.getMaxAnisotropy(); } catch (e) { _aniso = 1; } }
+  return _aniso;
+}
+function remapUV(geo, u0, v0, u1, v1) {
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++)
+    uv.setXY(i, u0 + uv.getX(i) * (u1 - u0), v0 + uv.getY(i) * (v1 - v0));
+  uv.needsUpdate = true;
+  return geo;
+}
+// 把几个带索引的几何拼成一个：一次 draw call 画完侧壁 + 两个盘面
+function mergeGeos(list) {
+  let vN = 0, iN = 0;
+  for (const g of list) { vN += g.attributes.position.count; iN += g.index.count; }
+  const pos = new Float32Array(vN * 3), nor = new Float32Array(vN * 3), uv = new Float32Array(vN * 2);
+  const idx = new Uint16Array(iN);
+  let vo = 0, io = 0;
+  for (const g of list) {
+    pos.set(g.attributes.position.array, vo * 3);
+    nor.set(g.attributes.normal.array, vo * 3);
+    uv.set(g.attributes.uv.array, vo * 2);
+    const gi = g.index.array;
+    for (let i = 0; i < gi.length; i++) idx[io + i] = gi[i] + vo;
+    io += gi.length; vo += g.attributes.position.count;
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  out.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  out.setIndex(new THREE.BufferAttribute(idx, 1));
+  out.computeBoundingSphere();
+  return out;
+}
+function makeCoinGeo(r, t, seg) {
+  const side = new THREE.CylinderGeometry(r, r, t, seg, 1, true);
+  const top = new THREE.CircleGeometry(r, seg).rotateX(-Math.PI / 2).translate(0, t / 2, 0);
+  const bot = new THREE.CircleGeometry(r, seg).rotateX(Math.PI / 2).translate(0, -t / 2, 0);
+  return mergeGeos([
+    remapUV(top, 0, 0.5, 0.5, 1),    // 盘面 → 图集左半
+    remapUV(bot, 0, 0.5, 0.5, 1),
+    remapUV(side, 0.5, 0.5, 1, 1)    // 滚齿 → 图集右半
+  ]);
+}
+// 盘面：色版画金属渐变 + 亮暗描边；bump 版只留灰度（亮 = 凸）
+function paintCoinFace(g, N, d, bump) {
+  const c = N / 2, R = N / 2;
+  if (bump) { g.fillStyle = '#787878'; g.beginPath(); g.arc(c, c, R, 0, 7); g.fill(); }
+  else {
+    const rad = g.createRadialGradient(c * 0.74, c * 0.64, N * 0.03, c, c, R);
+    rad.addColorStop(0, d.hi); rad.addColorStop(0.52, d.base); rad.addColorStop(1, d.low);
+    g.fillStyle = rad; g.beginPath(); g.arc(c, c, R, 0, 7); g.fill();
+  }
+  g.lineWidth = N * 0.062; g.strokeStyle = bump ? '#e8e8e8' : d.ring;  // 外圈凸边
+  g.beginPath(); g.arc(c, c, R - N * 0.052, 0, 7); g.stroke();
+  if (!bump) {
+    // 边沿内侧压一道亮线：像冲压出来的圈沿。整圈均匀——币是绕 y 轴乱转的，
+    // 烘死在贴图里的高光如果带方向，转起来就成了"每枚币的光都不一样"。
+    g.lineWidth = N * 0.012;
+    g.strokeStyle = 'rgba(255,255,255,.34)';
+    g.beginPath(); g.arc(c, c, R - N * 0.018, 0, 7); g.stroke();
+  }
+  g.lineWidth = N * 0.016; g.strokeStyle = bump ? '#4a4a4a' : d.groove; // 内圈凹槽
+  g.beginPath(); g.arc(c, c, R - N * 0.115, 0, 7); g.stroke();
+  if (!bump) {                                                          // 凹槽下沿再压一道暗，刻痕更深
+    g.lineWidth = N * 0.008; g.strokeStyle = 'rgba(0,0,0,.20)';
+    g.beginPath(); g.arc(c, c, R - N * 0.126, 0, 7); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.30)';
+    g.beginPath(); g.arc(c, c, R - N * 0.104, 0, 7); g.stroke();
+  }
+  const nb = 30, rr = R - N * 0.165;                                    // 珠圈
+  g.fillStyle = bump ? '#dcdcdc' : d.ring;
+  for (let i = 0; i < nb; i++) {
+    const a = i / nb * Math.PI * 2 + 0.1;
+    g.beginPath(); g.arc(c + Math.cos(a) * rr, c + Math.sin(a) * rr, N * 0.0115, 0, 7); g.fill();
+  }
+  const size = N * (d.glyph.length > 1 ? 0.40 : 0.54);
+  g.font = '700 ' + size.toFixed(0) + 'px "Chakra Petch","Noto Sans SC",system-ui,sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  const ty = c + N * 0.02;
+  if (bump) { g.fillStyle = '#ffffff'; g.fillText(d.glyph, c, ty); }
+  else {
+    g.fillStyle = 'rgba(0,0,0,.34)'; g.fillText(d.glyph, c + N * 0.009, ty + N * 0.009);
+    g.fillStyle = 'rgba(255,255,255,.50)'; g.fillText(d.glyph, c - N * 0.007, ty - N * 0.007);
+    g.fillStyle = d.ink; g.fillText(d.glyph, c, ty);
+  }
+}
+// 侧壁滚齿：一圈明暗竖条，上下沿各压一道（上亮下暗）
+function paintCoinReed(g, W, H) {
+  const n = 40, bw = W / n;
+  for (let i = 0; i < n; i++) {
+    const x = i * bw;
+    const grd = g.createLinearGradient(x, 0, x + bw, 0);
+    grd.addColorStop(0, '#7d7d7d'); grd.addColorStop(0.34, '#f0f0f0');
+    grd.addColorStop(0.60, '#c6c6c6'); grd.addColorStop(1, '#5c5c5c');
+    g.fillStyle = grd; g.fillRect(x, 0, bw + 0.6, H);
+  }
+  const e = H * 0.09;
+  let grd = g.createLinearGradient(0, 0, 0, e);
+  grd.addColorStop(0, 'rgba(255,255,255,.55)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, W, e);
+  grd = g.createLinearGradient(0, H - e, 0, H);
+  grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(1, 'rgba(0,0,0,.60)');
+  g.fillStyle = grd; g.fillRect(0, H - e, W, e);
+}
+function coinAtlas(d) {
+  const S = 512, Q = S / 2;
+  const draw = (bump) => {
+    const c = document.createElement('canvas'); c.width = c.height = S;
+    const g = c.getContext('2d');
+    paintCoinFace(g, Q, d, bump);
+    g.translate(Q, 0); paintCoinReed(g, Q, Q);
+    return c;
+  };
+  const map = new THREE.CanvasTexture(draw(false));
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = texAniso();
+  const bmp = new THREE.CanvasTexture(draw(true));
+  bmp.anisotropy = texAniso();
+  return { map, bmp };
+}
+// 台呢：深红底 + 织纹噪点 + 四周压暗 + 内缩一圈金线
+function makeFeltCanvas() {
+  const S = 512, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  g.fillStyle = '#6b2a1b'; g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 12000; i++) {
+    const a = (0.02 + Math.random() * 0.07).toFixed(3);
+    g.fillStyle = Math.random() < 0.52 ? 'rgba(0,0,0,' + a + ')' : 'rgba(255,186,140,' + (a * 0.7).toFixed(3) + ')';
+    g.fillRect(Math.random() * S, Math.random() * S, 1, 1);
+  }
+  const rad = g.createRadialGradient(S * 0.5, S * 0.45, S * 0.10, S * 0.5, S * 0.5, S * 0.74);
+  rad.addColorStop(0, 'rgba(0,0,0,0)');
+  rad.addColorStop(0.62, 'rgba(0,0,0,.14)');
+  rad.addColorStop(1, 'rgba(0,0,0,.34)');
+  g.fillStyle = rad; g.fillRect(0, 0, S, S);
+  g.strokeStyle = 'rgba(220,172,74,.32)'; g.lineWidth = 3;
+  g.strokeRect(S * 0.05, S * 0.06, S * 0.90, S * 0.88);
+  g.strokeStyle = 'rgba(220,172,74,.10)'; g.lineWidth = 10;
+  g.strokeRect(S * 0.05, S * 0.06, S * 0.90, S * 0.88);
+  return c;
+}
+// 拉丝钢板：横向细纹
+function makeBrushedCanvas() {
+  const W = 256, H = 256, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.fillStyle = '#9aa2ac'; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 2200; i++) {
+    const y = Math.random() * H, len = 24 + Math.random() * W * 0.9, x = Math.random() * W - len * 0.4;
+    g.strokeStyle = Math.random() < 0.55
+      ? 'rgba(255,255,255,' + (0.02 + Math.random() * 0.08).toFixed(3) + ')'
+      : 'rgba(0,0,0,' + (0.02 + Math.random() * 0.09).toFixed(3) + ')';
+    g.lineWidth = Math.random() < 0.85 ? 1 : 2;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + len, y); g.stroke();
+  }
+  return c;
+}
+
+/* 三种币：通宝(金) / 凤凰(银) / 元宝(彩)。面值直接刻在币面上。 */
+const COIN_DEFS = [
+  { glyph: '1',  hi: '#ffeeb4', base: '#f0b93c', low: '#8a5c10', ring: '#ffe6a0', groove: '#6d4608', ink: '#5d3a05', metal: 0.78, rough: 0.26, emis: 0x000000, emisI: 0 },
+  { glyph: '5',  hi: '#ffffff', base: '#cdd8e8', low: '#6f7b8e', ring: '#eef4ff', groove: '#4a5568', ink: '#3f4a5c', metal: 0.86, rough: 0.21, emis: 0x000000, emisI: 0 },
+  { glyph: '20', hi: '#ffe0f6', base: '#ff92d6', low: '#8a2a68', ring: '#ffd0ee', groove: '#6b1c50', ink: '#5a1240', metal: 0.72, rough: 0.32, emis: 0x3a0f30, emisI: 0.18 }
+];
 
 function initThree() {
   if (typeof THREE === 'undefined') {
@@ -956,34 +1274,66 @@ function initThree() {
     renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
   } catch (e) { $('warn').style.display = 'flex'; return; }
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  renderer.shadowMap.enabled = false;
+  // 金属靠高光活着：ACES 把顶光收进可显示范围，币面才有"亮到刚刚过曝"的那一点，
+  // 而不是一片平涂的橙（旧版没有色调映射，高光一上去就被裁成死白）。
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.18;
+  // 币堆的接触阴影：没有它，几百枚币像贴纸贴在台面上
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0a0908);
   scene.fog = new THREE.Fog(0x0a0908, 7, 14);
 
   // 透视相机：斜俯视整个台面，看得见后方的大推板把前方的币堆往前推
-  camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-  camera.position.set(0, 2.05, 3.95);
-  camera.lookAt(0, 0.3, 0.55);
+  camera = new THREE.PerspectiveCamera(44, 1, 0.1, 100);
+  // 收一点视角：机台在画布里占满，屏幕上下不再留一大片黑（街机的玻璃是贴着机箱的）
+  // 取景以 render() 里那组为准（那里还要叠震台抖动），这里给初值，免得首帧跳一下
+  camera.position.set(0, 2.35, 3.50);
+  camera.lookAt(0, 0.50, 0.40);
 
   // 灯光
-  scene.add(new THREE.AmbientLight(0xffe6c0, 0.85));
-  const dir = new THREE.DirectionalLight(0xfff0d0, 1.45);
-  dir.position.set(2.2, 5.5, 4.0); scene.add(dir);
-  const warm = new THREE.PointLight(0xffb74a, 0.7, 14);
+  // 环境光压低、主灯推高：金属的明暗差是方向光拉出来的，环境光一高就糊成一片。
+  // 主灯带阴影（台面接、币和推板投），阴影相机只框住台面这一小块，1024 就够细。
+  scene.add(new THREE.AmbientLight(0xffe6c0, 0.62));
+  const dir = new THREE.DirectionalLight(0xfff2d8, 2.55);
+  // 主灯从机台上方偏后打下来：影子往前落，才会落在镜头看得见的那条空台面上
+  // （从前面打光的话，币堆的影子全躲在币堆背后，几百个_castShadow 白花）
+  dir.position.set(1.5, 5.4, -1.2);
+  dir.castShadow = true;
+  dir.shadow.mapSize.set(2048, 2048);
+  dir.shadow.camera.left = -2.0; dir.shadow.camera.right = 2.0;
+  dir.shadow.camera.top = 2.2; dir.shadow.camera.bottom = -2.2;
+  dir.shadow.camera.near = 2; dir.shadow.camera.far = 12;
+  dir.shadow.bias = -0.0008;
+  dir.shadow.normalBias = 0.004;
+  dir.target.position.set(0, 0, 0.55);
+  scene.add(dir, dir.target);
+  const warm = new THREE.PointLight(0xffb74a, 1.15, 14);
   warm.position.set(0, 2.4, 2.8); scene.add(warm);
-  const rim = new THREE.PointLight(0x88aaff, 0.35, 14);
+  const rim = new THREE.PointLight(0x88aaff, 0.6, 14);
   rim.position.set(-2.5, 1.5, -3.0); scene.add(rim);
 
   buildCabinet();
   makeEnv();
 
-  // 金币材质（金属质感）
-  coinGeo = new THREE.CylinderGeometry(WORLD.coinR, WORLD.coinR, WORLD.coinT, 30);
-  coinMat[0] = new THREE.MeshStandardMaterial({ color: 0xffc846, metalness: 0.92, roughness: 0.34, emissive: 0x3a2700, emissiveIntensity: 0.25 });
-  coinMat[1] = new THREE.MeshStandardMaterial({ color: 0xcdd8eb, metalness: 0.95, roughness: 0.28, emissive: 0x0e1622, emissiveIntensity: 0.2 });
-  coinMat[2] = new THREE.MeshStandardMaterial({ color: 0xff96dc, metalness: 0.6, roughness: 0.4, emissive: 0x3a0f30, emissiveIntensity: 0.35 });
+  // 金币：一个几何体（侧壁 + 两面盘）配一张图集，每枚币仍是一次 draw call。
+  // 每种币做三个色差变体（亮/旧/暖），按币号轮着用——整堆币不再是一个色块。
+  coinGeo = makeCoinGeo(WORLD.coinR, WORLD.coinT, 36);
+  COIN_DEFS.forEach((d, i) => {
+    const { map, bmp } = coinAtlas(d);
+    const base = new THREE.MeshStandardMaterial({
+      map, bumpMap: bmp, bumpScale: 0.02,
+      metalness: d.metal, roughness: d.rough, envMapIntensity: 1.6,
+      emissive: d.emis, emissiveIntensity: d.emisI
+    });
+    coinMat[i] = [0xffffff, 0xe6dcc9, 0xfff3dd].map(tint => {
+      const m = base.clone();
+      m.color.setHex(tint);
+      return m;
+    });
+  });
 
   threeReady = true;
   resizeThree();
@@ -995,7 +1345,7 @@ function makeEnv() {
   try {
     const pmrem = new THREE.PMREMGenerator(renderer);
     const es = new THREE.Scene();
-    es.background = new THREE.Color(0x181209);
+    es.background = new THREE.Color(0x3a2b1e);
     const panel = (hex, x, y, z, w, h, rx, ry) => {
       const p = new THREE.Mesh(
         new THREE.PlaneGeometry(w, h),
@@ -1007,6 +1357,8 @@ function makeEnv() {
     panel(0xffd9a0, 0, 1.5, 6, 8, 4, 0, 0);              // 正面暖光
     panel(0x8fb0ff, -5, 1.5, 0, 4, 4, 0, Math.PI / 2);   // 左侧冷光
     panel(0xffc070, 5, 1.5, 0, 4, 4, 0, -Math.PI / 2);   // 右侧暖光
+    panel(0xffffff, 0, 3.4, 3.0, 5, 2.6, 0.55, 0);        // 斜前方高光条：币面那道拉丝亮
+    panel(0x8a4a26, 0, -2.2, 0.4, 9, 9, -Math.PI / 2, 0); // 台面回弹的暖光：币的下半圈不至于死黑
     scene.environment = pmrem.fromScene(es, 0.06).texture;
     pmrem.dispose();
   } catch (e) { /* 环境烘制失败就靠灯光 */ }
@@ -1014,22 +1366,50 @@ function makeEnv() {
 
 function buildCabinet() {
   const wallX = WORLD.wallX;
-  const matFelt = new THREE.MeshStandardMaterial({ color: 0x63291b, roughness: 0.92, metalness: 0.05 });
-  const matWood = new THREE.MeshStandardMaterial({ color: 0x7a5a2e, roughness: 0.6, metalness: 0.15 });
+  // 台面：深红台呢（织纹 + 暗角 + 一圈金线），六面分开给材质——
+  // 原来整个底板是一个材质，正脸是块飘在空中的砖。
+  const feltTex = new THREE.CanvasTexture(makeFeltCanvas());
+  feltTex.colorSpace = THREE.SRGBColorSpace;
+  feltTex.anisotropy = texAniso();
+  const matFelt = new THREE.MeshStandardMaterial({ map: feltTex, roughness: 0.96, metalness: 0.02 });
+  const matRim = new THREE.MeshStandardMaterial({ color: 0x3c130f, roughness: 0.5, metalness: 0.28 });
+  // 机箱是"红漆 + 黄铜包边"的街机：侧壁改成暗红漆面，顶上一道黄铜压条，
+  // 外沿再嵌一条发光的琥珀色灯带——台子在暗场里也有机台的轮廓。
+  const matLacquer = new THREE.MeshStandardMaterial({ color: 0x7d1712, roughness: 0.42, metalness: 0.3 });
+  const matBrass = new THREE.MeshStandardMaterial({ color: 0xc8993f, metalness: 0.85, roughness: 0.3 });
+  const matGlow = new THREE.MeshStandardMaterial({ color: 0xffb457, emissive: 0xff8a1a, emissiveIntensity: 1.1, roughness: 0.4 });
   const matDark = new THREE.MeshStandardMaterial({ color: 0x2a2118, roughness: 0.85 });
 
   // 固定台面底板：从后缘铺到掉落口（dropZ）为止。
   // 不多铺：dropZ 以外没有物理支撑，多铺的那截会让赢币下落时从台面里穿出来
   const baseDepth = WORLD.dropZ - WORLD.baseBack;
-  const base = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX, 0.3, baseDepth), matFelt);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX, 0.3, baseDepth),
+    [matRim, matRim, matFelt, matRim, matRim, matRim]);
   base.position.set(0, -0.15, (WORLD.baseBack + WORLD.dropZ) / 2);
+  base.receiveShadow = true;
   scene.add(base);
 
+  const rivetGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.012, 8);
   // 左/右侧壁：跟着台面收到掉落口，前沿敞开（币从正面掉出去）
   for (const sx of [-1, 1]) {
-    const side = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, baseDepth), matDark);
+    const side = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, baseDepth), matLacquer);
     side.position.set(sx * (wallX + 0.05), 0.1, (WORLD.baseBack + WORLD.dropZ) / 2);
+    side.castShadow = true; side.receiveShadow = true;
     scene.add(side);
+    // 顶上的黄铜压条
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.022, baseDepth), matBrass);
+    rail.position.set(sx * (wallX + 0.05), 0.361, (WORLD.baseBack + WORLD.dropZ) / 2);
+    scene.add(rail);
+    // 外沿的灯带：暗场里勾出机台边缘
+    const glow = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.014, baseDepth * 0.96), matGlow);
+    glow.position.set(sx * (wallX + 0.101), 0.34, (WORLD.baseBack + WORLD.dropZ) / 2);
+    scene.add(glow);
+    // 压条上的铆钉：两条直边有"机器"的细节，不是两条光板
+    for (let i = 0; i < 7; i++) {
+      const rv = new THREE.Mesh(rivetGeo, matBrass);
+      rv.position.set(sx * (wallX + 0.05), 0.376, WORLD.baseBack + 0.14 + i * (baseDepth - 0.28) / 6);
+      scene.add(rv);
+    }
   }
 
   // 前沿黄铜包边：给台面收个口，免得前沿是一刀切开的毛边。
@@ -1045,24 +1425,65 @@ function buildCabinet() {
   back.position.set(0, 0.85, WORLD.baseBack);
   scene.add(back);
 
+  // 落币口：后墙下方一道暗槽 + 黄铜唇口。币是在这里"吐"出来的，
+  // 不是凭空在半空出现——顺便把后墙上那块空地填掉。
+  const chuteDark = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX - 0.06, 0.30, 0.03),
+    new THREE.MeshStandardMaterial({ color: 0x1b1210, roughness: 0.95 }));
+  chuteDark.position.set(0, 0.66, WORLD.baseBack + 0.018);
+  scene.add(chuteDark);
+  const chuteLip = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX - 0.02, 0.03, 0.12), matBrass);
+  chuteLip.position.set(0, 0.455, WORLD.baseBack + 0.06);
+  chuteLip.castShadow = true;
+  scene.add(chuteLip);
+
   // 电子屏（CanvasTexture）—— 后墙上方
   dispCanvas = document.createElement('canvas');
   dispCanvas.width = 300; dispCanvas.height = 110;
   dispCtx = dispCanvas.getContext('2d');
   dispTex = new THREE.CanvasTexture(dispCanvas);
+  // 屏框：衬板（哑黑）压在墙上，四周一圈黄铜，屏面再往前 0.01
+  const bezel = new THREE.Mesh(new THREE.BoxGeometry(1.66, 0.71, 0.02),
+    new THREE.MeshStandardMaterial({ color: 0x120c08, roughness: 0.55, metalness: 0.25 }));
+  bezel.position.set(0, 1.18, WORLD.baseBack + 0.032);
+  scene.add(bezel);
+  const frameW = 1.66, frameH = 0.71, frameT = 0.035;
+  for (const [w, h, x, y] of [
+    [frameW, frameT, 0, 1.18 + frameH / 2],
+    [frameW, frameT, 0, 1.18 - frameH / 2],
+    [frameT, frameH + frameT, -frameW / 2, 1.18],
+    [frameT, frameH + frameT, frameW / 2, 1.18]
+  ]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.03), matBrass);
+    bar.position.set(x, y, WORLD.baseBack + 0.045);
+    scene.add(bar);
+  }
   const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.55),
     new THREE.MeshBasicMaterial({ map: dispTex }));
   screen.position.set(0, 1.18, WORLD.baseBack + 0.05);
   scene.add(screen);
 
-  // 可动推板大方块：厚实的钢灰色金属块（顶面亮、前缘面背光更暗），一半机身藏在台面下
+  // 可动推板：侧面暗钢、顶面拉丝钢板（币就压在它上面）、前脸再暗一档。
+  // 一个盒子配三种材质，比另做一块薄板少一层几何体；前脸那块必须是 index 4（+z）。
+  const brushedTex = new THREE.CanvasTexture(makeBrushedCanvas());
+  brushedTex.colorSpace = THREE.SRGBColorSpace;
+  brushedTex.wrapS = brushedTex.wrapT = THREE.RepeatWrapping;
+  brushedTex.repeat.set(2.6, 1.0);
+  brushedTex.anisotropy = texAniso();
+  const matSteelSide = new THREE.MeshStandardMaterial({ color: 0x6d747d, metalness: 0.62, roughness: 0.45 });
+  const matSteelTop = new THREE.MeshStandardMaterial({ map: brushedTex, color: 0xd6dde6, metalness: 0.72, roughness: 0.3, envMapIntensity: 1.35 });
+  const matSteelFront = new THREE.MeshStandardMaterial({ color: 0x555c65, metalness: 0.7, roughness: 0.4 });
   pusher = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX + 0.06, 0.5 + WORLD.PUSH_TOP, WORLD.pusherLen),
-    new THREE.MeshStandardMaterial({ color: 0x9aa2ac, metalness: 0.55, roughness: 0.42 }));
+    [matSteelSide, matSteelSide, matSteelTop, matSteelSide, matSteelFront, matSteelSide]);
+  pusher.castShadow = true; pusher.receiveShadow = true;
   scene.add(pusher);
   // 前缘黄铜压条：顶面与推板面平齐，币压过不穿模
   pusherEdge = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX + 0.06, 0.03, 0.04),
     new THREE.MeshStandardMaterial({ color: 0xffb13c, emissive: 0xff8a1a, emissiveIntensity: 1.2, roughness: 0.4 }));
   scene.add(pusherEdge);
+  // 灯带下面的黄铜鼻梁：推板前脸不再是一条直切的钢口
+  pusherNose = new THREE.Mesh(new THREE.BoxGeometry(2 * wallX + 0.075, 0.016, 0.05), matBrass);
+  pusherNose.castShadow = true;
+  scene.add(pusherNose);
 
   // 顶灯串
   for (let i = 0; i < 14; i++) {
@@ -1091,7 +1512,9 @@ function syncCoins() {
     seen.add(c.id);
     let m = c._m;
     if (!m) {
-      m = new THREE.Mesh(coinGeo, coinMat[c.type]);
+      m = new THREE.Mesh(coinGeo, coinMat[c.type][c.id % 3]);
+      m.castShadow = true;
+      m.receiveShadow = true;   // 币接币的影：币堆内部才有层层压过来的暗，而不是一片平铺的金
       scene.add(m); c._m = m;
     }
     m.position.set(c.x, realY(c), c.z);
@@ -1181,6 +1604,7 @@ function render(t, dt) {
   // （原先写 PUSH_TOP-0.25，顶面变成 1.5×PUSH_TOP，落地币被钢面整个埋住看不见）
   pusher.position.set(0, WORLD.PUSH_TOP / 2 - 0.25, center);   // 顶面 = PUSH_TOP
   pusherEdge.position.set(0, WORLD.PUSH_TOP - 0.015, pf);  // 压条顶面与推板面平齐
+  pusherNose.position.set(0, WORLD.PUSH_TOP - 0.052, pf + 0.004);
 
   // 电子屏
   updateDisp(t);
@@ -1200,8 +1624,10 @@ function render(t, dt) {
   let ox = 0, oy = 0;
   if (S.shakeT > 0) { ox = (Math.random() - 0.5) * 0.06; oy = (Math.random() - 0.5) * 0.04; }
   if (S.jackpotT > 0) { ox += (Math.random() - 0.5) * 0.04; oy += (Math.random() - 0.5) * 0.03; }
-  camera.position.set(0 + ox, 2.05 + oy, 3.95);
-  camera.lookAt(0, 0.3, 0.55);
+  // 取景：后墙顶压在画布上沿 6%、台面前脸压在下沿 6%，左右各留一线。
+  // （原来是距离 3.95、视轴压到 0.3 —— 画布下四分之一是空的，机台像摆在远处）
+  camera.position.set(0 + ox, 2.35 + oy, 3.50);
+  camera.lookAt(0, 0.50, 0.40);
 
   // JACKPOT 金光（HTML 叠加）
   $('jp').style.opacity = (S.jackpotT > 0 ? (S.jackpotT / 2.2 * 0.6) : 0).toFixed(3);
@@ -1346,7 +1772,8 @@ $('btnBuyTower').addEventListener('click', () => {
 });
 $('btnReset').addEventListener('click', () => { $('mReset').classList.add('show'); sButton(); });
 $('btnResetYes').addEventListener('click', () => {
-  S.bal = 300; S.score = 0; S.energy = 100; S.spProgress = 0;
+  // 币袋是全柜通用的，重置只清这台机台自己的账（分数/能量/进度/台面），不动币
+  S.score = 0; S.energy = 100; S.spProgress = 0;
   S.totalIn = 0; S.totalOut = 0; S.jackpots = 0; S.feedT = 4;
   coins.length = 0; coinMeshMap.forEach(m => scene && scene.remove(m)); coinMeshMap.clear();
   stopAuto();
@@ -1463,6 +1890,16 @@ function seedCoins() {
   }
   // 首次构建金币 mesh
   if (threeReady) syncCoins();
+}
+
+// 招牌跑马灯：16 颗灯泡，CSS 用 --i 排相位（动画在样式里，减动效时自动停）
+{
+  const rail = $('bulbs');
+  for (let i = 0; i < 16; i++) {
+    const b = document.createElement('i');
+    b.style.setProperty('--i', i);
+    rail.appendChild(b);
+  }
 }
 
 initThree();
