@@ -119,6 +119,7 @@
   .row.c4{grid-template-columns:1.2fr 1.2fr 1.2fr 1.4fr}
   .row.c2{grid-template-columns:1fr 1fr}
   .row.c3b{grid-template-columns:repeat(3,1fr)}
+  .row.c4b{grid-template-columns:repeat(4,1fr)}
   .btn{
     border:1px solid var(--line);background:var(--panel);color:var(--ink);
     font-family:var(--cjk);font-size:14px;font-weight:500;
@@ -243,8 +244,9 @@
     <button class="btn gold" id="btnTower">召唤币塔<small>消耗 100 能量</small></button>
   </div>
 
-  <div class="row c3b">
+  <div class="row c4b">
     <button class="btn" id="btnPrize">规则奖表</button>
+    <button class="btn" id="btnShop">积分兑换</button>
     <button class="btn" id="btnReset">重置机台</button>
     <button class="btn" id="btnFull">全屏</button>
   </div>
@@ -267,7 +269,8 @@
       <li><b>连锁</b>：别小看一枚币——落下的那一下会挤动整排。挑币堆最满的位置投，一口吃一排。</li>
       <li><b>侧槽</b>：前沿左右两个角是侧槽。从侧槽掉下去的币<b>必出特殊币</b>。</li>
       <li><b>特殊币</b>：银色的凤凰币。掉落得 5 币，并推进电子屏进度；<b>300 格开奖</b>，全场币雨。</li>
-      <li><b>连击</b>：5 秒内连续有币掉落就连击叠加，倍率最高 3×；断了清零。</li>
+      <li><b>连击</b>：5 秒内连续有币掉落就连击叠加，倍率最高 3×；<b>币和积分都按倍率结算</b>，断了清零。所以"一口吃一排"是这台的正确打开方式。</li>
+      <li><b>积分</b>：投币、赢币都会累积分，攒够了去<b>积分兑换</b>换币或免费币塔（见奖表）。</li>
     </ul>
     <h3>键盘</h3>
     <p class="dim"><b>空格</b> 投 1 枚 · <b>←/→</b> 移动落点 · <b>S</b> 震台 · <b>T</b> 币塔 · <b>P</b> 暂停</p>
@@ -288,7 +291,7 @@
       <tr><td><span class="icon">🗼</span>召唤币塔</td><td>100 能量 · 一摞 14 枚砸进主台</td></tr>
     </table>
     <h3>机的脾气</h3>
-    <p class="dim">推板每 2.8 秒推一次，力道只够推动贴着它的那一层——后面的币靠前面的币传力。台面上限 360 枚，超了最老的币会被收进底仓（照常计入你的余额）。</p>
+    <p class="dim">推板每 4.2 秒推一次，力道只够推动贴着它的那一层——后面的币靠前面的币传力。落在推板上的币会贴着板面跟着推板来回走（有惯性、不会自己滑下去），要把它弄下板得靠你自己的投币：砸下去的那一枚只挤动身边紧挨着的几枚，板上的币被一串串顺着顶向前缘，最前面一排被顶出板沿就翻下去。同样，砸进前沿币堆的币也只挤动身边几枚，不会把一整片币掀过掉落线。机器自己也会慢慢补币：大多砸进前沿币堆，偶尔落在推板上。台面上限 360 枚，超了最老的币会被收进底仓（照常计入你的余额）。机器不会让台面空着：少于 90 枚时补币会加密到每秒约 3 枚。余额花光后再点投币，机器保底补你 <b>10 枚</b>（45 秒一次），不必为此重置机台。</p>
     <button class="closebtn" data-close>合上</button>
   </div>
 </div>
@@ -302,11 +305,30 @@
       <tr><td>侧槽掉落（左右角落）</td><td>面值 × 2 · 必出凤凰币</td></tr>
       <tr><td>凤凰币掉落</td><td>5 币 · 电子屏 +1</td></tr>
       <tr><td>元宝掉落</td><td>20 币 · 电子屏 +3</td></tr>
-      <tr><td>连击倍率</td><td>1 + 连击 × 0.1（上限 3×）</td></tr>
+      <tr><td>连击倍率</td><td>1 + 连击 × 0.1（上限 3×）· 同时结算金币与积分</td></tr>
       <tr><td>电子屏 300 格</td><td>JACKPOT：35 枚币雨 + 3000 积分</td></tr>
+      <tr><td>积分兑换</td><td>100 积分 → 10 币 · 150 积分 → 免费币塔</td></tr>
     </table>
     <h3>能量</h3>
     <p class="dim">每秒回 1.5，每投 1 枚额外回 0.3，上限 100。</p>
+    <button class="closebtn" data-close>知道了</button>
+  </div>
+</div>
+
+<!-- 积分兑换 -->
+<div class="modal" id="mShop">
+  <div class="sheet">
+    <h2>积分兑换</h2>
+    <p class="dim">积分是这台机器给你记的账：投币、赢币都会累。攒够了可以换东西，换来的币照常算你的余额。</p>
+    <table>
+      <tr><td>10 枚币 · 直接进余额</td><td>100 积分</td></tr>
+      <tr><td>免费币塔 · 14 枚砸进台面（不耗能量）</td><td>150 积分</td></tr>
+    </table>
+    <div class="row c2">
+      <button class="btn gold" id="btnBuyCoin">换 10 枚<small>100 积分</small></button>
+      <button class="btn teal" id="btnBuyTower">换币塔<small>150 积分</small></button>
+    </div>
+    <p class="dim" id="shopBal" style="margin-top:10px">当前积分 0</p>
     <button class="closebtn" data-close>知道了</button>
   </div>
 </div>
@@ -355,19 +377,25 @@ const $ = id => document.getElementById(id);
    再被推到最前缘掉下去，就是你的。主台面 y=0，推板最大前缘 ≈ 币堆后缘。  */
 const WORLD = {
   wallX: 1.34,          // 侧壁内沿（台子更宽）
-  baseBack: -0.42,      // 台面后缘（最远端，后墙所在）
-  PUSH_AMP: 0.75,       // 推板行程（前伸量），行程 = 2*AMP
+  baseBack: -0.20,      // 台面后缘（最远端，后墙所在）
+  PUSH_AMP: 0.24,       // 推板行程（前伸量），行程 = 2*AMP
   PUSH_TOP: 0.11,       // 推板顶面高出台面（≈1 枚币直径，看得出是个实体平台）
   // 推板后缘 = pusherBack + sin*AMP，最大只到 pusherBack+AMP = baseBack：
   // 推板永远贴着后墙，前伸时后面不会露出台面
-  pusherBack: -1.17,    // = baseBack - PUSH_AMP
-  pusherLen: 2.17,      // = tableFront - baseBack，保证后缘永远盖到后墙
-  tableFront: 1.75,     // 前台面（币堆区）起点 = 推板最大前缘
-  dropZ: 2.35,          // 前沿开口（掉落口）= 台面可见外沿：台面就铺到这里，不多铺
+  pusherBack: -0.44,    // = baseBack - PUSH_AMP
+  pusherLen: 1.00,      // = tableFront - baseBack，保证后缘永远盖到后墙
+  tableFront: 0.80,     // 前台面（币堆区）起点 = 推板最大前缘
+  dropZ: 1.38,          // 前沿开口（掉落口）= 台面可见外沿：台面就铺到这里，不多铺
   coinR: 0.062,         // 币半径
   coinT: 0.026,         // 币厚
   maxCoins: 360
 };
+
+/* 积分兑换价目：实测每投 1 枚累约 1.9 分（30 投 +56 分），所以 100 分 ≈ 投 50 枚的账，
+   换回 10 枚币 ≈ 20% 返还——长期玩不会因为"投币净亏"而卡死，也远不够付得起无限投币。
+   币塔 150 分（14 枚，免 100 能量），比换币略亏，但它是"看一次倾泻"的选项。 */
+const SHOP_COIN_COST = 100, SHOP_COIN_GET = 10;
+const SHOP_TOWER_COST = 150;
 
 /* ---------- 状态 ---------- */
 const S = {
@@ -378,6 +406,8 @@ const S = {
   auto: false, autoT: 0,
   shakeT: 0, muted: false,
   paused: false, queue: 0, queueT: 0,
+  feedT: 4,             // 机器自动撒币计时（见 machineDrop）
+  reliefT: 0,           // 余额见底的"保底补币"冷却（秒）
   flashT: 0, jackpotT: 0
 };
 const coins = [];       // 台面上的币
@@ -391,21 +421,32 @@ const dropLog = [];     // 最近掉落记录（连击用）
 
 /* ---------- 存档 ---------- */
 const SAVE_KEY = 'coinpusher.jubaopen.v1';
-function save() {
+// 存档节流：成片赢币时 winCoin 会一枚一枚地调 save()（一次币雨就是几十次
+// localStorage 写入）。200ms 内只落盘一次；页面隐藏/关闭时强制补一次。
+let saveAt = 0;
+function save(force) {
+  if (!force) {
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    if (now - saveAt < 200) return;
+    saveAt = now;
+  }
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       bal: S.bal, score: S.score, energy: S.energy, sp: S.spProgress,
-      tin: S.totalIn, tout: S.totalOut, jack: S.jackpots, muted: S.muted
+      tin: S.totalIn, tout: S.totalOut, jack: S.jackpots, muted: S.muted,
+      rel: S.reliefT
     }));
   } catch (e) {}
 }
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
+window.addEventListener('pagehide', () => save(true));
 function load() {
   try {
     const d = JSON.parse(localStorage.getItem(SAVE_KEY));
     if (!d) return;
     S.bal = d.bal ?? 300; S.score = d.score ?? 0; S.energy = d.energy ?? 100;
     S.spProgress = d.sp ?? 0; S.totalIn = d.tin ?? 0; S.totalOut = d.tout ?? 0;
-    S.jackpots = d.jack ?? 0; S.muted = !!d.muted;
+    S.jackpots = d.jack ?? 0; S.muted = !!d.muted; S.reliefT = d.rel ?? 0;
   } catch (e) {}
 }
 load();
@@ -460,15 +501,26 @@ function makeCoin(x, z, layer, type, h) {
 function coinValue(c) { return c.type === 2 ? 20 : c.type === 1 ? 5 : 1; }
 
 function spawnPlayerCoin() {
-  if (S.bal < 1) { sDeny(); flashText('余额不足', '#e05a3a', 17); stopAuto(); return false; }
+  // 余额见底：机器保底补 10 枚（45 秒一次），这一下照样投出去。
+  // 没有这道保底，玩家只能去按"重置机台"（会把积分清零）。
+  if (S.bal < 1) {
+    if (S.reliefT > 0) {
+      sDeny(); flashText('余额不足 · ' + Math.ceil(S.reliefT) + 's 后补币', '#e05a3a', 16);
+      stopAuto(); return false;
+    }
+    S.bal += 10; S.reliefT = 45;
+    flashText('余额见底 · 机器补你 10 枚', '#ffcf4d', 17);
+    save();
+  }
   S.bal -= 1; S.totalIn += 1; S.energy = Math.min(100, S.energy + 0.3);
   const r = WORLD.coinR;
   let x = S.pos * (WORLD.wallX - r - 0.06);
   if (!Number.isFinite(x)) x = 0;   // 守卫：坏位置不生成坏币
   // 投币落在推板大方块上（靠后），带一点向前速度，被推板一路推到币堆
   // 投币落在推板大方块上（靠后墙、推板永远盖得到的区域），带一点向前速度；
-  // 落点上限留出下落期间前滑（vz·下落时间）的余量，保证落地时币仍在推板上
-  const z = WORLD.baseBack + 0.15 + Math.random() * 0.42;
+  // 落点上限留出下落期间前滑（vz·下落时间）的余量，保证落地时币仍在推板上。
+  // 板面总深只有 0.32（推到最后端时），所以落币带也收窄
+  const z = WORLD.baseBack + 0.07 + Math.random() * 0.19;
   const c = makeCoin(x, z, 0, Math.random() < 0.085 ? 1 : 0, 0);
   c.state = 1; c.y = 0.55; c.vy = 0; c.vz = 0.16;
   coins.push(c);
@@ -478,15 +530,40 @@ function spawnPlayerCoin() {
 }
 function queueCoins(n) { S.queue += n; }
 
-/* 落地冲击把邻近币震开（首触散冲用） */
-function scatterNeighbors(c) {
+/* 机器自动撒币：台面的缓慢补充（模拟真实推币机的自动上币），不扣玩家余额。
+   大多数落点在前沿币堆区（和币塔/开奖一样从上方砸进堆里），
+   偶尔落在推板上——上板的币会被推板一路带着往前送。 */
+function machineDrop() {
+  const r = WORLD.coinR;
+  const x = (Math.random() * 2 - 1) * (WORLD.wallX - r - 0.04);
+  const onPlate = Math.random() < 0.3;
+  const z = onPlate
+    ? WORLD.baseBack + 0.06 + Math.random() * 0.17                        // 与投币同一带：推板永远盖得到
+    : WORLD.tableFront + 0.10 + Math.random() * (WORLD.dropZ - WORLD.tableFront - 0.28);
+  const c = makeCoin(x, z, 0, Math.random() < 0.12 ? 1 : 0, 0);
+  c.state = 1; c.vy = 0; c.vz = onPlate ? 0.16 : 0;
+  c.y = onPlate ? 0.62 + Math.random() * 0.25 : 1.35 + Math.random() * 0.45;
+  coins.push(c);
+}
+
+/* 落地撞击：只砸开真正贴着的那一圈（半径 0.18，约 1.5 个币径）。
+   板上那层币是松散铺在钢板上的单层，撞击会顺着紧挨的一串往前顶一点
+   （最前一排被顶出板沿就翻下去——这是"靠投币把币弄下板"的主力）；
+   前沿币堆是 2-4 层互相压着的深堆，一枚砸下去只挤动身边几枚，
+   不会把一整片币掀过掉落线（旧版加的正前方长距离推挤就是这个问题）。 */
+function impactNeighbors(c, impact, pf) {
+  const amp = Math.min(1.8, 0.4 + impact * 0.26);
   for (const o of coins) {
     if (o === c || o.state !== 0) continue;
     const dx = o.x - c.x, dz = o.z - c.z, d2 = dx * dx + dz * dz;
-    if (d2 < 0.012 && d2 > 1e-6) {
-      const d = Math.sqrt(d2), k = 0.16 * (1 - d / 0.11);
-      o.vx += dx / d * k; o.vz += dz / d * k + 0.04;
-    }
+    if (d2 > 0.0324 || d2 < 1e-6) continue;
+    const d = Math.sqrt(d2), fall = 1 - d / 0.18;
+    const k = amp * fall;
+    o.vx += dx / d * k * 0.6;
+    o.vz += dz / d * k * 0.6 + k * 0.25;
+    // 只有"板上单层"才算一串：顺着往前的方向多顶一点，把这一串推向前缘
+    if (c.z < pf && o.z < pf && Math.abs(dx) < 0.3 && dz > 0 && dz < 0.45)
+      o.vz += amp * (1 - dz / 0.45) * 0.9;
   }
 }
 
@@ -508,8 +585,12 @@ function winCoin(c) {
   let v = coinValue(c);
   if (side) v *= 2;
   bumpCombo();
+  // 连击不只加积分：钱也按连击倍率结算（1×~3×）。
+  // 一口吃掉一整排时，越后面的币吃到的倍率越高——"挑最满的位置投"才真的划算
+  // （实测 30 投的回收从 ~9 币提到 ~20 币，仍然是净消耗，不会通胀）。
+  v = Math.max(1, Math.round(v * S.mult));
   S.bal += v; S.totalOut += v;
-  S.score += Math.round(v * S.mult * (side ? 2 : 1));
+  S.score += Math.round(v * (side ? 2 : 1));
   let sp = c.type === 2 ? 3 : c.type === 1 ? 1 : 0;
   if (side && sp === 0) sp = 1;
   if (sp) { S.spProgress += sp; sSpecial(); }
@@ -534,7 +615,7 @@ function jackpot() {
       const r = WORLD.coinR;
       const x = (Math.random() * 2 - 1) * (WORLD.wallX - r);
       const type = Math.random() < 0.3 ? 2 : 1;
-      const c = makeCoin(x, WORLD.tableFront + 0.2 + Math.random() * (WORLD.dropZ - WORLD.tableFront - 0.5), 0, type, 0);
+      const c = makeCoin(x, WORLD.tableFront + 0.12 + Math.random() * (WORLD.dropZ - WORLD.tableFront - 0.28), 0, type, 0);
       c.state = 1; c.y = 1.6 + Math.random() * 0.5; c.vy = 0;
       coins.push(c);
     }, i * 85);
@@ -578,18 +659,21 @@ function doShake() {
 }
 function doTower() {
   if (S.energy < 100) { sDeny(); flashText('能量不足', '#e05a3a', 16); return; }
-  S.energy -= 100; sTower();
+  S.energy -= 100; sTower(); dropTowerStack();
+  updateHUD(); save();
+}
+// 一摞 14 枚砸进主台（能量币塔 / 积分兑换的免费币塔共用）
+function dropTowerStack() {
   const r = WORLD.coinR;
   const cx0 = S.pos * (WORLD.wallX - r - 0.1);
   const n = 14;
   for (let i = 0; i < n; i++) {
     const type = i === 3 || i === 9 ? 1 : i === 12 ? 2 : 0;
-    const c = makeCoin(cx0 + (Math.random() - 0.5) * 0.03, 2.0 - i * 0.02, 0, type, 0);
+    const c = makeCoin(cx0 + (Math.random() - 0.5) * 0.03, WORLD.tableFront + 0.10 - i * 0.02, 0, type, 0);
     c.state = 1; c.y = 1.5 + i * WORLD.coinT * 2.2; c.vy = 0;
     c.towerD = i;
     coins.push(c);
   }
-  updateHUD(); save();
 }
 
 /* ---------- 物理 ---------- */
@@ -626,10 +710,13 @@ function gridBuild(arr) {
   }
 }
 
-let pushPhase = 0;
+let pushPhase = -Math.PI / 2;   // 开局停在最后端（pf = 0.25）：这时"板上看得见的那块"最短，
+                                // 铺满它就是一开局满机的样子，且不会先清掉一批多余的币
 const PUSH_PERIOD = 4.2;  // 原 2.8 太快，推板扫掠看不清也来不及欣赏币堆运动
 const PUSH_AMP = WORLD.PUSH_AMP;   // 推板行程（前伸量），长
 const GRV = 7.5;   // 重力：原 3.4 太飘、落地像"贴"上去；调高后下落干脆，落地回弹也才有撞击速度
+const PLATE_GRIP = 7;   // 板面摩擦带动强度（1/s）：币速向板速收敛的速率，τ≈1/7≈0.14s。
+                        // 越大越"粘"（越像贴在板上）、越小越飘。币靠这个惯性跟着推板来回
 function pusherFront() {
   return WORLD.pusherBack + WORLD.pusherLen + Math.sin(pushPhase) * PUSH_AMP;
 }
@@ -668,7 +755,7 @@ function physicsStep(dt) {
         if (c.bounces === 1) {
           c.vz *= 0.5;   // 首触吃掉一半水平余速，弹起后不再平移乱窜
           sCoinLand();
-          scatterNeighbors(c);
+          impactNeighbors(c, impact, pf);
         } else clack(0.7);
         continue;
       }
@@ -680,7 +767,7 @@ function physicsStep(dt) {
       c.x = Math.max(-WORLD.wallX + r, Math.min(WORLD.wallX - r, c.x));
       c.vx = 0; c.vz = 0; c.towerD = undefined;
       if (c.bounces) clack(0.6);         // 弹过的：首触响过了，落定补一记轻响
-      else { sCoinLand(); scatterNeighbors(c); }
+      else { sCoinLand(); impactNeighbors(c, impact, pf); }
     }
   }
 
@@ -691,20 +778,23 @@ function physicsStep(dt) {
     c.vx *= Math.pow(0.14, dt); c.vz *= Math.pow(0.14, dt);
     c.x += c.vx * dt; c.z += c.vz * dt;
     // 推板大方块：只分两种关系——
-    // ① 币在推板上（z < pf，投币落点或被顶到板前缘前的）：整块前后都带着走；
+    // ① 币在推板上（z < pf，投币/补币落点，或被顶到板前缘前的）：板面摩擦带着走，
+    //    前进回程都跟（有惯性滞后），靠我投币砸下去的撞击把它推下板；
     // ② 前缘顶到币的后沿（z - r < pf）：把币往前顶出去，币始终留在台面上——
     //    不许把台面上的币"铲"上板（所以 z ≥ pf 的币永远不获得板面高度）
     if (c.z < pf) {
-      const zCarry = c.z + (vpf > 0 ? vpf * dt : 0);
-      // 携带微颤：锁步带着走的同时留一点前后蠕动；颤动不许把币拱出前缘（回钳 pf），越界照常翻落
-      const zShake = zCarry + (Math.random() - 0.5) * 0.36 * dt;
-      c.z = (zCarry < pf && zShake > pf) ? pf - 1e-6 : zShake;
-      if (c.vz < vpf) c.vz = vpf;
-      c.vx += (Math.random() - 0.5) * 0.25 * dt;
-      c.spin += (Math.random() - 0.5) * 5 * dt;   // 推挤中的自旋漂移：币不再像磁吸平移
+      // 板面摩擦带动（惯性）：速度向板速收敛、前进回程都跟着板走（τ≈1/PLATE_GRIP）。
+      // 币不会一出板就自己滑下去（不投币时 30 秒 0 枚离板）；被投币撞到板沿外侧、
+      // 或被币堆挤出去时，才顺着惯性翻下板。
+      c.vz += (vpf - c.vz) * Math.min(1, PLATE_GRIP * dt);
+      c.vx += (Math.random() - 0.5) * 0.25 * dt;   // 左右微颤
+      c.spin += (Math.random() - 0.5) * 5 * dt;    // 推挤中的自旋漂移：币不再像磁吸平移
+      // 不回钳前缘：被落币撞、被币堆挤到板外就堂堂正正翻下去（见下段 ②）
     } else if (vpf > 0 && c.z - r < pf) {
       c.z = pf + r;
-      if (c.vz < vpf) c.vz = vpf;
+      // 只给一点"跟着走"的速度：整段 vpf 会把币以推板速度甩向前排，
+      // 在前排 0.03 的缝里撞出很深的穿插，分离约束再把整排币崩过掉落线
+      if (c.vz < vpf) c.vz = Math.min(vpf, 0.10);
       c.spin += (Math.random() - 0.5) * 5 * dt;
     }
     // 板面高度过渡：上板瞬时（投币落板本就在板上），下板按 dt*7 用 0.14s 平滑落回台面——
@@ -745,6 +835,7 @@ function physicsStep(dt) {
     }
     if (c.h > sup + 0.002) c.h = Math.max(sup, c.h - T * 4 * dt);
   }
+
   separateLayer(settled, 2);
 
   /* -- 赢得出场动画 -- */
@@ -795,7 +886,10 @@ function separateLayer(arr, iters) {
           const dx = b.x - a.x, dz = b.z - a.z;
           const d2 = dx * dx + dz * dz;
           if (!(d2 < minD2) || d2 < 1e-9) continue;   // 非接触不推；NaN 也在这里被挡掉
-          if (Math.abs(a.h - b.h) > WORLD.coinT * 1.4) continue;
+          // 只处理同一层的币：叠层币在垂直方向差一个币厚（±抖动），
+          // 如果按 1.4T 判层，上下两层会被当成"横向深度穿插"互相猛推——
+          // 满机开局第一推把整堆崩开的元凶就是这个（实测单帧后退 0.06）。
+          if (Math.abs(a.h - b.h) > WORLD.coinT * 0.6) continue;
           const d = Math.sqrt(d2), push = (r2 - d) / d * 0.5;
           const px = dx * push, pz = dz * push;
           a.x -= px; a.z -= pz; b.x += px; b.z += pz;
@@ -840,8 +934,8 @@ function initThree() {
 
   // 透视相机：斜俯视整个台面，看得见后方的大推板把前方的币堆往前推
   camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-  camera.position.set(0, 2.3, 4.6);
-  camera.lookAt(0, 0.35, 1.1);
+  camera.position.set(0, 2.05, 3.95);
+  camera.lookAt(0, 0.3, 0.55);
 
   // 灯光
   scene.add(new THREE.AmbientLight(0xffe6c0, 0.85));
@@ -1076,8 +1170,8 @@ function render(t, dt) {
   let ox = 0, oy = 0;
   if (S.shakeT > 0) { ox = (Math.random() - 0.5) * 0.06; oy = (Math.random() - 0.5) * 0.04; }
   if (S.jackpotT > 0) { ox += (Math.random() - 0.5) * 0.04; oy += (Math.random() - 0.5) * 0.03; }
-  camera.position.set(0 + ox, 2.3 + oy, 4.6);
-  camera.lookAt(0, 0.35, 1.1);
+  camera.position.set(0 + ox, 2.05 + oy, 3.95);
+  camera.lookAt(0, 0.3, 0.55);
 
   // JACKPOT 金光（HTML 叠加）
   $('jp').style.opacity = (S.jackpotT > 0 ? (S.jackpotT / 2.2 * 0.6) : 0).toFixed(3);
@@ -1100,6 +1194,10 @@ function updateHUD() {
   $('btnDrop1').disabled = S.bal < 1 && S.queue === 0;
   $('btnDrop5').disabled = S.bal < 5 && S.queue === 0;
   $('btnDrop10').disabled = S.bal < 10 && S.queue === 0;
+  // 积分兑换（弹窗开着时也要跟着积分实时变灰）
+  $('shopBal').textContent = '当前积分 ' + S.score.toLocaleString('en-US');
+  $('btnBuyCoin').disabled = S.score < SHOP_COIN_COST;
+  $('btnBuyTower').disabled = S.score < SHOP_TOWER_COST;
 }
 function stopAuto() {
   S.auto = false;
@@ -1132,6 +1230,21 @@ function loop(now) {
       }
     }
     S.energy = Math.min(100, S.energy + 1.5 * dt);
+    if (S.reliefT > 0) S.reliefT = Math.max(0, S.reliefT - dt);
+    // 机器自动撒币：台面正常时每 6~14 秒一枚；台面见底（< 90 枚）时改成
+    // 每 1~2 秒撒 3 枚，把台面快速补回来——玩家永远不会面对一台空机台。
+    S.feedT -= dt;
+    if (S.feedT <= 0) {
+      let live = 0;
+      for (const c of coins) if (c.state === 0) live++;
+      if (live < 90) {
+        S.feedT = 0.6 + Math.random() * 0.6;
+        for (let i = 0; i < 3; i++) machineDrop();
+      } else {
+        S.feedT = 6 + Math.random() * 8;
+        machineDrop();
+      }
+    }
     // 台面计数/能量这类"会自己变"的数字不等事件，半秒刷一次（原版不投币就冻结）
     if (t - lastHudT >= 0.5) { lastHudT = t; updateHUD(); }
     if (S.comboTimer > 0) {
@@ -1188,10 +1301,23 @@ $('btnHow').addEventListener('click', () => { $('mHow').classList.add('show'); s
 $('btnPauseCont').addEventListener('click', () => { if (S.paused) $('btnPause').click(); });
 $('btnBook').addEventListener('click', () => { $('mBook').classList.add('show'); sButton(); });
 $('btnPrize').addEventListener('click', () => { $('mPrize').classList.add('show'); sButton(); });
+$('btnShop').addEventListener('click', () => { updateHUD(); $('mShop').classList.add('show'); sButton(); });
+$('btnBuyCoin').addEventListener('click', () => {
+  if (S.score < SHOP_COIN_COST) { sDeny(); flashText('积分不够', '#e05a3a', 16); return; }
+  S.score -= SHOP_COIN_COST; S.bal += SHOP_COIN_GET;
+  sWin(2); flashText('+' + SHOP_COIN_GET + ' 币', '#ffcf4d', 18);
+  updateHUD(); save();
+});
+$('btnBuyTower').addEventListener('click', () => {
+  if (S.score < SHOP_TOWER_COST) { sDeny(); flashText('积分不够', '#e05a3a', 16); return; }
+  S.score -= SHOP_TOWER_COST; sTower(); dropTowerStack();
+  flashText('积分币塔', '#ffcf4d', 18);
+  updateHUD(); save();
+});
 $('btnReset').addEventListener('click', () => { $('mReset').classList.add('show'); sButton(); });
 $('btnResetYes').addEventListener('click', () => {
   S.bal = 300; S.score = 0; S.energy = 100; S.spProgress = 0;
-  S.totalIn = 0; S.totalOut = 0; S.jackpots = 0;
+  S.totalIn = 0; S.totalOut = 0; S.jackpots = 0; S.feedT = 4;
   coins.length = 0; coinMeshMap.forEach(m => scene && scene.remove(m)); coinMeshMap.clear();
   stopAuto();
   $('mReset').classList.remove('show');
@@ -1240,7 +1366,7 @@ window.addEventListener('keydown', e => {
 window.addEventListener('resize', resizeThree);
 window.addEventListener('orientationchange', resizeThree);
 
-/* ---------- 开台：铺初始币堆 ----------
+/* ---------- 开台：铺满初始币（台面币堆 + 推板上一层） ----------
    单层世界：推板大方块顶面高出台面 PUSH_TOP，推板后缘永远贴到台面后缘
    （baseBack），前缘最大扫到 tableFront（+接触带 r·0.8）。
    币堆就种在这个前缘与掉落口之间的"容器"里：后缘贴着推板的触及带（喂得进）、
@@ -1254,17 +1380,23 @@ function seedCoins() {
   let rnd = 524287;
   const rand = () => (rnd = (rnd * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
   const pusherMaxFront = WORLD.pusherBack + WORLD.pusherLen + WORLD.PUSH_AMP; // = tableFront
-  const zBack = pusherMaxFront + 0.02;                 // 后缘在推板触及带（≤ pf+r·0.8）内
-  const zFront = zBack + 3 * (r * 2.15);               // 4 排；最前币缘离掉落口留余量
-  const dx = r * 2.0, dz = r * 2.15;
+  // 后缘贴到推板最大前缘（只留 0.03）：推板前缘每推一次只把它顶 0.012，
+  // 小于排距留出的缝（0.031）→ 推板推不到堆里第二排，不会一推就把整堆压缩、
+  // 把最前一排"崩"过掉落线（那是开局看起来不满的真正原因）。
+  // 币堆只靠落币/投币的撞击往前挤；机器撒币也会砸在堆上。
+  const zBack = pusherMaxFront + 0.045;
+  // 列距必须明显大于分离阈值（2r×0.96≈0.119）：开启时任何一对币叠在一起，分离约束
+  // 会在第一帧把它们用很大的位移+速度弹开（实测开局 0.5s 内约 35 枚被弹过掉落线）。
+  const dx = r * 2.15, dz = r * 2.35;
+  const zFront = zBack + 2 * dz;                       // 3 排；最前币缘离掉落口 ~0.09
   const xSpan = WORLD.wallX - r - 0.05;
   for (let z = zBack; z <= zFront + 1e-9; z += dz) {
     const t = (z - zBack) / (zFront - zBack);          // 0 后 → 1 前
-    const layers = 1 + Math.round(t * 2.5);            // 后 1 层 → 前 4 层
+    const layers = 4 + Math.round(t * 2);              // 后 4 层 → 前 6 层（堆得更满）
     for (let x = -xSpan; x <= xSpan; x += dx) {
       if (rand() < 0.10) continue;                     // 留点空洞自然些
-      const cx = Math.max(-xSpan, Math.min(xSpan, x + (rand() - 0.5) * dx * 0.35));
-      const cz = z + (rand() - 0.5) * dz * 0.45;
+      const cx = Math.max(-xSpan, Math.min(xSpan, x + (rand() - 0.5) * dx * 0.08));
+      const cz = z + (rand() - 0.5) * dz * 0.08;
       for (let L = 0; L < layers; L++) {
         // 上层稀一点：从缺层开始整列封顶（continue 会造出悬空币——
         // 没有正下方支撑就下沉到同坐标重合，而重合的币分离约束是跳过的）
@@ -1275,11 +1407,29 @@ function seedCoins() {
       }
     }
   }
-  // 推板顶上也放少许币（靠后墙、推板永远盖得到的区域）
-  for (let i = 0; i < 14; i++) {
-    const x = (rand() * 2 - 1) * (WORLD.wallX - r - 0.02);
-    const c = makeCoin(x, WORLD.baseBack + 0.12 + rand() * 0.5, 0, rand() < 0.06 ? 1 : 0, 0);
-    coins.push(c);
+  // 推板顶上也铺满一层：开局就是"满机"（推板上铺着随板来回走的一层币）。
+  // 推板开局停在最后端（pushPhase = −π/2 → pf = 0.32），"板上看得见的那块"
+  // 就是 baseBack..pf 这 0.52 深的一小片——铺满它（3 排单层）即可，
+  // 和长期平衡态里板面上那一层是同一个量级，不会一开局就多出一批币被清下去。
+  // 推板顶上也铺满：开局就是"满机"（推板上铺着随板来回走的一层币）。
+  // 推板开局停在最后端（pushPhase = −π/2 → pf = 0.32），"板上看得见的那块"
+  // 就是 baseBack..pf 这 0.52 深的一小片——铺满它（3 排单层）+ 一半位置再压一层。
+  // 两层加起来仍和长期平衡态里板面上的量级一致，不会一开局就多出一批币被清下去。
+  const plateFront = WORLD.pusherBack + WORLD.pusherLen - WORLD.PUSH_AMP - r - 0.02;
+  const dzP = r * 2.15;                                 // 板面这层可以更密：它不受推板前缘挤压
+  for (let z = WORLD.baseBack + r + 0.01; z <= plateFront + 1e-9; z += dzP) {
+    for (let x = -xSpan; x <= xSpan; x += dx) {
+      if (rand() < 0.08) continue;
+      const cx = Math.max(-xSpan, Math.min(xSpan, x + (rand() - 0.5) * dx * 0.08));
+      const cz = z + (rand() - 0.5) * dzP * 0.08;
+      const c = makeCoin(cx, cz, 0, rand() < 0.06 ? 1 : 0, 0);
+      coins.push(c);                                    // 底层（h=0）
+      if (rand() < 0.5) {                               // 上面再摞一枚
+        const c2 = makeCoin(cx, cz, 0, rand() < 0.06 ? 1 : 0, 0);
+        c2.h = T;                                       // 整列对齐，同列分离约束跳过
+        coins.push(c2);
+      }
+    }
   }
   // 首次构建金币 mesh
   if (threeReady) syncCoins();
