@@ -645,7 +645,6 @@ function makeCoin(x, z, layer, type, h) {
     spinV: (Math.random() - 0.5) * 3, born: performance.now(),
     vyH: 0,        // 层高方向的速度（失去了支撑就自由落体，被下面的币顶起来就慢慢抬）
     bounces: 0,    // 落地回弹计数（首触散冲、二触轻响，最多弹 2 次）
-    plateMix: 0,   // 板面高度混合：1=在推板顶上，下板时按 dt*7 平滑淡出（消除高度瞬移）
     wobT: 0        // 落定余摆强度：渲染侧指数衰减回平
   };
 }
@@ -719,16 +718,18 @@ function impactNeighbors(c, impact, pf) {
   }
 }
 
-/* 落到主台时的堆叠支撑：找邻近币的最高堆顶 */
-function supportHeight(x, z, r) {
-  let top = 0;
+/* 落到主台时的堆叠支撑：找邻近币的最高堆顶。
+   h 是**绝对高度**（台面 0 / 推板面 PUSH_TOP / 币堆顶），base 是落点所在的那个面。 */
+function supportHeight(x, z, r, base) {
+  base = base || 0;
+  let top = base;
   for (const o of coins) {
     if (o.state !== 0 || o.layer !== 0) continue;
     const dx = o.x - x, dz = o.z - z;
     if (dx * dx + dz * dz < (r + WORLD.coinR) * (r + WORLD.coinR) * 0.55)
       top = Math.max(top, o.h + WORLD.coinT);
   }
-  return Math.min(top, WORLD.coinT * 3.2); // 最多堆 4 层
+  return Math.min(top, base + WORLD.coinT * 3.2); // 支撑面之上最多堆 4 层
 }
 
 /* ---------- 掉落结算 ---------- */
@@ -893,11 +894,9 @@ function physicsStep(dt) {
     c.y += c.vy * dt;
     c.z += c.vz * dt; c.x += c.vx * dt;
     c.spin += c.spinV * dt;
-    // 落点支撑面：推板行程内=板面(+PUSH_TOP)，行程外=台面，再叠邻近币堆顶。
+    // 落点支撑面：推板行程内 = 板面（PUSH_TOP），行程外 = 台面，再叠邻近币堆顶（h 是绝对高度）。
     // 下落全程按支撑面判定，落定高度与最后一帧严格衔接，不会落地瞬间跳一下
-    const sup = supportHeight(c.x, c.z, r);
-    const overPlate = c.z < pf;
-    const surf = (overPlate ? WORLD.PUSH_TOP : 0) + sup;
+    const surf = supportHeight(c.x, c.z, r, c.z < pf ? WORLD.PUSH_TOP : 0);
     if (c.y <= surf) {
       const impact = -c.vy;
       if (impact > 1.05 && (c.bounces || 0) < 2) {
@@ -912,8 +911,7 @@ function physicsStep(dt) {
         continue;
       }
       c.state = 0; c.y = 0;
-      c.h = sup;
-      c.plateMix = overPlate ? 1 : 0;   // 落在板上的币立即享有板面高度，下板时平滑落回
+      c.h = surf;
       c.wobT = 1;                        // 落定余摆，渲染侧衰减回平
       c.z = Math.min(c.z, WORLD.dropZ - r * 0.5);
       c.x = Math.max(-WORLD.wallX + r, Math.min(WORLD.wallX - r, c.x));
@@ -949,10 +947,6 @@ function physicsStep(dt) {
       if (c.vz < vpf) c.vz = Math.min(vpf, 0.10);
       c.spin += (Math.random() - 0.5) * 5 * dt;
     }
-    // 板面高度过渡：上板瞬时（投币落板本就在板上），下板按 dt*7 用 0.14s 平滑落回台面——
-    // 消除回程板跨过币时 realY 布尔翻转造成的一帧高度瞬移
-    if (c.z < pf) c.plateMix = 1;
-    else if (c.plateMix > 0) c.plateMix = Math.max(0, c.plateMix - dt * 7);
     if (c.wobT > 0) { c.wobT *= Math.pow(0.05, dt); if (c.wobT < 0.01) c.wobT = 0; }
     // 前推传导：只作用于"传输区"（推板前缘 → 币堆区起点）。
     // 币堆区的币只靠接触传力——推板怼到堆后缘才动，不投币时币堆不会自己漂到前沿掉光
@@ -961,7 +955,10 @@ function physicsStep(dt) {
     if (c.x < -WORLD.wallX + r) { c.x = -WORLD.wallX + r; c.vx = Math.abs(c.vx) * 0.3; }
     if (c.x >  WORLD.wallX - r) { c.x =  WORLD.wallX - r; c.vx = -Math.abs(c.vx) * 0.3; }
     if (c.z < WORLD.baseBack + r) { c.z = WORLD.baseBack + r; c.vz = Math.abs(c.vz) * 0.2; }
-    if (c.z > WORLD.dropZ) { winCoin(c); c.state = 2; c.vy = 0.4; c.vz = 0.5; continue; }
+    if (c.z > WORLD.dropZ) {
+      winCoin(c); c.state = 2; c.y = c.h; c.vy = 0.4; c.vz = 0.5;   // 从自己那一层掉出去，别瞬移到底层
+      continue;
+    }
     settled.push(c);
   }
 
@@ -969,8 +966,13 @@ function physicsStep(dt) {
   gridBuild(settled);
   const supR2 = (r * 1.6) * (r * 1.6);
   for (const c of settled) {
-    if (c.h <= 0) continue;
-    let sup = 0;
+    // 支撑面：推板上方是板面（PUSH_TOP），台面是 0。板面高度算进 h ——
+    // 币被推板留在身后时，支撑面从板面掉到台面，走的是下面"失去支撑 → 自由落体"
+    // 那一支：落下去是真正的加速下落，不是拿 0.14 秒匀速把币"渗"进下面的币里。
+    const base = c.z < pf ? WORLD.PUSH_TOP : 0;
+    if (c.h < base - 1e-4) { c.h = Math.min(base, c.h + T * 6 * dt); c.vyH = 0; continue; }
+    if (c.h <= base + 1e-4) { c.h = base; c.vyH = 0; continue; }
+    let sup = base;
     const ci = gridCell(c.x, c.z);
     const gcx = ci % GRID.cw, gcz = (ci / GRID.cw) | 0;
     for (let oz = -1; oz <= 1; oz++) {
@@ -1004,7 +1006,7 @@ function physicsStep(dt) {
       if (c.h <= sup) { c.h = sup; c.vyH = 0; }   // 落到下面那枚币上，不弹（币不会自己跳）
     } else if (c.h < sup - 0.0015) {          // 被别的币挤到身下：被顶起来（约 0.17 秒一层）
       c.vyH = 0;
-      c.h = Math.min(sup, T * 3.2, c.h + T * 6 * dt);
+      c.h = Math.min(sup, c.h + T * 6 * dt);
     } else {
       c.h = sup; c.vyH = 0;                   // 贴住支撑面：层高永远是 T 的整数倍附近
     }
@@ -1496,11 +1498,8 @@ function buildCabinet() {
 
 function realY(c) {
   const pf = pusherFront();
-  if (c.state === 0) {
-    // 板面高度走 plateMix 过渡（上板瞬时、下板 0.14s 淡出）：
-    // 消除原 onPusher 布尔翻转导致回程板跨过币时高度 1 帧瞬移的生硬感
-    return c.h + WORLD.coinT / 2 + WORLD.PUSH_TOP * (c.plateMix || 0);
-  }
+  // h 是脚下那个支撑面的绝对高度（台面 0 / 推板面 PUSH_TOP），这里不再加板高
+  if (c.state === 0) return c.h + WORLD.coinT / 2;
   // 下落中的币：落点在推板上时以板面为下限（物理侧按支撑面判定，这里留兜底）
   if (c.z < pf && c.y < WORLD.PUSH_TOP) return WORLD.PUSH_TOP + WORLD.coinT / 2;
   return c.y + WORLD.coinT / 2;
@@ -1880,10 +1879,11 @@ function seedCoins() {
       const cx = Math.max(-xSpan, Math.min(xSpan, x + (rand() - 0.5) * dx * 0.08));
       const cz = z + (rand() - 0.5) * dzP * 0.08;
       const c = makeCoin(cx, cz, 0, rand() < 0.06 ? 1 : 0, 0);
-      coins.push(c);                                    // 底层（h=0）
+      c.h = WORLD.PUSH_TOP;                             // 板面这一层：h 是绝对高度
+      coins.push(c);
       if (rand() < 0.65) {                              // 上面再摞一枚
         const c2 = makeCoin(cx, cz, 0, rand() < 0.06 ? 1 : 0, 0);
-        c2.h = T;                                       // 整列对齐，同列分离约束跳过
+        c2.h = WORLD.PUSH_TOP + T;                      // 整列对齐，同列分离约束跳过
         coins.push(c2);
       }
     }
