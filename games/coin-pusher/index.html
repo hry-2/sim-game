@@ -73,11 +73,8 @@
     overflow:hidden;
   }
   canvas#cv{display:block;width:100%;height:auto}
-  .cab::after{
-    content:"";position:absolute;inset:0;pointer-events:none;
-    background:repeating-linear-gradient(0deg,rgba(0,0,0,.10) 0 1px,transparent 1px 3px);
-    mix-blend-mode:multiply;
-  }
+  /* 原来这里有一层 CRT 扫描线（每 3px 一条 10% 黑、multiply）盖在整个机台上，
+     密铺的币一多就变成"一层层横道压在金币上"——已去掉。 */
   .flashtext{
     position:absolute;left:0;right:0;top:34%;text-align:center;pointer-events:none;z-index:6;
     font-family:var(--disp);font-weight:700;font-size:30px;color:var(--gold);
@@ -291,7 +288,7 @@
       <tr><td><span class="icon">🗼</span>召唤币塔</td><td>100 能量 · 一摞 14 枚砸进主台</td></tr>
     </table>
     <h3>机的脾气</h3>
-    <p class="dim">推板每 4.2 秒推一次，力道只够推动贴着它的那一层——后面的币靠前面的币传力。落在推板上的币会贴着板面跟着推板来回走（有惯性、不会自己滑下去），要把它弄下板得靠你自己的投币：砸下去的那一枚只挤动身边紧挨着的几枚，板上的币被一串串顺着顶向前缘，最前面一排被顶出板沿就翻下去。同样，砸进前沿币堆的币也只挤动身边几枚，不会把一整片币掀过掉落线。机器自己也会慢慢补币：大多砸进前沿币堆，偶尔落在推板上。台面上限 360 枚，超了最老的币会被收进底仓（照常计入你的余额）。机器不会让台面空着：少于 90 枚时补币会加密到每秒约 3 枚。余额花光后再点投币，机器保底补你 <b>10 枚</b>（45 秒一次），不必为此重置机台。</p>
+    <p class="dim">推板每 4.2 秒推一次，力道只够推动贴着它的那一层——后面的币靠前面的币传力。落在推板上的币会贴着板面跟着推板来回走（有惯性、不会自己滑下去），要把它弄下板得靠你自己的投币：砸下去的那一枚只挤动身边紧挨着的几枚，板上的币被一串串顺着顶向前缘，最前面一排被顶出板沿就翻下去。同样，砸进前沿币堆的币也只挤动身边几枚，不会把一整片币掀过掉落线。机器自己也会慢慢补币：大多砸进前沿币堆，偶尔落在推板上。台面上限 500 枚，超了最老的币会被收进底仓（照常计入你的余额）。机器不会让台面空着：少于 90 枚时补币会加密到每秒约 3 枚。余额花光后再点投币，机器保底补你 <b>10 枚</b>（45 秒一次），不必为此重置机台。</p>
     <button class="closebtn" data-close>合上</button>
   </div>
 </div>
@@ -378,18 +375,23 @@ const $ = id => document.getElementById(id);
 const WORLD = {
   wallX: 1.34,          // 侧壁内沿（台子更宽）
   baseBack: -0.20,      // 台面后缘（最远端，后墙所在）
-  PUSH_AMP: 0.24,       // 推板行程（前伸量），行程 = 2*AMP
+  // 行程同时决定"推板前方必须留空的那条带"有多宽：推板缩到最后时前缘在
+  // baseBack+pusherLen−2*AMP，币堆只能从那儿再往前排——行程越大，中间那条
+  // 空台面越宽（0.24 时约 0.46 深，占可见台面近 1/3，看着就是"没铺满"）。
+  PUSH_AMP: 0.16,       // 推板行程（前伸量），行程 = 2*AMP
   PUSH_TOP: 0.11,       // 推板顶面高出台面（≈1 枚币直径，看得出是个实体平台）
   // 推板后缘 = pusherBack + sin*AMP，最大只到 pusherBack+AMP = baseBack：
   // 推板永远贴着后墙，前伸时后面不会露出台面
-  pusherBack: -0.44,    // = baseBack - PUSH_AMP
+  pusherBack: -0.36,    // = baseBack - PUSH_AMP
   pusherLen: 1.00,      // = tableFront - baseBack，保证后缘永远盖到后墙
   tableFront: 0.80,     // 前台面（币堆区）起点 = 推板最大前缘
   dropZ: 1.38,          // 前沿开口（掉落口）= 台面可见外沿：台面就铺到这里，不多铺
   coinR: 0.062,         // 币半径
   coinT: 0.026,         // 币厚
-  maxCoins: 360
+  maxCoins: 500        // 开局 ~386 枚：满机开局，还要留出游玩时的余量
 };
+
+const LAYER_DRAG = 0.03;   // 层间摩擦系数（每帧把上层速度向上层的速度拉 3%）
 
 /* 积分兑换价目：实测每投 1 枚累约 1.9 分（30 投 +56 分），所以 100 分 ≈ 投 50 枚的账，
    换回 10 枚币 ≈ 20% 返还——长期玩不会因为"投币净亏"而卡死，也远不够付得起无限投币。
@@ -493,6 +495,7 @@ function makeCoin(x, z, layer, type, h) {
     h: h || 0, type: type || 0, layer: layer || 0,
     state: 0, y: 0, vy: 0, spin: Math.random() * Math.PI * 2,
     spinV: (Math.random() - 0.5) * 3, born: performance.now(),
+    vyH: 0,        // 层高方向的速度（失去了支撑就自由落体，被下面的币顶起来就慢慢抬）
     bounces: 0,    // 落地回弹计数（首触散冲、二触轻响，最多弹 2 次）
     plateMix: 0,   // 板面高度混合：1=在推板顶上，下板时按 dt*7 平滑淡出（消除高度瞬移）
     wobT: 0        // 落定余摆强度：渲染侧指数衰减回平
@@ -679,7 +682,7 @@ function dropTowerStack() {
 /* ---------- 物理 ---------- */
 /* 均匀网格：支撑查询与同层分离共用。
    世界很小（x ±1.4，z -0.45..3.0），格边长 = 2r×1.02 ≥ 最大相互作用距离，
-   查 3×3 格即可覆盖全部接触对；原版每子步两两全扫描，360 枚 ≈ 39 万对/帧 */
+   查 3×3 格即可覆盖全部接触对；原版每子步两两全扫描，400 枚两两组合 ≈ 8 万对/帧 */
 const GRID = {
   cell: WORLD.coinR * 2 * 1.02,
   x0: -WORLD.wallX - 0.12, z0: WORLD.baseBack - 0.12,
@@ -827,13 +830,35 @@ function physicsStep(dt) {
         if (nx < 0 || nx >= GRID.cw || nz < 0 || nz >= GRID.ch) continue;
         for (let j = GRID.head[nz * GRID.cw + nx]; j !== -1; j = GRID.next[j]) {
           const o = settled[j];
-          if (o === c || o.h < c.h - T * 0.5) continue;
+          // 支撑只来自"脚下"的币（旧版用 o.h < c.h - T/2 过滤，比它高的币也能当支撑，
+          // 在只降不升的年代无害；现在 h 会被顶起来，高于自身的币会把币一直往上抬）
+          if (o === c || o.h > c.h + 0.002) continue;
           const dx = o.x - c.x, dz = o.z - c.z;
-          if (dx * dx + dz * dz < supR2 && o.h + T > sup) sup = o.h + T;
+          if (dx * dx + dz * dz >= supR2) continue;
+          if (o.h + T > sup) sup = Math.min(o.h + T, c.h + T);
+          // 层间摩擦：压在上面的币被下面那枚"拖着走"。
+          // 没有这一步，推板把底层往前推、上层原地不动——币堆不是整堆前移，而是
+          // 底层从上层下面抽出去，看起来就是"币堆散开了"（上层留在原地、底层摊平）。
+          // 只从下往上传（下层的台面摩擦兜着它），系数小：大了会变成没摩擦的传送带。
+          c.vx += (o.vx - c.vx) * LAYER_DRAG;
+          c.vz += (o.vz - c.vz) * LAYER_DRAG;
         }
       }
     }
-    if (c.h > sup + 0.002) c.h = Math.max(sup, c.h - T * 4 * dt);
+    // 层高方向的运动（inset：币只会被"下面的币"托着，所以 h 只能落在支撑面上）
+    // 旧版是常数速度下沉（T*4/s，一层 0.25s 匀速），看起来像"往下滑"而不是"掉下去"；
+    // 而且只降不升：别的币滑到它底下时，它就永远嵌在那枚币里（实测静置就有 23 对
+    // 同层重合、h=0.0121 这种半层高度），观感就是币堆"糊在一起"。
+    if (c.h > sup + 0.0015) {                 // 失去支撑：自由落体（加速落下）
+      c.vyH -= GRV * 0.6 * dt;
+      c.h += c.vyH * dt;
+      if (c.h <= sup) { c.h = sup; c.vyH = 0; }   // 落到下面那枚币上，不弹（币不会自己跳）
+    } else if (c.h < sup - 0.0015) {          // 被别的币挤到身下：被顶起来（约 0.17 秒一层）
+      c.vyH = 0;
+      c.h = Math.min(sup, T * 3.2, c.h + T * 6 * dt);
+    } else {
+      c.h = sup; c.vyH = 0;                   // 贴住支撑面：层高永远是 T 的整数倍附近
+    }
   }
 
   separateLayer(settled, 2);
@@ -890,8 +915,13 @@ function separateLayer(arr, iters) {
           // 如果按 1.4T 判层，上下两层会被当成"横向深度穿插"互相猛推——
           // 满机开局第一推把整堆崩开的元凶就是这个（实测单帧后退 0.06）。
           if (Math.abs(a.h - b.h) > WORLD.coinT * 0.6) continue;
+          // 位移限幅：分离位移 = (2r−d)/d·0.5，两枚币越接近同一点，这个值越爆炸
+          // （d≈0.001 时一帧能推 6cm，实测单帧最大位移 0.059 —— 币堆"炸开"的元凶）。
+          // 限到 0.011（≈1/6 币径）后，深重叠会在几帧里化开，看起来是被挤开而不是瞬移。
           const d = Math.sqrt(d2), push = (r2 - d) / d * 0.5;
-          const px = dx * push, pz = dz * push;
+          let px = dx * push, pz = dz * push;
+          const pm = Math.sqrt(px * px + pz * pz);
+          if (pm > 0.011) { px *= 0.011 / pm; pz *= 0.011 / pm; }
           a.x -= px; a.z -= pz; b.x += px; b.z += pz;
           a.vx -= px * 4; a.vz -= pz * 4; b.vx += px * 4; b.vz += pz * 4;
           if (Math.abs(px) + Math.abs(pz) > 0.004 && it === 0 && Math.random() < 0.08) clack(0.3);
@@ -1387,20 +1417,20 @@ function seedCoins() {
   const zBack = pusherMaxFront + 0.045;
   // 列距必须明显大于分离阈值（2r×0.96≈0.119）：开启时任何一对币叠在一起，分离约束
   // 会在第一帧把它们用很大的位移+速度弹开（实测开局 0.5s 内约 35 枚被弹过掉落线）。
-  const dx = r * 2.15, dz = r * 2.35;
-  const zFront = zBack + 2 * dz;                       // 3 排；最前币缘离掉落口 ~0.09
-  const xSpan = WORLD.wallX - r - 0.05;
+  const dx = r * 2.15, dz = r * 2.2;
+  const zFront = zBack + 3 * dz;                       // 4 排：把掉落口前的台面铺到只剩一条落币的边
+  const xSpan = WORLD.wallX - r - 0.012;                // 两侧只留 1 指缝，别让角上秃一块
   for (let z = zBack; z <= zFront + 1e-9; z += dz) {
     const t = (z - zBack) / (zFront - zBack);          // 0 后 → 1 前
     const layers = 4 + Math.round(t * 2);              // 后 4 层 → 前 6 层（堆得更满）
     for (let x = -xSpan; x <= xSpan; x += dx) {
-      if (rand() < 0.10) continue;                     // 留点空洞自然些
+      if (rand() < 0.04) continue;                     // 留点空洞自然些（4%：再多就看出"没铺满"）
       const cx = Math.max(-xSpan, Math.min(xSpan, x + (rand() - 0.5) * dx * 0.08));
       const cz = z + (rand() - 0.5) * dz * 0.08;
       for (let L = 0; L < layers; L++) {
         // 上层稀一点：从缺层开始整列封顶（continue 会造出悬空币——
         // 没有正下方支撑就下沉到同坐标重合，而重合的币分离约束是跳过的）
-        if (L > 0 && rand() < 0.35) break;
+        if (L > 0 && rand() < 0.20) break;
         const c = makeCoin(cx, cz, 0, rand() < 0.05 ? 1 : 0, 0);  // 整列对齐
         c.h = T * L;
         coins.push(c);
@@ -1415,8 +1445,8 @@ function seedCoins() {
   // 推板开局停在最后端（pushPhase = −π/2 → pf = 0.32），"板上看得见的那块"
   // 就是 baseBack..pf 这 0.52 深的一小片——铺满它（3 排单层）+ 一半位置再压一层。
   // 两层加起来仍和长期平衡态里板面上的量级一致，不会一开局就多出一批币被清下去。
-  const plateFront = WORLD.pusherBack + WORLD.pusherLen - WORLD.PUSH_AMP - r - 0.02;
-  const dzP = r * 2.15;                                 // 板面这层可以更密：它不受推板前缘挤压
+  const plateFront = WORLD.pusherBack + WORLD.pusherLen - WORLD.PUSH_AMP - r - 0.004;
+  const dzP = r * 2.0;                                  // 板面这层可以更密：它不受推板前缘挤压
   for (let z = WORLD.baseBack + r + 0.01; z <= plateFront + 1e-9; z += dzP) {
     for (let x = -xSpan; x <= xSpan; x += dx) {
       if (rand() < 0.08) continue;
@@ -1424,7 +1454,7 @@ function seedCoins() {
       const cz = z + (rand() - 0.5) * dzP * 0.08;
       const c = makeCoin(cx, cz, 0, rand() < 0.06 ? 1 : 0, 0);
       coins.push(c);                                    // 底层（h=0）
-      if (rand() < 0.5) {                               // 上面再摞一枚
+      if (rand() < 0.65) {                              // 上面再摞一枚
         const c2 = makeCoin(cx, cz, 0, rand() < 0.06 ? 1 : 0, 0);
         c2.h = T;                                       // 整列对齐，同列分离约束跳过
         coins.push(c2);
