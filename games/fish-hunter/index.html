@@ -309,6 +309,7 @@
       <li><b>渔网</b>：一网落下去罩住一小片。力道先砸中网的那条，把它打死了剩下的才溢给网里别的鱼——所以撒进鱼群，收尾那一下能一次收好几条。</li>
       <li><b>锁定</b>：点一条鱼就把炮口咬住它（会算提前量）。锁定状态下按开炮只朝这一个落点撒。</li>
       <li><b>自动开炮</b>：开着就会自己找最近的鱼，省手指。币不够时不会开炮。</li>
+      <li><b>龙鱼</b>：青龙 / 赤龙 / 金龙 / 紫电龙，蛇形长身、一路摆着过来，比同价的鱼难瞄。稀有，看见就别放过——血量照常按 v 算，不另设规矩。</li>
       <li><b>潮汐</b>：每 40 秒涨一次潮，来的鱼更大更多；每逢第 3 次潮<b>鱼王</b>出没，打掉当场翻 <b>80×炮倍</b>。</li>
       <li><b>网具</b>：网口能用币袋里的币升级（300 / 800 币，罩 48 → 58 → 70），只加罩住的面积、不加每发伤害；网衣按累计渔获解锁，纯外观。</li>
       <li><b>币袋</b>：这台机器没有自己的余额，炮打出去的、鱼翻出来的都是<b>全柜通用的币袋</b>——和聚宝盆是同一袋。币袋见底时，机器会保底借你 10 枚（45 秒一次）。</li>
@@ -473,7 +474,28 @@
     turtle:  { v: 16, r: 33, spd: 14, name: '海龟',   col: '#5ba877' },
     shark:   { v: 24, r: 42, spd: 31, name: '鲨鱼',   col: '#8b9aa3' },
     gold:    { v: 40, r: 46, spd: 27, name: '金鲨',   col: '#ffcf4d' },
-    king:    { v: 80, r: 60, spd: 15, name: '鱼王',   col: '#ffb03a', boss: true }
+    king:    { v: 80, r: 60, spd: 15, name: '鱼王',   col: '#ffb03a', boss: true },
+    // 龙鱼：蛇形长身，一路摆着过来，比同价的鱼难瞄；稀有，见着就值钱
+    jade:    { v: 12, r: 30, spd: 34, name: '青龙',   col: '#4fe0b0', dragon: true },
+    flame:   { v: 20, r: 34, spd: 29, name: '赤龙',   col: '#ff7a5c', dragon: true },
+    aurum:   { v: 34, r: 40, spd: 22, name: '金龙',   col: '#ffd257', dragon: true },
+    violet:  { v: 48, r: 42, spd: 28, name: '紫电龙', col: '#a06bff', dragon: true }
+  };
+
+  /* 龙鱼的配色：鳞脊 / 肚皮 / 鳍 / 角 / 须 / 眼睛的辉光 */
+  const DRAGON = {
+    jade:  { top: '#0e5f57', body: '#39c79a', belly: '#c8ffe6', fin: 'rgba(120,255,210,.5)',  spine: '#7bffd4',
+             glow: 'rgba(80,255,205,.85)',  aura: 'rgba(70,255,200,.20)', rim: '#d6fff1', line: '#0a3d38', horn: '#bfffe6',
+             whisker: 'rgba(200,255,235,.78)', eye: '#eafffb', spark: '#9dffe4' },
+    flame: { top: '#7a1a12', body: '#e6543a', belly: '#ffd9b0', fin: 'rgba(255,150,90,.5)',   spine: '#ffcf6a',
+             glow: 'rgba(255,120,60,.8)',   aura: 'rgba(255,110,60,.18)', rim: '#ffe6c8', line: '#4a1208', horn: '#ffd9a0',
+             whisker: 'rgba(255,220,180,.78)', eye: '#fff3da', spark: '#ffb06a' },
+    aurum: { top: '#8a5a06', body: '#e8b23c', belly: '#fff4c8', fin: 'rgba(255,214,110,.55)', spine: '#fff0a8',
+             glow: 'rgba(255,200,70,.85)',  aura: 'rgba(255,190,60,.18)', rim: '#fffbe0', line: '#5a3404', horn: '#fff2c0',
+             whisker: 'rgba(255,246,200,.8)',  eye: '#fffdf0', spark: '#ffe9a0' },
+    violet:{ top: '#301455', body: '#8a5cf0', belly: '#e8dbff', fin: 'rgba(175,140,255,.5)', spine: '#d8c4ff',
+             glow: 'rgba(160,110,255,.85)', aura: 'rgba(150,100,255,.2)', rim: '#f1e8ff', line: '#22103f', horn: '#e4d2ff',
+             whisker: 'rgba(225,205,255,.8)', eye: '#f8f2ff', spark: '#c9a6ff', bolt: 'rgba(190,205,255,.9)' }
   };
   const BETS = [1, 2, 5, 10];
   if (!BETS.includes(S.bet)) S.bet = 1;
@@ -602,6 +624,224 @@
     // 眼
     g.fillStyle = '#fbfdff'; ell(rx * 0.63, -ry * 0.24, r * 0.14, r * 0.14); g.fill();
     g.fillStyle = '#160d08'; ell(rx * 0.66, -ry * 0.24, r * 0.07, r * 0.07); g.fill();
+  }
+
+  /* 龙鱼：一条蛇形的脊线，一段段描出粗细，再补角、须、鬃、背刺 */
+  function drawDragon(f, pal) {
+    const r = f.r, n = 16, len = r * 3.1;
+    const P = [];
+    for (let i = 0; i <= n; i++) {
+      const u = i / n;
+      P.push({
+        x: -len * 0.6 + u * len,
+        y: Math.sin(u * 6.0 - f.t * 4.4 + f.ph) * r * 0.5 * (1.1 - u * 0.7),
+        u
+      });
+    }
+    const Wd = u => r * (0.032 + 0.155 * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.04)), 0.55));
+
+    // 身外一圈柔光（一层椭圆，别拿描边叠）
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    const ag = g.createRadialGradient(0, 0, r * 0.2, 0, 0, r * 2.3);
+    ag.addColorStop(0, pal.aura);
+    ag.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = ag;
+    ell(0, 0, r * 2.3, r * 1.25); g.fill();
+    g.restore();
+
+    // 尾鳍
+    const t0 = P[0], t1 = P[1];
+    const ta = Math.atan2(t0.y - t1.y, t0.x - t1.x);
+    g.save();
+    g.translate(t0.x, t0.y); g.rotate(ta);
+    const sway = Math.sin(f.t * 5) * r * 0.1;
+    const tg = g.createLinearGradient(0, 0, r * 1.05, 0);
+    tg.addColorStop(0, pal.fin);
+    tg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = tg;
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.quadraticCurveTo(r * 0.5, -r * 0.34, r * 0.95, -r * 0.82 + sway);
+    g.quadraticCurveTo(r * 0.66, -r * 0.12, r * 1.05, 0 + sway);
+    g.quadraticCurveTo(r * 0.66, r * 0.12, r * 0.95, r * 0.82 + sway);
+    g.quadraticCurveTo(r * 0.5, r * 0.34, 0, 0);
+    g.fill();
+    g.strokeStyle = pal.spine; g.globalAlpha = 0.5; g.lineWidth = 1.1;
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(r * 0.95, -r * 0.7 + sway); g.moveTo(0, 0); g.lineTo(r * 0.95, r * 0.7 + sway); g.stroke();
+    g.globalAlpha = 1;
+    g.restore();
+
+    // 身
+    const grd = g.createLinearGradient(0, -r * 0.85, 0, r * 0.85);
+    grd.addColorStop(0, pal.top); grd.addColorStop(0.5, pal.body); grd.addColorStop(1, pal.belly);
+    g.strokeStyle = grd;
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    for (let i = 0; i < n; i++) {
+      g.lineWidth = Wd(P[i].u) + Wd(P[i + 1].u);
+      g.beginPath(); g.moveTo(P[i].x, P[i].y); g.lineTo(P[i + 1].x, P[i + 1].y); g.stroke();
+    }
+
+    // 背脊高光
+    g.save();
+    g.strokeStyle = pal.rim; g.globalAlpha = 0.4; g.lineWidth = Math.max(1, r * 0.05);
+    g.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const p = P[i], w = Wd(p.u);
+      i ? g.lineTo(p.x, p.y - w * 0.6) : g.moveTo(p.x, p.y - w * 0.6);
+    }
+    g.stroke();
+    g.restore();
+
+    // 背刺
+    g.fillStyle = pal.spine;
+    for (let i = 2; i < n - 2; i++) {
+      const p = P[i], q = P[i + 1];
+      const dx = q.x - p.x, dy = q.y - p.y, dl = Math.hypot(dx, dy) || 1;
+      const nx = -dy / dl, ny = dx / dl;
+      const up = ny > 0 ? -1 : 1;
+      const w = Wd(p.u);
+      const bx = p.x + nx * up * w * 0.8, by = p.y + ny * up * w * 0.8;
+      g.beginPath();
+      g.moveTo(bx - dx / dl * w * 0.6, by - dy / dl * w * 0.6);
+      g.lineTo(bx + nx * up * r * 0.2, by + ny * up * r * 0.2);
+      g.lineTo(bx + dx / dl * w * 0.6, by + dy / dl * w * 0.6);
+      g.closePath(); g.fill();
+    }
+
+    // 腹鳞
+    g.save();
+    g.strokeStyle = pal.belly; g.globalAlpha = 0.3; g.lineWidth = 1.1;
+    for (let i = 3; i < n - 1; i += 2) {
+      const p = P[i], w = Wd(p.u);
+      g.beginPath(); g.moveTo(p.x - w * 0.4, p.y + w * 0.52); g.lineTo(p.x + w * 0.4, p.y + w * 0.52); g.stroke();
+    }
+    g.restore();
+
+    // 鬃毛
+    g.fillStyle = pal.fin;
+    for (let i = 0; i < 3; i++) {
+      const ph = Math.sin(f.t * 3.2 + i * 1.5) * r * 0.06;
+      const y = -r * 0.12 + i * r * 0.14;
+      g.beginPath();
+      g.moveTo(r * 0.1, y);
+      g.quadraticCurveTo(-r * 0.45, y - r * 0.42 + ph, -r * 0.95, y - r * 0.05 + ph * 1.5);
+      g.quadraticCurveTo(-r * 0.4, y + r * 0.02, r * 0.1, y);
+      g.fill();
+    }
+
+    // 脖子：把头和脊线接圆
+    const na = P[n], nb = P[n - 1];
+    g.strokeStyle = pal.body; g.lineCap = 'round';
+    g.lineWidth = Wd(P[n - 1].u) * 2.1;
+    g.beginPath(); g.moveTo(nb.x, nb.y); g.lineTo(na.x, na.y); g.stroke();
+
+    // 头
+    const h = P[n], hp2 = P[n - 1];
+    const ha = Math.atan2(h.y - hp2.y, h.x - hp2.x);
+    g.save();
+    g.translate(h.x, h.y); g.rotate(ha);
+    g.fillStyle = pal.body;
+    g.strokeStyle = pal.line; g.lineWidth = 1.4;
+    g.beginPath();
+    g.moveTo(-r * 0.34, -r * 0.3);
+    g.quadraticCurveTo(r * 0.2, -r * 0.46, r * 0.66, -r * 0.2);
+    g.quadraticCurveTo(r * 0.95, -r * 0.06, r * 0.86, r * 0.08);
+    g.quadraticCurveTo(r * 0.62, r * 0.22, r * 0.3, r * 0.26);
+    g.quadraticCurveTo(-r * 0.12, r * 0.34, -r * 0.34, r * 0.24);
+    g.closePath(); g.fill(); g.stroke();
+    // 眉骨
+    g.fillStyle = pal.top;
+    g.beginPath();
+    g.moveTo(r * 0.02, -r * 0.3); g.quadraticCurveTo(r * 0.3, -r * 0.38, r * 0.5, -r * 0.26);
+    g.quadraticCurveTo(r * 0.26, -r * 0.24, r * 0.02, -r * 0.3); g.fill();
+    // 下颚
+    g.fillStyle = pal.belly;
+    g.beginPath();
+    g.moveTo(r * 0.02, r * 0.14);
+    g.quadraticCurveTo(r * 0.4, r * 0.34, r * 0.68, r * 0.13);
+    g.quadraticCurveTo(r * 0.36, r * 0.2, r * 0.02, r * 0.14);
+    g.fill();
+    // 牙
+    g.fillStyle = '#fffaf0';
+    for (let i = 0; i < 4; i++) {
+      const x = r * 0.2 + i * r * 0.12;
+      g.beginPath(); g.moveTo(x, r * 0.11); g.lineTo(x + r * 0.04, r * 0.26); g.lineTo(x + r * 0.08, r * 0.11); g.fill();
+    }
+    // 眼
+    g.fillStyle = '#0a1a18';
+    ell(r * 0.3, -r * 0.13, r * 0.11, r * 0.11); g.fill();
+    g.save();
+    g.shadowColor = pal.glow; g.shadowBlur = 10;
+    g.fillStyle = pal.eye;
+    ell(r * 0.32, -r * 0.13, r * 0.05, r * 0.05); g.fill();
+    g.restore();
+    // 角
+    g.strokeStyle = pal.horn; g.lineWidth = Math.max(1.4, r * 0.07); g.lineCap = 'round';
+    for (const sd of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(r * 0.12, -r * 0.2 + sd * r * 0.05);
+      g.quadraticCurveTo(-r * 0.1, -r * 0.46 + sd * r * 0.2, -r * 0.44, -r * 0.44 + sd * r * 0.36);
+      g.stroke();
+    }
+    // 须
+    g.strokeStyle = pal.whisker; g.lineWidth = Math.max(1.2, r * 0.035);
+    for (const sd of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(r * 0.66, r * 0.05);
+      g.quadraticCurveTo(r * 1.1, r * 0.05 + sd * r * 0.14 + Math.sin(f.t * 3 + sd) * r * 0.08,
+                         r * 1.42, sd * r * 0.44 + Math.sin(f.t * 2.4 + sd * 1.7) * r * 0.12);
+      g.stroke();
+    }
+    g.restore();
+
+    // 电弧（只有紫电龙有）：贴着背脊外侧打，两层描边（外晕 + 亮芯）
+    if (pal.bolt) {
+      const fl = 0.35 + 0.65 * Math.max(0, Math.sin(f.t * 13));
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      for (let pass = 0; pass < 2; pass++) {
+        g.strokeStyle = pal.bolt;
+        g.lineWidth = pass ? 1.1 : 3.6;
+        g.globalAlpha = (pass ? 0.85 : 0.16) * fl;
+        g.beginPath();
+        for (let i = 0; i < 3; i++) {
+          const a = P[2 + i * 4], b2 = P[6 + i * 4];
+          if (!b2) break;
+          const ay = a.y - Wd(a.u) * 1.2 - r * 0.1;
+          const by = b2.y - Wd(b2.u) * 1.2 - r * 0.1;
+          g.moveTo(a.x, ay);
+          for (let k = 1; k <= 3; k++) {
+            const u = k / 3;
+            g.lineTo(a.x + (b2.x - a.x) * u,
+                     ay + (by - ay) * u - (k < 3 ? r * (0.16 + Math.random() * 0.24) : 0));
+          }
+        }
+        g.stroke();
+      }
+      g.restore();
+    }
+
+    // 身边的星点
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    g.fillStyle = pal.spark;
+    for (let i = 0; i < 3; i++) {
+      const p = P[4 + i * 4] || P[n];
+      const tw = 0.5 + 0.5 * Math.sin(f.t * 5 + i * 2.1);
+      g.globalAlpha = 0.45 * tw;
+      ell(p.x + Math.sin(f.t * 2 + i) * r * 0.25, p.y - r * 0.5 + Math.cos(f.t * 3 + i) * r * 0.18,
+          1.6 + tw * 1.8, 1.6 + tw * 1.8);
+      g.fill();
+    }
+    g.restore();
+  }
+
+  function paintFish(f) {
+    const F = FISH[f.type];
+    if (F && F.dragon) drawDragon(f, DRAGON[f.type]);
+    else drawFishBody(f, tGlobal);
   }
 
   function drawFishBody(f, t) {
@@ -808,9 +1048,9 @@
 
   function drawHpBar(f) {
     const F = FISH[f.type];
-    if (F.v < 16 && !f.boss) return;
-    const w = Math.max(44, f.r * 2.1), h = 5;
-    const x = f.x - w / 2, y = f.y - f.r * 1.62 - 13;
+    if (F.v < 16 && !f.boss && !F.dragon) return;
+    const w = Math.max(44, f.r * (F.dragon ? 2.6 : 2.1)), h = 5;
+    const x = f.x - w / 2, y = f.y - f.r * (F.dragon ? 1.08 : 1.3) - 12;
     g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(x - 1, y - 1, w + 2, h + 2);
     g.fillStyle = '#0b2730'; g.fillRect(x, y, w, h);
     const p = Math.max(0, Math.min(1, f.hp));
@@ -823,18 +1063,26 @@
   }
 
   function drawFish(f, t) {
+    // 身下压一层影子，鱼才像浮在水里而不是贴在水上
+    g.save();
+    g.globalAlpha = 0.1;
+    g.fillStyle = '#02141a';
+    ell(f.x + 3, f.y + f.r * 0.78 + 5, f.r * (FISH[f.type].dragon ? 1.6 : 1.05), f.r * 0.3);
+    g.fill();
+    g.restore();
     g.save();
     g.translate(f.x, f.y + Math.sin(f.t * 2.2 + f.ph) * 1.6);
     g.rotate(Math.sin(f.t * 1.9 + f.ph) * 0.05);
     g.scale(f.dir, 1);
-    drawFishBody(f, t);
+    paintFish(f);
     g.restore();
     if (f.flash > 0) {
       g.save();
       g.globalCompositeOperation = 'lighter';
       g.globalAlpha = Math.min(0.65, f.flash * 0.55);
       g.fillStyle = '#fff';
-      ell(f.x, f.y, f.r * 1.15, f.r * 0.85); g.fill();
+      const dr = FISH[f.type].dragon;
+      ell(f.x, f.y, f.r * (dr ? 1.9 : 1.15), f.r * (dr ? 0.95 : 0.85)); g.fill();
       g.restore();
     }
     drawHpBar(f);
@@ -844,7 +1092,7 @@
   (() => {
     const rows = Object.keys(FISH).map(k => {
       const F = FISH[k];
-      return '<tr><td>' + F.name + (F.boss ? '（BOSS）' : '') + '</td><td>' +
+      return '<tr><td>' + F.name + (F.boss ? '（BOSS）' : (F.dragon ? '（龙鱼）' : '')) + '</td><td>' +
         Math.round(F.v / 0.95) + ' 发 · ' + F.v + '×</td></tr>';
     }).join('');
     $('bookTable').innerHTML = rows;
@@ -855,6 +1103,9 @@
   scanCv.width = 4; scanCv.height = 3;
   { const c = scanCv.getContext('2d'); c.fillStyle = 'rgba(0,0,0,.13)'; c.fillRect(0, 0, 4, 1); }
   const scanPat = g.createPattern(scanCv, 'repeat');
+
+  const MOTES = [];
+  for (let i = 0; i < 34; i++) MOTES.push({ x: Math.random() * W, y: Math.random() * H, r: 0.6 + Math.random() * 1.5, sp: 3 + Math.random() * 9, ph: Math.random() * 6.28 });
 
   const KELP = [[22, .95, 9], [46, 1.25, 7], [404, 1.05, 8], [426, .78, 6], [368, .6, 5]];
   function drawKelp(t) {
@@ -930,6 +1181,17 @@
     }
     g.restore();
 
+    // 水里飘的微粒
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    g.fillStyle = '#c8f7ff';
+    for (const m of MOTES) {
+      const y = ((m.y - t * m.sp) % (H + 24) + H + 24) % (H + 24) - 12;
+      g.globalAlpha = 0.12 + 0.18 * (0.5 + 0.5 * Math.sin(t * 1.7 + m.ph));
+      g.beginPath(); g.arc(m.x + Math.sin(t * 0.5 + m.ph) * 4, y, m.r, 0, Math.PI * 2); g.fill();
+    }
+    g.restore();
+
     // 海床
     g.fillStyle = '#061d24';
     g.beginPath(); g.moveTo(0, H);
@@ -941,6 +1203,19 @@
       const x = 14 + i * 52, y = H - 10 - (i % 3) * 6;
       ell(x, y, 7 + (i % 4) * 3, 3.4); g.fill();
     }
+
+    // 沙上的光斑：水纹晃到海底
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 3; i++) {
+      const x = 84 + i * 138 + Math.sin(t * 0.31 + i * 1.9) * 22;
+      const rg = g.createRadialGradient(x, H - 22, 4, x, H - 22, 76);
+      rg.addColorStop(0, 'rgba(90,220,235,.10)');
+      rg.addColorStop(1, 'rgba(90,220,235,0)');
+      g.fillStyle = rg;
+      ell(x, H - 20, 84, 26); g.fill();
+    }
+    g.restore();
   }
 
   function muzzle() {
@@ -1061,6 +1336,21 @@
         g.strokeStyle = p.col || '#ffe9b0'; g.lineWidth = 2;
         g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x + p.vx * 0.02, p.y + p.vy * 0.02); g.stroke();
         g.restore();
+      } else if (p.kind === 'ghost') {
+        const kk = p.life / p.max;
+        g.save();
+        g.globalAlpha = Math.min(1, kk * 1.4) * 0.6;
+        g.translate(p.x, p.y);
+        const sc = 1 + (1 - kk) * 0.18;
+        g.scale(p.dir * sc, sc);
+        paintFish({ type: p.type, r: p.r, ph: p.ph, t: tGlobal, dir: p.dir, hp: 0.001 });
+        g.restore();
+      } else if (p.kind === 'bubble') {
+        g.save();
+        g.globalAlpha = Math.max(0, k) * 0.5;
+        g.strokeStyle = '#cdfaff'; g.lineWidth = 1;
+        g.beginPath(); g.arc(p.x, p.y, p.s, 0, Math.PI * 2); g.stroke();
+        g.restore();
       } else if (p.kind === 'net') {
         const u = 1 - k;                       // 0 → 1 张开进度
         const r = p.s + (p.grow - p.s) * Math.min(1, u * 2.1);
@@ -1156,6 +1446,10 @@
     drawParts();
     drawPops();
     drawAimUi(t);
+    const haze = g.createLinearGradient(0, H * 0.72, 0, H);
+    haze.addColorStop(0, 'rgba(4,32,42,0)');
+    haze.addColorStop(1, 'rgba(4,30,40,.22)');
+    g.fillStyle = haze; g.fillRect(0, H * 0.72, W, H * 0.28);
     g.restore();
     drawGlass();
   }
@@ -1167,7 +1461,11 @@
       squid: tide >= 2 ? 5 : 1.2,
       turtle: tide >= 2 ? 3 : 0.7,
       shark: tide >= 3 ? 1.8 : 0.35,
-      gold: tide >= 4 ? 0.6 : 0.06
+      gold: tide >= 4 ? 0.6 : 0.06,
+      jade: tide >= 1 ? 1.6 : 0,
+      flame: tide >= 2 ? 1.0 : 0,
+      aurum: tide >= 3 ? 0.5 : 0,
+      violet: tide >= 4 ? 0.28 : 0
     };
     let sum = 0;
     for (const k in w) sum += w[k];
@@ -1201,11 +1499,12 @@
       x: opt.x != null ? opt.x : (fromLeft ? -r * 2.4 : W + r * 2.4),
       y: y0, y0,
       vx: dir * spd,
-      amp: F.boss ? 24 : 4 + Math.random() * 16,
-      freq: F.boss ? 0.32 : 0.5 + Math.random() * 0.9,
+      amp: F.dragon ? 24 + Math.random() * 10 : (F.boss ? 24 : 4 + Math.random() * 16),
+      freq: F.dragon ? 0.34 + Math.random() * 0.2 : (F.boss ? 0.32 : 0.5 + Math.random() * 0.9),
       ph: Math.random() * 6.28, t: Math.random() * 4,
       hp: 1, flash: 0, flee: 0, life: 0, boss: !!F.boss,
-      hr: F.boss ? r * 1.45 : (type === 'shark' || type === 'gold' ? r * 1.25 : r * 0.95)
+      hr: F.boss ? r * 1.45 : (type === 'shark' || type === 'gold' ? r * 1.25 : (F.dragon ? r * 1.42 : r * 0.95)),
+      wakeT: Math.random() * 0.3
     };
     fish.push(f);
     return f;
@@ -1214,6 +1513,17 @@
   function spawnSchool() {
     const type = pickType();
     const fromLeft = Math.random() < 0.5;
+    if (FISH[type].dragon) {
+      // 龙鱼是独行客：涨潮时也只是两条结伴，从同一边游进来
+      for (let i = 0; i < 2; i++) {
+        spawnFish(type, {
+          fromLeft,
+          x: fromLeft ? -46 - i * 96 : W + 46 + i * 96,
+          y: 130 + i * 96 + Math.random() * 20
+        });
+      }
+      return;
+    }
     const n = 5 + Math.floor(Math.random() * 4);
     const baseY = 100 + Math.random() * 220;
     for (let i = 0; i < n; i++) {
@@ -1261,6 +1571,11 @@
     if (f.boss) S.king++;
     save();
     burst(f.x, f.y, f.boss ? 26 : (pay >= 20 ? 14 : 8));
+    // 鱼先翻一下白、缩小消失，再散成币——不是凭空没了
+    parts.push({ kind: 'ghost', type: f.type, r: f.r, dir: f.dir, ph: f.ph, x: f.x, y: f.y,
+                 life: 0.28, max: 0.28, vx: 0, vy: 0 });
+    parts.push({ kind: 'ring', x: f.x, y: f.y, s: f.r * 0.4, grow: f.r * (FISH[f.type].dragon ? 2.6 : 1.7),
+                 life: 0.34, max: 0.34, col: FISH[f.type].col });
     // 大额由中间那行闪光报数，不再叠一个一样的飘字
     if (pay < 20 && !f.boss) {
       pops.push({ x: f.x, y: f.y - 10, text: '+' + pay, life: 1.1, max: 1.1, size: 19 });
@@ -1419,6 +1734,16 @@
       f.x += f.vx * (f.flee > 0 ? 1.32 : 1) * dt;
       f.y = f.y0 + Math.sin(f.t * f.freq + f.ph) * f.amp;
       f.dir = f.vx >= 0 ? 1 : -1;
+      // 大鱼游过留一串细泡（龙鱼和鲨鱼这类），小鱼不冒
+      f.wakeT -= dt;
+      if (f.wakeT <= 0) {
+        f.wakeT = 0.34 + Math.random() * 0.5;
+        if (f.r >= 26) {
+          parts.push({ kind: 'bubble', x: f.x - f.dir * f.r * (FISH[f.type].dragon ? 1.55 : 1.05),
+            y: f.y + f.r * 0.2, s: 1.2 + Math.random() * 1.7, vx: -f.dir * 10, vy: -14,
+            life: 0.7 + Math.random() * 0.4, max: 1.1 });
+        }
+      }
       const m = f.r * 3.2;
       if (f.x < -m || f.x > W + m) { fish.splice(i, 1); if (locked === f) locked = null; }
     }
@@ -1443,9 +1768,9 @@
       const p = parts[i];
       p.life -= dt;
       if (p.life <= 0) { parts.splice(i, 1); continue; }
-      if (p.kind !== 'ring') {
+      if (p.kind !== 'ring' && p.kind !== 'ghost') {
         p.x += p.vx * dt; p.y += p.vy * dt;
-        p.vy += (p.kind === 'coin' ? 250 : 120) * dt;
+        p.vy += (p.kind === 'coin' ? 250 : (p.kind === 'bubble' ? -6 : 120)) * dt;
         p.vx *= 0.985;
       }
     }

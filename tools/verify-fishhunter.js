@@ -92,6 +92,28 @@ const path = require('path');
     netRes.caught === 2 && netRes.pay === 4 && netRes.left === 0;
   console.log('net focuses one, overflow can take 2:', netOk ? 'PASS' : 'FAIL', JSON.stringify(netRes));
 
+  /* ---------- 龙鱼：四条，按 v 赔，鱼谱里标出来 ---------- */
+  const dragonRes = await page.evaluate(() => {
+    const d = window.__fish;
+    d.fish.length = 0;
+    d.wallet = 300;
+    const out = {};
+    for (const type of ['jade', 'flame', 'aurum', 'violet']) {
+      const f = d.spawn(type, { x: 220, y: 300, fromLeft: true });
+      f.vx = 0; f.amp = 0; f.hp = 0.004;   // 一发必死（伤害 0.95/v，最小的 v=48 也够）
+      const w0 = d.wallet, c0 = d.S.caught;
+      d.netAt(220, 300, f);
+      out[type] = { pay: d.wallet - w0, caught: d.S.caught - c0, gone: !d.fish.includes(f), v: d.FISH[type].v };
+    }
+    return { out, rows: document.querySelectorAll('#bookTable tr').length,
+      tagged: document.querySelectorAll('#bookTable tr').length &&
+        [...document.querySelectorAll('#bookTable tr')].filter(tr => tr.textContent.includes('龙鱼')).length };
+  });
+  const dragonOk = dragonRes.rows === 13 && dragonRes.tagged === 4 &&
+    ['jade', 'flame', 'aurum', 'violet'].every(t => dragonRes.out[t].pay === dragonRes.out[t].v &&
+      dragonRes.out[t].caught === 1 && dragonRes.out[t].gone);
+  console.log('4 dragon fish pay by value & tagged in book:', dragonOk ? 'PASS' : 'FAIL', JSON.stringify(dragonRes));
+
   /* ---------- 网具：花币升网口，只加面积不改伤害 ---------- */
   await page.evaluate(() => { window.__fish.wallet = 2000; window.__fish.S.net = 1; window.__fish.syncHud(); window.__fish.syncNet(); });
   await page.click('#btnNet');
@@ -234,7 +256,7 @@ const path = require('path');
   console.log('home purse == wallet:', purseOk ? 'PASS' : 'FAIL', JSON.stringify(homeInfo));
 
   console.log('runtime errors:', errors.length === 0 ? 'NONE (PASS)' : errors.join(' | '));
-  const allPass = seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
+  const allPass = seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && dragonOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
     saveOk && paused && resumed && overflow <= 0 && homeInfo.card && homeInfo.lit > 100 &&
     purseOk && errors.length === 0;
   console.log(allPass ? '\nALL PASS' : '\nSOME FAILED');
