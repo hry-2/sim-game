@@ -13,7 +13,7 @@
 | 静街（在做） | 疫后小镇生存日志 | [`games/quiet-street/`](games/quiet-street/) | [策划](docs/静街策划.md) · [拆解](docs/静街任务拆解.md) · [数据规格](docs/静街数据规格.md) —— 进度 T1（镇子生成器）|
 | 点头 | 面对面猜词 · 翻转判定 | [`games/nod/`](games/nod/) | 两个人玩 · 十六个词包 4547 词 · [ADR-0004](docs/adr/0004-tilt-is-an-input-not-the-verdict.md) · [ADR-0006](docs/adr/0006-one-rule-for-every-pack.md) |
 | 聚宝盆 | 3D 推币机 · 街机物理 | [`games/coin-pusher/`](games/coin-pusher/) | Three.js 真 3D（联网加载）· 立体金币 · 连锁掉落 · 电子屏开奖 · 永久机台存档 |
-| 捕鱼达人 | 2D 捕鱼 · 街机射击 | [`games/fish-hunter/`](games/fish-hunter/) | 纯 Canvas · 炮倍 / 锁定 / 自动开炮 · 四条龙鱼 · 网口三级与网衣 · 潮汐与鱼王 · 和聚宝盆共用币袋 |
+| 捕鱼达人 | 3D 捕鱼 · 街机射击 | [`games/fish-hunter/`](games/fish-hunter/) | Three.js · 炮倍 / 锁定 / 自动开炮 · 四条龙鱼 · 网口三级与网衣 · 潮汐与鱼王 · 和聚宝盆共用币袋 |
 
 ## 快速开始
 
@@ -48,7 +48,7 @@ npm run dev          # 或起服务：http://localhost:5173
 │   ├── quiet-street/index.html   静街（在做：镇子生成器 + 噪音存量模型）
 │   ├── nod/index.html            点头（两个人：屏幕朝外，翻手机判定）
 │   ├── coin-pusher/index.html    聚宝盆（Three.js 真 3D 推币机 + 连锁碰撞）
-│   └── fish-hunter/index.html    捕鱼达人（纯 Canvas 捕鱼 + 全柜通用币袋）
+│   └── fish-hunter/index.html    捕鱼达人（Three.js 3D 捕鱼 + 全柜通用币袋）
 ├── tools/                        sim 的美术生成脚本与自动化测试
 ├── assets/sprites/               sim 的精灵图产出
 └── docs/                         设计与授权文档

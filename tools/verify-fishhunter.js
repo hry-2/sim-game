@@ -27,7 +27,13 @@ const path = require('path');
       hud: +document.getElementById('uiBal').textContent.replace(/,/g, ''),
       fish: d.fish.length,
       bad: d.fish.filter(f => !Number.isFinite(f.x) || !Number.isFinite(f.y)).length,
-      bet: d.S.bet
+      bet: d.S.bet,
+      three: (() => {
+        const t = d.three;
+        if (!t) return null;
+        const r = t.renderer.info.render;
+        return { calls: r.calls, tris: r.triangles, objs: t.scene.children.length };
+      })()
     };
   });
   console.log('opening:', JSON.stringify(st0));
@@ -35,6 +41,11 @@ const path = require('path');
   console.log('fish on screen >= 5:', seedOk ? 'PASS' : 'FAIL', '(' + st0.fish + ')');
   console.log('no NaN fish:', cleanOk ? 'PASS' : 'FAIL', '(' + st0.bad + ')');
   console.log('wallet 300 & hud synced:', walletOk0 ? 'PASS' : 'FAIL');
+
+  /* ---------- 3D 场景 ---------- */
+  const t3 = st0.three;
+  const threeOk = !!t3 && t3.calls >= 20 && t3.tris > 2000 && t3.objs >= 5;
+  console.log('3D scene renders (draw calls / tris):', threeOk ? 'PASS' : 'FAIL', JSON.stringify(t3));
 
   /* ---------- 开炮扣币 ---------- */
   await page.click('#btnFire');
@@ -256,7 +267,7 @@ const path = require('path');
   console.log('home purse == wallet:', purseOk ? 'PASS' : 'FAIL', JSON.stringify(homeInfo));
 
   console.log('runtime errors:', errors.length === 0 ? 'NONE (PASS)' : errors.join(' | '));
-  const allPass = seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && dragonOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
+  const allPass = threeOk && seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && dragonOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
     saveOk && paused && resumed && overflow <= 0 && homeInfo.card && homeInfo.lit > 100 &&
     purseOk && errors.length === 0;
   console.log(allPass ? '\nALL PASS' : '\nSOME FAILED');
