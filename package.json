@@ -2,7 +2,7 @@
   "name": "sim-game",
   "version": "0.1.0",
   "private": true,
-  "description": "网页游戏合集：效用AI 生活模拟（市井）、赛博朋克射击（霓虹废钢线）、赛博朋克潜入剧情（夜港）、疫后小镇生存（静街）、面对面比划猜词（点头）、3D 推币机（聚宝盆）",
+  "description": "网页游戏合集：效用AI 生活模拟（市井）、赛博朋克射击（霓虹废钢线）、赛博朋克潜入剧情（夜港）、疫后小镇生存（静街）、面对面比划猜词（点头）、3D 推币机（聚宝盆）、2D 捕鱼（捕鱼达人）",
   "scripts": {
     "dev": "python3 -m http.server 5173",
     "dev:node": "npx --yes serve . -l 5173",
@@ -15,6 +15,7 @@
     "survivors": "node tools/survivor_gen.js --embed",
     "check:street": "node tools/verify-street.js",
     "check:nod": "node tools/verify-nod.js",
+    "check:fishhunter": "node tools/verify-fishhunter.js",
     "probe:street": "node tools/probe-street.js 20",
     "smoke": "node -r ./tools/_chrome.js tools/smoke-test.js",
     "import:sprites": "node tools/sprite_import.js",
