@@ -334,6 +334,68 @@ const path = require('path');
   const missOk = missRes.saw === true && missRes.kind === '#6f9aa8';
   console.log('empty net opens on a miss:', missOk ? 'PASS' : 'FAIL', JSON.stringify(missRes));
 
+  /* ================= issue 06：网要罩在鱼上面 =================
+     两件事：
+     ① 网特效的坐标不能是 NaN。以前「网」这种粒子没给 vx/vy，被粒子推进一算就是 NaN，
+        整张网从来没画出来过（玩家只看得见飞出去的那张网）。
+     ② 网的深度要排在所有鱼前面，不然会被鱼盖住。 */
+  const netFrontRes = await page.evaluate(async () => {
+    const d = window.__fish;
+    try {
+      d.setSpawner(false);
+      d.clearFish();
+      d.clearShots();
+      d.parts.length = 0;
+      // 一条 z 最靠前的鱼（ph=0.95 → z≈3.6）
+      const f = d.spawn('shark', { x: 220, y: 220, ph: 0.95, fromLeft: true });
+      f.vx = 0; f.amp = 0;
+      d.netAt(f.x, f.y, f);
+      // 等网张开
+      let net = null;
+      for (let i = 0; i < 40 && !net; i++) {
+        await new Promise(r => setTimeout(r, 30));
+        net = d.fx.find(fx => fx.grp && fx.grp.type === 'Group');
+      }
+      if (!net) return { found: false };
+      const p = net.grp.position;
+      // 网粒子的坐标（NaN 的话整张网就没了）
+      const part = d.parts.find(x => x.kind === 'net');
+      return {
+        found: true,
+        x: p.x, y: p.y, z: p.z,
+        finite: Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z),
+        partFinite: !!part && Number.isFinite(part.x) && Number.isFinite(part.y),
+        depths: d.depths
+      };
+    } finally {
+      d.setSpawner(true);
+    }
+  });
+  const dep = netFrontRes.depths || {};
+  const netFrontOk = netFrontRes.found && netFrontRes.finite && netFrontRes.partFinite
+    && dep.net > dep.fishMax && dep.shot > dep.fishMax;
+  console.log('net opens in front of the fish:', netFrontOk ? 'PASS' : 'FAIL', JSON.stringify(netFrontRes));
+
+  /* 大鱼爆金币：小鱼几颗，大鱼一把，鱼王最猛 */
+  const coinRes = await page.evaluate(async () => {
+    const d = window.__fish;
+    const one = async (type) => {
+      d.clearFish(); d.clearShots(); d.parts.length = 0;
+      d.spawn(type, { x: 220, y: 220, ph: 0.5, fromLeft: true });
+      await new Promise(r => setTimeout(r, 60));
+      d.catchFish(d.fish[0]);
+      const coins = d.parts.filter(p => p.kind === 'coin');
+      return { n: coins.length, maxS: coins.length ? Math.max(...coins.map(c => c.s)) : 0 };
+    };
+    const clown = await one('clown');
+    const shark = await one('shark');
+    const king = await one('king');
+    return { clown, shark, king };
+  });
+  const coinOk = coinRes.clown.n < coinRes.shark.n && coinRes.shark.n < coinRes.king.n
+    && coinRes.clown.maxS < coinRes.shark.maxS && coinRes.shark.maxS < coinRes.king.maxS;
+  console.log('big fish bursts more coins:', coinOk ? 'PASS' : 'FAIL', JSON.stringify(coinRes));
+
   /* ================= issue 04：鱼群编队 + 受惊散开 ================= */
   const schoolRes = await page.evaluate(() => {
     const d = window.__fish;
@@ -464,7 +526,7 @@ const path = require('path');
   const allPass = threeOk && seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && dragonOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
     saveOk && paused && resumed && overflow <= 0 && homeInfo.card && homeInfo.lit > 100 &&
     purseOk && errors.length === 0 &&
-    hudOk && barOk && missOk && schoolOk && tierOk && bigTideOk && thrOk;
+    hudOk && barOk && missOk && schoolOk && tierOk && bigTideOk && thrOk && netFrontOk && coinOk;
   console.log(allPass ? '\nALL PASS' : '\nSOME FAILED');
   await browser.close();
   process.exit(allPass ? 0 : 1);

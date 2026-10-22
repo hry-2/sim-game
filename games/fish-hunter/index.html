@@ -664,6 +664,12 @@
   const CAM_FOV = 50;
   const CAM_Z = (H / SH / 2) / Math.tan(CAM_FOV * Math.PI / 360);
   const FOG_COL = 0x062a34;
+  /* 深度分层：相机在 +z，z 越大越靠前。
+     鱼散在 z ∈ [-4, 4]；网必须排在所有鱼前面，不然会被鱼盖住（issue 06）。 */
+  const Z_FISH_MIN = -4, Z_FISH_MAX = 4;
+  const Z_SHOT = 4.6;      // 飞出去的网
+  const Z_NET = 5.2;       // 张开的网（比飞网还前一点）
+  const Z_COIN = 3.4;      // 爆出来的金币：浮在鱼前面才看得见
 
   let renderer = null, scene = null, camera = null, threeReady = false;
   let cannonPivot = null, cannonMuzzle = null, muzzleFlash = null;
@@ -1229,7 +1235,7 @@
 
     const s = f.r / SH * 1.1;
     grp.scale.setScalar(s);
-    const z = (f.ph % 1) * 8 - 4;
+    const z = (f.ph % 1) * (Z_FISH_MAX - Z_FISH_MIN) + Z_FISH_MIN;
     grp.position.set(wx(f.x), wy(f.y), z);
     grp.userData.z = z;
     scene.add(grp);
@@ -1414,7 +1420,7 @@
     for (const s of shots) {
       let v = shotViews.get(s);
       if (!v) { v = makeShotView(); shotViews.set(s, v); }
-      v.position.set(wx(s.x), wy(s.y), 0.9);
+      v.position.set(wx(s.x), wy(s.y), Z_SHOT);
       v.userData.ring.rotation.set(t * 6, t * 4.2, 0);
       const k = 1 - Math.min(1, Math.hypot(s.x - CX, s.y - CY) / 300);
       v.rotation.z = s.spin;
@@ -1426,10 +1432,12 @@
     let fx = fxPool.pop();
     if (!fx) { fx = buildNetFx(); }
     fx.grp.visible = true;
-    fx.grp.position.set(wx(x), wy(y), 0.6);
+    // 网要罩在鱼上面：网放在 Z_NET 就在所有鱼前面。
+    // （2D 版是「鱼 → 网 → 特效」顺序画的，3D 版要靠 z 把这个顺序找回来。）
+    fx.grp.position.set(wx(x), wy(y), Z_NET);
     fx.grp.scale.setScalar(0.6);
     fx.grp.rotation.z = Math.random() * 6.28;
-    fx.t = 0; fx.max = 0.36; fx.grow = radius / SH;
+    fx.t = 0; fx.max = 0.44; fx.grow = radius / SH;
     fx.ringMat.color.set(col);
     fx.lineMat.color.set(col);
     scene.add(fx.grp);
@@ -1438,8 +1446,9 @@
 
   function buildNetFx() {
     const grp = new THREE.Group();
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xbff6ff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.028, 5, 40), ringMat);
+    // 网要有实实在在「兜住」的感觉：环稍微粗一点
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xbff6ff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.058, 6, 44), ringMat);
     grp.add(ring);
     const pts = [];
     for (let k = 1; k <= 3; k++) {
@@ -1455,10 +1464,11 @@
       pts.push(new THREE.Vector3(Math.cos(a) * 0.14, Math.sin(a) * 0.14, 0));
       pts.push(new THREE.Vector3(Math.cos(a) * 0.98, Math.sin(a) * 0.98, 0));
     }
-    const lineMat = new THREE.LineBasicMaterial({ color: 0xbff6ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
+    // 网线再亮一点，才有「网住鱼」的张力感
+    const lineMat = new THREE.LineBasicMaterial({ color: 0xbff6ff, transparent: true, opacity: 0.72, blending: THREE.AdditiveBlending, depthWrite: false });
     const web = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), lineMat);
     grp.add(web);
-    return { grp, ringMat, lineMat, t: 0, max: 0.42, grow: 3 };
+    return { grp, ringMat, lineMat, t: 0, max: 0.44, grow: 3 };
   }
 
   function flashFx(x, y, size, col) {
@@ -1481,11 +1491,12 @@
         fx.grp.material.opacity = (1 - k) * 0.9;
         fx.grp.scale.setScalar(fx.size * (1 + k * 0.8));
       } else {
-        const r = fx.grow * (0.45 + 0.62 * Math.sqrt(k));
+        // 张开→收束，短促有力，像真正的渔网落下兜住
+        const r = fx.grow * (0.45 + 0.64 * Math.sqrt(k));
         fx.grp.scale.setScalar(r);
         fx.grp.rotation.z += dt * 1.4;
-        fx.ringMat.opacity = (1 - k * 0.9) * 0.95;
-        fx.lineMat.opacity = (1 - k * 0.9) * 0.62;
+        fx.ringMat.opacity = (1 - k * 0.88) * 0.98;
+        fx.lineMat.opacity = (1 - k * 0.88) * 0.76;
       }
       if (k >= 1) {
         scene.remove(fx.grp);
@@ -1499,8 +1510,10 @@
   /* ---------- 粒子：金币、火花、气泡、浮游微粒 ---------- */
   function buildParticleMeshes() {
     coinMesh = new THREE.InstancedMesh(
-      new THREE.CylinderGeometry(0.3, 0.3, 0.08, 12),
-      new THREE.MeshStandardMaterial({ color: 0xffcf5a, metalness: 0.85, roughness: 0.28, emissive: 0x4a2c00, emissiveIntensity: 0.55 }),
+      // 圆片要正对镜头才看得见「一枚金币」：圆柱默认是躺平的（轴朝 Y），
+      // 侧过来就是一条线。绕 X 转 90° 让币面朝着相机。
+      new THREE.CylinderGeometry(0.44, 0.44, 0.1, 16).rotateX(Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0xffd45e, metalness: 0.35, roughness: 0.3, emissive: 0xff9a1a, emissiveIntensity: 0.5 }),
       320
     );
     coinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -1543,16 +1556,20 @@
     for (const p of parts) {
       if (seenFx.has(p)) continue;
       if (p.kind === 'net') { seenFx.add(p); netFx(p.x, p.y, p.grow, p.col || '#bff6ff'); }
-      else if (p.kind === 'ring') { seenFx.add(p); flashFx(p.x, p.y, Math.max(1.8, Math.min(3.6, (p.grow || 40) / 13)), p.col); }
+      else if (p.kind === 'ring') { seenFx.add(p); flashFx(p.x, p.y, Math.max(1.8, Math.min(6.5, (p.grow || 40) / 13)), p.col); }
     }
     // 金币
     let n = 0;
     for (const p of parts) {
       if (p.kind !== 'coin' || n >= 320) continue;
-      const s = Math.max(0.5, p.s * 0.22);
-      tmpV.set(wx(p.x), wy(p.y), 1.1 + Math.sin(p.life * 9 + p.x) * 1.2);
-      tmpV2.set(1, 0.6, 0.3).normalize();
-      tmpQ.setFromAxisAngle(tmpV2, p.life * 9);
+      // 金币：先弹开 → 一边转一边飞 → 最后缩没
+      const k = p.life / p.max;                     // 1 → 0
+      const pop = Math.min(1, (1 - k) * 5.5);       // 头两成时间弹到最大
+      const fade = k < 0.4 ? k / 0.4 : 1;           // 最后四成时间缩回去
+      const s = Math.max(0.05, Math.max(0.8, p.s * 0.28) * (0.4 + 0.6 * pop) * fade);
+      tmpV.set(wx(p.x), wy(p.y), Z_COIN + Math.sin(p.life * 9 + p.x) * 1.0);   // 金币浮在鱼前面，别被鱼挡住
+      tmpE.set(p.life * 2.4, 0, p.life * 9);                 // 绕着镜头正面翻着转
+      tmpQ.setFromEuler(tmpE);
       tmpS.set(s, s, s);
       tmpM.compose(tmpV, tmpQ, tmpS);
       coinMesh.setMatrixAt(n++, tmpM);
@@ -1905,16 +1922,20 @@
   }
 
   /* ================= 捕获 / 保底 ================= */
-  function burst(x, y, n) {
+  // k = 这条鱼有多大（1 小鱼 / 1.25 中鱼 / 1.6 大鱼 / 2.1 鱼王）：
+  // 决定爆出来的金币有多少颗、多大、飞多快。
+  function burst(x, y, n, k) {
+    k = k || 1;
     for (let i = 0; i < n; i++) {
-      const a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 150;
-      parts.push({ kind: 'coin', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 70, s: 2 + Math.random() * 2.6, life: 0.9 + Math.random() * 0.5, max: 1.4 });
+      const a = Math.random() * Math.PI * 2, sp = (40 + Math.random() * 150) * (0.85 + 0.3 * k);
+      parts.push({ kind: 'coin', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 70,
+                   s: (2 + Math.random() * 2.6) * k, life: 0.9 + Math.random() * 0.5, max: 1.4 });
     }
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 8 + Math.round(7 * k); i++) {
       const a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 180;
       parts.push({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.28, max: 0.28, col: '#ffe9b0' });
     }
-    parts.push({ kind: 'ring', x, y, s: 6, grow: 42, life: 0.45, max: 0.45, col: '#ffe9b0' });
+    parts.push({ kind: 'ring', x, y, s: 6, grow: 42 * k, life: 0.45, max: 0.45, col: '#ffe9b0' });
   }
 
   function catchFish(f) {
@@ -1931,7 +1952,10 @@
     if (pay > S.best) S.best = pay;
     if (f.boss) S.king++;
     save();
-    burst(f.x, f.y, f.boss ? 26 : (pay >= 20 ? 14 : 8));
+    // 抓到大鱼要爆金币：小鱼几颗，大鱼一把金币雨，鱼王最猛
+    const tier = f.boss ? 2.1 : (F.v >= 16 ? 1.6 : (F.v >= 10 ? 1.25 : 1));
+    const cn = f.boss ? 36 : (F.v >= 16 ? 24 : (F.v >= 10 ? 15 : 8));
+    burst(f.x, f.y, cn, tier);
     parts.push({ kind: 'ring', x: f.x, y: f.y, s: f.r * 0.4, grow: f.r * (FISH[f.type].dragon ? 2.6 : 1.7),
                  life: 0.34, max: 0.34, col: FISH[f.type].col });
     // 大额由中间那行闪光报数，不再叠一个一样的飘字
@@ -2159,7 +2183,9 @@
       const p = parts[i];
       p.life -= dt;
       if (p.life <= 0) { parts.splice(i, 1); continue; }
-      if (p.kind !== 'ring') {
+      // 网和光圈是「定在原地」的：不能进这个分支。
+      // （以前网没有 vx/vy，被这里一算就是 NaN，整张网从来没画出来过。）
+      if (p.kind !== 'ring' && p.kind !== 'net') {
         p.x += p.vx * dt; p.y += p.vy * dt;
         p.vy += (p.kind === 'coin' ? 250 : (p.kind === 'bubble' ? -6 : 120)) * dt;
         p.vx *= 0.985;
@@ -2419,6 +2445,8 @@
     clearShots() { shots.length = 0; },
     setSpawner(v) { spawnerOn = !!v; },
     netR: () => NET_R, syncNet,
+    /* 深度分层（issue 06）：网必须排在所有鱼前面 */
+    depths: { fishMin: Z_FISH_MIN, fishMax: Z_FISH_MAX, shot: Z_SHOT, net: Z_NET, coin: Z_COIN },
     get aim() { return aim; },
     setAim(a) { aim = a; aimT = a; },
     get locked() { return locked; },
