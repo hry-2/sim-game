@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>捕鱼达人 · 街机捕鱼</title>
-<meta name="description" content="捕鱼达人：一台街机柜里的 2D 捕鱼。炮倍决定每发多少币，鱼越大越耐打，鱼王一次能翻几百币。和聚宝盆共用同一个币袋，赢的币全柜通用。">
+<meta name="description" content="捕鱼达人：一台街机柜里的 3D 捕鱼。炮倍决定每发多少币，鱼越大越耐打，鱼王一次能翻几百币。命中率、潮汐、渔群、大潮都在屏幕上看得见。和聚宝盆共用同一个币袋，赢的币全柜通用。">
 <style>
   :root{
     --ground:#030a0c;
@@ -186,6 +186,8 @@
   .statline span{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
   .statline b{color:var(--led);font-weight:700;text-shadow:0 0 9px rgba(120,255,180,.55)}
   .statline .en b{color:var(--gold);text-shadow:0 0 9px rgba(255,200,80,.55)}
+  .statline b.neg{color:#ff8a6a;text-shadow:0 0 9px rgba(255,110,80,.5)}
+  .statline .en b.neg{color:#ff8a6a;text-shadow:0 0 9px rgba(255,110,80,.5)}
 
   .modal{
     position:fixed;inset:0;background:rgba(2,6,7,.86);backdrop-filter:blur(3px);
@@ -255,7 +257,7 @@
     <div class="asset"><span class="k">币袋</span><span class="v" id="uiBal">0</span><span class="u">币</span></div>
     <div class="asset score"><span class="k">本局渔获</span><span class="v" id="uiGot">0</span><span class="u">币</span></div>
   </div>
-  <div class="runinfo">炮倍 <b id="uiBet">1×</b> · 网口 <b id="uiNet">Lv.1</b> · 本机投入 <b id="uiIn">0</b> 枚 · 鱼王 <b id="uiKingTop">0</b></div>
+  <div class="runinfo">炮倍 <b id="uiBet">1×</b> · 网口 <b id="uiNetLv">Lv.1</b> · 累计投入 <b id="uiIn">0</b> 枚 · 鱼王 <b id="uiKingTop">0</b></div>
 
   <div class="cab">
     <canvas id="cv" width="440" height="500"></canvas>
@@ -295,9 +297,9 @@
 
   <div class="statline">
     <span>潮汐 <b id="uiTide">1</b></span>
-    <span>最高单捕 <b id="uiBest">0</b></span>
-    <span>鱼王 <b id="uiKing">0</b></span>
-    <span class="en">本局 <b id="uiRun">0</b></span>
+    <span>命中率 <b id="uiHit">—</b></span>
+    <span>本局投入 <b id="uiSpent">0</b></span>
+    <span class="en">本局净额 <b id="uiNet">0</b></span>
   </div>
 </div>
 
@@ -308,11 +310,13 @@
     <p>海底的鱼会自己游过来。<b>点屏幕</b>或按住<b>开炮</b>撒网，罩住的鱼打够血量就翻硬币。</p>
     <ul>
       <li><b>炮倍</b>：每发消耗的币数。炮倍越高，<b>同一条鱼赔的币也按倍数翻</b>，血量不变——所以炮倍只放大输赢的波动，不改变一条鱼要打几发。</li>
-      <li><b>渔网</b>：一网落下去罩住一小片。力道先砸中网的那条，把它打死了剩下的才溢给网里别的鱼——所以撒进鱼群，收尾那一下能一次收好几条。</li>
+      <li><b>渔网</b>：一网落下去罩住一小片。力道先砸中网的那条，把它打死了剩下的才溢给网里别的鱼——所以撒进鱼群，收尾那一下能一次收好几条。<b>打空了的网也会张开</b>：张开却什么也没罩住，这一发就白花了。</li>
+      <li><b>命中率</b>：打中鱼的次数 ÷ 开炮次数。底栏那一栏就是它——这台机器的手艺全在这一栏上，<b>本局净额</b>＝本局渔获 − 本局投入，是赚是亏一眼就看见。</li>
       <li><b>锁定</b>：点一条鱼就把炮口咬住它（会算提前量）。锁定状态下按开炮只朝这一个落点撒。</li>
       <li><b>自动开炮</b>：开着就会自己找最近的鱼，省手指。币不够时不会开炮。</li>
+      <li><b>鱼群</b>：同种的鱼是一群——一起游、一起受惊。挨了打的那一条会带着伤加快游走，同群的其他几条会被吓散再归队。</li>
       <li><b>龙鱼</b>：青龙 / 赤龙 / 金龙 / 紫电龙，蛇形长身、一路摆着过来，比同价的鱼难瞄。稀有，看见就别放过——血量照常按 v 算，不另设规矩。</li>
-      <li><b>潮汐</b>：每 40 秒涨一次潮，来的鱼更大更多；每逢第 3 次潮<b>鱼王</b>出没，打掉当场翻 <b>80×炮倍</b>。</li>
+      <li><b>潮汐</b>：每 40 秒涨一次潮，来的鱼更大更多；每逢第 3 次潮<b>鱼王</b>出没，打掉当场翻 <b>80×炮倍</b>。<b>每 5 潮一次大潮</b>：一次进来两群鱼，稀有鱼也比平时多，鱼王必来。</li>
       <li><b>网具</b>：网口能用币袋里的币升级（300 / 800 币，罩 48 → 58 → 70），只加罩住的面积、不加每发伤害；网衣按累计渔获解锁，纯外观。</li>
       <li><b>币袋</b>：这台机器没有自己的余额，炮打出去的、鱼翻出来的都是<b>全柜通用的币袋</b>——和聚宝盆是同一袋。币袋见底时，机器会保底借你 10 枚（45 秒一次）。</li>
     </ul>
@@ -359,6 +363,9 @@
     <p class="dim">海底按了暂停。战绩和币袋都已经存好了，刷新不丢。</p>
     <table>
       <tr><td>本局渔获</td><td id="pRun">0</td></tr>
+      <tr><td>本局投入</td><td id="pSpent">0</td></tr>
+      <tr><td>本局净额</td><td id="pNet">0</td></tr>
+      <tr><td>命中率</td><td id="pHit">—</td></tr>
       <tr><td>累计渔获</td><td id="pGain">0</td></tr>
       <tr><td>最高单捕</td><td id="pBest">0</td></tr>
     </table>
@@ -384,8 +391,12 @@
 
   /* ================= 币袋：和聚宝盆共用一份 localStorage =================
      契约见 docs/adr/0007：'arcade.wallet.v1' = { v:1, coins:<int>, t:<ms> }，coins 整数非负。
-     这台机器不另立余额：开炮扣它、捕鱼进它，全柜同一袋。 */
+     这台机器不另立余额：开炮扣它、捕鱼进它，全柜同一袋。
+     落盘按 SAVE_TH 节流（issue 03）：连发时每发都写会把 localStorage 写爆，
+     钱最多旧 200ms，页面隐藏/关闭时强制补写。 */
   const WALLET_KEY = 'arcade.wallet.v1', WALLET_SEED = 300;
+  const SAVE_TH = 200;              // 币袋落盘节流窗口（毫秒）：≤5 次/秒，和聚宝盆一致
+  const STATE_TH = 1000;            // 战绩存档节流窗口（毫秒）：≤1 次/秒（不是钱，可以慢）
   function walletRead() {
     try {
       const w = JSON.parse(localStorage.getItem(WALLET_KEY));
@@ -393,11 +404,22 @@
     } catch (e) {}
     return null;
   }
-  function walletSave(n) {
-    try { localStorage.setItem(WALLET_KEY, JSON.stringify({ v: 1, coins: Math.max(0, Math.round(n)), t: Date.now() })); } catch (e) {}
-  }
   let wallet = walletRead();
-  if (wallet === null) { wallet = WALLET_SEED; walletSave(wallet); }
+  let walletDirty = false, walletAt = 0, walletTimer = 0;
+  function walletSave(n) {
+    wallet = Math.max(0, Math.round(n));
+    walletDirty = true;
+    const now = performance.now();
+    if (now - walletAt >= SAVE_TH) { flushWallet(); return; }
+    if (!walletTimer) walletTimer = setTimeout(flushWallet, SAVE_TH);
+  }
+  function flushWallet() {
+    if (walletTimer) { clearTimeout(walletTimer); walletTimer = 0; }
+    if (!walletDirty) return;
+    walletDirty = false; walletAt = performance.now();
+    try { localStorage.setItem(WALLET_KEY, JSON.stringify({ v: 1, coins: wallet, t: Date.now() })); } catch (e) {}
+  }
+  if (wallet === null) { wallet = WALLET_SEED; walletSave(wallet); flushWallet(); }
 
   /* ================= 战绩存档（币不在里面） ================= */
   const SAVE_KEY = 'fishhunter.v1';
@@ -406,9 +428,20 @@
     const raw = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
     if (raw && raw.v === 1) Object.assign(S, raw);
   } catch (e) {}
-  function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
-  let saveTimer = 0;
-  function saveSoon() { if (!saveTimer) saveTimer = setTimeout(() => { saveTimer = 0; save(); }, 400); }
+  let saveDirty = false, saveAt = 0, saveTimer = 0;
+  function save(force) {
+    saveDirty = true;
+    if (force) { flushSave(); return; }
+    const now = performance.now();
+    if (now - saveAt >= STATE_TH) { flushSave(); return; }
+    if (!saveTimer) saveTimer = setTimeout(flushSave, STATE_TH);
+  }
+  function flushSave() {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = 0; }
+    if (!saveDirty) return;
+    saveDirty = false; saveAt = performance.now();
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {}
+  }
 
   /* ================= 画布 / 常量 ================= */
   const W = 440, H = 500;
@@ -463,6 +496,7 @@
       setTimeout(() => tone(1170, 0.18, 'sine', 0.05, 200), 170);
     },
     king() { [220, 176, 148].forEach((f, i) => setTimeout(() => tone(f, 0.3, 'sawtooth', 0.045, -30), i * 110)); },
+    miss() { tone(250, 0.07, 'sine', 0.022, -110); },
     empty() { tone(170, 0.12, 'sine', 0.04, -60); },
     tide() { tone(300, 0.16, 'sine', 0.04, 220); }
   };
@@ -528,7 +562,7 @@
       if (S.skins & (1 << i)) continue;
       if (S.gained < SKINS[i].need) continue;
       S.skins |= (1 << i);
-      saveSoon();
+      save();
       toast('解锁网衣 · ' + SKINS[i].name);
     }
   }
@@ -536,35 +570,70 @@
   /* ================= 场面状态 ================= */
   let fish = [], shots = [], parts = [], pops = [];
   let tide = 1, tideT = 0, spawnT = 0.4;
+  let spawnerOn = true;                 // 自然出鱼开关（验证脚本用：测「打空」时别乱出鱼）
   let aim = 0, aimT = 0, pointer = null;
   let locked = null, firing = false, fireCd = 0, recoil = 0, shake = 0;
   let paused = false, tGlobal = 0;
   let lastRelief = -1e9;
   const run = { got: 0, spent: 0, catches: 0, fired: 0, hits: 0 };
+  /* 每帧复用的缓冲：血条顺序、存活集合（增删鱼时才重排，issue 03） */
+  const hpList = [];
+  let hpDirty = true;
+  let hpBarsDrawn = 0;                 // 这一帧画了几条血条（验证脚本用）
+  let hpBarsSmallDrawn = 0;            // 其中小鱼的小血条有几条
+  const aliveSet = new Set();
+  let autoTarget = null;              // 自动开炮这一帧挑中的鱼（每帧只算一次）
+
+  /* ================= 潮汐分级 =================
+     每 5 潮一次大潮；档位越高稀有鱼越多。只动"出鱼的频率"，
+     不动赔付、不动血量、不动伤害预算（ADR-0008）。 */
+  function tideTier() { return Math.floor((tide - 1) / 5); }
+  function isBigTide() { return tide % 5 === 0; }
+  function tideLabel() { return isBigTide() ? tide + ' · 大潮' : String(tide); }
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const bubbles = [];
   for (let i = 0; i < 26; i++) bubbles.push({ x: Math.random() * W, y: Math.random() * H, r: 1 + Math.random() * 2.6, s: 8 + Math.random() * 20, w: Math.random() * 6.28 });
 
   /* ================= HUD / 提示 ================= */
   function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+  /* HUD 增量写：值没变就不碰 DOM。每发炮都会调 syncHud，
+     全量 textContent + querySelectorAll 是白烧的（issue 03）。 */
+  const hudCache = {};
+  function setText(id, v) { if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } }
   function syncHud() {
-    $('uiBal').textContent = fmt(wallet);
-    $('uiGot').textContent = fmt(run.got);
-    $('uiBet').textContent = S.bet + '×';
-    $('uiNet').textContent = 'Lv.' + S.net;
-    $('uiIn').textContent = fmt(S.spent);
-    $('uiKingTop').textContent = fmt(S.king);
-    $('uiTide').textContent = tide;
-    $('uiBest').textContent = fmt(S.best);
-    $('uiKing').textContent = fmt(S.king);
-    $('uiRun').textContent = fmt(run.got);
-    $('autoLab').textContent = S.auto ? '运行中' : '点击开启';
-    checkSkins();
-    if ($('mNet').classList.contains('show')) syncNet();
-    $('btnAuto').classList.toggle('on', S.auto);
-    $('btnSound').classList.toggle('on', S.sound);
-    $('btnSound').textContent = S.sound ? '声:开' : '声:关';
-    document.querySelectorAll('#betRow .btn').forEach(b => b.classList.toggle('on', +b.dataset.bet === S.bet));
+    setText('uiBal', fmt(wallet));
+    setText('uiGot', fmt(run.got));
+    setText('uiBet', S.bet + '×');
+    setText('uiNetLv', 'Lv.' + S.net);
+    setText('uiIn', fmt(S.spent));
+    setText('uiKingTop', fmt(S.king));
+    setText('uiTide', tideLabel());
+    setText('uiSpent', fmt(run.spent));
+    setText('uiHit', run.fired ? Math.round(run.hits / run.fired * 100) + '%' : '—');
+    const net = run.got - run.spent;
+    setText('uiNet', (net < 0 ? '−' : net > 0 ? '+' : '') + fmt(Math.abs(net)));
+    if (hudCache.netNeg !== (net < 0)) { hudCache.netNeg = net < 0; $('uiNet').classList.toggle('neg', net < 0); }
+    if (hudCache.auto !== S.auto) {
+      hudCache.auto = S.auto;
+      setText('autoLab', S.auto ? '运行中' : '点击开启');
+      $('btnAuto').classList.toggle('on', S.auto);
+    }
+    if (hudCache.sound !== S.sound) {
+      hudCache.sound = S.sound;
+      $('btnSound').classList.toggle('on', S.sound);
+      $('btnSound').textContent = S.sound ? '声:开' : '声:关';
+    }
+    if (hudCache.bet !== S.bet) {
+      hudCache.bet = S.bet;
+      document.querySelectorAll('#betRow .btn').forEach(b => b.classList.toggle('on', +b.dataset.bet === S.bet));
+    }
+    if (hudCache.gained !== S.gained) { hudCache.gained = S.gained; checkSkins(); }
+    // 网具面板开着的时候，币数 / 网衣解锁 / 换装变了才刷新它
+    if ($('mNet').classList.contains('show') &&
+        (hudCache.netW !== wallet || hudCache.netSkins !== S.skins || hudCache.netSkin !== S.skin)) {
+      hudCache.netW = wallet; hudCache.netSkins = S.skins; hudCache.netSkin = S.skin;
+      syncNet();
+    }
   }
   let flashTimer = 0;
   function flash(text) {
@@ -1168,9 +1237,11 @@
   }
 
   function syncFish(t) {
-    const alive = new Set(fish);
+    // 复用一张 Set：每帧 clear + 填，不新建（issue 03）
+    aliveSet.clear();
+    for (const f of fish) aliveSet.add(f);
     for (const [f, v] of fishViews) {
-      if (!alive.has(f)) {
+      if (!aliveSet.has(f)) {
         scene.remove(v);
         const own = v.userData.own;
         if (own) for (const m of own) m.dispose();
@@ -1328,9 +1399,10 @@
   }
 
   function syncShots(t) {
-    const alive = new Set(shots);
+    aliveSet.clear();
+    for (const s of shots) aliveSet.add(s);
     for (const [s, v] of shotViews) {
-      if (!alive.has(s)) {
+      if (!aliveSet.has(s)) {
         scene.remove(v);
         v.traverse(o => {
           if (o.isMesh && o.geometry) o.geometry.dispose();
@@ -1470,7 +1542,7 @@
     // 2D 逻辑推进的网 / 光圈，在这里变成 3D 特效（同一份 parts，只加不改）
     for (const p of parts) {
       if (seenFx.has(p)) continue;
-      if (p.kind === 'net') { seenFx.add(p); netFx(p.x, p.y, p.grow, '#bff6ff'); }
+      if (p.kind === 'net') { seenFx.add(p); netFx(p.x, p.y, p.grow, p.col || '#bff6ff'); }
       else if (p.kind === 'ring') { seenFx.add(p); flashFx(p.x, p.y, Math.max(1.8, Math.min(3.6, (p.grow || 40) / 13)), p.col); }
     }
     // 金币
@@ -1578,8 +1650,13 @@
 
   function drawHpBar(f) {
     const F = FISH[f.type];
-    if (F.v < 16 && !f.boss && !F.dragon) return;
-    const w = Math.max(44, f.r * (F.dragon ? 2.6 : 2.1)), h = 5;
+    // 大鱼一直有血条；小鱼挨过打之后才出现一条小血条——
+    // "打够血量就翻"这件事，小鱼也得看得见进度（issue 02）
+    const big = F.v >= 16 || f.boss || F.dragon;
+    if (!big && f.hp >= 1) return;
+    hpBarsDrawn++;
+    if (!big) hpBarsSmallDrawn++;
+    const w = big ? Math.max(44, f.r * (F.dragon ? 2.6 : 2.1)) : Math.max(30, f.r * 1.9), h = big ? 5 : 4;
     const x = f.x - w / 2, y = f.y - f.r * (F.dragon ? 1.08 : 1.3) - 12;
     g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(x - 1, y - 1, w + 2, h + 2);
     g.fillStyle = '#0b2730'; g.fillRect(x, y, w, h);
@@ -1691,8 +1768,16 @@
     if (shake > 0.01 && !reduce) {
       g.translate((Math.random() - .5) * shake * 5, (Math.random() - .5) * shake * 5);
     }
-    const list = fish.slice().sort((a, b) => a.r - b.r);
-    for (const f of list) drawHpBar(f);
+    // 血条顺序：只在增删鱼时重排，每帧不再 slice+sort（issue 03）
+    if (hpDirty) {
+      hpList.length = 0;
+      for (const f of fish) hpList.push(f);
+      hpList.sort((a, b) => a.r - b.r);
+      hpDirty = false;
+    }
+    hpBarsDrawn = 0;
+    hpBarsSmallDrawn = 0;
+    for (const f of hpList) drawHpBar(f);
     drawPops();
     drawAimUi(t);
     g.restore();
@@ -1700,18 +1785,24 @@
   }
 
   /* ================= 出鱼 ================= */
-  function pickType() {
-    const w = {
+  function fishWeights() {
+    // 稀有鱼的权重随潮汐档位爬升（issue 05）：只改"出鱼的频率"，
+    // 不改赔付、不改血量、不改每发伤害预算。总和由 pickType 自己归一。
+    const rare = Math.min(2.2, 1 + 0.35 * tideTier());
+    return {
       clown: 44, tang: 26, lantern: 15, puffer: 8,
       squid: tide >= 2 ? 5 : 1.2,
       turtle: tide >= 2 ? 3 : 0.7,
-      shark: tide >= 3 ? 1.8 : 0.35,
-      gold: tide >= 4 ? 0.6 : 0.06,
-      jade: tide >= 1 ? 1.6 : 0,
-      flame: tide >= 2 ? 1.0 : 0,
-      aurum: tide >= 3 ? 0.5 : 0,
-      violet: tide >= 4 ? 0.28 : 0
+      shark: tide >= 3 ? 1.8 * rare : 0.35,
+      gold: tide >= 4 ? 0.6 * rare : 0.06,
+      jade: tide >= 1 ? 1.6 * rare : 0,
+      flame: tide >= 2 ? 1.0 * rare : 0,
+      aurum: tide >= 3 ? 0.5 * rare : 0,
+      violet: tide >= 4 ? 0.28 * rare : 0
     };
+  }
+  function pickType() {
+    const w = fishWeights();
     let sum = 0;
     for (const k in w) sum += w[k];
     let r = Math.random() * sum;
@@ -1744,40 +1835,64 @@
       x: opt.x != null ? opt.x : (fromLeft ? -r * 2.4 : W + r * 2.4),
       y: y0, y0,
       vx: dir * spd,
-      amp: F.dragon ? 24 + Math.random() * 10 : (F.boss ? 24 : 4 + Math.random() * 16),
-      freq: F.dragon ? 0.34 + Math.random() * 0.2 : (F.boss ? 0.32 : 0.5 + Math.random() * 0.9),
-      ph: Math.random() * 6.28, t: Math.random() * 4,
+      amp: opt.amp != null ? opt.amp
+        : (F.dragon ? 24 + Math.random() * 10 : (F.boss ? 24 : 4 + Math.random() * 16)),
+      freq: opt.freq != null ? opt.freq
+        : (F.dragon ? 0.34 + Math.random() * 0.2 : (F.boss ? 0.32 : 0.5 + Math.random() * 0.9)),
+      ph: opt.ph != null ? opt.ph : Math.random() * 6.28,
+      t: Math.random() * 4,
       hp: 1, flash: 0, flee: 0, life: 0, boss: !!F.boss,
       hr: F.boss ? r * 1.45 : (type === 'shark' || type === 'gold' ? r * 1.25 : (F.dragon ? r * 1.42 : r * 0.95)),
-      wakeT: Math.random() * 0.3
+      wakeT: Math.random() * 0.3,
+      /* 鱼群（issue 04）：同群同速同相同摆幅，挨打一起散 */
+      grp: opt.grp || 0,
+      lane: opt.lane != null ? opt.lane : y0,
+      slot: opt.slot || 0,
+      scatter: 0,
+      drift: opt.drift != null ? opt.drift : (F.boss ? 0 : (Math.random() - .5) * 6)
     };
     fish.push(f);
+    hpDirty = true;
     return f;
   }
 
+  let grpSeq = 0;
+  const schoolLog = [];                 // 每次进群记一条：{gid, type, n}（验证脚本用）
+  const tideLog = [];                   // 每次涨潮记一条：{tide, big, schools}（验证脚本用）
   function spawnSchool() {
     const type = pickType();
     const fromLeft = Math.random() < 0.5;
+    const gid = ++grpSeq;
+    const spd = 0.9 + Math.random() * 0.22;      // 整群一个速度，队形不散
+    const mark = fish.length;
     if (FISH[type].dragon) {
       // 龙鱼是独行客：涨潮时也只是两条结伴，从同一边游进来
       for (let i = 0; i < 2; i++) {
         spawnFish(type, {
-          fromLeft,
+          fromLeft, grp: gid, spd,
           x: fromLeft ? -46 - i * 96 : W + 46 + i * 96,
           y: 130 + i * 96 + Math.random() * 20
         });
       }
+      schoolLog.push({ gid, type, n: fish.length - mark });
       return;
     }
     const n = 5 + Math.floor(Math.random() * 4);
-    const baseY = 100 + Math.random() * 220;
+    const lane = 100 + Math.random() * 220;
+    const ph = Math.random() * 6.28;
+    const freq = 0.5 + Math.random() * 0.7;
+    const amp = 5 + Math.random() * 9;
+    const drift = (Math.random() - .5) * 6;
     for (let i = 0; i < n; i++) {
+      const slot = (i - n / 2) * 12;
       spawnFish(type, {
-        fromLeft,
+        fromLeft, grp: gid, spd, ph, freq, amp, drift,
+        lane, slot,
         x: fromLeft ? -20 - i * 34 : W + 20 + i * 34,
-        y: baseY + (i - n / 2) * 12 + (Math.random() - .5) * 10
+        y: lane + slot + (Math.random() - .5) * 8
       });
     }
+    schoolLog.push({ gid, type, n: fish.length - mark });
   }
 
   function spawnKing() {
@@ -1806,6 +1921,7 @@
     const idx = fish.indexOf(f);
     if (idx < 0) return 0;
     fish.splice(idx, 1);
+    hpDirty = true;
     if (locked === f) locked = null;
     const F = FISH[f.type], pay = F.v * S.bet;
     wallet = Math.min(9999999, wallet + pay);
@@ -1853,7 +1969,7 @@
     if (wallet < S.bet && !relief()) return false;
     wallet -= S.bet; walletSave(wallet);
     S.spent += S.bet; run.spent += S.bet; run.fired++;
-    saveSoon();
+    save();
     const m = muzzle();
     const a = aim + (Math.random() - 0.5) * 0.018;
     shots.push({ x: m.x, y: m.y, vx: Math.sin(a) * SHOT_SPD, vy: -Math.cos(a) * SHOT_SPD, life: 0, spin: Math.random() * 6.28 });
@@ -1922,6 +2038,14 @@
       budget -= use;
       f.flash = 1;
       if (!f.boss) f.flee = 0.5;
+      // 同群一起受惊：一起加速、一起乱窜，然后归队（issue 04）
+      if (f.grp) {
+        for (const o of fish) {
+          if (o === f || o.grp !== f.grp) continue;
+          o.scatter = 1;
+          if (!o.boss) o.flee = 0.5;
+        }
+      }
       for (let i = 0; i < 4; i++) {
         const a = Math.random() * Math.PI * 2, sp = 50 + Math.random() * 120;
         parts.push({ kind: 'spark', x: f.x, y: f.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.22, max: 0.22, col: '#d8f8ff' });
@@ -1936,7 +2060,7 @@
   function updateAim(dt) {
     let target = null;
     if (locked && fish.includes(locked)) target = locked;
-    else if (S.auto) target = nearestFish();
+    else if (autoTarget) target = autoTarget;
     if (target) aimT = leadAngle(target);
     else {
       if (keys.left) aimT = clampAim(aimT - 2.1 * dt);
@@ -1955,15 +2079,24 @@
     tideT += dt;
     if (tideT >= TIDE_LEN) {
       tideT -= TIDE_LEN; tide++;
-      toast('涨潮 · 第 ' + tide + ' 潮');
+      const big = isBigTide();
+      toast(big ? '大潮 · 第 ' + tide + ' 潮' : '涨潮 · 第 ' + tide + ' 潮');
       sfx.tide();
+      const mark = schoolLog.length;
       spawnSchool();
-      if (tide % 3 === 0) spawnKing();
+      if (big) {
+        // 大潮：一次进两群鱼，鱼王必来（issue 05）
+        spawnSchool();
+        spawnKing();
+        flash('大潮');
+      } else if (tide % 3 === 0) spawnKing();
+      // 记一笔涨潮实录：{潮次, 是不是大潮, 进了几群}（验证脚本用）
+      tideLog.push({ tide, big, schools: schoolLog.slice(mark) });
       syncHud();
     }
 
     spawnT -= dt;
-    if (spawnT <= 0 && fish.length < MAXFISH) {
+    if (spawnerOn && spawnT <= 0 && fish.length < MAXFISH) {
       spawnFish(pickType());
       spawnT = 0.26 + Math.random() * 0.34;
     }
@@ -1974,7 +2107,16 @@
       f.flash = Math.max(0, f.flash - dt * 4);
       f.flee = Math.max(0, f.flee - dt);
       f.x += f.vx * (f.flee > 0 ? 1.32 : 1) * dt;
-      f.y = f.y0 + Math.sin(f.t * f.freq + f.ph) * f.amp;
+      // 泳道慢慢漂（鱼王不漂：它必须可预期）；同群走同一条基准线
+      f.lane += f.drift * dt;
+      if (f.lane < 96) f.lane = 96; else if (f.lane > 372) f.lane = 372;
+      let y = f.lane + f.slot + Math.sin(f.t * f.freq + f.ph) * f.amp;
+      if (f.scatter > 0) {
+        // 受惊：乱窜一下，幅度随时间收敛，然后归队（issue 04）
+        f.scatter = Math.max(0, f.scatter - dt * 1.6);
+        y += Math.sin(f.t * 13 + f.ph) * f.scatter * 26;
+      }
+      f.y = y;
       f.dir = f.vx >= 0 ? 1 : -1;
       // 大鱼游过留一串细泡（龙鱼和鲨鱼这类），小鱼不冒
       f.wakeT -= dt;
@@ -1987,13 +2129,20 @@
         }
       }
       const m = f.r * 3.2;
-      if (f.x < -m || f.x > W + m) { fish.splice(i, 1); if (locked === f) locked = null; }
+      if (f.x < -m || f.x > W + m) { fish.splice(i, 1); if (locked === f) locked = null; hpDirty = true; }
     }
 
     for (let i = shots.length - 1; i >= 0; i--) {
       const s = shots[i];
       s.x += s.vx * dt; s.y += s.vy * dt; s.life += dt; s.spin += dt * 7;
-      if (s.x < -30 || s.x > W + 30 || s.y < -30 || s.y > H + 30) { shots.splice(i, 1); continue; }
+      if (s.x < -30 || s.x > W + 30 || s.y < -30 || s.y > H + 30) {
+        // 打空了：网还是要张开——张开了却什么也没罩住，这一发就白花了（issue 02）
+        shots.splice(i, 1);
+        parts.push({ kind: 'net', x: Math.max(0, Math.min(W, s.x)), y: Math.max(0, Math.min(H, s.y)),
+          s: 13, grow: NET_R, life: 0.34, max: 0.34, spin: Math.random() * 6.28, col: '#6f9aa8' });
+        sfx.miss();
+        continue;
+      }
       let hit = null;
       // 线段-圆：网一帧走 14px，小鱼的判定圈会被跨过去
       const px = s.x - s.vx * dt, py = s.y - s.vy * dt;
@@ -2026,11 +2175,15 @@
       if (b.y < -6) { b.y = H + 6; b.x = Math.random() * W; }
     }
 
+    // 自动开炮这一帧挑中的鱼只算一次：updateAim 和开火判断共用（issue 03）
+    autoTarget = null;
+    if (S.auto) autoTarget = (locked && fish.includes(locked)) ? locked : nearestFish();
+
     updateAim(dt);
 
     fireCd -= dt;
     if (fireCd <= 0) {
-      const want = firing || (S.auto && (locked && fish.includes(locked) || nearestFish()));
+      const want = firing || !!autoTarget;
       if (want) fireCd = fireOnce() ? FIRE_INT : 0.45;
     }
   }
@@ -2123,7 +2276,7 @@
     b.addEventListener('click', () => {
       if (!(S.skins & (1 << i))) { sfx.empty(); toast('累计渔获 ' + sk.need + ' 才解锁'); return; }
       if (S.skin === i) return;
-      S.skin = i; save(); syncNet(); sfx.tide(); toast('换上 ' + sk.name);
+      S.skin = i; save(true); syncNet(); sfx.tide(); toast('换上 ' + sk.name);
     });
     skinRow.appendChild(b);
   });
@@ -2154,7 +2307,7 @@
     if (!nx) return;
     if (wallet < nx.cost) { sfx.empty(); toast('币袋不够 · 还差 ' + fmt(nx.cost - wallet) + ' 币'); return; }
     wallet -= nx.cost; walletSave(wallet);
-    S.net++; save();
+    S.net++; save(true);          // 花了币的改动立刻落盘，别等节流窗口
     syncNet(); syncHud();
     sfx.big(); toast('网口升级 · 罩 ' + NET_R);
   });
@@ -2165,7 +2318,11 @@
     $(id).classList.add('show');
     paused = true; firing = false;
     if (id === 'mPause') {
+      const net = run.got - run.spent;
       $('pRun').textContent = fmt(run.got);
+      $('pSpent').textContent = fmt(run.spent);
+      $('pNet').textContent = (net < 0 ? '−' : net > 0 ? '+' : '') + fmt(Math.abs(net));
+      $('pHit').textContent = run.fired ? Math.round(run.hits / run.fired * 100) + '%' : '—';
       $('pGain').textContent = fmt(S.gained);
       $('pBest').textContent = fmt(S.best);
     }
@@ -2230,8 +2387,12 @@
     const v = walletRead();
     if (v !== null) { wallet = v; syncHud(); }
   });
-  addEventListener('pagehide', () => { save(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) firing = false; });
+  // 落盘是节流的：页面藏起来或关掉的时候强制补写一次，别把币丢了
+  function flushAll() { flushWallet(); flushSave(); }
+  addEventListener('pagehide', () => { flushAll(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { firing = false; flushAll(); }
+  });
 
   /* ================= 启动 ================= */
   for (let i = 0; i < 11; i++) {
@@ -2252,6 +2413,11 @@
     get S() { return S; },
     FISH, fish, shots, parts, run,
     spawn: spawnFish, catchFish, fire: fireOnce, nearest: nearestFish, netAt: netBurst,
+    /* 清场：直接截断 fish 数组不会通知血条缓存，hpList 会留着已经不存在的鱼。
+       调试/测试统一走这个口子。 */
+    clearFish() { fish.length = 0; hpDirty = true; },
+    clearShots() { shots.length = 0; },
+    setSpawner(v) { spawnerOn = !!v; },
     netR: () => NET_R, syncNet,
     get aim() { return aim; },
     setAim(a) { aim = a; aimT = a; },
@@ -2265,6 +2431,15 @@
     get three() { return threeReady ? { renderer, scene, camera } : null; },
     get fx() { return fxLive; },
     forceTide() { tideT = TIDE_LEN - 0.01; },
+    /* 新增（issue 02/03/04/05 的验证口） */
+    flush: flushAll,
+    school: spawnSchool,
+    schoolLog, tideLog,
+    weights: fishWeights,
+    tier: tideTier,
+    bigTide: isBigTide,
+    get hpBars() { return hpBarsDrawn; },
+    get hpBarsSmall() { return hpBarsSmallDrawn; },
     resetRun() {
       S.caught = 0; S.gained = 0; S.best = 0; S.king = 0; S.spent = 0;
       run.got = 0; run.spent = 0; run.catches = 0; run.fired = 0; run.hits = 0;

@@ -10,13 +10,16 @@ const path = require('path');
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 
   const url = 'file://' + path.resolve(__dirname, '..', 'games', 'fish-hunter', 'index.html');
-  await page.goto(url);
+  // 游戏页要从 CDN 拉 three.js：机器负载高的时候 30 秒默认超时不够用
+  await page.goto(url, { timeout: 90000 });
+  await page.waitForFunction(() => !!window.__fish, null, { timeout: 30000 });
   await page.waitForTimeout(900);
   await page.evaluate(() => {
     localStorage.removeItem('fishhunter.v1');
     localStorage.removeItem('arcade.wallet.v1');
   });
-  await page.reload();
+  await page.reload({ timeout: 90000 });
+  await page.waitForFunction(() => !!window.__fish, null, { timeout: 30000 });
   await page.waitForTimeout(900);
 
   /* ---------- 开局 ---------- */
@@ -48,6 +51,17 @@ const path = require('path');
   console.log('3D scene renders (draw calls / tris):', threeOk ? 'PASS' : 'FAIL', JSON.stringify(t3));
 
   /* ---------- 开炮扣币 ---------- */
+  // 清场 + 关掉自然出鱼：不然这一发可能顺手打中半路冒出来的一条鱼，
+  // 账就多了一笔赔付，断言会飘。
+  const clearField = () => page.evaluate(() => {
+    const d = window.__fish;
+    d.setSpawner(false);
+    d.clearFish();
+    d.clearShots();
+  });
+  const restoreField = () => page.evaluate(() => { window.__fish.setSpawner(true); });
+
+  await clearField();
   await page.click('#btnFire');
   await page.waitForTimeout(120);
   const st1 = await page.evaluate(() => ({ w: window.__fish.wallet, spent: window.__fish.run.spent, fired: window.__fish.run.fired }));
@@ -58,18 +72,21 @@ const path = require('path');
   await page.click('#betRow .btn[data-bet="10"]');
   await page.waitForTimeout(60);
   const bet10 = await page.evaluate(() => ({ bet: window.__fish.S.bet, hud: document.getElementById('uiBet').textContent }));
+  await clearField();
   await page.click('#btnFire');
   await page.waitForTimeout(120);
   const st2 = await page.evaluate(() => ({ w: window.__fish.wallet, bet: window.__fish.S.bet }));
   const betOk = bet10.bet === 10 && bet10.hud === '10×' && st2.w === 299 - 10;
   console.log('bet 10 charges 10:', betOk ? 'PASS' : 'FAIL', JSON.stringify({ bet10, st2 }));
+  await restoreField();
 
   /* ---------- 捕鱼赔付（走真实鱼叉） ---------- */
   await page.click('#betRow .btn[data-bet="1"]');
   const catchRes = await page.evaluate(async () => {
     const d = window.__fish;
+    d.setSpawner(false);                 // 只留靶子，别让野鱼分走赔付
     const w0 = d.wallet, c0 = d.S.caught;
-    d.fish.length = 0;                       // 清场，只留靶子
+    d.clearFish();                       // 清场，只留靶子
     const f = d.spawn('clown', { x: 220, y: 320, fromLeft: true });
     f.vx = 0; f.amp = 0; f.hp = 0.01; f.hr = 26;
     d.setAim(0);
@@ -78,6 +95,7 @@ const path = require('path');
       if (d.fire()) shots++;
       await new Promise(r => setTimeout(r, 110));
     }
+    d.setSpawner(true);
     return { caught: d.S.caught - c0, shots, w0, w1: d.wallet, alive: d.fish.includes(f) };
   });
   const payOk = catchRes.caught === 1 && !catchRes.alive && catchRes.w1 === catchRes.w0 - catchRes.shots + 2;
@@ -86,7 +104,7 @@ const path = require('path');
   /* ---------- 渔网罩一片：伤害分摊、能一网双收 ---------- */
   const netRes = await page.evaluate(() => {
     const d = window.__fish;
-    d.fish.length = 0;
+    d.clearFish();
     const a = d.spawn('clown', { x: 200, y: 300, fromLeft: true });
     const b = d.spawn('clown', { x: 228, y: 300, fromLeft: true });
     for (const f of [a, b]) { f.vx = 0; f.amp = 0; f.hr = 17; f.hp = 1; }
@@ -106,7 +124,7 @@ const path = require('path');
   /* ---------- 龙鱼：四条，按 v 赔，鱼谱里标出来 ---------- */
   const dragonRes = await page.evaluate(() => {
     const d = window.__fish;
-    d.fish.length = 0;
+    d.clearFish();
     d.wallet = 300;
     const out = {};
     for (const type of ['jade', 'flame', 'aurum', 'violet']) {
@@ -136,7 +154,7 @@ const path = require('path');
   const reach = await page.evaluate(() => {
     const d = window.__fish;
     const trial = () => {
-      d.fish.length = 0;
+      d.clearFish();
       const a = d.spawn('clown', { x: 200, y: 300, fromLeft: true });
       const b = d.spawn('clown', { x: 260, y: 300, fromLeft: true });
       for (const f of [a, b]) { f.vx = 0; f.amp = 0; f.hr = 17; f.hp = 1; }
@@ -195,6 +213,7 @@ const path = require('path');
   console.log('broke relief (+10, 45s cd):', reliefOk ? 'PASS' : 'FAIL', JSON.stringify(relief));
 
   /* ---------- 存档 ---------- */
+  await page.evaluate(() => { window.__fish.flush(); });     // 落盘是节流的，读之前先补写
   const saved = await page.evaluate(() => {
     const s = JSON.parse(localStorage.getItem('fishhunter.v1') || 'null');
     const w = JSON.parse(localStorage.getItem('arcade.wallet.v1') || 'null');
@@ -214,7 +233,7 @@ const path = require('path');
   console.log('pause sheet pauses/resumes:', paused && resumed ? 'PASS' : 'FAIL');
 
   /* ---------- 点画布瞄准 ---------- */
-  await page.evaluate(() => { window.__fish.fish.length = 0; window.__fish.wallet = 300; });
+  await page.evaluate(() => { window.__fish.clearFish(); window.__fish.wallet = 300; });
   const aimRes = await page.evaluate(async () => {
     const cv = document.getElementById('cv');
     const r = cv.getBoundingClientRect();
@@ -242,11 +261,186 @@ const path = require('path');
   const overflow = ov.overflow;
   if (overflow > 0) console.log('  overflow offenders:', JSON.stringify(ov.out));
   console.log('375px no h-overflow:', overflow <= 0 ? 'PASS' : 'FAIL', '(' + overflow + ')');
+  await page.setViewportSize({ width: 420, height: 950 });
+  await page.waitForTimeout(150);
 
-  /* ---------- 首页 ---------- */
+  /* ================= issue 02：账目要看得见 ================= */
+  await page.evaluate(() => {
+    const d = window.__fish;
+    d.clearFish();
+    d.wallet = 500;
+    d.resetRun();
+    d.run.fired = 10; d.run.hits = 7; d.run.spent = 10; d.run.got = 4;
+    d.syncHud();
+  });
+  await page.waitForTimeout(80);
+  const hud = await page.evaluate(() => ({
+    hit: document.getElementById('uiHit').textContent,
+    spent: document.getElementById('uiSpent').textContent,
+    net: document.getElementById('uiNet').textContent,
+    neg: document.getElementById('uiNet').classList.contains('neg'),
+    tide: document.getElementById('uiTide').textContent
+  }));
+  const hudOk = hud.hit === '70%' && hud.spent === '10' && hud.net === '−6' && hud.neg === true;
+  console.log('hud: hit rate / spent / net:', hudOk ? 'PASS' : 'FAIL', JSON.stringify(hud));
+
+  /* 小鱼挨过打之后才有血条 */
+  const barRes = await page.evaluate(async () => {
+    const d = window.__fish;
+    try {
+      // 暂停 + 清弹：让「画面上只有这一条鱼」成立。
+      // 否则自然出鱼 + 还在飞的炮弹会顺手把某条小鱼打成半血，血条数就不止一条了。
+      d.setPaused(true);
+      d.clearFish();
+      d.clearShots();
+      const f = d.spawn('clown', { x: 220, y: 260, fromLeft: true });
+      f.vx = 0; f.amp = 0;
+      await new Promise(r => setTimeout(r, 120));
+      // 只数小鱼的小血条：大鱼一直有血条，混进总数会让这条断言变成 flaky。
+      const before = d.hpBarsSmall;
+      f.hp = 0.5;
+      await new Promise(r => setTimeout(r, 120));
+      return { before, after: d.hpBarsSmall };
+    } finally {
+      d.setPaused(false);
+    }
+  });
+  const barOk = barRes.before === 0 && barRes.after === 1;
+  console.log('small fish hp bar appears after a hit:', barOk ? 'PASS' : 'FAIL', JSON.stringify(barRes));
+
+  /* 打空了：网还是要张开 */
+  const missRes = await page.evaluate(async () => {
+    const d = window.__fish;
+    try {
+      // 关掉自然出鱼：不然半路冒出一条鱼把这一发吃了，就不是「打空」了
+      d.setSpawner(false);
+      d.clearFish();
+      d.clearShots();
+      d.parts.length = 0;               // 之前的网特效别混进来（parts 没有缓存，直接清）
+      d.setAim(0);                       // 朝天打，上面没鱼
+      d.fire();
+      let saw = false, kind = '';
+      for (let i = 0; i < 60 && !saw; i++) {
+        await new Promise(r => setTimeout(r, 30));
+        const p = d.parts.find(p => p.kind === 'net');
+        if (p) { saw = true; kind = p.col || ''; }
+      }
+      return { saw, kind };
+    } finally {
+      d.setSpawner(true);
+    }
+  });
+  // 打空的网是暗色的（#6f9aa8）；打到鱼的网是亮色的，两者颜色不同
+  const missOk = missRes.saw === true && missRes.kind === '#6f9aa8';
+  console.log('empty net opens on a miss:', missOk ? 'PASS' : 'FAIL', JSON.stringify(missRes));
+
+  /* ================= issue 04：鱼群编队 + 受惊散开 ================= */
+  const schoolRes = await page.evaluate(() => {
+    const d = window.__fish;
+    d.clearFish();
+    for (let i = 0; i < 3; i++) d.school();
+    const groups = {};
+    for (const f of d.fish) (groups[f.grp] = groups[f.grp] || []).push(f);
+    // 取最大的那一群：龙鱼群只有两条，会排在后面
+    const big = Object.values(groups).sort((a, b) => b.length - a.length)[0];
+    if (!big || big.length < 4) return { found: false, n: d.fish.length };
+    const sameSpeed = big.every(f => Math.abs(Math.abs(f.vx) - Math.abs(big[0].vx)) < 1e-9);
+    const samePhase = big.every(f => Math.abs(f.ph - big[0].ph) < 1e-9);
+    // 打其中一条，同群的要一起受惊
+    const a = big[0], b = big[1];
+    a.vx = 0; b.vx = 0; a.amp = 0; b.amp = 0;
+    d.netAt(a.x, a.y, a);
+    return { found: true, n: big.length, sameSpeed, samePhase, scatter: b.scatter, flees: b.flee > 0 };
+  });
+  const schoolOk = schoolRes.found && schoolRes.sameSpeed && schoolRes.samePhase && schoolRes.scatter > 0 && schoolRes.flees;
+  console.log('school: same speed/phase, scatter on hit:', schoolOk ? 'PASS' : 'FAIL', JSON.stringify(schoolRes));
+
+  /* ================= issue 05：潮汐分级 + 大潮 ================= */
+  const tierRes = await page.evaluate(() => {
+    const d = window.__fish;
+    d.setTide(1);  const w1 = d.weights(),  t1 = d.tier();
+    d.setTide(6);  const w6 = d.weights(),  t6 = d.tier();
+    d.setTide(11); const w11 = d.weights(), t11 = d.tier();
+    d.setTide(21); const w21 = d.weights();          // 稀有权重封顶档
+    d.setTide(26); const w26 = d.weights();          // 再涨也该封顶
+    d.setTide(4);  const b4 = d.bigTide();
+    d.setTide(5);  const b5 = d.bigTide();
+    d.setTide(10); const b10 = d.bigTide();
+    return {
+      jade1: w1.jade, jade6: w6.jade, jade11: w11.jade, jade21: w21.jade, jade26: w26.jade,
+      shark1: w1.shark, shark6: w6.shark,
+      tier1: t1, tier6: t6, tier11: t11, big4: b4, big5: b5, big10: b10
+    };
+  });
+  const tierOk = tierRes.jade6 > tierRes.jade1 && tierRes.jade11 > tierRes.jade6 &&
+    tierRes.shark6 > tierRes.shark1 &&
+    tierRes.jade21 === tierRes.jade26 &&                       // 稀有权重封顶，不再涨
+    tierRes.tier1 === 0 && tierRes.tier6 === 1 && tierRes.tier11 === 2 &&
+    tierRes.big4 === false && tierRes.big5 === true && tierRes.big10 === true;
+  console.log('tide tiers raise rare weights (capped at 2.2x):', tierOk ? 'PASS' : 'FAIL', JSON.stringify(tierRes));
+
+  const bigTideRes = await page.evaluate(async () => {
+    const d = window.__fish;
+    const mark = d.tideLog.length;
+    d.clearFish();
+    d.setTide(4);
+    d.forceTide();
+    await new Promise(r => setTimeout(r, 400));
+    const rec = d.tideLog[mark] || null;
+    return {
+      tide: d.tide,
+      boss: d.fish.some(f => f.boss),
+      fish: d.fish.length,
+      rec: rec ? { tide: rec.tide, big: rec.big, schools: rec.schools.map(s => s.type + 'x' + s.n) } : null
+    };
+  });
+  // 大潮 = 两群鱼 + 鱼王必来。读「涨潮实录」而不是「屏幕上还剩几群」：
+  // 群里的鱼是从画面外一批批游进来的，断言会被出场时机带跑。
+  const bigTideOk = bigTideRes.tide === 5 && bigTideRes.boss === true &&
+    !!bigTideRes.rec && bigTideRes.rec.tide === 5 && bigTideRes.rec.big === true &&
+    bigTideRes.rec.schools.length === 2 && bigTideRes.rec.schools.every(s => !/x0$/.test(s));
+  console.log('big tide (every 5th) brings two schools + a king:',
+    bigTideOk ? 'PASS' : 'FAIL', JSON.stringify(bigTideRes));
+
+  /* ================= issue 03：落盘节流 + HUD 增量写 ================= */
+  await page.evaluate(() => {
+    const d = window.__fish;
+    d.clearFish();
+    d.wallet = 5000;
+    d.S.auto = true; d.syncHud();
+    window.__cnt = { setItem: 0, qs: 0, wallet: 0, state: 0 };
+    const orig = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k, v) {
+      window.__cnt.setItem++;
+      if (k === 'arcade.wallet.v1') window.__cnt.wallet++;
+      else if (k === 'fishhunter.v1') window.__cnt.state++;
+      return orig.call(this, k, v);
+    };
+    const oq = Document.prototype.querySelectorAll;
+    Document.prototype.querySelectorAll = function (s) { window.__cnt.qs++; return oq.call(this, s); };
+    window.__t0 = performance.now();
+  });
+  await page.waitForTimeout(10000);
+  const thr = await page.evaluate(() => {
+    const d = window.__fish;
+    d.S.auto = false; d.syncHud();
+    const secs = (performance.now() - window.__t0) / 1000;
+    return { secs, setItem: window.__cnt.setItem, qs: window.__cnt.qs, fired: d.run.fired,
+             wallet: window.__cnt.wallet, state: window.__cnt.state };
+  });
+  const thrOk = thr.setItem / thr.secs <= 6.5 && thr.qs <= 12 && thr.fired >= 40;
+  console.log('throttled writes (<=6.5/s) & no per-shot DOM queries:',
+    thrOk ? 'PASS' : 'FAIL', JSON.stringify({
+      perSec: +(thr.setItem / thr.secs).toFixed(2),
+      walletPerSec: +(thr.wallet / thr.secs).toFixed(2),
+      statePerSec: +(thr.state / thr.secs).toFixed(2),
+      qs: thr.qs, fired: thr.fired, secs: +thr.secs.toFixed(1)
+    }));
+
+  /* ================= 首页 ================= */
   await page.setViewportSize({ width: 420, height: 900 });
   const home = 'file://' + path.resolve(__dirname, '..', 'index.html');
-  await page.goto(home);
+  await page.goto(home, { timeout: 90000 });
   await page.waitForTimeout(800);
   const homeInfo = await page.evaluate(() => {
     const c = document.getElementById('shotFish');
@@ -269,7 +463,8 @@ const path = require('path');
   console.log('runtime errors:', errors.length === 0 ? 'NONE (PASS)' : errors.join(' | '));
   const allPass = threeOk && seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && dragonOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
     saveOk && paused && resumed && overflow <= 0 && homeInfo.card && homeInfo.lit > 100 &&
-    purseOk && errors.length === 0;
+    purseOk && errors.length === 0 &&
+    hudOk && barOk && missOk && schoolOk && tierOk && bigTideOk && thrOk;
   console.log(allPass ? '\nALL PASS' : '\nSOME FAILED');
   await browser.close();
   process.exit(allPass ? 0 : 1);
