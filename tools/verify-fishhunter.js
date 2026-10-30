@@ -76,7 +76,7 @@ const path = require('path');
   console.log('one shot costs 1:', shotOk ? 'PASS' : 'FAIL', JSON.stringify(st1));
 
   /* ---------- 炮倍 ---------- */
-  await page.click('#betRow .btn[data-bet="10"]');
+  await page.click('#betRow .abtn[data-bet="10"]');
   await page.waitForTimeout(60);
   const bet10 = await page.evaluate(() => ({ bet: window.__fish.S.bet, hud: document.getElementById('uiBet').textContent }));
   await clearField();
@@ -88,7 +88,7 @@ const path = require('path');
   await restoreField();
 
   /* ---------- 捕鱼赔付（走真实鱼叉） ---------- */
-  await page.click('#betRow .btn[data-bet="1"]');
+  await page.click('#betRow .abtn[data-bet="1"]');
   const catchRes = await page.evaluate(async () => {
     const d = window.__fish;
     d.setSpawner(false);                 // 只留靶子，别让野鱼分走赔付

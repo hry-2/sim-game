@@ -258,6 +258,93 @@
   .skin span{display:block;margin-top:2px;font-size:9px;color:#6f968c;letter-spacing:.06em}
   .skin.on{border-color:var(--gold);color:#ffe08a;box-shadow:inset 0 0 14px rgba(255,207,77,.18)}
   .skin.lock{opacity:.42;cursor:not-allowed}
+  /* ================================================================
+     街机外观（和聚宝盆同一套，issue 30 的捕鱼版）：拉丝黑钢控制台 + 铜螺丝 + 圆顶灯键；
+     LED 屏带"8888"残影；屏幕外框一圈青色跑马灯；机身两侧压一道深海蓝 + 铜条。
+     按钮 id 不变（炮倍改用 #betRow .abtn），逻辑没动。
+     ================================================================ */
+  #stage{
+    box-shadow:inset 3px 0 0 #0b3a44,inset 5px 0 0 rgba(200,153,63,.45),inset -3px 0 0 #0b3a44,inset -5px 0 0 rgba(200,153,63,.45),
+      0 0 0 1px #123a3f,0 0 0 2px #020607,0 26px 70px rgba(0,0,0,.85),0 0 90px rgba(40,220,220,.05);
+  }
+  .marquee h1{animation:neon 6s infinite}
+  @keyframes neon{0%,93%,100%{opacity:1}94%{opacity:.75}95%{opacity:1}97%{opacity:.85}}
+
+  .asset{border-radius:3px;background:radial-gradient(120% 140% at 50% 0%,#10241a,#050b07 70%);
+    box-shadow:inset 0 0 0 1px #000,inset 0 0 16px rgba(120,255,180,.08),0 1px 0 rgba(200,255,240,.1)}
+  .asset .k{display:flex;flex-direction:column;line-height:1.05;font-weight:700}
+  .asset .k em{font-style:normal;font-family:var(--pix);font-size:7px;letter-spacing:.18em;opacity:.7;margin-top:2px}
+  .asset .v{position:relative}
+  .asset .v::before{content:attr(data-ghost);position:absolute;left:0;top:0;color:rgba(142,240,182,.07);text-shadow:none;pointer-events:none}
+  .asset.score .v::before{color:rgba(255,207,77,.07)}
+
+  /* 屏幕外框：一圈青色跑马灯（两层灯珠错开半格交替亮） */
+  .cab{border-radius:6px}
+  .cab::before{
+    content:"";position:absolute;inset:0;border-radius:6px;padding:6px;pointer-events:none;z-index:2;
+    background:
+      radial-gradient(circle,#d8ffff 0 1.5px,rgba(70,230,255,.55) 2.2px,transparent 2.9px) 0 0/12px 12px,
+      radial-gradient(circle,#0e4a56 0 1.5px,transparent 2.1px) 6px 6px/12px 12px;
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+    mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);
+    animation:framechase .8s steps(2) infinite}
+  @keyframes framechase{0%{background-position:0 0,6px 6px}100%{background-position:12px 0,18px 6px}}
+
+  /* 控制台：拉丝黑钢板，四角铜螺丝 */
+  .panel{position:relative;container-type:inline-size;border-radius:8px;padding:12px;
+    background:repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px),linear-gradient(180deg,#0f2224,#060f10);
+    box-shadow:inset 0 1px 0 rgba(200,255,240,.18),inset 0 -14px 24px rgba(0,0,0,.6),0 0 0 1px #000,0 8px 18px rgba(0,0,0,.6)}
+  .panel .scr{position:absolute;width:7px;height:7px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#f6e2b0,#8b6a2e 56%,#33220a);box-shadow:0 1px 1px #000}
+  .panel .scr::after{content:"";position:absolute;left:1px;right:1px;top:3px;height:1px;background:#2a1a08;transform:rotate(35deg)}
+  .panel .s1{left:5px;top:5px}.panel .s2{right:5px;top:5px}.panel .s3{left:5px;bottom:5px}.panel .s4{right:5px;bottom:5px}
+
+  /* 圆顶灯键：左边四颗炮倍（选中的亮），一道铜缝隔开，右边开炮 / 锁定 / 自动。一排七颗 */
+  .abtns{display:grid;grid-template-columns:4fr 3.4fr;gap:8px;align-items:start}
+  .bank{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;align-items:end}
+  .acts{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;align-items:end;padding-left:8px;border-left:1px solid rgba(200,153,63,.35)}
+  .abtn{--d:clamp(32px,10.4cqw,52px);background:none;border:0;padding:0;margin:0;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:2px;color:#d8f4ec;font-family:var(--cjk);-webkit-touch-callout:none}
+  .abtn.fire{--d:clamp(36px,12cqw,60px)}
+  .abtn .cap{position:relative;width:var(--d);height:var(--d);border-radius:50%;margin:4px 0 3px;
+    background:conic-gradient(from 200deg,#f6ead0,#8a6a2e,#2a1a08,#c8a050,#fff4d6,#7a5a24,#f6ead0);
+    box-shadow:0 4px 6px rgba(0,0,0,.75),inset 0 0 0 1px rgba(0,0,0,.6)}
+  .abtn .cap::before{content:"";position:absolute;inset:5px;border-radius:50%;
+    background:radial-gradient(circle at 38% 28%,#fff 0 5%,var(--hi) 14%,var(--c) 50%,var(--lo) 100%);
+    box-shadow:inset 0 -5px 8px rgba(0,0,0,.45),inset 0 2px 2px rgba(255,255,255,.35),0 3px 0 var(--lo),0 0 16px var(--glow);
+    transition:transform .05s,box-shadow .05s,filter .15s}
+  .abtn:active .cap::before{transform:translateY(2px);box-shadow:inset 0 -3px 6px rgba(0,0,0,.5),0 1px 0 var(--lo),0 0 22px var(--glow)}
+  .abtn b{font-size:12px;font-weight:700;line-height:1.1;white-space:nowrap}
+  .abtn small{font-size:9px;color:#6f968c;line-height:1.1;white-space:nowrap}
+  .abtn.gold{--c:#f0b53a;--hi:#ffeaa8;--lo:#7a4a06;--glow:rgba(255,190,60,.5)}
+  .abtn.violet{--c:#8a5cf0;--hi:#e0d0ff;--lo:#36196e;--glow:rgba(160,110,255,.45)}
+  .abtn.teal{--c:#1fb49a;--hi:#a8f8e4;--lo:#0a4a40;--glow:rgba(60,230,190,.45)}
+  .abtn.cyan{--c:#28b8e0;--hi:#c8f4ff;--lo:#0a3a52;--glow:rgba(70,210,255,.5)}
+  .abtn.green{--c:#3cc860;--hi:#c8ffd0;--lo:#0e4a1e;--glow:rgba(90,240,120,.5)}
+  .abtn.red{--c:#e0402a;--hi:#ffb8a0;--lo:#5a0c06;--glow:rgba(255,80,40,.5)}
+  /* 炮倍：没选中的灯是暗的，选中的那颗亮、外面一圈金 */
+  .abtn.bet .cap::before{filter:brightness(.45) saturate(.6);box-shadow:inset 0 -5px 8px rgba(0,0,0,.5),0 3px 0 var(--lo)}
+  .abtn.bet.on .cap::before{filter:none;box-shadow:inset 0 -5px 8px rgba(0,0,0,.45),inset 0 2px 2px rgba(255,255,255,.35),0 3px 0 var(--lo),0 0 18px var(--glow)}
+  .abtn.bet.on .cap{box-shadow:0 0 0 2px #ffcf4d,0 0 12px rgba(255,207,77,.6),0 4px 6px rgba(0,0,0,.75)}
+  .abtn.bet:not(.on) b{color:#7fa79a}
+  /* 锁定：锁着鱼时亮；自动：开着时一呼一吸 */
+  .abtn.lock .cap::before,.abtn.auto .cap::before{filter:brightness(.62)}
+  .abtn.lock.on .cap::before{filter:none}
+  .abtn.auto.on .cap::before{filter:none;animation:autoglow 1s ease-in-out infinite}
+  .abtn.auto.on small{color:#8ff0d6}
+  @keyframes autoglow{0%,100%{box-shadow:inset 0 -5px 8px rgba(0,0,0,.45),0 3px 0 #0a4a40,0 0 10px rgba(60,230,190,.5)}50%{box-shadow:inset 0 -5px 8px rgba(0,0,0,.45),0 3px 0 #0a4a40,0 0 24px rgba(60,230,190,.95)}}
+  @media (min-width:900px) and (min-height:600px){
+    /* 宽屏右栏窄但高：炮倍一排、开炮一排，键帽做大 */
+    .abtns{grid-template-columns:1fr;gap:10px}
+    .acts{padding-left:0;border-left:0;padding-top:10px;border-top:1px solid rgba(200,153,63,.35)}
+    .abtn{--d:46px}
+    .abtn.fire,.acts .abtn{--d:58px}
+    .abtn b{font-size:13px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .cab::before,.marquee h1,.abtn.auto.on .cap::before{animation:none}
+  }
+
   /* ---------- 手机：一屏放下整台机器，次要按钮收进「菜单」（和聚宝盆同一套） ----------
      竖屏：招牌压薄、屏幕按真实可见高度缩（fitPhone），炮倍 / 开炮键永远在屏内；
      玩法 / 鱼谱 / 网具 / 暂停 / 重置战绩 / 全屏 收进右上角的菜单。横屏：屏幕在左，按键在右。 */
@@ -334,8 +421,8 @@
   <div class="deck">
   <div class="top">
   <div class="hud">
-    <div class="asset"><span class="k">币袋</span><span class="v" id="uiBal">0</span><span class="u">币</span></div>
-    <div class="asset score"><span class="k">本局渔获</span><span class="v" id="uiGot">0</span><span class="u">币</span></div>
+    <div class="asset"><span class="k">币袋<em>CREDIT</em></span><span class="v" id="uiBal">0</span><span class="u">币</span></div>
+    <div class="asset score"><span class="k">本局渔获<em>CATCH</em></span><span class="v" id="uiGot">0</span><span class="u">币</span></div>
   </div>
   <div class="runinfo">炮倍 <b id="uiBet">1×</b> · 网口 <b id="uiNetLv">Lv.1</b> · 累计投入 <b id="uiIn">0</b> 枚 · 鱼王 <b id="uiKingTop">0</b></div>
   </div>
@@ -368,17 +455,20 @@
   </div>
 
   <div class="panel">
-    <div class="lab">炮 倍</div>
-    <div class="row c4" id="betRow">
-      <button class="btn bet on" data-bet="1">1×<small>1 币 / 发</small></button>
-      <button class="btn bet" data-bet="2">2×<small>2 币 / 发</small></button>
-      <button class="btn bet" data-bet="5">5×<small>5 币 / 发</small></button>
-      <button class="btn bet" data-bet="10">10×<small>10 币 / 发</small></button>
-    </div>
-    <div class="row c3">
-      <button class="btn gold" id="btnFire">开炮<small>按住连发</small></button>
-      <button class="btn violet" id="btnLock">锁定<small>瞄最近的鱼</small></button>
-      <button class="btn teal" id="btnAuto">自动开炮<small id="autoLab">点击开启</small></button>
+    <span class="scr s1"></span><span class="scr s2"></span><span class="scr s3"></span><span class="scr s4"></span>
+    <!-- 街机按键（和聚宝盆同一套圆顶灯键）：左边四颗是炮倍选择（选中的亮），右边开炮 / 锁定 / 自动 -->
+    <div class="abtns">
+      <div class="bank" id="betRow">
+        <button class="abtn bet cyan on" data-bet="1"><span class="cap"></span><b>1×</b><small>1 币/发</small></button>
+        <button class="abtn bet green" data-bet="2"><span class="cap"></span><b>2×</b><small>2 币/发</small></button>
+        <button class="abtn bet gold" data-bet="5"><span class="cap"></span><b>5×</b><small>5 币/发</small></button>
+        <button class="abtn bet red" data-bet="10"><span class="cap"></span><b>10×</b><small>10 币/发</small></button>
+      </div>
+      <div class="acts">
+        <button class="abtn fire gold" id="btnFire"><span class="cap"></span><b>开炮</b><small>按住连发</small></button>
+        <button class="abtn violet lock" id="btnLock"><span class="cap"></span><b>锁定</b><small>最近的鱼</small></button>
+        <button class="abtn teal auto" id="btnAuto"><span class="cap"></span><b>自动</b><small id="autoLab">点击开启</small></button>
+      </div>
     </div>
   </div>
 
@@ -712,7 +802,11 @@
   /* HUD 增量写：值没变就不碰 DOM。每发炮都会调 syncHud，
      全量 textContent + querySelectorAll 是白烧的（issue 03）。 */
   const hudCache = {};
-  function setText(id, v) { if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } }
+  function setText(id, v) {
+    if (hudCache[id] === v) return;
+    hudCache[id] = v; $(id).textContent = v;
+    if (id === 'uiBal' || id === 'uiGot') $(id).dataset.ghost = String(v).replace(/\d/g, '8');   // LED 没亮的段
+  }
   function syncHud() {
     setText('uiBal', fmt(wallet));
     setText('uiGot', fmt(run.got));
@@ -738,7 +832,7 @@
     }
     if (hudCache.bet !== S.bet) {
       hudCache.bet = S.bet;
-      document.querySelectorAll('#betRow .btn').forEach(b => b.classList.toggle('on', +b.dataset.bet === S.bet));
+      document.querySelectorAll('#betRow .abtn').forEach(b => b.classList.toggle('on', +b.dataset.bet === S.bet));
     }
     if (hudCache.gained !== S.gained) { hudCache.gained = S.gained; checkSkins(); }
     // 网具面板开着的时候，币数 / 网衣解锁 / 换装变了才刷新它
@@ -2171,7 +2265,9 @@
     }
   }
 
+  let lockLit = false;
   function drawAimUi(t) {
+    if (lockLit !== !!locked) { lockLit = !!locked; $('btnLock').classList.toggle('on', lockLit); }   // 锁着鱼的时候锁定键亮
     const m = muzzle();
     if (locked && fish.includes(locked)) {
       const f = locked, r = f.r * 1.4, k = 1 + Math.sin(t * 6) * 0.04;
@@ -2758,7 +2854,7 @@
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => fireBtn.addEventListener(ev, () => { firing = false; }));
   fireBtn.addEventListener('contextmenu', e => e.preventDefault());   // 安卓长按会弹菜单，把连发打断
 
-  document.querySelectorAll('#betRow .btn').forEach(b => {
+  document.querySelectorAll('#betRow .abtn').forEach(b => {
     b.addEventListener('click', () => {
       const n = +b.dataset.bet;
       if (n === S.bet) return;
