@@ -261,6 +261,7 @@
   /* ---------- 手机：一屏放下整台机器，次要按钮收进「菜单」（和聚宝盆同一套） ----------
      竖屏：招牌压薄、屏幕按真实可见高度缩（fitPhone），炮倍 / 开炮键永远在屏内；
      玩法 / 鱼谱 / 网具 / 暂停 / 重置战绩 / 全屏 收进右上角的菜单。横屏：屏幕在左，按键在右。 */
+  html,body{overscroll-behavior:none}   /* 在画布上横着拖瞄准，别被浏览器当成后退 / 下拉刷新 */
   .menubtn{display:none}
   .btn{-webkit-touch-callout:none}   /* 长按开炮 / 投币时别弹 iOS 的拷贝菜单 */
   button,.btn,a.back{touch-action:manipulation}

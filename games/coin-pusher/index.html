@@ -342,6 +342,150 @@
     }
   }
 
+  /* ================================================================
+     街机外观（issue 30）：控制台是一块拉丝黑钢板 + 铜螺丝 + 六颗圆顶灯键；
+     LED 屏带"8888"残影；屏幕外框一圈跑马灯；机身两侧压红漆 + 铜条。
+     全部是皮：按钮 id 不变，逻辑一行没动。
+     ================================================================ */
+  #stage{
+    box-shadow:inset 3px 0 0 #5c1210,inset 5px 0 0 rgba(200,153,63,.45),inset -3px 0 0 #5c1210,inset -5px 0 0 rgba(200,153,63,.45),
+      0 0 0 1px #3a2112,0 0 0 2px #0a0503,0 26px 70px rgba(0,0,0,.85),0 0 90px rgba(255,140,40,.05);
+  }
+  .marquee h1{animation:neon 6s infinite}
+  @keyframes neon{0%,93%,100%{opacity:1}94%{opacity:.75}95%{opacity:1}97%{opacity:.85}}
+
+  /* LED 屏：数字后面压一层暗的"8"（没亮的段），标签像刻在面板上的铭牌 */
+  .asset{border-radius:3px;border-color:#2c5a3c;
+    background:radial-gradient(120% 140% at 50% 0%,#10241a,#050b07 70%);
+    box-shadow:inset 0 0 0 1px #000,inset 0 0 16px rgba(120,255,180,.08),0 1px 0 rgba(255,230,180,.12)}
+  .asset .k{display:flex;flex-direction:column;line-height:1.05;font-weight:700;color:#5aa07a}
+  .asset .k em{font-style:normal;font-family:var(--pix);font-size:7px;letter-spacing:.18em;color:#3c6a52;margin-top:2px}
+  .asset.score .k{color:#b98a3a}
+  .asset.score .k em{color:#7a5a24}
+  .asset .v{position:relative}
+  .asset .v::before{content:attr(data-ghost);position:absolute;left:0;top:0;color:rgba(142,240,182,.07);text-shadow:none;pointer-events:none}
+  .asset.score .v::before{color:rgba(255,207,77,.07)}
+
+  /* 屏幕外框：一圈跑马灯（两层灯珠错开半格，交替点亮 = 灯在跑）。狂热时变红、跑得快 */
+  .cab{padding:9px;border-radius:6px;border-color:#5a3a18;
+    background:linear-gradient(180deg,#3a2414,#140c07 70%)}
+  .cab::before{
+    content:"";position:absolute;inset:1px;border-radius:5px;padding:7px;pointer-events:none;z-index:2;
+    background:
+      radial-gradient(circle,#ffe6a8 0 1.6px,rgba(255,180,60,.55) 2.3px,transparent 3px) 0 0/12px 12px,
+      radial-gradient(circle,#6a4410 0 1.6px,transparent 2.2px) 6px 6px/12px 12px;
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+    mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);
+    animation:framechase .7s steps(2) infinite;
+  }
+  @keyframes framechase{0%{background-position:0 0,6px 6px}100%{background-position:12px 0,18px 6px}}
+  .cab.fever::before{
+    background:
+      radial-gradient(circle,#ffd0c0 0 1.6px,rgba(255,70,40,.75) 2.3px,transparent 3px) 0 0/12px 12px,
+      radial-gradient(circle,#5a1408 0 1.6px,transparent 2.2px) 6px 6px/12px 12px;
+    animation-duration:.25s}
+  .fxlayer,.jpflash,.cab::after{inset:9px}
+  .bingo{left:16px;top:16px}
+
+  /* 控制台：拉丝黑钢板，四角铜螺丝 */
+  .panel{position:relative;container-type:inline-size;border-radius:8px;padding:12px 12px 12px;border-color:#5a3a18;
+    background:
+      repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px),
+      linear-gradient(180deg,#24180f,#0f0a06);
+    box-shadow:inset 0 1px 0 rgba(244,224,166,.22),inset 0 -14px 24px rgba(0,0,0,.6),0 0 0 1px #000,0 8px 18px rgba(0,0,0,.6)}
+  .panel .scr{position:absolute;width:7px;height:7px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#f6e2b0,#8b6a2e 56%,#33220a);box-shadow:0 1px 1px #000}
+  .panel .scr::after{content:"";position:absolute;left:1px;right:1px;top:3px;height:1px;background:#2a1a08;transform:rotate(35deg)}
+  .panel .s1{left:5px;top:5px}.panel .s2{right:5px;top:5px}.panel .s3{left:5px;bottom:5px}.panel .s4{right:5px;bottom:5px}
+
+  /* 投币位置：一条凹进去的滑轨，两头红色那段正对侧槽 */
+  /* 滑轨整块是拖动区：手指按在哪、球就到哪，按住拖着走（自己接管指针，见 slideTo）。
+     touch-action:none = 浏览器别把横划当成"后退"手势；整页 overscroll-behavior:none 再兜一层 */
+  html,body{overscroll-behavior:none}
+  .sliderbox{--lane:21%;touch-action:none;cursor:pointer}
+  .sliderbox input[type=range]{pointer-events:none}
+  .sliderbox input[type=range]::-webkit-slider-runnable-track{
+    height:10px;border-radius:5px;border:1px solid #5a3a18;
+    background:
+      repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),rgba(255,220,160,.18) calc(10% - 1px) 10%),
+      linear-gradient(90deg,rgba(214,58,36,.75) 0 var(--lane),#0c0805 var(--lane) calc(100% - var(--lane)),rgba(214,58,36,.75) calc(100% - var(--lane)));
+    box-shadow:inset 0 2px 4px #000,0 1px 0 rgba(244,224,166,.14)}
+  .sliderbox input[type=range]::-moz-range-track{height:10px;border-radius:5px;border:1px solid #5a3a18;
+    background:linear-gradient(90deg,rgba(214,58,36,.75) 0 var(--lane),#0c0805 var(--lane) calc(100% - var(--lane)),rgba(214,58,36,.75) calc(100% - var(--lane)))}
+  .sliderbox input[type=range]::-webkit-slider-thumb{margin-top:-8px}
+  .lanes{display:grid;grid-template-columns:var(--lane) 1fr var(--lane);margin-top:-6px;font-size:9px;letter-spacing:.2em;text-align:center}
+  .lanes span:nth-child(odd){color:#c0503a}
+  .lanes span:nth-child(2){color:#a8895c}
+
+  /* 圆顶灯键：铬圈 + 彩色灯罩 + 一点高光；按下去灯罩往下沉 2px */
+  .abtns{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:10px;align-items:start}
+  .abtn{--d:clamp(36px,12.4cqw,58px);   /* cqw：按控制台的宽度，不按屏幕——宽屏右栏比手机还窄 */background:none;border:0;padding:0;margin:0;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:2px;color:#f3dcb0;font-family:var(--cjk);
+    -webkit-touch-callout:none}
+  .abtn .cap{position:relative;width:var(--d);height:var(--d);border-radius:50%;margin:4px 0 3px;
+    background:conic-gradient(from 200deg,#f6ead0,#8a6a2e,#2a1a08,#c8a050,#fff4d6,#7a5a24,#f6ead0);
+    box-shadow:0 4px 6px rgba(0,0,0,.75),inset 0 0 0 1px rgba(0,0,0,.6)}
+  .abtn .cap::before{content:"";position:absolute;inset:5px;border-radius:50%;
+    background:radial-gradient(circle at 38% 28%,#fff 0 5%,var(--hi) 14%,var(--c) 50%,var(--lo) 100%);
+    box-shadow:inset 0 -5px 8px rgba(0,0,0,.45),inset 0 2px 2px rgba(255,255,255,.35),0 3px 0 var(--lo),0 0 16px var(--glow);
+    transition:transform .05s,box-shadow .05s,filter .15s}
+  .abtn:active .cap::before{transform:translateY(2px);box-shadow:inset 0 -3px 6px rgba(0,0,0,.5),inset 0 2px 2px rgba(255,255,255,.3),0 1px 0 var(--lo),0 0 22px var(--glow)}
+  .abtn b{font-size:12px;font-weight:700;letter-spacing:.04em;line-height:1.1;white-space:nowrap}
+  .abtn small{font-size:9px;color:#9a7a50;line-height:1.1;white-space:nowrap}
+  .abtn:disabled{cursor:default}
+  .abtn:disabled .cap::before{filter:grayscale(.75) brightness(.42);box-shadow:inset 0 -5px 8px rgba(0,0,0,.5),0 3px 0 #1a120a}
+  .abtn:disabled b{color:#7a6448}
+  .abtn.gold{--c:#f0b53a;--hi:#ffeaa8;--lo:#7a4a06;--glow:rgba(255,190,60,.5)}
+  .abtn.violet{--c:#8a5cf0;--hi:#e0d0ff;--lo:#36196e;--glow:rgba(160,110,255,.45)}
+  .abtn.teal{--c:#1fb49a;--hi:#a8f8e4;--lo:#0a4a40;--glow:rgba(60,230,190,.45)}
+  .abtn.red{--c:#c8301e;--hi:#ffb09a;--lo:#5a0c06;--glow:rgba(255,80,40,0)}
+  .abtn.red .cap::before{filter:brightness(.62)}
+  .abtn.red.on .cap::before{filter:none;animation:autoglow 1s ease-in-out infinite}
+  .abtn.red.on small{color:#ff9a7a}
+  @keyframes autoglow{0%,100%{box-shadow:inset 0 -5px 8px rgba(0,0,0,.45),0 3px 0 #5a0c06,0 0 10px rgba(255,80,40,.5)}50%{box-shadow:inset 0 -5px 8px rgba(0,0,0,.45),0 3px 0 #5a0c06,0 0 24px rgba(255,80,40,.95)}}
+  .abtn.blue{--c:#2f7fe0;--hi:#c4e2ff;--lo:#0c2a62;--glow:rgba(80,160,255,.45)}
+  .abtn.orange{--c:#ff8a1a;--hi:#ffd8a0;--lo:#6a2e04;--glow:rgba(255,140,40,.5)}
+  /* 能量圈：铬圈外面一圈，按能量（震台满 50、币塔满 100）走一圈 */
+  .abtn.energy .cap::after{content:"";position:absolute;inset:-4px;border-radius:50%;pointer-events:none;
+    background:conic-gradient(var(--hi) calc(var(--pct,1) * 1turn),rgba(0,0,0,.55) 0);
+    -webkit-mask:radial-gradient(closest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px));
+    mask:radial-gradient(closest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px))}
+
+  /* 底栏的能量格：10 格 LED */
+  .meter{display:inline-block;width:48px;height:8px;align-self:center;border:1px solid #1e3a2b;
+    background:linear-gradient(90deg,var(--led) calc(var(--e,1) * 100%),#0f2018 0);
+    -webkit-mask:repeating-linear-gradient(90deg,#000 0 calc(10% - 1px),transparent calc(10% - 1px) 10%);
+    mask:repeating-linear-gradient(90deg,#000 0 calc(10% - 1px),transparent calc(10% - 1px) 10%);
+    box-shadow:0 0 6px rgba(120,255,180,.35)}
+
+  /* 投币门：只在宽屏的右栏底下 */
+  .coindoor{display:none}
+  @media (min-width:900px) and (min-height:600px){
+    .abtns{grid-template-columns:repeat(3,1fr);row-gap:10px}   /* 宽屏右栏窄但高：两排三颗，键帽做大 */
+    .abtn{--d:58px}
+    .abtn b{font-size:13px}
+    .coindoor{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;margin-top:12px;padding:12px 14px;border-radius:8px;
+      background:repeating-linear-gradient(90deg,rgba(255,255,255,.02) 0 1px,transparent 1px 3px),linear-gradient(180deg,#2a1a10,#120b06);
+      border:1px solid #5a3a18;box-shadow:inset 0 1px 0 rgba(244,224,166,.2),0 6px 14px rgba(0,0,0,.5)}
+    .slot{position:relative;width:62px;height:78px;border-radius:6px;cursor:pointer;padding:0;
+      border:1px solid #8a6a2e;background:linear-gradient(180deg,#c8a050,#6a4a18 40%,#3a2408);
+      box-shadow:inset 0 1px 0 rgba(255,240,200,.6),0 3px 6px rgba(0,0,0,.6)}
+    .slot i{position:absolute;left:50%;top:14px;width:8px;height:30px;margin-left:-4px;border-radius:3px;
+      background:#120402;box-shadow:inset 0 0 4px #000,0 0 0 2px #e0402a,0 0 12px rgba(255,70,40,.75)}
+    .slot span{position:absolute;left:4px;right:4px;bottom:6px;font:700 11px var(--pix);color:#2a1504;
+      background:#ffd65a;border-radius:2px;padding:1px 0;box-shadow:0 0 6px rgba(255,200,80,.6)}
+    .slot:active{transform:translateY(1px)}
+    .door-mid{text-align:center}
+    .door-mid b{display:block;font:700 18px var(--pix);letter-spacing:.18em;color:#ff5a3a;text-shadow:0 0 10px rgba(255,80,40,.8)}
+    .door-mid b.blink{animation:icblink 1s steps(2) infinite}
+    .door-mid b.play{color:var(--led);text-shadow:0 0 10px rgba(120,255,180,.7);animation:none}
+    .door-mid small{display:block;margin-top:4px;font-size:10px;letter-spacing:.2em;color:#8a6a44}
+    @keyframes icblink{50%{opacity:.15}}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .cab::before,.marquee h1,.abtn.red.on .cap::before,.door-mid b.blink{animation:none}
+  }
+
   /* ---------- 手机：一屏放下整台机器，次要按钮收进「菜单」 ----------
      竖屏：招牌压薄、屏幕按可见高度缩（fitPhone 量真实可见高度，Safari 的工具栏也算进去），
      投币键永远在屏内；玩法 / 图鉴 / 任务 / 暂停 / 奖表 / 兑换 / 重置 / 全屏 收进右上角的菜单。
@@ -373,6 +517,7 @@
     input[type=range]{height:36px}
     input[type=range]::-webkit-slider-thumb{width:30px;height:30px;margin-top:-12px}
     input[type=range]::-moz-range-thumb{width:30px;height:30px}
+    .sliderbox{padding:2px 14px 0}   /* 滑轨两头离屏幕边远一点：iOS 从边缘划是系统的后退手势 */
   }
   @media (orientation:landscape) and (max-height:500px){
     body{align-items:stretch}
@@ -424,8 +569,8 @@
   <div class="deck">
   <div class="top">
   <div class="hud">
-    <div class="asset"><span class="k">币袋</span><span class="v" id="uiBal">0</span><span class="u">币</span></div>
-    <div class="asset score"><span class="k">积分</span><span class="v" id="uiScore">0</span><span class="lvb" id="uiLv">Lv.1</span></div>
+    <div class="asset"><span class="k">币袋<em>CREDIT</em></span><span class="v" id="uiBal">0</span><span class="u">币</span></div>
+    <div class="asset score"><span class="k">积分<em>SCORE</em></span><span class="v" id="uiScore">0</span><span class="lvb" id="uiLv">Lv.1</span></div>
   </div>
   <div class="runinfo">本机投入 <b id="uiIn">0</b> 枚 · 电子屏 <b id="uiProg">0 / 300</b> · <span id="uiPrize">奖品 还差 300 枚</span></div>
   </div>
@@ -443,7 +588,7 @@
 
   <!-- 底栏紧贴屏幕：能量 / 连击 / 台面是边玩边看的数，别让它掉到折叠线下面 -->
   <div class="statline">
-    <span>能量 <b id="uiEnergy">100</b></span>
+    <span>能量 <i class="meter" id="uiMeter"></i><b id="uiEnergy">100</b></span>
     <span>连击 <b id="uiCombo">0</b></span>
     <span class="en">倍率 <b id="uiMult">1.0×</b></span>
     <span>台面 <b id="uiCoins">0</b> 枚</span>
@@ -459,21 +604,21 @@
   </div>
 
   <div class="panel">
+    <span class="scr s1"></span><span class="scr s2"></span><span class="scr s3"></span><span class="scr s4"></span>
     <div class="sliderbox">
       <div class="lab"><span>投币位置</span><b id="uiPos">居中 0.0</b></div>
       <input type="range" id="posSlider" min="-100" max="100" value="0">
+      <div class="lanes"><span>侧槽</span><span>出币口</span><span>侧槽</span></div>
     </div>
 
-    <div class="row c4">
-      <button class="btn gold" id="btnDrop1">投 1 枚<small>消耗 1 币</small></button>
-      <button class="btn violet" id="btnDrop5">投 5 枚<small>消耗 5 币</small></button>
-      <button class="btn teal" id="btnDrop10">投 10 枚<small>消耗 10 币</small></button>
-      <button class="btn auto" id="btnAuto">自动投币<small id="autoLab">点击开启</small></button>
-    </div>
-
-    <div class="row c2">
-      <button class="btn teal" id="btnShake">震 台<small>消耗 50 能量</small></button>
-      <button class="btn gold" id="btnTower">召唤币塔<small>消耗 100 能量</small></button>
+    <!-- 街机按键：六颗圆顶灯键。能投 / 能放的时候亮，不能的时候灭；震台和币塔外圈是一圈能量 -->
+    <div class="abtns">
+      <button class="abtn gold" id="btnDrop1"><span class="cap"></span><b>投 1 枚</b><small>1 币</small></button>
+      <button class="abtn violet" id="btnDrop5"><span class="cap"></span><b>投 5 枚</b><small>5 币</small></button>
+      <button class="abtn teal" id="btnDrop10"><span class="cap"></span><b>投 10 枚</b><small>10 币</small></button>
+      <button class="abtn red auto" id="btnAuto"><span class="cap"></span><b>自动</b><small id="autoLab">点击开启</small></button>
+      <button class="abtn blue energy" id="btnShake"><span class="cap"></span><b>震台</b><small>50 能量</small></button>
+      <button class="abtn orange energy" id="btnTower"><span class="cap"></span><b>币塔</b><small>100 能量</small></button>
     </div>
   </div>
 
@@ -482,6 +627,13 @@
     <button class="btn" id="btnShop">积分兑换</button>
     <button class="btn" id="btnReset">重置机台</button>
     <button class="btn" id="btnFull">全屏</button>
+  </div>
+
+  <!-- 投币门（宽屏才有）：点投币口 = 投 1 枚；没人玩的时候 INSERT COIN 一闪一闪 -->
+  <div class="coindoor" aria-hidden="true">
+    <button class="slot" data-go="btnDrop1" tabindex="-1"><i></i><span>1 币</span></button>
+    <div class="door-mid"><b id="insertCoin">INSERT COIN</b><small>币袋全柜通用</small></div>
+    <button class="slot" data-go="btnDrop1" tabindex="-1"><i></i><span>1 币</span></button>
   </div>
   </div>
   </div>
@@ -1026,6 +1178,7 @@ function startFever() {
   [392, 523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.14, 0.1, 'sawtooth'), i * 70));
   missionBump('fever');
   setGutterLook(true);
+  updateHUD();
 }
 function feverTick(dt) {
   // 开奖 / 宾果全亮之后延迟触发的狂热和换卡：按游戏时间倒数（setTimeout 走的是墙上时间，暂停也照触发）
@@ -1033,7 +1186,7 @@ function feverTick(dt) {
   if (S.cardAt > 0 && (S.cardAt -= dt) <= 0) { S.cardAt = 0; newCard(); renderBingo(); save(true); }
   if (S.feverT > 0) {
     S.feverT -= dt;
-    if (S.feverT <= 0) { S.feverT = 0; S.feverCD = FEVER_CD; setGutterLook(false); flashText('狂热结束', '#cfa070', 18); }
+    if (S.feverT <= 0) { S.feverT = 0; S.feverCD = FEVER_CD; setGutterLook(false); flashText('狂热结束', '#cfa070', 18); updateHUD(); }
   } else if (S.feverCD > 0) S.feverCD = Math.max(0, S.feverCD - dt);
 }
 
@@ -2692,6 +2845,7 @@ function render(t, dt) {
 }
 
 /* ---------- HUD ---------- */
+const cabEl = document.querySelector('.play .cab');
 function updateHUD() {
   $('uiBal').textContent = S.bal;
   $('uiScore').textContent = S.score.toLocaleString('en-US');   // 完整显示，不再缩写成 K
@@ -2707,6 +2861,16 @@ function updateHUD() {
   $('uiCoins').textContent = coins.filter(c => c.state === 0).length;
   $('btnShake').disabled = S.energy < 50;
   $('btnTower').disabled = S.energy < 100;
+  // 街机外观（issue 30）：LED 残影、能量圈、能量格、投币门、狂热时屏框跑马灯变红
+  $('uiBal').dataset.ghost = String($('uiBal').textContent).replace(/\d/g, '8');
+  $('uiScore').dataset.ghost = String($('uiScore').textContent).replace(/\d/g, '8');
+  $('btnShake').style.setProperty('--pct', Math.min(1, S.energy / 50).toFixed(3));
+  $('btnTower').style.setProperty('--pct', Math.min(1, S.energy / 100).toFixed(3));
+  $('uiMeter').style.setProperty('--e', (S.energy / 100).toFixed(2));
+  const ic = $('insertCoin'), playing = S.activeT > 0 || S.auto;
+  ic.textContent = playing ? '♪ GOOD LUCK ♪' : 'INSERT COIN';
+  ic.className = playing ? 'play' : 'blink';
+  cabEl.classList.toggle('fever', S.feverT > 0);
   // 余额见底但保底冷却好了：投币键得能点——点下去机器才补那 10 枚（原来键先灰掉，保底只有空格键够得着）
   const relief = S.reliefT <= 0;
   $('btnDrop1').disabled = S.bal < 1 && S.queue === 0 && !relief;
@@ -2795,6 +2959,23 @@ function loop(now) {
 }
 
 /* ---------- 交互 ---------- */
+// 落点滑轨：自己接管指针（原生滑块要正好按在球上才跟手，手指一偏就成了页面横划 → 后退）
+{
+  const box = document.querySelector('.sliderbox'), sl = $('posSlider');
+  const slideTo = x => {
+    const r = sl.getBoundingClientRect(), half = 15;
+    const f = Math.max(0, Math.min(1, (x - r.left - half) / (r.width - 2 * half)));
+    const v = Math.round(f * 200 - 100);
+    if (+sl.value !== v) { sl.value = v; sl.dispatchEvent(new Event('input')); }
+  };
+  box.addEventListener('pointerdown', e => {
+    if (e.button > 0) return;
+    e.preventDefault();
+    box.setPointerCapture(e.pointerId);
+    slideTo(e.clientX);
+  });
+  box.addEventListener('pointermove', e => { if (box.hasPointerCapture(e.pointerId)) slideTo(e.clientX); });
+}
 // 落点标签：落点正对侧槽那一条时标红——往那儿投，币大半进槽不赔
 function posLabel() {
   const el = $('uiPos');
@@ -2846,6 +3027,13 @@ document.querySelectorAll('#mMenu [data-go]').forEach(b => b.addEventListener('c
   $('mMenu').classList.remove('show');
   $(b.dataset.go).click();
 }));
+// 投币门的两个投币口 = 投 1 枚
+document.querySelectorAll('.coindoor .slot').forEach(b => b.addEventListener('click', () => $('btnDrop1').click()));
+// 滑轨两头的红段：正对侧槽的那一截有多宽（跟着 SIDE_X 走）
+{
+  const thr = (SIDE_X - 0.02) / (WORLD.wallX - WORLD.coinR - 0.06);
+  document.querySelector('.sliderbox').style.setProperty('--lane', ((1 - thr) / 2 * 100).toFixed(1) + '%');
+}
 // 手机竖屏：量真实可见高度，把屏幕缩到整台机器一屏放得下（投币键不掉到折叠线下面）
 const phoneMQ = window.matchMedia('(max-width: 600px)');
 function fitPhone() {
