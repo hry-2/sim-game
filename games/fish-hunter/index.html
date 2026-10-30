@@ -258,6 +258,60 @@
   .skin span{display:block;margin-top:2px;font-size:9px;color:#6f968c;letter-spacing:.06em}
   .skin.on{border-color:var(--gold);color:#ffe08a;box-shadow:inset 0 0 14px rgba(255,207,77,.18)}
   .skin.lock{opacity:.42;cursor:not-allowed}
+  /* ---------- 手机：一屏放下整台机器，次要按钮收进「菜单」（和聚宝盆同一套） ----------
+     竖屏：招牌压薄、屏幕按真实可见高度缩（fitPhone），炮倍 / 开炮键永远在屏内；
+     玩法 / 鱼谱 / 网具 / 暂停 / 重置战绩 / 全屏 收进右上角的菜单。横屏：屏幕在左，按键在右。 */
+  .menubtn{display:none}
+  .btn{-webkit-touch-callout:none}   /* 长按开炮 / 投币时别弹 iOS 的拷贝菜单 */
+  button,.btn,a.back{touch-action:manipulation}
+  .menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+  .menu-grid .btn{min-height:48px;font-size:14px}
+  @media (max-width:600px){
+    #stage{padding:0 8px calc(8px + env(safe-area-inset-bottom))}
+    .marquee{margin:0 -8px;padding:10px 136px 12px 72px}
+    .marquee h1{font-size:23px;letter-spacing:.12em}
+    .marquee h1 small{display:none}
+    .back,.iconbtn{top:8px;min-height:36px;min-width:44px;padding:8px 10px;font-size:12px}
+    .menubtn{display:block}
+    #btnSound{right:82px}
+    .hud{padding-top:6px;gap:5px}
+    .asset{padding:3px 8px 4px}
+    .asset .v{font-size:19px}
+    .runinfo{margin-top:4px;font-size:9.5px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .play .cab{margin:6px auto 0}
+    .statline{margin-top:6px;padding:5px 8px}
+    .row.utility,.ctl > .row.c2{display:none}
+    .panel{margin-top:6px;padding:7px 7px 8px}
+    .panel .lab{display:none}
+    .row{gap:6px;margin-top:6px}
+    .btn{min-height:46px;padding:7px 3px}
+  }
+  @media (orientation:landscape) and (max-height:500px){
+    body{align-items:stretch}
+    #stage{max-width:none;padding:0 calc(10px + env(safe-area-inset-right)) 6px calc(10px + env(safe-area-inset-left))}
+    .marquee{margin:0 calc(-10px - env(safe-area-inset-right)) 0 calc(-10px - env(safe-area-inset-left));padding:9px 150px 10px}
+    .marquee h1{font-size:17px}
+    .marquee h1 small,.bulbs{display:none}
+    .back,.iconbtn{top:3px;min-height:36px;min-width:44px;padding:8px 10px;font-size:12px}
+    .back{left:calc(9px + env(safe-area-inset-left))}
+    .menubtn{display:block}
+    .iconbtn.menubtn{right:calc(9px + env(safe-area-inset-right))}
+    #btnSound{right:calc(82px + env(safe-area-inset-right))}
+    .deck{display:grid;grid-template-columns:auto minmax(250px,1fr);column-gap:12px;
+      grid-template-areas:"play top" "play ctl";grid-template-rows:auto 1fr;justify-content:center}
+    .top{grid-area:top}
+    .play{grid-area:play}
+    .ctl{grid-area:ctl;overflow:auto;max-height:calc(100dvh - 128px);padding-bottom:6px}
+    .play .cab{margin-top:6px;width:calc((100dvh - 98px) * 0.88 + 14px)}
+    .statline{margin-top:5px;padding:4px 8px}
+    .hud{padding-top:6px}
+    .asset .v{font-size:18px}
+    .row.utility,.ctl > .row.c2{display:none}
+    .panel{margin-top:6px;padding:6px}
+    .row{gap:5px;margin-top:5px}
+    .btn{min-height:42px;padding:6px 3px}
+  }
+
   @media (prefers-reduced-motion:reduce){
     .bulbs i{animation:none;opacity:.85}
     .btn{transition:none}
@@ -272,6 +326,7 @@
     <a class="back" href="../../index.html">← 返回</a>
     <h1>捕鱼达人<small>FISH HUNTER · ARCADE</small></h1>
     <button class="iconbtn on" id="btnSound">声:开</button>
+    <button class="iconbtn menubtn" id="btnMenu" aria-label="菜单">☰ 菜单</button>
     <div class="bulbs" id="bulbs" aria-hidden="true"></div>
   </div>
 
@@ -335,6 +390,22 @@
 </div>
 
 <!-- 玩法 -->
+<!-- 手机菜单：次要按钮都在这儿（点了就转给原来那个按钮） -->
+<div class="modal" id="mMenu">
+  <div class="sheet">
+    <h2>菜单</h2>
+    <div class="menu-grid">
+      <button class="btn" data-go="btnHow">玩法</button>
+      <button class="btn" data-go="btnBook">鱼谱</button>
+      <button class="btn" data-go="btnNet">网具</button>
+      <button class="btn" data-go="btnPause">暂停</button>
+      <button class="btn" data-go="btnReset">重置战绩</button>
+      <button class="btn" data-go="btnFull">全屏</button>
+    </div>
+    <button class="closebtn" data-close>回到海里</button>
+  </div>
+</div>
+
 <div class="modal" id="mHow">
   <div class="sheet">
     <h2>玩法</h2>
@@ -349,6 +420,7 @@
       <li><b>龙鱼</b>：青龙 / 赤龙 / 金龙 / 紫电龙，蛇形长身、一路摆着过来，比同价的鱼难瞄。稀有，看见就别放过——血量照常按 v 算，不另设规矩。</li>
       <li><b>潮汐</b>：每 40 秒涨一次潮，来的鱼更大更多；每逢第 3 次潮<b>鱼王</b>出没，打掉当场翻 <b>80×炮倍</b>。<b>每 5 潮一次大潮</b>：一次进来两群鱼，稀有鱼也比平时多，鱼王必来。</li>
       <li><b>网具</b>：网口能用币袋里的币升级（300 / 800 币，罩 48 → 58 → 70），只加罩住的面积、不加每发伤害；网衣按累计渔获解锁，纯外观。</li>
+      <li><b>全柜联动</b>：抓到<b>鱼王</b>，聚宝盆台上就落一个奖品；抓到<b>龙鱼</b>，聚宝盆撒一颗彩球。聚宝盆开奖或宾果全亮，这边<b>下一潮鱼王必来</b>。</li>
       <li><b>币袋</b>：这台机器没有自己的余额，炮打出去的、鱼翻出来的都是<b>全柜通用的币袋</b>——和聚宝盆是同一袋。币袋见底时，机器会保底借你 10 枚（45 秒一次）。</li>
     </ul>
     <h3>键盘</h3>
@@ -454,7 +526,7 @@
 
   /* ================= 战绩存档（币不在里面） ================= */
   const SAVE_KEY = 'fishhunter.v1';
-  const S = { v: 1, bet: 1, sound: true, auto: false, caught: 0, gained: 0, best: 0, king: 0, spent: 0, net: 1, skin: 0, skins: 1 };
+  const S = { v: 1, bet: 1, sound: true, auto: false, caught: 0, gained: 0, best: 0, king: 0, spent: 0, net: 1, skin: 0, skins: 1, kingNext: false };
   try {
     const raw = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
     if (raw && raw.v === 1) Object.assign(S, raw);
@@ -2337,7 +2409,8 @@
     S.caught++; S.gained += pay;
     run.got += pay; run.catches++;
     if (pay > S.best) S.best = pay;
-    if (f.boss) S.king++;
+    if (f.boss) { S.king++; linkSend('pusher', 'king'); }
+    if (F.dragon) linkSend('pusher', 'dragon');
     save();
     // 抓到大鱼要爆金币：小鱼几颗，大鱼一把金币雨，鱼王最猛
     const tier = f.boss ? 2.1 : (F.v >= 16 ? 1.6 : (F.v >= 10 ? 1.25 : 1));
@@ -2355,6 +2428,38 @@
     else sfx.catch();
     syncHud();
     return pay;
+  }
+
+  /* ================= 全柜联动（ADR-0010） =================
+     'arcade.link.v1' = { v:1, q:[{ to, kind, t }] }。聚宝盆里有一份一样的实现（和币袋一样，单文件两边各一份）。
+     发：抓到鱼王 → 聚宝盆台上落一个奖品；抓到龙鱼 → 聚宝盆撒一颗彩球。
+     收：聚宝盆开奖 / 宾果全亮 → 下一潮鱼王必来（只改出鱼的时机，不改赔付，ADR-0008 不受影响）。 */
+  const LINK_KEY = 'arcade.link.v1';
+  function linkSend(to, kind) {
+    try {
+      const L = JSON.parse(localStorage.getItem(LINK_KEY)) || { v: 1, q: [] };
+      L.q.push({ to, kind, t: Date.now() });
+      L.q = L.q.filter(m => Date.now() - m.t < 7 * 864e5).slice(-20);
+      localStorage.setItem(LINK_KEY, JSON.stringify(L));
+    } catch (e) {}
+  }
+  function linkTake(to) {
+    try {
+      const L = JSON.parse(localStorage.getItem(LINK_KEY));
+      if (!L || !L.q) return [];
+      const mine = L.q.filter(m => m.to === to);
+      if (!mine.length) return [];
+      L.q = L.q.filter(m => m.to !== to);
+      localStorage.setItem(LINK_KEY, JSON.stringify(L));
+      return mine;
+    } catch (e) { return []; }
+  }
+  function linkPoll() {
+    const got = linkTake('fish');
+    if (!got.length) return;
+    if (!S.kingNext) toast(got.some(m => m.kind === 'bingo') ? '聚宝盆宾果全亮 · 下一潮鱼王必来' : '聚宝盆开奖 · 下一潮鱼王必来');
+    S.kingNext = true;
+    save(true);
   }
 
   function relief() {
@@ -2501,6 +2606,8 @@
         spawnKing();
         flash('大潮');
       } else if (tide % 3 === 0) spawnKing();
+      else if (S.kingNext) { spawnKing(); toast('聚宝盆送来的鱼王到了'); }
+      S.kingNext = false;
       // 记一笔涨潮实录：{潮次, 是不是大潮, 进了几群}（验证脚本用）
       tideLog.push({ tide, big, schools: schoolLog.slice(mark) });
       syncHud();
@@ -2648,6 +2755,7 @@
     try { fireBtn.setPointerCapture(e.pointerId); } catch (err) {}
   });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => fireBtn.addEventListener(ev, () => { firing = false; }));
+  fireBtn.addEventListener('contextmenu', e => e.preventDefault());   // 安卓长按会弹菜单，把连发打断
 
   document.querySelectorAll('#betRow .btn').forEach(b => {
     b.addEventListener('click', () => {
@@ -2746,6 +2854,28 @@
     $(id).classList.remove('show');
     paused = anyModal();
   }
+  $('btnMenu').addEventListener('click', () => openModal('mMenu'));
+  document.querySelectorAll('#mMenu [data-go]').forEach(b => b.addEventListener('click', () => {
+    closeModal('mMenu');
+    $(b.dataset.go).click();
+  }));
+  // 手机竖屏：量真实可见高度，把屏幕缩到整台机器一屏放得下（炮倍 / 开炮键不掉到折叠线下面）
+  const phoneMQ = window.matchMedia('(max-width: 600px)');
+  function fitPhone() {
+    const cab = document.querySelector('.play .cab');
+    cab.style.width = '';
+    if (!phoneMQ.matches) return;
+    for (let i = 0; i < 3; i++) {
+      const over = $('stage').getBoundingClientRect().height - window.innerHeight;
+      if (over <= 1) break;
+      const w = cab.getBoundingClientRect().width - 14;
+      const h = Math.max(200, w * H / W - over);
+      cab.style.width = Math.round(h * W / H + 14) + 'px';
+    }
+  }
+  addEventListener('resize', fitPhone);
+  addEventListener('orientationchange', () => setTimeout(fitPhone, 200));
+  fitPhone();
   $('btnHow').addEventListener('click', () => openModal('mHow'));
   $('btnBook').addEventListener('click', () => openModal('mBook'));
   $('btnNet').addEventListener('click', () => openModal('mNet'));
@@ -2796,6 +2926,7 @@
 
   // 别的标签页在聚宝盆里花/赢了币，这边跟着变
   addEventListener('storage', e => {
+    if (e.key === LINK_KEY) { linkPoll(); return; }
     if (e.key !== WALLET_KEY) return;
     const v = walletRead();
     if (v !== null) { wallet = v; syncHud(); }
@@ -2805,6 +2936,7 @@
   addEventListener('pagehide', () => { flushAll(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { firing = false; flushAll(); }
+    else linkPoll();
   });
 
   /* ================= 启动 ================= */
@@ -2855,6 +2987,7 @@
     bigTide: isBigTide,
     get hpBars() { return hpBarsDrawn; },
     get hpBarsSmall() { return hpBarsSmallDrawn; },
+    linkPoll, linkSend,
     resetRun() {
       S.caught = 0; S.gained = 0; S.best = 0; S.king = 0; S.spent = 0;
       run.got = 0; run.spent = 0; run.catches = 0; run.fired = 0; run.hits = 0;
@@ -2871,6 +3004,7 @@
     requestAnimationFrame(loop);
   }
   initThree();
+  linkPoll();
   // 首帧同步画，别等 rAF（后台标签页里 rAF 不触发，玻璃后面会是空的）
   render(performance.now() / 1000);
   requestAnimationFrame(loop);

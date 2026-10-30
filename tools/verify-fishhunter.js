@@ -6,6 +6,13 @@ const path = require('path');
   const browser = await chromium.launch({ channel: 'chrome' });
   const page = await browser.newPage({ viewport: { width: 420, height: 950 } });
   const errors = [];
+  // 手机宽度下（≤600px）次要按钮收进了「☰ 菜单」：按钮看得见就直接点，看不见就走菜单——和手机用户同一条路
+  const press = async (id) => {
+    if (await page.locator('#' + id).isVisible()) return page.click('#' + id);
+    await page.click('#btnMenu');
+    await page.click('#mMenu [data-go="' + id + '"]');
+  };
+
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 
@@ -145,7 +152,7 @@ const path = require('path');
 
   /* ---------- 网具：花币升网口，只加面积不改伤害 ---------- */
   await page.evaluate(() => { window.__fish.wallet = 2000; window.__fish.S.net = 1; window.__fish.syncHud(); window.__fish.syncNet(); });
-  await page.click('#btnNet');
+  await press('btnNet');
   await page.waitForTimeout(80);
   const lvA = await page.evaluate(() => ({ lv: window.__fish.S.net, r: window.__fish.netR(), w: window.__fish.wallet }));
   await page.click('#btnNetUp');
@@ -226,7 +233,7 @@ const path = require('path');
 
   /* ---------- 暂停 ---------- */
   await page.evaluate(() => { window.__fish.wallet = 300; });
-  await page.click('#btnPause');
+  await press('btnPause');
   const paused = await page.evaluate(() => window.__fish.paused && !!document.querySelector('#mPause.show'));
   await page.click('#btnPauseCont');
   const resumed = await page.evaluate(() => !window.__fish.paused);
@@ -500,6 +507,26 @@ const path = require('path');
       qs: thr.qs, fired: thr.fired, secs: +thr.secs.toFixed(1)
     }));
 
+  /* ================= 全柜联动（issue 29 / ADR-0010）================= */
+  // 抓到鱼王 / 龙鱼往信箱给聚宝盆发信；收到聚宝盆的开奖信，下一潮鱼王必来（就算不是第 3 潮）
+  const link = await page.evaluate(() => {
+    const d = window.__fish;
+    localStorage.removeItem('arcade.link.v1');
+    d.setSpawner(false); d.clearFish();
+    const k = d.spawn('king', { x: 200, y: 200 }); d.catchFish(k);
+    const g = d.spawn('jade', { x: 200, y: 200 }); d.catchFish(g);
+    const box = JSON.parse(localStorage.getItem('arcade.link.v1'));
+    const sent = box.q.filter(m => m.to === 'pusher').map(m => m.kind).join(',');
+    d.linkSend('fish', 'jackpot'); d.linkPoll();
+    d.clearFish(); d.setTide(1);
+    d.forceTide();                                   // 第 2 潮：平常不来鱼王
+    return { sent };
+  });
+  await page.waitForTimeout(400);
+  link.king = await page.evaluate(() => { const d = window.__fish; const k = d.fish.some(f => f.type === 'king'); d.setSpawner(true); return k; });
+  const linkOk = link.sent === 'king,dragon' && link.king;
+  console.log('cabinet link: sends king/dragon, jackpot brings a king:', linkOk ? 'PASS' : 'FAIL', JSON.stringify(link));
+
   /* ================= 首页 ================= */
   await page.setViewportSize({ width: 420, height: 900 });
   const home = 'file://' + path.resolve(__dirname, '..', 'index.html');
@@ -524,7 +551,7 @@ const path = require('path');
   console.log('home purse == wallet:', purseOk ? 'PASS' : 'FAIL', JSON.stringify(homeInfo));
 
   console.log('runtime errors:', errors.length === 0 ? 'NONE (PASS)' : errors.join(' | '));
-  const allPass = threeOk && seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && dragonOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
+  const allPass = linkOk && threeOk && seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && dragonOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
     saveOk && paused && resumed && overflow <= 0 && homeInfo.card && homeInfo.lit > 100 &&
     purseOk && errors.length === 0 &&
     hudOk && barOk && missOk && schoolOk && tierOk && bigTideOk && thrOk && netFrontOk && coinOk;
