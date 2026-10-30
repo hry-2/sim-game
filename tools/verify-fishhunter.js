@@ -268,6 +268,7 @@ const path = require('path');
   await page.evaluate(() => {
     const d = window.__fish;
     d.clearFish();
+    d.clearShots();   // 还在飞的网落地会再记一次命中 / 开炮，把下面的读数带偏
     d.wallet = 500;
     d.resetRun();
     d.run.fired = 10; d.run.hits = 7; d.run.spent = 10; d.run.got = 4;

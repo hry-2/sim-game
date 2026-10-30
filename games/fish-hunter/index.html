@@ -189,6 +189,28 @@
   .statline b.neg{color:#ff8a6a;text-shadow:0 0 9px rgba(255,110,80,.5)}
   .statline .en b.neg{color:#ff8a6a;text-shadow:0 0 9px rgba(255,110,80,.5)}
 
+  /* ---------- 宽屏：屏幕占满一屏高，按键挪到右边 ----------
+     窄屏下 .deck 就是普通的一列（计分板 → 屏幕 → 底栏 → 按键）；
+     宽屏把屏幕放左边按视口高度撑开，计分板和按键收进右边一栏，整台机器不用滚。
+     画布逻辑尺寸还是 440×500，fitCanvas 按实际显示尺寸提分辨率，放大了也不糊。 */
+  @media (min-width:900px) and (min-height:600px){
+    #stage{max-width:1180px;padding:0 16px 14px}
+    .marquee{margin:0 -16px}
+    .deck{
+      display:grid;grid-template-columns:auto minmax(300px,360px);column-gap:16px;
+      grid-template-areas:"play top" "play ctl";grid-template-rows:auto 1fr;justify-content:center;
+    }
+    .top{grid-area:top}
+    .play{grid-area:play}
+    .ctl{grid-area:ctl}
+    .play .cab{
+      margin-top:10px;
+      /* 100dvh − 招牌(≈80) − 上下留白 − 底栏(≈40)；宽按 440:500 换算，再加两边 7px 框 */
+      width:calc((100dvh - 160px) * 0.88 + 14px);max-width:calc(100vw - 420px);min-width:440px;
+    }
+    .ctl .row.utility{margin-top:12px}
+  }
+
   .modal{
     position:fixed;inset:0;background:rgba(2,6,7,.86);backdrop-filter:blur(3px);
     display:none;align-items:center;justify-content:center;z-index:50;padding:20px;
@@ -253,12 +275,16 @@
     <div class="bulbs" id="bulbs" aria-hidden="true"></div>
   </div>
 
+  <div class="deck">
+  <div class="top">
   <div class="hud">
     <div class="asset"><span class="k">币袋</span><span class="v" id="uiBal">0</span><span class="u">币</span></div>
     <div class="asset score"><span class="k">本局渔获</span><span class="v" id="uiGot">0</span><span class="u">币</span></div>
   </div>
   <div class="runinfo">炮倍 <b id="uiBet">1×</b> · 网口 <b id="uiNetLv">Lv.1</b> · 累计投入 <b id="uiIn">0</b> 枚 · 鱼王 <b id="uiKingTop">0</b></div>
+  </div>
 
+  <div class="play">
   <div class="cab">
     <canvas id="cv" width="440" height="500"></canvas>
   <canvas id="cv2d" width="440" height="500"></canvas>
@@ -268,6 +294,16 @@
     <div class="toast" id="toast"></div>
   </div>
 
+  <!-- 底栏紧贴屏幕：命中率 / 净额是边打边看的数，别让它掉到折叠线下面 -->
+  <div class="statline">
+    <span>潮汐 <b id="uiTide">1</b></span>
+    <span>命中率 <b id="uiHit">—</b></span>
+    <span>本局投入 <b id="uiSpent">0</b></span>
+    <span class="en">本局净额 <b id="uiNet">0</b></span>
+  </div>
+  </div>
+
+  <div class="ctl">
   <div class="row c3 utility">
     <button class="btn" id="btnHow">玩法</button>
     <button class="btn" id="btnBook">鱼谱</button>
@@ -294,12 +330,7 @@
     <button class="btn" id="btnReset">重置战绩</button>
     <button class="btn" id="btnFull">全屏</button>
   </div>
-
-  <div class="statline">
-    <span>潮汐 <b id="uiTide">1</b></span>
-    <span>命中率 <b id="uiHit">—</b></span>
-    <span>本局投入 <b id="uiSpent">0</b></span>
-    <span class="en">本局净额 <b id="uiNet">0</b></span>
+  </div>
   </div>
 </div>
 
@@ -452,16 +483,25 @@
   const TIDE_LEN = 40;            // 潮汐周期（秒）
   const RELIEF_CD = 45;           // 保底冷却（秒）
   const cv = $('cv'), ov = $('cv2d'), g = ov.getContext('2d');
-  let dpr = 1;
+  // dpr 在这里不是屏幕的 devicePixelRatio，而是"每个逻辑像素画几个后备像素"：
+  // 宽屏上画布被 CSS 放大到 700+px，只按 devicePixelRatio 开后备缓冲就会糊。
+  // 按实际显示宽度 × devicePixelRatio 算，封顶 3.2（≈1400×1600，GPU 吃得消）。
+  let dpr = 1, renderer = null;
   function fitCanvas() {
-    dpr = Math.min(2, window.devicePixelRatio || 1);
-    cv.width = Math.round(W * dpr);
-    cv.height = Math.round(H * dpr);
+    const shown = cv.getBoundingClientRect().width || W;
+    const next = Math.max(1, Math.min(3.2, shown / W * (window.devicePixelRatio || 1)));
+    if (Math.abs(next - dpr) < 0.05 && cv.width) return;
+    dpr = next;
     cv.style.aspectRatio = W + ' / ' + H;
     ov.width = Math.round(W * dpr);
     ov.height = Math.round(H * dpr);
+    if (renderer) { renderer.setPixelRatio(dpr); renderer.setSize(W, H, false); }
+    else { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
   }
   fitCanvas();
+  // 窗口变宽变窄、进出全屏都会改画布显示尺寸
+  if (window.ResizeObserver) new ResizeObserver(() => fitCanvas()).observe(cv);
+  else addEventListener('resize', fitCanvas);
 
   /* ================= 音效：现场合成，不带资源 ================= */
   let AC = null;
@@ -671,11 +711,11 @@
   const Z_NET = 5.2;       // 张开的网（比飞网还前一点）
   const Z_COIN = 3.4;      // 爆出来的金币：浮在鱼前面才看得见
 
-  let renderer = null, scene = null, camera = null, threeReady = false;
+  let scene = null, camera = null, threeReady = false;   // renderer 提前声明在 fitCanvas 前
   let cannonPivot = null, cannonMuzzle = null, muzzleFlash = null;
   let coinMesh = null, sparkPts = null, bubblePts = null, motePts = null;
   let causticPlane = null;
-  let glowTex = null, bubbleTex = null, causticTex = null, bgTex = null, kelpTex = null;
+  let glowTex = null, bubbleTex = null, causticTex = null, bgTex = null, kelpTex = null, edgeTex = null, rayTex = null, floorCaustic = null;
   let tmpM = null, tmpV = null, tmpV2 = null, tmpQ = null, tmpS = null, tmpC = null, tmpE = null;
   const fishViews = new Map();
   const shotViews = new Map();
@@ -713,23 +753,52 @@
       c.strokeStyle = 'rgba(255,255,255,.5)'; c.lineWidth = 2;
       c.beginPath(); c.arc(w / 2 - 5, h / 2 - 6, w / 6, 0, Math.PI * 2); c.stroke();
     });
+    // 水底焦散：Voronoi 的 F2−F1 取细亮线，点按环面取距离所以贴图四边能接上
     causticTex = makeTex(256, 256, (c, w, h) => {
-      c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
-      c.strokeStyle = 'rgba(130,240,255,.4)'; c.lineWidth = 1.4;
-      for (let i = 0; i < 28; i++) {
-        const x = Math.random() * w, y = Math.random() * h, r = 12 + Math.random() * 44;
-        c.beginPath();
-        c.arc(x, y, r, Math.random() * 6.28, Math.random() * 6.28 + 1.6);
-        c.stroke();
+      const pts = [];
+      for (let i = 0; i < 22; i++) pts.push([Math.random() * w, Math.random() * h]);
+      const img = c.createImageData(w, h), d = img.data;
+      const TAU = Math.PI * 2;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        // 采样点先按整周期的正弦扭一下：线是弯的，贴图仍然四边相接
+        const qx = x + Math.sin(y / h * TAU * 2) * 7 + Math.sin(x / w * TAU * 3) * 3;
+        const qy = y + Math.sin(x / w * TAU * 2) * 7;
+        let f1 = 1e9, f2 = 1e9;
+        for (const [px, py] of pts) {
+          let dx = Math.abs(((qx - px) % w + w) % w), dy = Math.abs(((qy - py) % h + h) % h);
+          if (dx > w / 2) dx = w - dx;
+          if (dy > h / 2) dy = h - dy;
+          const dd = dx * dx + dy * dy;
+          if (dd < f1) { f2 = f1; f1 = dd; } else if (dd < f2) f2 = dd;
+        }
+        const e = Math.sqrt(f2) - Math.sqrt(f1);
+        const v = Math.max(0, 1 - e / 9);
+        const lum = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(x / w * TAU + Math.cos(y / h * TAU) * 2));
+        const k = (y * w + x) * 4, I = Math.pow(v, 2.6) * lum;
+        d[k] = 120 * I; d[k + 1] = 235 * I; d[k + 2] = 255 * I; d[k + 3] = 255;
       }
-      c.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 14; i++) {
-        const x = Math.random() * w, y = Math.random() * h;
-        const rg = c.createRadialGradient(x, y, 0, x, y, 40);
-        rg.addColorStop(0, 'rgba(120,240,255,.35)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
-        c.fillStyle = rg; c.fillRect(x - 40, y - 40, 80, 80);
-      }
+      c.putImageData(img, 0, 0);
     }, true);
+    // 焦散层的四边淡出：不然那块板的上下边是两条硬线
+    edgeTex = makeTex(64, 64, (c, w, h) => {
+      const gy = c.createLinearGradient(0, 0, 0, h);
+      gy.addColorStop(0, '#000'); gy.addColorStop(0.3, '#fff'); gy.addColorStop(0.75, '#fff'); gy.addColorStop(1, '#000');
+      c.fillStyle = gy; c.fillRect(0, 0, w, h);
+      c.globalCompositeOperation = 'multiply';
+      const gx = c.createLinearGradient(0, 0, w, 0);
+      gx.addColorStop(0, '#000'); gx.addColorStop(0.18, '#fff'); gx.addColorStop(0.82, '#fff'); gx.addColorStop(1, '#000');
+      c.fillStyle = gx; c.fillRect(0, 0, w, h);
+    });
+    // 光柱：横向高斯、上亮下淡
+    rayTex = makeTex(64, 256, (c, w, h) => {
+      const img = c.createImageData(w, h), d = img.data;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const gx = Math.exp(-Math.pow((x - w / 2) / (w * 0.2), 2)), gy = Math.pow(1 - y / h, 1.4) * Math.min(1, y / (h * 0.06));
+        const k = (y * w + x) * 4;
+        d[k] = d[k + 1] = d[k + 2] = 255; d[k + 3] = 255 * gx * gy;
+      }
+      c.putImageData(img, 0, 0);
+    });
     bgTex = makeTex(256, 512, (c, w, h) => {
       const rg = c.createLinearGradient(0, 0, 0, h);
       rg.addColorStop(0, '#12808e');
@@ -739,13 +808,17 @@
       c.fillStyle = rg; c.fillRect(0, 0, w, h);
       // 远处那几道斜光
       c.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 7; i++) {
-        const x = 20 + i * 36 + Math.random() * 12;
-        const g2 = c.createLinearGradient(x, 0, x - 40, h);
-        g2.addColorStop(0, 'rgba(150,245,255,.16)');
-        g2.addColorStop(1, 'rgba(150,245,255,0)');
-        c.fillStyle = g2;
-        c.beginPath(); c.moveTo(x, 0); c.lineTo(x + 16, 0); c.lineTo(x - 34, h); c.lineTo(x - 58, h); c.closePath(); c.fill();
+      // 每道光叠几层不同宽度的薄片，边缘就是软的，不是一条条硬斜带
+      for (let i = 0; i < 6; i++) {
+        const x = 24 + i * 40 + Math.random() * 18, wd = 8 + Math.random() * 14;
+        for (let k = 0; k < 5; k++) {
+          const sp = wd * (0.4 + k * 0.45);
+          const g2 = c.createLinearGradient(0, 0, 0, h * 0.85);
+          g2.addColorStop(0, 'rgba(150,245,255,.05)');
+          g2.addColorStop(1, 'rgba(150,245,255,0)');
+          c.fillStyle = g2;
+          c.beginPath(); c.moveTo(x - sp / 2, 0); c.lineTo(x + sp / 2, 0); c.lineTo(x - 50 + sp, h * 0.85); c.lineTo(x - 50 - sp, h * 0.85); c.closePath(); c.fill();
+        }
       }
     });
     kelpTex = makeTex(64, 256, (c, w, h) => {
@@ -764,7 +837,7 @@
 
     /* ---------- 渲染器 / 相机 ---------- */
     renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.setPixelRatio(dpr);
     renderer.setSize(W, H, false);
     if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -806,35 +879,72 @@
     scene.add(bg);
 
     // 水纹：贴在背景前一层，慢慢往上滚
-    causticTex.repeat.set(9, 7);
+    causticTex.repeat.set(5, 4);
     causticPlane = new THREE.Mesh(
       new THREE.PlaneGeometry(120, 90),
-      new THREE.MeshBasicMaterial({ map: causticTex, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })
+      new THREE.MeshBasicMaterial({ map: causticTex, alphaMap: edgeTex, transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })
     );
     causticPlane.position.set(0, 4, -80);
     scene.add(causticPlane);
 
-    // 沙底
+    // 沙底：浅一点的砂色 + 沙纹，焦散投在沙上慢慢流（emissiveMap，不吃光照）
     const sandTex = makeTex(256, 256, (c, w, h) => {
-      c.fillStyle = '#0a2a30'; c.fillRect(0, 0, w, h);
-      for (let i = 0; i < 1600; i++) {
+      c.fillStyle = '#2c5a5c'; c.fillRect(0, 0, w, h);
+      c.strokeStyle = 'rgba(120,180,170,.18)'; c.lineWidth = 3;
+      for (let y = 0; y < h + 16; y += 14) {
+        c.beginPath();
+        for (let x = 0; x <= w; x += 8) c.lineTo(x, y + Math.sin(x / w * Math.PI * 4) * 4);
+        c.stroke();
+      }
+      for (let i = 0; i < 2200; i++) {
         const a = Math.random();
-        c.fillStyle = a > 0.7 ? 'rgba(40,110,120,.5)' : 'rgba(6,24,28,.6)';
+        c.fillStyle = a > 0.6 ? 'rgba(150,200,190,.35)' : 'rgba(10,36,40,.45)';
         c.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1 + Math.random() * 2);
       }
     }, true);
-    sandTex.repeat.set(8, 8);
+    sandTex.repeat.set(7, 4);
+    floorCaustic = causticTex.clone();
+    floorCaustic.needsUpdate = true;
+    floorCaustic.repeat.set(6, 4);
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(120, 70),
-      new THREE.MeshStandardMaterial({ map: sandTex, color: 0x7fa8a8, roughness: 1, metalness: 0 })
+      new THREE.PlaneGeometry(140, 80),
+      new THREE.MeshStandardMaterial({
+        map: sandTex, color: 0x9ccac4, roughness: 1, metalness: 0,
+        emissive: 0x3fb4c4, emissiveMap: floorCaustic, emissiveIntensity: 0.38
+      })
     );
     floor.rotation.x = -Math.PI / 2;
-    floor.position.set(0, -26, -24);
+    floor.position.set(0, -26, -30);
     scene.add(floor);
 
-    // 礁石
-    const rockGeo = new THREE.DodecahedronGeometry(1, 0);
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x123a42, roughness: 0.95, metalness: 0.05, flatShading: true });
+    // 地平线的雾带：沙底的后沿和背景板之间的那条硬线，用一条竖向渐变盖住
+    const hazeTex = makeTex(8, 128, (c, w, h) => {
+      const gr = c.createLinearGradient(0, 0, 0, h);
+      gr.addColorStop(0, 'rgba(8,62,74,0)'); gr.addColorStop(0.5, 'rgba(8,62,74,.95)'); gr.addColorStop(1, 'rgba(8,62,74,0)');
+      c.fillStyle = gr; c.fillRect(0, 0, w, h);
+    });
+    const haze = new THREE.Mesh(new THREE.PlaneGeometry(260, 22),
+      new THREE.MeshBasicMaterial({ map: hazeTex, transparent: true, depthWrite: false, fog: false }));
+    haze.position.set(0, -24, -68);
+    scene.add(haze);
+
+    // 礁石：十二面体细分一级再随机推顶点，上面亮下面暗
+    const rockGeo = new THREE.DodecahedronGeometry(1, 1);
+    {
+      const rp = rockGeo.attributes.position, rc = new Float32Array(rp.count * 3);
+      const seen = new Map();
+      for (let i = 0; i < rp.count; i++) {
+        const key = rp.getX(i).toFixed(3) + ',' + rp.getY(i).toFixed(3) + ',' + rp.getZ(i).toFixed(3);
+        let k = seen.get(key);
+        if (k == null) { k = 0.82 + Math.random() * 0.3; seen.set(key, k); }
+        rp.setXYZ(i, rp.getX(i) * k, rp.getY(i) * k, rp.getZ(i) * k);
+        tmpC.set(0x1d4d50).lerp(new THREE.Color(0x3f7f72), Math.max(0, rp.getY(i)) * 0.8);
+        rc[i * 3] = tmpC.r; rc[i * 3 + 1] = tmpC.g; rc[i * 3 + 2] = tmpC.b;
+      }
+      rockGeo.setAttribute('color', new THREE.BufferAttribute(rc, 3));
+      rockGeo.computeVertexNormals();
+    }
+    const rockMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0.05, flatShading: true });
     const rocks = [
       [-17, -25.5, -22, 4.2], [-11, -25.8, -30, 3.2], [16, -25.4, -20, 3.6],
       [21, -25.6, -34, 5.0], [8, -25.8, -40, 4.4], [-22, -25.6, -44, 6.0]
@@ -846,6 +956,43 @@
       m.rotation.set(Math.random() * 0.4, Math.random() * 3, Math.random() * 0.3);
       scene.add(m);
     }
+
+    // 珊瑚：几丛分叉珊瑚 + 脑珊瑚，给海床一点暖色（全部合并成一个 draw）
+    const coral = [];
+    function branch(x, y, z, len, r, ang, rot, depth, hex) {
+      const g = new THREE.CylinderGeometry(r * 0.7, r, len, 6);
+      g.translate(0, len / 2, 0);
+      g.rotateZ(ang); g.rotateY(rot);
+      g.translate(x, y, z);
+      coral.push(paintSolid(g, hex));
+      const tx = x - Math.sin(ang) * len * Math.cos(rot), ty = y + Math.cos(ang) * len, tz = z + Math.sin(ang) * len * Math.sin(rot);
+      if (depth > 0) {
+        branch(tx, ty, tz, len * 0.72, r * 0.7, ang + 0.5, rot + 0.9, depth - 1, hex);
+        branch(tx, ty, tz, len * 0.72, r * 0.7, ang - 0.45, rot - 0.7, depth - 1, hex);
+      } else {
+        const tip = new THREE.SphereGeometry(r * 0.9, 6, 4);
+        tip.translate(tx, ty, tz);
+        coral.push(paintSolid(tip, '#ffd8c8'));
+      }
+    }
+    branch(-13, -26, -18, 2.6, 0.5, 0.1, 0, 3, '#ff6f7a');
+    branch(14, -26, -26, 3.0, 0.55, -0.15, 1, 3, '#ff9a4a');
+    branch(-4, -26, -38, 3.4, 0.6, 0.05, 2, 3, '#d86ad8');
+    branch(24, -26, -16, 2.0, 0.42, 0.2, 0.5, 2, '#ff6f7a');
+    for (const [x, z, s, hex] of [[-20, -16, 2.4, '#e6a24a'], [9, -18, 1.8, '#c86a9a'], [-7, -26, 2.0, '#d8c060']]) {
+      const g = new THREE.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+      const gp = g.attributes.position, gc = new Float32Array(gp.count * 3), c0 = new THREE.Color(hex);
+      for (let i = 0; i < gp.count; i++) {
+        const ridge = 0.5 + 0.5 * Math.sin(gp.getX(i) * 9 + Math.sin(gp.getZ(i) * 7) * 2);
+        tmpC.copy(c0).multiplyScalar(0.55 + ridge * 0.5);
+        gc[i * 3] = tmpC.r; gc[i * 3 + 1] = tmpC.g; gc[i * 3 + 2] = tmpC.b;
+      }
+      g.setAttribute('color', new THREE.BufferAttribute(gc, 3));
+      g.scale(s, s * 0.7, s);
+      g.translate(x, -26, z);
+      coral.push(g);
+    }
+    scene.add(new THREE.Mesh(mergeGeos(coral), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 })));
 
     // 海草：几片带透明贴图的板，站在沙上慢慢摆
     const kelpMat = new THREE.MeshStandardMaterial({
@@ -868,12 +1015,12 @@
 
     // 光柱：几片加色带，斜着插下来
     const rayMat = new THREE.MeshBasicMaterial({
-      map: glowTex, transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending,
+      map: rayTex, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending,
       depthWrite: false, fog: false, color: 0xa9f2ff
     });
     for (let i = 0; i < 5; i++) {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(9, 70), rayMat);
-      m.position.set(-20 + i * 10, 10, -34 - i * 4);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(6 + (i % 3) * 3, 80), rayMat);
+      m.position.set(-20 + i * 10, 14, -34 - i * 4);
       m.rotation.z = 0.16 - i * 0.03;
       scene.add(m);
       rays.push(m);
@@ -907,33 +1054,53 @@
 
   const kelpMats = [], rays = [], ghosts = [], frontBubbles = [];
 
-  /* ---------- 鱼的几何：一条鱼一个合并几何，只有身 + 尾两个 draw ---------- */
+  /* ---------- 鱼的几何：一条鱼一个合并几何，身 + 尾（或鳍 / 腕）两个 draw ----------
+     外形只管好看：判定还是平面上的那个圆（f.r），模型长成什么样都不碰账。 */
   const LOOK = {
-    clown:   { len: 1.02, hgt: .60, wid: .34, top: '#b94a0e', body: '#ff8a2a', belly: '#ffe0b8', fin: '#e2762a',
-               stripes: [[.38, .46], [.58, .66], [.78, .86]], stripe: '#fff3e0', eye: .085 },
-    tang:    { len: 1.04, hgt: .66, wid: .30, top: '#174f86', body: '#4f9be4', belly: '#d8efff', fin: '#3d86d0',
-               stripes: [[.52, .64]], stripe: '#ffe066', eye: .09 },
-    lantern: { len: .92, hgt: .60, wid: .46, top: '#241a49', body: '#6a58c4', belly: '#cfc8ff', fin: '#9482ea',
-               glow: '#59e6ff', glowI: .26, lure: true, eye: .1 },
-    puffer:  { len: .80, hgt: .76, wid: .72, top: '#6f7a22', body: '#c9d86a', belly: '#f4f8d2', fin: '#b5c45a',
-               spikes: true, eye: .11 },
-    squid:   { len: .52, hgt: .95, wid: .52, top: '#7a2b4c', body: '#e08fb8', belly: '#ffe0ef', fin: '#cf7ba2',
-               tentacles: true, eye: .1 },
-    turtle:  { len: .95, hgt: .55, wid: .86, top: '#2f6b4a', body: '#5ba877', belly: '#cfe9b8', fin: '#4f9a70',
-               flippers: true, eye: .08 },
-    shark:   { len: 1.35, hgt: .52, wid: .46, top: '#46555d', body: '#8b9aa3', belly: '#e8f1f5', fin: '#7d8d95',
-               dorsal: true, sharkTail: true, eye: .07 },
-    gold:    { len: 1.35, hgt: .54, wid: .48, top: '#8a5a06', body: '#ffcf4d', belly: '#fff4c8', fin: '#e6bf52',
-               dorsal: true, sharkTail: true, metal: .55, rough: .3, glow: '#ffb020', glowI: .3, eye: .07 },
-    king:    { len: 1.6, hgt: .62, wid: .56, top: '#a05c00', body: '#ffb03a', belly: '#fff0c0', fin: '#e0a63e',
-               dorsal: true, sharkTail: true, crown: true, metal: .5, rough: .32, glow: '#ff9a10', glowI: .35, eye: .08 }
+    clown:   { len: 1.02, hgt: .62, wid: .34, top: '#c2500c', body: '#ff8a2a', belly: '#ffd2a0', fin: '#f07a22', finTip: '#1a0c06',
+               stripes: [[.26, .39], [.52, .65], [.80, .88]], stripe: '#fffaf0', stripeEdge: '#160a04', stripeBend: .03, eye: .09 },
+    tang:    { len: 1.04, hgt: .70, wid: .30, top: '#123f8a', body: '#2f7fe0', belly: '#9fd0ff', fin: '#1f5fb8', finTip: '#0a1a3a',
+               stripes: [[.30, .66]], stripe: '#0b1638', stripeY: .05, stripeBend: .22, tail: '#ffd23a', tailTip: '#ffe98a', eye: .09 },
+    lantern: { len: .92, hgt: .60, wid: .46, top: '#140f30', body: '#3d3290', belly: '#8f82e0', fin: '#6a5cc8', finTip: '#b5f6ff',
+               glow: '#2a1f70', glowI: .08, lure: true, photo: '#9ff8ff', eye: .11 },
+    puffer:  { len: .80, hgt: .76, wid: .72, top: '#76801f', body: '#c9d86a', belly: '#fbfde8', fin: '#b5c45a', finTip: '#eef6b0',
+               spikes: true, spots: '#4a5210', eye: .12 },
+    squid:   { len: .95, hgt: .36, wid: .36, top: '#9a3060', body: '#e98fba', belly: '#ffe0ef', fin: '#e27aa8', finTip: '#ffd6ea',
+               squid: true, flip: true, nose: .55, spots: '#b0446e', eye: .13 },
+    turtle:  { len: .95, hgt: .52, wid: .80, top: '#3b5a26', body: '#7a9a3c', belly: '#e6dca0', fin: '#6fae84', skin: '#7cbf8e',
+               turtle: true, eye: .065 },
+    shark:   { len: 1.35, hgt: .50, wid: .44, top: '#3e4d56', body: '#7e8f99', belly: '#f1f6f8', fin: '#5f707a', finTip: '#2c383f',
+               dorsal: true, sharkTail: true, nose: .5, gills: true, eye: .065 },
+    gold:    { len: 1.35, hgt: .52, wid: .46, top: '#9a6304', body: '#ffcf4d', belly: '#fff6d2', fin: '#f0b83a', finTip: '#fff1b8',
+               dorsal: true, sharkTail: true, nose: .5, gills: true, metal: .55, glow: '#ffb020', glowI: .3, eye: .065 },
+    king:    { len: 1.6, hgt: .62, wid: .56, top: '#a85a00', body: '#ffb03a', belly: '#fff2c8', fin: '#ff8a1a', finTip: '#fff0a0',
+               dorsal: true, sharkTail: true, nose: .32, gills: true, crown: true, metal: .5, glow: '#ff9a10', glowI: .35, eye: .085, iris: '#ff3a1a' }
   };
+
+  // 便宜的确定性噪声：同一个顶点每次算出来一样，斑点不会每次刷新都换位置
+  function hash3(x, y, z) {
+    const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453;
+    return s - Math.floor(s);
+  }
 
   function paintSolid(geo, hex) {
     const n = geo.attributes.position.count;
     const c = new THREE.Color(hex);
     const a = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+    geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
+    return geo;
+  }
+  // 鳍从根到梢渐变：根接身体的颜色，梢颜色另给（透光 / 描边的感觉）
+  function paintGrad(geo, hex, tipHex, reach) {
+    const pos = geo.attributes.position, n = pos.count;
+    const c0 = new THREE.Color(hex), c1 = new THREE.Color(tipHex || hex);
+    const a = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const d = Math.min(1, Math.hypot(pos.getX(i), pos.getY(i)) / reach);
+      tmpC.copy(c0).lerp(c1, Math.pow(d, 2.2) * 0.85);
+      a[i * 3] = tmpC.r; a[i * 3 + 1] = tmpC.g; a[i * 3 + 2] = tmpC.b;
+    }
     geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
     return geo;
   }
@@ -961,54 +1128,105 @@
     return out;
   }
 
+  // 身体沿 x 的收窄系数：u=0 是尾柄，u=1 是吻端；nose 越大吻越尖（鲨鱼）
+  function taperAt(L, u) {
+    if (L.flip) u = 1 - u;
+    const nose = L.nose != null ? L.nose : 0.14;
+    return u < 0.72 ? 0.14 + 0.86 * Math.pow(u / 0.72, 0.7)
+                    : 1 - nose * Math.pow((u - 0.72) / 0.28, 1.8);
+  }
+  // 身体表面在 (x, y) 处离中线多远：眼睛、鳃裂要贴着皮长，不能埋进肉里
+  function surfZ(L, x, y) {
+    const nx = x / L.len, t = taperAt(L, (nx + 1) / 2);
+    const ny = y / (L.hgt * Math.max(0.05, t));
+    return L.wid * t * Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny * (1 - nx * nx)));
+  }
+
   function taperBody(L) {
-    const g = new THREE.SphereGeometry(1, 26, 18);
+    const g = new THREE.SphereGeometry(1, 72, 32);   // 横向细一点：条纹的黑边比顶点间距窄就会碎
     const pos = g.attributes.position;
     const n = pos.count;
     const col = new Float32Array(n * 3);
     const cTop = new THREE.Color(L.top), cBody = new THREE.Color(L.body), cBelly = new THREE.Color(L.belly);
-    const cStripe = new THREE.Color(L.stripe || '#ffffff');
+    const cStripe = new THREE.Color(L.stripe || '#ffffff'), cEdge = new THREE.Color(L.stripeEdge || '#000000');
+    const cSpot = new THREE.Color(L.spots || '#000000');
+    const bend = L.stripeBend != null ? L.stripeBend : 0.06;
     for (let i = 0; i < n; i++) {
       const x = pos.getX(i), y0 = pos.getY(i), z0 = pos.getZ(i);
       const u = (x + 1) / 2;
-      const t = u < 0.72 ? 0.14 + 0.86 * Math.pow(u / 0.72, 0.7)
-                        : 1 - 0.14 * Math.pow((u - 0.72) / 0.28, 1.8);
+      const t = taperAt(L, u);
       pos.setXYZ(i, x, y0 * t, z0 * t);
-      // 上色：肚皮浅、背脊深、身上要不要条纹
-      if (y0 > 0.18) tmpC.copy(cBody).lerp(cTop, Math.min(1, (y0 - 0.18) / 0.82));
-      else tmpC.copy(cBelly).lerp(cBody, Math.min(1, Math.max(0, (y0 + 0.92) / 0.46)));
-      if (L.stripes) {
-        for (const [a, b] of L.stripes) if (u > a && u < b) tmpC.lerp(cStripe, 0.88);
+      // 上色：肚皮浅、背脊深，中间一道过渡；条纹顺着身体弯一点，不是一刀切
+      if (y0 > 0.1) tmpC.copy(cBody).lerp(cTop, Math.min(1, Math.pow((y0 - 0.1) / 0.9, 0.8)));
+      else tmpC.copy(cBelly).lerp(cBody, Math.min(1, Math.max(0, (y0 + 0.7) / 0.8)));
+      if (L.stripes && (L.stripeY == null || y0 > L.stripeY)) {
+        const us = u + y0 * bend;
+        for (const [a, b] of L.stripes) {
+          if (us > a && us < b) tmpC.lerp(cStripe, 0.92);
+          else if (L.stripeEdge && ((us > a - 0.024 && us <= a) || (us >= b && us < b + 0.024))) tmpC.lerp(cEdge, 0.8);
+        }
       }
+      if (L.spots && y0 > -0.25 && hash3(x * 9, y0 * 9, z0 * 9) > 0.82) tmpC.lerp(cSpot, 0.55);
       col[i * 3] = tmpC.r; col[i * 3 + 1] = tmpC.g; col[i * 3 + 2] = tmpC.b;
     }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
     g.scale(L.len, L.hgt, L.wid);
+    g.computeVertexNormals();
     return g;
   }
 
-  function finShape(hex, len, spread, at, rot) {
+  function finShape(hex, len, spread, at, rot, tipHex) {
     const s = new THREE.Shape();
     s.moveTo(0, 0);
     s.quadraticCurveTo(-0.34 * len, 0.3 * spread, -0.95 * len, 0.92 * spread);
     s.quadraticCurveTo(-0.5 * len, 0.1 * spread, -0.92 * len, 0);
     s.quadraticCurveTo(-0.5 * len, -0.1 * spread, -0.95 * len, -0.92 * spread);
     s.quadraticCurveTo(-0.34 * len, -0.3 * spread, 0, 0);
-    const g = new THREE.ShapeGeometry(s, 10);
+    const g = new THREE.ShapeGeometry(s, 12);
+    paintGrad(g, hex, tipHex, Math.hypot(len, spread));
     if (rot) g.rotateZ(rot);
     if (at) g.translate(at[0], at[1], at[2]);
-    return paintSolid(g, hex);
+    return g;
   }
 
-  function triFin(hex, pts, at, rotY) {
+  function triFin(hex, pts, at, rotY, tipHex) {
     const s = new THREE.Shape();
     s.moveTo(pts[0][0], pts[0][1]);
     for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0], pts[i][1]);
     s.closePath();
     const g = new THREE.ShapeGeometry(s, 4);
+    let reach = 0;
+    for (const p of pts) reach = Math.max(reach, Math.hypot(p[0], p[1]));
+    paintGrad(g, hex, tipHex, reach || 1);
     if (rotY) g.rotateY(rotY);
     if (at) g.translate(at[0], at[1], at[2]);
-    return paintSolid(g, hex);
+    return g;
+  }
+
+  // 眼睛：眼白 + 瞳孔 + 一粒高光。没有高光的鱼看着是死的
+  function addEye(parts, e, cx, cy, cz, s, iris) {
+    const white = new THREE.SphereGeometry(e * 1.2, 14, 10);
+    white.scale(1, 1, 0.55);
+    white.translate(cx, cy, cz);
+    parts.push(paintSolid(white, '#eef8fb'));
+    if (iris) {
+      const ir = new THREE.SphereGeometry(e * 0.86, 12, 8);
+      ir.scale(1, 1, 0.5);
+      ir.translate(cx + e * 0.08, cy, cz + s * e * 0.3);
+      parts.push(paintSolid(ir, iris));
+    }
+    const pup = new THREE.SphereGeometry(e * (iris ? 0.5 : 0.78), 12, 8);
+    pup.scale(iris ? 0.55 : 1, 1, 0.5);
+    pup.translate(cx + e * 0.12, cy, cz + s * e * (iris ? 0.5 : 0.36));
+    parts.push(paintSolid(pup, '#04070a'));
+    const hi = new THREE.SphereGeometry(e * 0.24, 6, 5);
+    hi.translate(cx + e * 0.34, cy + e * 0.36, cz + s * e * 0.62);
+    parts.push(paintSolid(hi, '#ffffff'));
+  }
+
+  function tube(pts, r, hex, seg) {
+    const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p[0], p[1], p[2])));
+    return paintSolid(new THREE.TubeGeometry(curve, seg || 12, r, 5, false), hex);
   }
 
   function fishAsset(type) {
@@ -1016,93 +1234,226 @@
     const F = FISH[type];
     if (F.dragon) return (ASSET[type] = dragonAsset(type));
     const L = LOOK[type] || LOOK.clown;
-    const mats = [];
+    if (L.turtle) return (ASSET[type] = turtleAsset(L));
+    if (L.squid) return (ASSET[type] = squidAsset(L));
     const bodyParts = [taperBody(L)];
 
-    // 眼睛
-    const eyeGeo = new THREE.SphereGeometry(L.eye || 0.09, 8, 6);
-    for (const s of [-1, 1]) {
-      const g = eyeGeo.clone();
-      g.translate(L.len * 0.58, L.hgt * 0.2, s * L.wid * 0.58);
-      bodyParts.push(paintSolid(g, '#08161a'));
+    // 眼睛：贴在吻端上方的皮上
+    const ex = L.len * 0.6, ey = L.hgt * 0.16;
+    const ez = surfZ(L, ex, ey);
+    for (const s of [-1, 1]) addEye(bodyParts, L.eye || 0.09, ex, ey, s * ez * 0.94, s, L.iris);
+
+    // 嘴：吻端下面一道暗线
+    const mouth = new THREE.SphereGeometry(0.5, 10, 6);
+    mouth.scale(L.len * 0.16, 0.022, surfZ(L, L.len * 0.82, -L.hgt * 0.12) * 2.1);
+    mouth.translate(L.len * 0.84, -L.hgt * (L.sharkTail ? 0.2 : 0.1), 0);
+    bodyParts.push(paintSolid(mouth, '#1a0f0c'));
+
+    // 鳃裂（鲨鱼一族）：三道竖缝
+    if (L.gills) {
+      for (let i = 0; i < 3; i++) {
+        const gx = L.len * (0.3 + i * 0.07);
+        for (const s of [-1, 1]) {
+          const g = new THREE.BoxGeometry(0.02, L.hgt * 0.34, 0.03);
+          g.rotateZ(-0.18);
+          g.translate(gx, -L.hgt * 0.02, s * surfZ(L, gx, 0) * 0.99);
+          bodyParts.push(paintSolid(g, L.top));
+        }
+      }
     }
 
     // 胸鳍（贴在身侧，略往后掠）
     for (const s of [-1, 1]) {
-      bodyParts.push(finShape(L.fin, 0.24, 0.22, [L.len * 0.2, -L.hgt * 0.05, s * L.wid * 0.8], s * 0.7));
+      bodyParts.push(finShape(L.fin, L.sharkTail ? 0.42 : 0.26, L.sharkTail ? 0.2 : 0.22,
+        [L.len * 0.24, -L.hgt * (L.sharkTail ? 0.3 : 0.05), s * L.wid * 0.82], s * 0.7 + (L.sharkTail ? -0.5 : 0), L.fin));
     }
-    // 背鳍
+    // 背鳍 + 臀鳍
     if (L.dorsal) {
-      bodyParts.push(triFin(L.fin, [[-0.3, 0], [0.14, 0], [-0.06, 0.5]], [0.1, L.hgt * 0.7, 0]));
+      bodyParts.push(triFin(L.fin, [[-0.34, 0], [0.16, 0], [-0.1, 0.56]], [0.12, L.hgt * 0.68, 0], 0, L.finTip));
+      bodyParts.push(triFin(L.fin, [[-0.12, 0], [0.06, 0], [-0.08, 0.16]], [-L.len * 0.62, L.hgt * 0.32, 0], 0, L.finTip));
+      bodyParts.push(triFin(L.fin, [[-0.12, 0], [0.06, 0], [-0.1, -0.15]], [-L.len * 0.58, -L.hgt * 0.3, 0], 0, L.finTip));
+    } else if (!L.spikes) {
+      // finShape 往 −x 长：负角往上翘、正角往下垂，角度反了鳍会扎进身子里
+      bodyParts.push(finShape(L.fin, 0.62, 0.2, [L.len * 0.36, L.hgt * 0.8, 0], -0.24, L.finTip));
+      bodyParts.push(finShape(L.fin, 0.44, 0.16, [L.len * 0.1, -L.hgt * 0.76, 0], 0.26, L.finTip));
     } else {
-      bodyParts.push(triFin(L.fin, [[-0.26, 0], [0.16, 0], [-0.02, 0.22]], [0.12, L.hgt * 0.86, 0]));
+      bodyParts.push(triFin(L.fin, [[-0.2, 0], [0.1, 0], [-0.08, 0.2]], [-L.len * 0.45, L.hgt * 0.62, 0], 0, L.finTip));
     }
-    // 河豚的刺
+    // 河豚的刺：斐波那契球面上均匀撒一圈，刺尖朝外
     if (L.spikes) {
-      const cone = new THREE.ConeGeometry(0.055, 0.22, 5);
-      for (let i = 0; i < 14; i++) {
-        const a = (i / 14) * Math.PI * 2;
+      const cone = new THREE.ConeGeometry(0.045, 0.2, 5);
+      cone.translate(0, 0.1, 0);
+      const N = 34, up = new THREE.Vector3(0, 1, 0);
+      for (let i = 0; i < N; i++) {
+        const yy = 1 - (i + 0.5) / N * 2, rr = Math.sqrt(1 - yy * yy), a = i * 2.39996;
+        const nx = Math.cos(a) * rr, nz = Math.sin(a) * rr;
+        if (nx > 0.72) continue;                 // 脸上不长刺，留给眼睛
         const g = cone.clone();
-        g.rotateX(Math.PI / 2);
-        g.rotateZ(a);
-        g.rotateY(a * 2.3);
-        g.translate(Math.cos(a) * L.len * 0.86, Math.sin(a) * L.hgt * 0.8, Math.sin(a * 2.1) * L.wid * 0.7);
-        bodyParts.push(paintSolid(g, '#8f9a3a'));
+        tmpV.set(nx / L.len, yy / L.hgt, nz / L.wid).normalize();
+        tmpQ.setFromUnitVectors(up, tmpV);
+        g.applyQuaternion(tmpQ);
+        g.translate(nx * L.len * 0.96, yy * L.hgt * 0.96, nz * L.wid * 0.96);
+        bodyParts.push(paintSolid(g, yy > 0 ? '#e9f0b4' : '#f8fbe6'));
       }
     }
-    // 乌贼的触手
-    if (L.tentacles) {
-      for (let i = 0; i < 6; i++) {
-        const g = new THREE.ConeGeometry(0.055, 1.05, 5);
-        g.rotateZ(Math.PI / 2 + (i - 2.5) * 0.1);
-        g.translate(-L.len * 0.6, (i - 2.5) * 0.11, (i % 2 ? 0.14 : -0.14));
-        bodyParts.push(paintSolid(g, '#f2a8c8'));
+    // 灯笼鱼：头顶一根钓竿 + 肚皮一排发光点
+    if (L.lure) {
+      bodyParts.push(tube([[L.len * 0.42, L.hgt * 0.78, 0], [L.len * 0.8, L.hgt * 1.25, 0], [1.12, 0.66, 0]], 0.02, L.fin, 10));
+      const bulb = new THREE.SphereGeometry(0.07, 10, 8);
+      bulb.translate(1.13, 0.62, 0);
+      bodyParts.push(paintSolid(bulb, '#d8ffff'));
+    }
+    if (L.photo) {
+      for (let i = 0; i < 7; i++) {
+        const px = L.len * (-0.5 + i * 0.16), py = -L.hgt * 0.42;
+        for (const s of [-1, 1]) {
+          const d = new THREE.SphereGeometry(0.026, 6, 4);
+          d.translate(px, py, s * surfZ(L, px, py) * 0.98);
+          bodyParts.push(paintSolid(d, L.photo));
+        }
       }
     }
-    // 海龟：四只鳍 + 头
-    if (L.flippers) {
-      for (const [sx, sz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
-        const g = new THREE.SphereGeometry(0.34, 8, 6);
-        g.scale(1.5, 0.24, 0.8);
-        g.translate(sx * L.len * 0.52, -0.02, sz * L.wid * 0.72);
-        bodyParts.push(paintSolid(g, L.fin));
-      }
-      const head = new THREE.SphereGeometry(0.24, 10, 8);
-      head.translate(L.len * 0.95, L.hgt * 0.12, 0);
-      bodyParts.push(paintSolid(head, L.body));
-    }
-    // 王冠
+    // 王冠：一圈金箍 + 五个尖 + 红宝石
     if (L.crown) {
-      for (let i = -1; i <= 1; i++) {
-        const g = new THREE.ConeGeometry(0.09, 0.36, 5);
-        g.translate(L.len * 0.5 + i * 0.16, L.hgt * 0.88, 0);
-        bodyParts.push(paintSolid(g, '#ffdf7a'));
+      const cx = L.len * 0.42, cy = L.hgt * 0.86;
+      const band = new THREE.CylinderGeometry(0.24, 0.27, 0.12, 18, 1, true);
+      band.translate(cx, cy, 0);
+      bodyParts.push(paintSolid(band, '#ffd35a'));
+      for (let i = 0; i < 5; i++) {
+        const a = i / 5 * Math.PI * 2;
+        const g = new THREE.ConeGeometry(0.06, 0.26, 5);
+        g.translate(cx + Math.cos(a) * 0.24, cy + 0.18, Math.sin(a) * 0.24);
+        bodyParts.push(paintSolid(g, '#ffe27a'));
+        const j = new THREE.SphereGeometry(0.035, 6, 4);
+        j.translate(cx + Math.cos(a) * 0.255, cy, Math.sin(a) * 0.255);
+        bodyParts.push(paintSolid(j, i % 2 ? '#3ad0ff' : '#ff2a3a'));
       }
     }
 
     const bodyGeo = mergeGeos(bodyParts);
-    const tailGeo = L.tentacles
-      ? null
-      : finShape(L.fin, L.sharkTail ? 0.5 : 0.6, L.sharkTail ? 0.5 : 0.52, null, 0);
+    const tailGeo = finShape(L.tail || L.fin, L.sharkTail ? 0.5 : 0.6, L.sharkTail ? 0.5 : 0.52, null, 0, L.tailTip || L.finTip);
+    return fishMats(L, bodyGeo, tailGeo, -L.len * 0.9, L.sharkTail ? 1.15 : 1);
+  }
 
+  function fishMats(L, bodyGeo, tailGeo, tailX, tailS, tailSpd, tailAmp) {
     const mat = new THREE.MeshPhongMaterial({
       vertexColors: true, side: THREE.DoubleSide,
-      shininess: L.sharkTail ? 70 : 44,
-      specular: new THREE.Color(L.metal ? 0x6b4a10 : 0x1e5560),
+      shininess: L.sharkTail ? 70 : 48,
+      specular: new THREE.Color(L.metal ? 0x6b4a10 : 0x2a6470),
       emissive: new THREE.Color(L.glow || '#000000'),
       emissiveIntensity: L.glowI || 0
     });
-
     const tailMat = mat.clone();
-    tailMat.side = THREE.DoubleSide;
     tailMat.emissiveIntensity = (L.glowI || 0) * 0.8;
-
-    const a = { bodyGeo, tailGeo, mat, tailMat, tailX: -L.len * 0.9, tailS: L.sharkTail ? 1.15 : 1 };
-    ASSET[type] = a;
-    return a;
+    return { bodyGeo, tailGeo, mat, tailMat, tailX, tailS, tailSpd: tailSpd || 7, tailAmp: tailAmp || 0.5 };
   }
 
-  /* ---------- 龙鱼：一串球当脊骨 + 一个头 ---------- */
+  // 海龟：没有鱼尾。背甲按圈分盾片、盾片之间一道暗缝；前鳍单独一个 mesh，慢慢划水
+  function turtleAsset(L) {
+    const parts = [];
+    const plastron = new THREE.SphereGeometry(1, 24, 14);
+    plastron.scale(L.len * 0.86, L.hgt * 0.5, L.wid * 0.8);
+    plastron.translate(0, -0.06, 0);
+    parts.push(paintSolid(plastron, L.belly));
+
+    const shell = new THREE.SphereGeometry(1, 48, 20, 0, Math.PI * 2, 0, Math.PI / 2);
+    const sp = shell.attributes.position, sc = new Float32Array(sp.count * 3);
+    const cTop = new THREE.Color(L.top), cBody = new THREE.Color(L.body), cRim = new THREE.Color(L.fin), cSeam = new THREE.Color('#1b2a10');
+    const RINGS = [0.42, 0.95, 1.32, Math.PI / 2 + 0.01], CELLS = [1, 5, 8, 18];
+    for (let i = 0; i < sp.count; i++) {
+      const x = sp.getX(i), y = sp.getY(i), z = sp.getZ(i);
+      const phi = Math.acos(Math.max(-1, Math.min(1, y))), th = Math.atan2(z, x) + Math.PI;
+      let ring = 0;
+      while (phi > RINGS[ring]) ring++;
+      const k = CELLS[ring], f = th / (Math.PI * 2) * k + (ring === 2 ? 0.5 : 0);
+      const cell = Math.floor(f), dTh = Math.abs(f - Math.round(f)) * (Math.PI * 2 / k) * Math.sin(phi);
+      const dPh = Math.min(Math.abs(phi - (RINGS[ring - 1] || -1)), Math.abs(phi - RINGS[ring]));
+      if (ring === 3) tmpC.copy(cRim).lerp(cBody, 0.4);
+      else tmpC.copy(cBody).lerp(cTop, 0.25 + hash3(ring, cell, 1) * 0.45);
+      if (ring < 3) tmpC.lerp(cRim, Math.max(0, 0.3 - Math.min(dTh, dPh) * 1.5));   // 盾片边缘发亮，中间深
+      if ((k > 1 && dTh < 0.035) || dPh < 0.035) tmpC.copy(cSeam);
+      sc[i * 3] = tmpC.r; sc[i * 3 + 1] = tmpC.g; sc[i * 3 + 2] = tmpC.b;
+    }
+    shell.setAttribute('color', new THREE.BufferAttribute(sc, 3));
+    shell.scale(L.len, L.hgt, L.wid);
+    parts.push(shell);
+
+    const head = new THREE.SphereGeometry(0.22, 16, 12);
+    head.scale(1.35, 0.95, 0.9);
+    head.translate(L.len * 1.02, 0.02, 0);
+    parts.push(paintSolid(head, L.skin));
+    const neck = new THREE.CylinderGeometry(0.13, 0.17, 0.3, 10);
+    neck.rotateZ(Math.PI / 2);
+    neck.translate(L.len * 0.82, -0.02, 0);
+    parts.push(paintSolid(neck, L.skin));
+    for (const s of [-1, 1]) addEye(parts, L.eye, L.len * 1.1, 0.08, s * 0.17, s);
+    // 后鳍 + 小尾巴
+    for (const s of [-1, 1]) {
+      const g = new THREE.SphereGeometry(0.3, 12, 8);
+      g.scale(1.0, 0.42, 0.16);
+      g.rotateZ(0.35);
+      g.translate(-L.len * 0.78, -0.12, s * L.wid * 0.6);
+      parts.push(paintSolid(g, L.skin));
+    }
+    const tail = new THREE.ConeGeometry(0.08, 0.28, 6);
+    tail.rotateZ(Math.PI / 2);
+    tail.translate(-L.len * 1.02, -0.06, 0);
+    parts.push(paintSolid(tail, L.skin));
+
+    // 前鳍：长桨形，往下往后掠；绕 y 轴摆 = 一前一后地划水
+    const flip = [];
+    for (const s of [-1, 1]) {
+      const g = new THREE.SphereGeometry(0.34, 14, 8);
+      g.scale(1.4, 0.42, 0.12);
+      g.translate(-0.34, 0, 0);
+      g.rotateZ(0.42);
+      g.translate(0.05, -0.12, s * L.wid * 0.7);
+      flip.push(paintSolid(g, L.skin));
+    }
+    const fl = flip.map(g => {
+      const p = g.attributes.position, c = g.attributes.color;
+      for (let i = 0; i < p.count; i++) if (hash3(p.getX(i) * 7, p.getY(i) * 7, p.getZ(i) * 7) > 0.8) c.setXYZ(i, c.getX(i) * 0.6, c.getY(i) * 0.7, c.getZ(i) * 0.6);
+      return g;
+    });
+    return fishMats(L, mergeGeos(parts), mergeGeos(fl), L.len * 0.5, 1, 2.2, 0.55);
+  }
+
+  // 乌贼：尖头外套膜朝前、菱形鳍、大眼睛长在后头，腕足拖在最后（腕单独一个 mesh，跟着摆）
+  function squidAsset(L) {
+    const parts = [];
+    const mantle = taperBody(L);
+    mantle.translate(0.25, 0, 0);
+    parts.push(mantle);
+    for (const s of [-1, 1]) {
+      parts.push(triFin(L.fin, [[0.06, 0], [-0.52, 0], [-0.34, s * 0.34]], [1.18, s * 0.06, 0], 0, L.finTip));
+    }
+    const head = new THREE.SphereGeometry(0.27, 16, 12);
+    head.scale(1.15, 0.95, 1.0);
+    head.translate(-0.78, -0.02, 0);
+    parts.push(paintSolid(head, L.body));
+    for (const s of [-1, 1]) addEye(parts, L.eye, -0.74, 0.05, s * 0.2, s, '#3a1a40');
+
+    const arms = [];
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2, y0 = Math.cos(a) * 0.12, z0 = Math.sin(a) * 0.12;
+      const spread = 1.2 + (i % 3) * 0.15, w = (i % 2 ? 1 : -1) * 0.08;
+      arms.push(tube([[0, y0, z0], [-0.35, y0 * spread + w, z0 * spread], [-0.7, y0 * 1.4 - w, z0 * 1.3], [-0.95, y0 * 1.1 + w * 1.5, z0]], 0.045 - (i % 2) * 0.008, L.body, 14));
+    }
+    for (const s of [-1, 1]) {
+      arms.push(tube([[0, s * 0.04, 0], [-0.5, s * 0.12, 0.05], [-1.0, s * 0.06, -0.04], [-1.35, s * 0.16, 0]], 0.022, L.fin, 16));
+      const club = new THREE.SphereGeometry(0.06, 8, 6);
+      club.scale(1.8, 1, 1);
+      club.translate(-1.4, s * 0.17, 0);
+      arms.push(paintSolid(club, L.fin));
+    }
+    const armGeo = mergeGeos(arms);
+    const k = 0.82;                                    // 整只缩一点：腕拖得长，不缩就比判定圈大一截
+    const bodyGeo = mergeGeos(parts);
+    bodyGeo.scale(k, k, k); armGeo.scale(k, k, k);
+    return fishMats(L, bodyGeo, armGeo, -0.98 * k, 1, 3.4, 0.35);
+  }
+
+  /* ---------- 龙鱼：管状身子每帧重算，头是一个合并几何 ---------- */
   const DRAGON_PAL = {
     jade:  { top: '#0e5f57', body: '#39c79a', belly: '#c8ffe6', fin: '#2fc79c', horn: '#bfffe6', line: '#0a3d38', glow: '#4dffcf', aura: 0x59ffd0 },
     flame: { top: '#7a1a12', body: '#e6543a', belly: '#ffd9b0', fin: '#f0a63a', horn: '#ffd9a0', line: '#4a1208', glow: '#ff8a4a', aura: 0xff7a4a },
@@ -1117,31 +1468,64 @@
       specular: new THREE.Color(0x2a6b78),
       emissive: new THREE.Color(P.glow), emissiveIntensity: 0.2
     });
-    // 头：吻 + 颅 + 角 + 下颌，合并成一个
+    // 头：颅 + 长吻 + 张开的下颌 + 牙 + 角 + 须 + 鬃，合并成一个
     const parts = [];
-    const skull = new THREE.SphereGeometry(0.30, 14, 10);
-    skull.scale(1.15, 0.9, 0.8);
-    skull.translate(0.06, 0, 0);
+    const skull = new THREE.SphereGeometry(0.28, 18, 12);
+    skull.scale(1.2, 0.86, 0.82);
+    skull.translate(0.02, 0.04, 0);
     parts.push(paintSolid(skull, P.body));
-    const snout = new THREE.ConeGeometry(0.2, 0.6, 10);
-    snout.rotateZ(-Math.PI / 2);
-    snout.translate(0.62, -0.02, 0);
-    parts.push(paintSolid(snout, P.body));
     for (const s of [-1, 1]) {
-      const horn = new THREE.ConeGeometry(0.055, 0.46, 6);
-      horn.rotateZ(0.85);
-      horn.translate(-0.12, 0.3, s * 0.13);
-      parts.push(paintSolid(horn, P.horn));
-      const eye = new THREE.SphereGeometry(0.075, 8, 6);
-      eye.translate(0.34, 0.1, s * 0.2);
-      parts.push(paintSolid(eye, '#0a1418'));
+      const brow = new THREE.SphereGeometry(0.1, 10, 6);
+      brow.scale(1.7, 0.6, 0.8);
+      brow.translate(0.2, 0.19, s * 0.13);
+      parts.push(paintSolid(brow, P.top));
     }
-    const jaw = new THREE.ConeGeometry(0.16, 0.42, 8);
-    jaw.rotateZ(-Math.PI / 2);
-    jaw.translate(0.52, -0.16, 0);
-    parts.push(paintSolid(jaw, P.belly));
+    const snout = new THREE.SphereGeometry(0.2, 16, 10);
+    snout.scale(2.1, 0.68, 0.74);
+    snout.translate(0.46, 0.03, 0);
+    parts.push(paintSolid(snout, P.body));
+    const ridge = new THREE.SphereGeometry(0.08, 10, 6);
+    ridge.scale(3.6, 0.6, 0.9);
+    ridge.translate(0.48, 0.15, 0);
+    parts.push(paintSolid(ridge, P.top));
+    const maw = new THREE.SphereGeometry(0.16, 12, 6);
+    maw.scale(2.1, 0.32, 0.62);
+    maw.translate(0.44, -0.08, 0);
+    parts.push(paintSolid(maw, '#4a0c10'));
+    const jaw = new THREE.SphereGeometry(0.16, 14, 8);
+    jaw.scale(2.1, 0.45, 0.7);
+    jaw.rotateZ(-0.2);
+    jaw.translate(0.4, -0.17, 0);
+    parts.push(paintSolid(jaw, P.body));
+    for (const s of [-1, 1]) {
+      for (let i = 0; i < 4; i++) {
+        const tooth = new THREE.ConeGeometry(0.022, 0.08, 4);
+        tooth.rotateZ(Math.PI);
+        tooth.translate(0.3 + i * 0.12, -0.08, s * (0.12 - i * 0.018));
+        parts.push(paintSolid(tooth, '#fffaf0'));
+      }
+      const nos = new THREE.SphereGeometry(0.025, 6, 4);
+      nos.translate(0.84, 0.09, s * 0.06);
+      parts.push(paintSolid(nos, '#120608'));
+      addEye(parts, 0.068, 0.2, 0.12, s * 0.19, s, '#ffd84a');
+      // 角：两节锥子往后掠
+      const h1 = new THREE.ConeGeometry(0.06, 0.3, 7);
+      h1.rotateZ(1.05);
+      h1.translate(-0.1, 0.27, s * 0.12);
+      parts.push(paintSolid(h1, P.horn));
+      const h2 = new THREE.ConeGeometry(0.04, 0.2, 6);
+      h2.rotateZ(1.45);
+      h2.translate(-0.3, 0.36, s * 0.13);
+      parts.push(paintSolid(h2, P.horn));
+      // 龙须：从鼻孔两边垂下来往后飘
+      parts.push(tube([[0.78, 0.0, s * 0.08], [0.62, -0.16, s * 0.22], [0.3, -0.34, s * 0.3], [-0.05, -0.36, s * 0.26]], 0.016, P.horn, 14));
+    }
+    // 鬃：颅后一排往后上挑的片
+    for (let i = 0; i < 5; i++) {
+      parts.push(triFin(P.fin, [[0, 0], [0.1, 0], [-0.28, 0.2 + (i % 2) * 0.06]], [-0.12 - i * 0.06, 0.12 - i * 0.05, (i % 2 ? 1 : -1) * 0.1], (i % 2 ? 1 : -1) * 0.5, P.horn));
+    }
     const headGeo = mergeGeos(parts);
-    const tailGeo = finShape(P.fin, 0.72, 0.62, null, 0);
+    const tailGeo = finShape(P.fin, 0.72, 0.62, null, 0, P.horn);
     return (ASSET[type] = {
       dragon: true, headGeo, tailGeo, mat, pal: P,
       cTop: new THREE.Color(P.top), cBody: new THREE.Color(P.body), cBelly: new THREE.Color(P.belly)
@@ -1200,6 +1584,8 @@
         tail.scale.setScalar(a.tailS);
         grp.add(tail);
         grp.userData.tail = tail;
+        grp.userData.tailSpd = a.tailSpd;
+        grp.userData.tailAmp = a.tailAmp;
       }
       if (LOOK[f.type] && LOOK[f.type].lure) {
         const lure = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -1207,8 +1593,8 @@
           blending: THREE.AdditiveBlending, depthWrite: false
         }));
         own.push(lure.material);
-        lure.scale.set(1.5, 1.5, 1);
-        lure.position.set(1.15, 0.55, 0);
+        lure.scale.set(0.9, 0.9, 1);
+        lure.position.set(1.13, 0.62, 0);
         grp.add(lure);
         grp.userData.lure = lure;
       }
@@ -1309,10 +1695,10 @@
         v.userData.tail.position.set(-1.5, yAt(0), 0);
         v.userData.tail.rotation.z = Math.atan2(yAt(0.1) - yAt(0), 0.3) * 1.5;
       } else if (v.userData.tail) {
-        v.userData.tail.rotation.y = Math.sin(f.t * 7 + f.ph) * 0.5;
+        v.userData.tail.rotation.y = Math.sin(f.t * v.userData.tailSpd + f.ph) * v.userData.tailAmp;
       }
       if (v.userData.lure) {
-        v.userData.lure.position.y = 0.5 + Math.sin(f.t * 2.4) * 0.12;
+        v.userData.lure.position.y = 0.62 + Math.sin(f.t * 2.4) * 0.03;   // 光球挂在钓竿梢上，只能轻轻颤
       }
       const hit = v.userData.hit;
       if (hit) {
@@ -1640,6 +2026,7 @@
     }
     causticPlane.material.map.offset.y = -t * 0.012;
     causticPlane.material.map.offset.x = Math.sin(t * 0.06) * 0.03;
+    floorCaustic.offset.set(t * 0.01, -t * 0.006);
   }
 
   function render3D(t, dt) {
