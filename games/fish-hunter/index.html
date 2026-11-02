@@ -206,7 +206,7 @@
     .play .cab{
       margin-top:10px;
       /* 100dvh − 招牌(≈80) − 上下留白 − 底栏(≈40)；宽按 440:500 换算，再加两边 7px 框 */
-      width:calc((100dvh - 160px) * 0.88 + 14px);max-width:calc(100vw - 420px);min-width:440px;
+      width:calc((100dvh - 170px) * 0.88 + 24px);max-width:calc(100vw - 420px);min-width:440px;
     }
     .ctl .row.utility{margin-top:12px}
   }
@@ -345,6 +345,83 @@
     .cab::before,.marquee h1,.abtn.auto.on .cap::before{animation:none}
   }
 
+  /* ================================================================
+     金碧辉煌（issue 08）：碧 = 青海，金 = 所有框。招牌金字、屏幕一圈雕花金框（四角金纹）、
+     计分板 / 控制台 / 按键 / 底栏全镶金边，跑马灯改暖金。只换皮，逻辑不动。
+     ================================================================ */
+  :root{
+    --gold-1:#fff6c8; --gold-2:#ffd862; --gold-3:#e0a326; --gold-4:#9a6508; --gold-5:#4a2a02;
+    --goldbar:linear-gradient(180deg,var(--gold-1) 0%,var(--gold-2) 18%,var(--gold-3) 48%,var(--gold-4) 72%,var(--gold-2) 90%,var(--gold-1) 100%);
+  }
+  body{background:
+      radial-gradient(70% 45% at 50% 10%,rgba(255,200,90,.14),transparent 62%),
+      radial-gradient(90% 55% at 50% 30%,rgba(40,200,210,.10),transparent 66%),
+      radial-gradient(120% 60% at 50% 104%,rgba(10,60,70,.9),transparent 72%),
+      #020a0c}
+  #stage{
+    background:
+      radial-gradient(120% 40% at 50% 0%,rgba(255,210,110,.08),transparent 60%),
+      linear-gradient(180deg,#0a2a33,#04131a 60%);
+    box-shadow:inset 4px 0 0 #6a4206,inset 6px 0 0 #ffd862,inset 8px 0 0 #9a6508,
+      inset -4px 0 0 #6a4206,inset -6px 0 0 #ffd862,inset -8px 0 0 #9a6508,
+      0 0 0 1px #3a2404,0 26px 70px rgba(0,0,0,.85),0 0 120px rgba(255,190,80,.08)}
+
+  /* 招牌：深碧底 + 金字 + 上下两道金条 */
+  .marquee{
+    background:
+      radial-gradient(60% 120% at 50% 0%,rgba(255,226,140,.35),transparent 60%),
+      radial-gradient(115% 150% at 50% -45%,rgba(120,255,240,.25),transparent 60%),
+      linear-gradient(180deg,#0c5a68 0%,#083d4a 50%,#032029 100%);
+    border-bottom:0;
+    box-shadow:inset 0 3px 0 #ffd862,inset 0 4px 0 #9a6508,inset 0 -18px 30px rgba(0,0,0,.5),0 6px 18px rgba(0,0,0,.6)}
+  .marquee::after{content:"";position:absolute;left:0;right:0;bottom:-4px;height:5px;background:var(--goldbar);box-shadow:0 2px 6px rgba(0,0,0,.6)}
+  .marquee h1{
+    background:linear-gradient(180deg,#fffbe6 0%,#ffe9a0 30%,#f2b638 52%,#a8670a 60%,#ffd862 80%,#fff2c0 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 2px 0 #4a2a02) drop-shadow(0 0 14px rgba(255,190,70,.55))}
+  .marquee h1 small{-webkit-text-fill-color:#ffe6a8;color:#ffe6a8;opacity:.8}
+  .bulbs{bottom:-4px;z-index:1}
+  .bulbs i{background:radial-gradient(circle at 35% 30%,#fffbe0,#ffc83a 58%,#7a4a06);box-shadow:0 0 9px rgba(255,200,80,.95),inset 0 0 2px #fff}
+  .back,.iconbtn{border-color:#c8993f;background:linear-gradient(180deg,#2a1c08,#120c04);color:#ffe6a8}
+
+  /* 计分板：金框 */
+  .asset{border:0;padding:5px 10px 6px;
+    box-shadow:0 0 0 1px #2a1802,0 0 0 3px #e0a326,0 0 0 4px #6a4206,inset 0 0 16px rgba(120,255,180,.08)}
+  .hud{gap:10px;padding-top:12px}
+  .runinfo b{color:#ffd862}
+
+  /* 屏幕：雕花金框。外框是金条渐变，四角一枚金纹（::after 那层暗角挪到画布里面） */
+  .cab{padding:12px;border:0;border-radius:10px;
+    background:
+      radial-gradient(circle at 12px 12px,#fff6c8 0 3px,#c8902a 4px,transparent 6px),
+      radial-gradient(circle at calc(100% - 12px) 12px,#fff6c8 0 3px,#c8902a 4px,transparent 6px),
+      radial-gradient(circle at 12px calc(100% - 12px),#fff6c8 0 3px,#c8902a 4px,transparent 6px),
+      radial-gradient(circle at calc(100% - 12px) calc(100% - 12px),#fff6c8 0 3px,#c8902a 4px,transparent 6px),
+      conic-gradient(from 45deg,#ffe58a,#a8670a,#ffd862,#fff2c0,#c88a1e,#ffe58a,#9a6508,#ffd862,#ffe58a);
+    box-shadow:inset 0 0 0 2px #fff2c0,inset 0 0 0 4px #9a6508,inset 0 0 0 5px #2a1802,
+      0 0 0 1px #3a2404,0 10px 26px rgba(0,0,0,.65),0 0 30px rgba(255,190,70,.18)}
+  .cab .sc{display:none}
+  .cab::before{inset:5px;border-radius:7px;padding:5px;
+    background:
+      radial-gradient(circle,#fffbe0 0 1.5px,rgba(255,200,80,.7) 2.2px,transparent 2.9px) 0 0/12px 12px,
+      radial-gradient(circle,#6a4206 0 1.5px,transparent 2.1px) 6px 6px/12px 12px}
+  canvas#cv2d{inset:12px;width:calc(100% - 24px);height:calc(100% - 24px)}
+  .fxlayer,.flashtext,.toast{z-index:6}
+  .cab::after{inset:12px}
+
+  /* 底栏 / 控制台 / 工具键：金边 */
+  .statline{border:0;box-shadow:0 0 0 1px #2a1802,0 0 0 2px #c8993f,inset 0 0 12px rgba(120,255,180,.05)}
+  .statline b{color:#ffe08a;text-shadow:0 0 9px rgba(255,200,80,.55)}
+  .panel{border:0;
+    box-shadow:0 0 0 1px #2a1802,0 0 0 3px #e0a326,0 0 0 4px #6a4206,inset 0 1px 0 rgba(255,240,200,.25),inset 0 -14px 24px rgba(0,0,0,.6),0 8px 18px rgba(0,0,0,.6)}
+  .acts{border-left-color:rgba(255,216,98,.55)}
+  .btn{border-color:#c8993f;background:linear-gradient(180deg,#1a3a3c,#0a1c1e);color:#ffe9b0;
+    box-shadow:inset 0 1px 0 rgba(255,240,200,.25),0 2px 0 #3a2404,0 4px 9px rgba(0,0,0,.5)}
+  .abtn b{color:#ffe9b0}
+  .abtn .cap{background:conic-gradient(from 200deg,#fffbe0,#c8902a,#4a2a02,#ffd862,#fff6c8,#9a6508,#fffbe0)}
+  .sheet{border-color:#ffd862;box-shadow:0 0 0 1px #000,0 0 0 4px #9a6508,0 0 60px rgba(255,190,70,.2)}
+  .sheet h2{color:#ffe9a8;border-bottom-color:#ffd862}
+
   /* ---------- 手机：一屏放下整台机器，次要按钮收进「菜单」（和聚宝盆同一套） ----------
      竖屏：招牌压薄、屏幕按真实可见高度缩（fitPhone），炮倍 / 开炮键永远在屏内；
      玩法 / 鱼谱 / 网具 / 暂停 / 重置战绩 / 全屏 收进右上角的菜单。横屏：屏幕在左，按键在右。 */
@@ -390,7 +467,7 @@
     .top{grid-area:top}
     .play{grid-area:play}
     .ctl{grid-area:ctl;overflow:auto;max-height:calc(100dvh - 128px);padding-bottom:6px}
-    .play .cab{margin-top:6px;width:calc((100dvh - 98px) * 0.88 + 14px)}
+    .play .cab{margin-top:6px;width:calc((100dvh - 108px) * 0.88 + 24px)}
     .statline{margin-top:5px;padding:4px 8px}
     .hud{padding-top:6px}
     .asset .v{font-size:18px}
@@ -870,7 +947,7 @@
   const wy = y => (H / 2 - y) / SH;
   const CAM_FOV = 50;
   const CAM_Z = (H / SH / 2) / Math.tan(CAM_FOV * Math.PI / 360);
-  const FOG_COL = 0x062a34;
+  const FOG_COL = 0x3aa8b4;
   /* 深度分层：相机在 +z，z 越大越靠前。
      鱼散在 z ∈ [-4, 4]；网必须排在所有鱼前面，不然会被鱼盖住（issue 06）。 */
   const Z_FISH_MIN = -4, Z_FISH_MAX = 4;
@@ -882,7 +959,7 @@
   let cannonPivot = null, cannonMuzzle = null, muzzleFlash = null;
   let coinMesh = null, sparkPts = null, bubblePts = null, motePts = null;
   let causticPlane = null;
-  let glowTex = null, bubbleTex = null, causticTex = null, bgTex = null, kelpTex = null, edgeTex = null, rayTex = null, floorCaustic = null;
+  let glowTex = null, bubbleTex = null, causticTex = null, edgeTex = null, floorCaustic = null, starTex = null;
   let tmpM = null, tmpV = null, tmpV2 = null, tmpQ = null, tmpS = null, tmpC = null, tmpE = null;
   const fishViews = new Map();
   const shotViews = new Map();
@@ -912,6 +989,17 @@
       rg.addColorStop(0.3, 'rgba(255,255,255,.55)');
       rg.addColorStop(1, 'rgba(255,255,255,0)');
       c.fillStyle = rg; c.fillRect(0, 0, w, h);
+    });
+    // 四角星芒：宝藏上的闪光
+    starTex = makeTex(64, 64, (c, w, h) => {
+      const rg = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+      rg.addColorStop(0, 'rgba(255,255,255,1)'); rg.addColorStop(0.18, 'rgba(255,240,180,.6)'); rg.addColorStop(0.5, 'rgba(255,220,120,0)');
+      c.fillStyle = rg; c.fillRect(0, 0, w, h);
+      c.fillStyle = 'rgba(255,250,220,.95)';
+      for (const [a, l] of [[0, 30], [Math.PI / 2, 30], [Math.PI / 4, 14], [-Math.PI / 4, 14]]) {
+        c.save(); c.translate(w / 2, h / 2); c.rotate(a);
+        c.beginPath(); c.moveTo(-l, 0); c.lineTo(0, -1.6); c.lineTo(l, 0); c.lineTo(0, 1.6); c.closePath(); c.fill(); c.restore();
+      }
     });
     bubbleTex = makeTex(64, 64, (c, w, h) => {
       c.clearRect(0, 0, w, h);
@@ -956,51 +1044,6 @@
       gx.addColorStop(0, '#000'); gx.addColorStop(0.18, '#fff'); gx.addColorStop(0.82, '#fff'); gx.addColorStop(1, '#000');
       c.fillStyle = gx; c.fillRect(0, 0, w, h);
     });
-    // 光柱：横向高斯、上亮下淡
-    rayTex = makeTex(64, 256, (c, w, h) => {
-      const img = c.createImageData(w, h), d = img.data;
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        const gx = Math.exp(-Math.pow((x - w / 2) / (w * 0.2), 2)), gy = Math.pow(1 - y / h, 1.4) * Math.min(1, y / (h * 0.06));
-        const k = (y * w + x) * 4;
-        d[k] = d[k + 1] = d[k + 2] = 255; d[k + 3] = 255 * gx * gy;
-      }
-      c.putImageData(img, 0, 0);
-    });
-    bgTex = makeTex(256, 512, (c, w, h) => {
-      const rg = c.createLinearGradient(0, 0, 0, h);
-      rg.addColorStop(0, '#12808e');
-      rg.addColorStop(0.32, '#0a5461');
-      rg.addColorStop(0.66, '#04252e');
-      rg.addColorStop(1, '#02161c');
-      c.fillStyle = rg; c.fillRect(0, 0, w, h);
-      // 远处那几道斜光
-      c.globalCompositeOperation = 'lighter';
-      // 每道光叠几层不同宽度的薄片，边缘就是软的，不是一条条硬斜带
-      for (let i = 0; i < 6; i++) {
-        const x = 24 + i * 40 + Math.random() * 18, wd = 8 + Math.random() * 14;
-        for (let k = 0; k < 5; k++) {
-          const sp = wd * (0.4 + k * 0.45);
-          const g2 = c.createLinearGradient(0, 0, 0, h * 0.85);
-          g2.addColorStop(0, 'rgba(150,245,255,.05)');
-          g2.addColorStop(1, 'rgba(150,245,255,0)');
-          c.fillStyle = g2;
-          c.beginPath(); c.moveTo(x - sp / 2, 0); c.lineTo(x + sp / 2, 0); c.lineTo(x - 50 + sp, h * 0.85); c.lineTo(x - 50 - sp, h * 0.85); c.closePath(); c.fill();
-        }
-      }
-    });
-    kelpTex = makeTex(64, 256, (c, w, h) => {
-      c.clearRect(0, 0, w, h);
-      for (let i = 0; i < 7; i++) {
-        const x = 10 + i * 7 + Math.random() * 4;
-        c.strokeStyle = i % 2 ? 'rgba(38,130,96,.95)' : 'rgba(24,100,80,.95)';
-        c.lineWidth = 5 + Math.random() * 3;
-        c.lineCap = 'round';
-        c.beginPath();
-        c.moveTo(x, h);
-        c.bezierCurveTo(x + 14, h * 0.66, x - 14, h * 0.36, x + 6, 4 + Math.random() * 20);
-        c.stroke();
-      }
-    });
 
     /* ---------- 渲染器 / 相机 ---------- */
     renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false });
@@ -1008,24 +1051,24 @@
     renderer.setSize(W, H, false);
     if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.12;
+    renderer.toneMappingExposure = 1.18;
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x03161d);
-    scene.fog = new THREE.FogExp2(FOG_COL, 0.0042);
+    scene.background = new THREE.Color(0x2a9aa8);
+    scene.fog = new THREE.FogExp2(FOG_COL, 0.003);    // 雾只轻轻压一层；海底的青色由海底上方那层水色板给（鱼不吃这层色）
 
     camera = new THREE.PerspectiveCamera(CAM_FOV, W / H, 0.1, 260);
     camera.position.set(0, 0, CAM_Z);
 
-    scene.add(new THREE.HemisphereLight(0x9fe0f5, 0x06222a, 0.5));
-    const key = new THREE.DirectionalLight(0xd6f9ff, 1.3);
-    key.position.set(8, 26, 18);
+    // 俯视：光从水面（镜头那边）照下来，略偏左上，鱼背亮、鱼影落在右下
+    const hemi = new THREE.HemisphereLight(0xe8fdff, 0x1a5a62, 0.75);
+    hemi.position.set(0.2, 0.3, 1);
+    scene.add(hemi);
+    const key = new THREE.DirectionalLight(0xfff6e0, 1.5);
+    key.position.set(-12, 18, 40);
     scene.add(key);
-    const rim = new THREE.DirectionalLight(0x74e2ff, 0.6);
-    rim.position.set(-16, -6, -18);
-    scene.add(rim);
-    const fill = new THREE.DirectionalLight(0xbff2ff, 0.2);
-    fill.position.set(2, -4, 30);
+    const fill = new THREE.DirectionalLight(0x9ff0ff, 0.35);
+    fill.position.set(14, -10, 20);
     scene.add(fill);
 
     buildTank();
@@ -1036,190 +1079,248 @@
     return true;
   }
 
-  /* ---------- 水槽：背景、沙底、礁石、海草、光柱 ---------- */
+  /* ---------- 海底（俯视）：沙地、礁石、珊瑚、海星、贝壳、海草，焦散铺在沙上 ----------
+     相机没动：还是正对 z=0 那张判定平面，只是把它当成"从上往下看的海"。海底是 z = FLOOR_Z 的一层，
+     鱼在 z ∈ [-4, 4] 游，离海底十几个单位——透视让海底的东西小一点、慢一点，有纵深。
+     海底用一个组搭：组绕 x 转 90°，组里照"y 朝上的地面"写，转完 y 正好朝着镜头。 */
+  const FLOOR_Z = -30;
+  let shadowMesh = null;
   function buildTank() {
-    const bg = new THREE.Mesh(
-      new THREE.PlaneGeometry(240, 150),
-      new THREE.MeshBasicMaterial({ map: bgTex, fog: false, depthWrite: false })
-    );
-    bg.position.set(0, 6, -95);
-    scene.add(bg);
+    const floorG = new THREE.Group();
+    floorG.rotation.x = Math.PI / 2;
+    floorG.position.z = FLOOR_Z;
+    scene.add(floorG);
 
-    // 水纹：贴在背景前一层，慢慢往上滚
-    causticTex.repeat.set(5, 4);
-    causticPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(120, 90),
-      new THREE.MeshBasicMaterial({ map: causticTex, alphaMap: edgeTex, transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })
-    );
-    causticPlane.position.set(0, 4, -80);
-    scene.add(causticPlane);
-
-    // 沙底：浅一点的砂色 + 沙纹，焦散投在沙上慢慢流（emissiveMap，不吃光照）
-    const sandTex = makeTex(256, 256, (c, w, h) => {
-      c.fillStyle = '#2c5a5c'; c.fillRect(0, 0, w, h);
-      c.strokeStyle = 'rgba(120,180,170,.18)'; c.lineWidth = 3;
-      for (let y = 0; y < h + 16; y += 14) {
+    // 沙地：亮的暖沙 + 一片片深一点的海草地 + 沙纹，三乘三平铺
+    const sandTex = makeTex(512, 512, (c, w, h) => {
+      c.fillStyle = '#e4d3a0'; c.fillRect(0, 0, w, h);
+      for (let i = 0; i < 26; i++) {
+        const x = Math.random() * w, y = Math.random() * h, r = 30 + Math.random() * 90;
+        const rg = c.createRadialGradient(x, y, 0, x, y, r);
+        const dark = Math.random() < 0.45;
+        rg.addColorStop(0, dark ? 'rgba(60,160,130,.35)' : 'rgba(255,246,215,.45)');
+        rg.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = rg;
+        // 斑块按环面画九份：贴图平铺时四边接得上，不会露出一格一格的方块
+        for (const ox of [-w, 0, w]) for (const oy of [-h, 0, h]) {
+          c.save(); c.translate(ox, oy); c.fillRect(x - r, y - r, r * 2, r * 2); c.restore();
+        }
+      }
+      c.strokeStyle = 'rgba(150,120,70,.16)'; c.lineWidth = 2;
+      for (let y = 8; y < h; y += 16) {
         c.beginPath();
-        for (let x = 0; x <= w; x += 8) c.lineTo(x, y + Math.sin(x / w * Math.PI * 4) * 4);
+        for (let x = 0; x <= w; x += 8) c.lineTo(x, y + Math.sin(x / w * Math.PI * 6) * 4);
         c.stroke();
       }
-      for (let i = 0; i < 2200; i++) {
-        const a = Math.random();
-        c.fillStyle = a > 0.6 ? 'rgba(150,200,190,.35)' : 'rgba(10,36,40,.45)';
-        c.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1 + Math.random() * 2);
+      for (let i = 0; i < 3500; i++) {
+        c.fillStyle = Math.random() < 0.5 ? 'rgba(120,95,50,.35)' : 'rgba(255,255,240,.45)';
+        c.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 1.5, 1 + Math.random() * 1.5);
       }
     }, true);
-    sandTex.repeat.set(7, 4);
+    sandTex.repeat.set(3, 3);
     floorCaustic = causticTex.clone();
     floorCaustic.needsUpdate = true;
-    floorCaustic.repeat.set(6, 4);
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(140, 80),
-      new THREE.MeshStandardMaterial({
-        map: sandTex, color: 0x9ccac4, roughness: 1, metalness: 0,
-        emissive: 0x3fb4c4, emissiveMap: floorCaustic, emissiveIntensity: 0.38
-      })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.set(0, -26, -30);
-    scene.add(floor);
+    floorCaustic.repeat.set(4, 4);
+    const sand = new THREE.Mesh(new THREE.PlaneGeometry(130, 140),
+      new THREE.MeshStandardMaterial({ map: sandTex, roughness: 1, metalness: 0,
+        emissive: 0x7ff0ff, emissiveMap: floorCaustic, emissiveIntensity: 0.45 }));
+    sand.rotation.x = -Math.PI / 2;
+    floorG.add(sand);
 
-    // 地平线的雾带：沙底的后沿和背景板之间的那条硬线，用一条竖向渐变盖住
-    const hazeTex = makeTex(8, 128, (c, w, h) => {
-      const gr = c.createLinearGradient(0, 0, 0, h);
-      gr.addColorStop(0, 'rgba(8,62,74,0)'); gr.addColorStop(0.5, 'rgba(8,62,74,.95)'); gr.addColorStop(1, 'rgba(8,62,74,0)');
-      c.fillStyle = gr; c.fillRect(0, 0, w, h);
-    });
-    const haze = new THREE.Mesh(new THREE.PlaneGeometry(260, 22),
-      new THREE.MeshBasicMaterial({ map: hazeTex, transparent: true, depthWrite: false, fog: false }));
-    haze.position.set(0, -24, -68);
-    scene.add(haze);
+    // 海面那层：一点点移动的光纹，加色叠在最前面——"隔着水面往下看"
+    causticTex.repeat.set(3, 3);
+    causticPlane = new THREE.Mesh(new THREE.PlaneGeometry(70, 80),
+      new THREE.MeshBasicMaterial({ map: causticTex, alphaMap: edgeTex, transparent: true, opacity: 0.07,
+        blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    causticPlane.position.set(0, 0, 14);
+    scene.add(causticPlane);
 
-    // 礁石：十二面体细分一级再随机推顶点，上面亮下面暗
-    const rockGeo = new THREE.DodecahedronGeometry(1, 1);
-    {
-      const rp = rockGeo.attributes.position, rc = new Float32Array(rp.count * 3);
-      const seen = new Map();
-      for (let i = 0; i < rp.count; i++) {
-        const key = rp.getX(i).toFixed(3) + ',' + rp.getY(i).toFixed(3) + ',' + rp.getZ(i).toFixed(3);
-        let k = seen.get(key);
-        if (k == null) { k = 0.82 + Math.random() * 0.3; seen.set(key, k); }
-        rp.setXYZ(i, rp.getX(i) * k, rp.getY(i) * k, rp.getZ(i) * k);
-        tmpC.set(0x1d4d50).lerp(new THREE.Color(0x3f7f72), Math.max(0, rp.getY(i)) * 0.8);
-        rc[i * 3] = tmpC.r; rc[i * 3 + 1] = tmpC.g; rc[i * 3 + 2] = tmpC.b;
+    // 下面的东西都放进一个合并几何（顶点色），一次画完
+    const props = [];
+    const col = (g, hexA, hexB, k) => {          // 顶点色：上亮下暗（y 朝上 = 朝镜头）
+      const p = g.attributes.position, a = new Float32Array(p.count * 3), cA = new THREE.Color(hexA), cB = new THREE.Color(hexB || hexA);
+      let lo = 1e9, hi = -1e9;
+      for (let i = 0; i < p.count; i++) { lo = Math.min(lo, p.getY(i)); hi = Math.max(hi, p.getY(i)); }
+      for (let i = 0; i < p.count; i++) {
+        tmpC.copy(cB).lerp(cA, (p.getY(i) - lo) / Math.max(1e-6, hi - lo) * (k || 1));
+        a[i * 3] = tmpC.r; a[i * 3 + 1] = tmpC.g; a[i * 3 + 2] = tmpC.b;
       }
-      rockGeo.setAttribute('color', new THREE.BufferAttribute(rc, 3));
-      rockGeo.computeVertexNormals();
-    }
-    const rockMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0.05, flatShading: true });
-    const rocks = [
-      [-17, -25.5, -22, 4.2], [-11, -25.8, -30, 3.2], [16, -25.4, -20, 3.6],
-      [21, -25.6, -34, 5.0], [8, -25.8, -40, 4.4], [-22, -25.6, -44, 6.0]
-    ];
-    for (const [x, y, z, s] of rocks) {
-      const m = new THREE.Mesh(rockGeo, rockMat);
-      m.position.set(x, y, z);
-      m.scale.set(s, s * 0.72, s * 0.9);
-      m.rotation.set(Math.random() * 0.4, Math.random() * 3, Math.random() * 0.3);
-      scene.add(m);
-    }
+      g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+      return g;
+    };
+    const at = (g, x, z, ry, s) => { if (s) g.scale(s, s, s); if (ry) g.rotateY(ry); g.translate(x, 0, z); props.push(g); return g; };
+    const R = (a, b) => a + Math.random() * (b - a);
 
-    // 珊瑚：几丛分叉珊瑚 + 脑珊瑚，给海床一点暖色（全部合并成一个 draw）
-    const coral = [];
-    function branch(x, y, z, len, r, ang, rot, depth, hex) {
+    // 礁石：十二面体推一推顶点，压扁一半埋进沙里
+    for (const [x, z, s] of [[-30, -30, 6], [-33, -14, 4], [31, -26, 5], [33, 8, 4.5], [-31, 22, 5.5], [28, 31, 6], [-12, 35, 3.5], [14, -36, 3.2], [-6, -38, 2.6]]) {
+      const g = new THREE.DodecahedronGeometry(1, 1);
+      const p = g.attributes.position, seen = new Map();
+      for (let i = 0; i < p.count; i++) {
+        const key = p.getX(i).toFixed(3) + ',' + p.getY(i).toFixed(3) + ',' + p.getZ(i).toFixed(3);
+        let k = seen.get(key); if (k == null) { k = 0.8 + Math.random() * 0.35; seen.set(key, k); }
+        p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * 0.6, p.getZ(i) * k);
+      }
+      g.computeVertexNormals();
+      col(g, '#6f9a84', '#24403c');   // 礁石：上面一层青苔绿，底下暗
+      at(g, x, z, R(0, 6), s);
+    }
+    // 分叉珊瑚：往上（朝镜头）长，枝头一颗浅色圆点
+    const branch = (x, y, z, len, r, ang, rot, depth, hex, tip) => {
       const g = new THREE.CylinderGeometry(r * 0.7, r, len, 6);
-      g.translate(0, len / 2, 0);
-      g.rotateZ(ang); g.rotateY(rot);
-      g.translate(x, y, z);
-      coral.push(paintSolid(g, hex));
+      g.translate(0, len / 2, 0); g.rotateZ(ang); g.rotateY(rot); g.translate(x, y, z);
+      props.push(col(g, hex, hex, 0));
       const tx = x - Math.sin(ang) * len * Math.cos(rot), ty = y + Math.cos(ang) * len, tz = z + Math.sin(ang) * len * Math.sin(rot);
       if (depth > 0) {
-        branch(tx, ty, tz, len * 0.72, r * 0.7, ang + 0.5, rot + 0.9, depth - 1, hex);
-        branch(tx, ty, tz, len * 0.72, r * 0.7, ang - 0.45, rot - 0.7, depth - 1, hex);
+        branch(tx, ty, tz, len * 0.72, r * 0.7, ang + 0.6, rot + 1.1, depth - 1, hex, tip);
+        branch(tx, ty, tz, len * 0.72, r * 0.7, ang - 0.55, rot - 0.9, depth - 1, hex, tip);
       } else {
-        const tip = new THREE.SphereGeometry(r * 0.9, 6, 4);
-        tip.translate(tx, ty, tz);
-        coral.push(paintSolid(tip, '#ffd8c8'));
+        const t = new THREE.SphereGeometry(r * 1.2, 6, 4); t.translate(tx, ty, tz);
+        props.push(col(t, tip, tip, 0));
+      }
+    };
+    for (const [x, z, s, hex, tip] of [[-26, -22, 3.2, '#ff5f7e', '#ffe0e8'], [27, -16, 2.8, '#ff9a3a', '#fff0c0'], [-24, 30, 3.4, '#b066ff', '#f0d8ff'],
+      [24, 22, 3.0, '#ffd23a', '#fffbe0'], [-34, 4, 2.4, '#ff5f7e', '#ffe0e8'], [8, 34, 2.6, '#3ad0c8', '#e0fffb'], [-16, -33, 2.2, '#ff9a3a', '#fff0c0']])
+      branch(x, 0, z, s, s * 0.22, R(-0.2, 0.2), R(0, 6), 3, hex, tip);
+    // 脑珊瑚：半球，纹路一圈圈
+    for (const [x, z, s, hex] of [[-20, -30, 2.6, '#e8a84a'], [32, -2, 2.2, '#d86a9a'], [-30, 12, 2.0, '#c8d860'], [18, 30, 2.3, '#e8a84a'], [-2, -34, 1.8, '#d86a9a']]) {
+      const g = new THREE.SphereGeometry(1, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2);
+      const p = g.attributes.position, a = new Float32Array(p.count * 3), c0 = new THREE.Color(hex);
+      for (let i = 0; i < p.count; i++) {
+        const ridge = 0.5 + 0.5 * Math.sin(p.getX(i) * 11 + Math.sin(p.getZ(i) * 9) * 2.4);
+        tmpC.copy(c0).multiplyScalar(0.6 + ridge * 0.55);
+        a[i * 3] = tmpC.r; a[i * 3 + 1] = tmpC.g; a[i * 3 + 2] = tmpC.b;
+      }
+      g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+      g.scale(1, 0.55, 1);
+      at(g, x, z, 0, s);
+    }
+    // 海葵：一簇细锥子，根部深、梢头亮
+    for (const [x, z, hex, tip] of [[-22, 16, '#ff6a3a', '#ffe0a0'], [21, -30, '#c050ff', '#ffd0ff'], [12, -24, '#30c0a0', '#e0fff0'], [-14, 24, '#ff6a3a', '#ffe0a0']]) {
+      for (let i = 0; i < 16; i++) {
+        const a = i / 16 * Math.PI * 2, lean = R(0.2, 0.6);
+        const g = new THREE.ConeGeometry(0.16, R(1.2, 2.0), 5);
+        g.translate(0, 0.8, 0); g.rotateZ(Math.cos(a) * lean); g.rotateX(Math.sin(a) * lean);
+        g.translate(x + Math.cos(a) * 0.5, 0, z + Math.sin(a) * 0.5);
+        props.push(col(g, tip, hex));
       }
     }
-    branch(-13, -26, -18, 2.6, 0.5, 0.1, 0, 3, '#ff6f7a');
-    branch(14, -26, -26, 3.0, 0.55, -0.15, 1, 3, '#ff9a4a');
-    branch(-4, -26, -38, 3.4, 0.6, 0.05, 2, 3, '#d86ad8');
-    branch(24, -26, -16, 2.0, 0.42, 0.2, 0.5, 2, '#ff6f7a');
-    for (const [x, z, s, hex] of [[-20, -16, 2.4, '#e6a24a'], [9, -18, 1.8, '#c86a9a'], [-7, -26, 2.0, '#d8c060']]) {
-      const g = new THREE.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2);
-      const gp = g.attributes.position, gc = new Float32Array(gp.count * 3), c0 = new THREE.Color(hex);
-      for (let i = 0; i < gp.count; i++) {
-        const ridge = 0.5 + 0.5 * Math.sin(gp.getX(i) * 9 + Math.sin(gp.getZ(i) * 7) * 2);
-        tmpC.copy(c0).multiplyScalar(0.55 + ridge * 0.5);
-        gc[i * 3] = tmpC.r; gc[i * 3 + 1] = tmpC.g; gc[i * 3 + 2] = tmpC.b;
+    // 海星：五个扁锥拼一颗，趴在沙上
+    for (const [x, z, s, hex] of [[-8, -20, 1.6, '#ff6a3a'], [16, 12, 1.4, '#ffb030'], [-18, 6, 1.2, '#e03a6a'], [6, -30, 1.3, '#ff6a3a'], [22, -6, 1.1, '#ffd23a'], [-4, 22, 1.5, '#e03a6a']]) {
+      const ry = R(0, 6);
+      for (let k = 0; k < 5; k++) {
+        const g = new THREE.ConeGeometry(0.42, 1.8, 6);
+        g.scale(1, 1, 0.45); g.rotateX(Math.PI / 2); g.translate(0, 0.25, 0.9); g.rotateY(ry + k / 5 * Math.PI * 2);
+        g.scale(s, s, s); g.translate(x, 0, z);
+        props.push(col(g, hex, '#6a1a0a', 1.4));
       }
-      g.setAttribute('color', new THREE.BufferAttribute(gc, 3));
-      g.scale(s, s * 0.7, s);
-      g.translate(x, -26, z);
-      coral.push(g);
+      const c = new THREE.SphereGeometry(0.55, 10, 6); c.scale(s, s * 0.5, s); c.translate(x, 0.2, z);
+      props.push(col(c, hex, hex, 0));
     }
-    scene.add(new THREE.Mesh(mergeGeos(coral), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 })));
+    // 贝壳：扇形一道道肋
+    for (const [x, z, s, hex] of [[-2, -14, 1.2, '#fff0e0'], [10, 20, 1.0, '#ffd8c8'], [-24, -12, 1.1, '#fff0e0'], [26, 4, 0.9, '#ffe0f0'], [2, 30, 1.0, '#ffd8c8']]) {
+      const g = new THREE.SphereGeometry(1, 16, 8, 0, Math.PI, 0, Math.PI / 2);
+      const p = g.attributes.position, a = new Float32Array(p.count * 3), c0 = new THREE.Color(hex);
+      for (let i = 0; i < p.count; i++) {
+        const rib = 0.75 + 0.25 * Math.cos(Math.atan2(p.getZ(i), p.getX(i)) * 14);
+        tmpC.copy(c0).multiplyScalar(rib);
+        a[i * 3] = tmpC.r; a[i * 3 + 1] = tmpC.g; a[i * 3 + 2] = tmpC.b;
+      }
+      g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+      g.scale(1, 0.35, 0.9);
+      at(g, x, z, R(0, 6), s);
+    }
+    floorG.add(new THREE.Mesh(mergeGeos(props), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, metalness: 0.02 })));
 
-    // 海草：几片带透明贴图的板，站在沙上慢慢摆
-    const kelpMat = new THREE.MeshStandardMaterial({
-      map: kelpTex, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide,
-      roughness: 0.9, metalness: 0, color: 0x9fe6c8
-    });
-    const kelpSpots = [
-      [-19, -26, -12, 15, 0.9], [-15.5, -26, -16, 12, 0.7], [17, -26, -13, 16, 0.85],
-      [20.5, -26, -18, 12, 0.7], [11, -26, -26, 18, 0.8], [-10, -26, -32, 20, 0.75],
-      [24, -26, -30, 14, 0.6]
-    ];
-    for (const [x, y, z, h, sc] of kelpSpots) {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(5, h), kelpMat);
-      m.position.set(x, y + h / 2, z);
-      m.scale.setScalar(sc);
+    // 海草：几簇细长叶片，跟着水流摆（kelpMats 每帧转一点）
+    const grassMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, side: THREE.DoubleSide });
+    for (const [x, z] of [[-33, -22], [-28, 34], [33, -34], [30, 26], [-36, 10], [35, -8], [-18, -36], [20, 36]]) {
+      const blades = [];
+      for (let i = 0; i < 9; i++) {
+        const h = R(4, 8), g = new THREE.PlaneGeometry(0.5, h, 1, 6);
+        const p = g.attributes.position;
+        for (let j = 0; j < p.count; j++) { const yy = p.getY(j) + h / 2; p.setX(j, p.getX(j) * (1 - yy / h * 0.8) + Math.sin(yy * 0.5) * 0.4); }
+        g.translate(0, h / 2, 0); g.rotateZ(R(-0.5, 0.5)); g.rotateY(R(0, 6)); g.translate(R(-1.2, 1.2), 0, R(-1.2, 1.2));
+        blades.push(col(g, '#9ae070', '#1e6a3a'));
+      }
+      const m = new THREE.Mesh(mergeGeos(blades), grassMat);
+      m.position.set(x, 0, z);
       m.userData.base = Math.random() * 6.28;
-      scene.add(m);
+      floorG.add(m);
       kelpMats.push(m);
     }
 
-    // 光柱：几片加色带，斜着插下来
-    const rayMat = new THREE.MeshBasicMaterial({
-      map: rayTex, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending,
-      depthWrite: false, fog: false, color: 0xa9f2ff
-    });
-    for (let i = 0; i < 5; i++) {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(6 + (i % 3) * 3, 80), rayMat);
-      m.position.set(-20 + i * 10, 14, -34 - i * 4);
-      m.rotation.z = 0.16 - i * 0.03;
-      scene.add(m);
-      rays.push(m);
+    // 宝藏：一口打开的宝箱（木 + 金包边 + 宝石）、几堆金币、一只金酒杯——金碧辉煌的"金"落在海底上
+    {
+      const goldP = [], woodP = [];
+      const gm = (g) => { goldP.push(paintSolid(g, '#ffd36a')); return g; };
+      const chest = (x, z, ry, sc) => {
+        const parts = [];
+        const box = new THREE.BoxGeometry(5, 3, 3.2); box.translate(0, 1.5, 0); woodP.push(col(box, '#a8642a', '#4a2408'));
+        parts.push(box);
+        for (const dx of [-2.3, 0, 2.3]) { const b = new THREE.BoxGeometry(0.35, 3.1, 3.3); b.translate(dx, 1.5, 0); gm(b); parts.push(b); }
+        const lid = new THREE.CylinderGeometry(1.6, 1.6, 5, 16, 1, false, 0, Math.PI);
+        lid.rotateZ(Math.PI / 2); lid.rotateX(-1.1); lid.translate(0, 3.0, -1.4); woodP.push(col(lid, '#b8702e', '#5a2c0a')); parts.push(lid);
+        const heap = new THREE.SphereGeometry(2.2, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2); heap.scale(1.05, 0.5, 0.65); heap.translate(0, 2.9, 0); gm(heap); parts.push(heap);
+        for (const [gx, gz, hex] of [[-1, 0.4, '#ff2a4a'], [0.8, -0.2, '#2ad0ff'], [0.1, 0.7, '#3aff8a']]) {
+          const gem = new THREE.OctahedronGeometry(0.4, 0); gem.translate(gx, 3.8, gz); goldP.push(paintSolid(gem, hex)); parts.push(gem);
+        }
+        for (const g of parts) { g.scale(sc, sc, sc); g.rotateY(ry); g.translate(x, 0, z); }
+      };
+      chest(-24, -4, 0.5, 1.2);
+      chest(26, 18, -2.4, 0.9);
+      // 金币堆：一摞摞扁圆柱，略歪
+      for (const [x, z, n] of [[-19, 2, 7], [-21, -9, 5], [22, 12, 6], [20, 24, 4], [-6, 28, 5], [9, -28, 6], [-30, -26, 4], [30, -20, 5]]) {
+        for (let k = 0; k < n; k++) {
+          const c = new THREE.CylinderGeometry(0.9, 0.9, 0.22, 16);
+          c.rotateX(R(-0.15, 0.15)); c.translate(x + R(-1.6, 1.6), 0.7 + (k % 3) * 0.24, z + R(-1.6, 1.6));
+          gm(c);
+        }
+      }
+      // 金酒杯
+      const cup = new THREE.LatheGeometry([[0, 0], [0.9, 0], [0.9, 0.15], [0.2, 0.4], [0.2, 1.6], [1.0, 2.2], [1.1, 3.0], [0.95, 3.0], [0.85, 2.3], [0, 2.1]].map(q => new THREE.Vector2(q[0], q[1])), 18);
+      cup.rotateZ(1.2); cup.translate(14, 0.9, -20); gm(cup);
+      floorG.add(new THREE.Mesh(mergeGeos(woodP), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 })));
+      floorG.add(new THREE.Mesh(mergeGeos(goldP), new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.85, roughness: 0.22,
+        emissive: 0x6a4000, emissiveIntensity: 0.55 })));
+      // 宝藏上的闪光：几颗金色星芒一闪一闪（syncParticles 里按时间缩放）
+      const sparkMat = new THREE.SpriteMaterial({ map: starTex, color: 0xfff0a0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+      for (const [x, z] of [[-24, -4], [-19, 2], [-21, -9], [26, 18], [22, 12], [-6, 28], [9, -28], [14, -20], [30, -20], [20, 24]]) {
+        const sp = new THREE.Sprite(sparkMat.clone());
+        sp.position.set(x + R(-2, 2), -(z + R(-2, 2)), FLOOR_Z + 5);
+        sp.userData = { ph: Math.random() * 6.28, sp: 0.6 + Math.random() * 0.9, s: 2.6 + Math.random() * 1.6 };
+        scene.add(sp);
+        twinkles.push(sp);
+      }
     }
 
-    // 近处的前景泡：压在大气泡的虚焦上，给纵深
-    for (let i = 0; i < 7; i++) {
+    // 水色：海底上方一层半透明的青绿，只染海底和珊瑚，鱼在它上面、颜色不受影响
+    const waterTint = new THREE.Mesh(new THREE.PlaneGeometry(140, 150),
+      new THREE.MeshBasicMaterial({ color: 0x18b8c8, transparent: true, opacity: 0.3, depthWrite: false, fog: false }));
+    waterTint.position.z = FLOOR_Z + 0.6;   // 压得很低：只染沙地，金币堆、宝箱、珊瑚都露在上面、颜色是亮的
+    scene.add(waterTint);
+
+    // 鱼影：每条鱼在沙上一块软影子（实例化，一个 draw）
+    shadowMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ map: glowTex, color: 0x0a3a3a, transparent: true, opacity: 0.5, depthWrite: false }), MAXFISH + 12);
+    shadowMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    shadowMesh.frustumCulled = false;
+    shadowMesh.count = 0;
+    scene.add(shadowMesh);
+
+    // 近处的前景泡：虚焦的几颗大泡，给一点"在水里"的感觉
+    for (let i = 0; i < 6; i++) {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: glowTex, transparent: true, opacity: 0.035, color: 0xbdf2ff,
-        depthWrite: false, blending: THREE.AdditiveBlending
+        map: glowTex, transparent: true, opacity: 0.05, color: 0xdffcff, depthWrite: false, blending: THREE.AdditiveBlending
       }));
       sp.scale.setScalar(4 + Math.random() * 5);
-      sp.position.set(-18 + Math.random() * 36, -20 + Math.random() * 40, 26 + Math.random() * 8);
+      sp.position.set(-18 + Math.random() * 36, -20 + Math.random() * 40, 20 + Math.random() * 8);
       sp.userData = { sp: 0.7 + Math.random() * 0.8, ph: Math.random() * 6.28, baseX: sp.position.x };
       scene.add(sp);
       frontBubbles.push(sp);
     }
-
-    // 远处的小鱼影：几条深色剪影在背景前慢慢游，撑出纵深
-    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x04202a, transparent: true, opacity: 0.5, fog: false });
-    for (let i = 0; i < 9; i++) {
-      const g2 = new THREE.SphereGeometry(0.5, 8, 6);
-      g2.scale(2.4, 0.7, 0.4);
-      const m = new THREE.Mesh(g2, shadowMat);
-      m.position.set(-26 + Math.random() * 52, -12 + Math.random() * 30, -62 - Math.random() * 14);
-      m.userData = { sp: 0.6 + Math.random() * 1.2, ph: Math.random() * 6.28, baseY: m.position.y };
-      scene.add(m);
-      ghosts.push(m);
-    }
   }
 
-  const kelpMats = [], rays = [], ghosts = [], frontBubbles = [];
+  const kelpMats = [], rays = [], ghosts = [], frontBubbles = [], twinkles = [];
 
   /* ---------- 鱼的几何：一条鱼一个合并几何，身 + 尾（或鳍 / 腕）两个 draw ----------
      外形只管好看：判定还是平面上的那个圆（f.r），模型长成什么样都不碰账。 */
@@ -1314,7 +1415,8 @@
     const pos = g.attributes.position;
     const n = pos.count;
     const col = new Float32Array(n * 3);
-    const cTop = new THREE.Color(L.top), cBody = new THREE.Color(L.body), cBelly = new THREE.Color(L.belly);
+    // 俯视看到的是鱼背：背色往身色提一半，不然从上面看整条鱼都是暗的
+    const cTop = new THREE.Color(L.top).lerp(new THREE.Color(L.body), 0.5), cBody = new THREE.Color(L.body), cBelly = new THREE.Color(L.belly);
     const cStripe = new THREE.Color(L.stripe || '#ffffff'), cEdge = new THREE.Color(L.stripeEdge || '#000000');
     const cSpot = new THREE.Color(L.spots || '#000000');
     const bend = L.stripeBend != null ? L.stripeBend : 0.06;
@@ -1429,10 +1531,13 @@
       }
     }
 
-    // 胸鳍（贴在身侧，略往后掠）
+    // 胸鳍：平着往两边、往后掠——俯视时竖着的鳍只剩一条线，平的才看得见
     for (const s of [-1, 1]) {
-      bodyParts.push(finShape(L.fin, L.sharkTail ? 0.42 : 0.26, L.sharkTail ? 0.2 : 0.22,
-        [L.len * 0.24, -L.hgt * (L.sharkTail ? 0.3 : 0.05), s * L.wid * 0.82], s * 0.7 + (L.sharkTail ? -0.5 : 0), L.fin));
+      const fin = finShape(L.fin, L.sharkTail ? 0.55 : 0.36, L.sharkTail ? 0.26 : 0.28, null, 0, L.finTip || L.fin);
+      fin.rotateX(Math.PI / 2);
+      fin.rotateY(s * (L.sharkTail ? 0.95 : 0.75));
+      fin.translate(L.len * 0.24, -L.hgt * 0.12, s * L.wid * 0.72);
+      bodyParts.push(fin);
     }
     // 背鳍 + 臀鳍
     if (L.dorsal) {
@@ -1499,6 +1604,7 @@
 
     const bodyGeo = mergeGeos(bodyParts);
     const tailGeo = finShape(L.tail || L.fin, L.sharkTail ? 0.5 : 0.6, L.sharkTail ? 0.5 : 0.52, null, 0, L.tailTip || L.finTip);
+    tailGeo.rotateX(Math.PI / 2);   // 尾鳍平放：俯视看得见整片尾巴，摆尾（绕背脊轴转）就是左右甩
     return fishMats(L, bodyGeo, tailGeo, -L.len * 0.9, L.sharkTail ? 1.15 : 1);
   }
 
@@ -1693,6 +1799,7 @@
     }
     const headGeo = mergeGeos(parts);
     const tailGeo = finShape(P.fin, 0.72, 0.62, null, 0, P.horn);
+    tailGeo.rotateX(Math.PI / 2);
     return (ASSET[type] = {
       dragon: true, headGeo, tailGeo, mat, pal: P,
       cTop: new THREE.Color(P.top), cBody: new THREE.Color(P.body), cBelly: new THREE.Color(P.belly)
@@ -1787,7 +1894,12 @@
     grp.userData.own = own;
 
     const s = f.r / SH * 1.1;
-    grp.scale.setScalar(s);
+    // 俯视：模型的 x 是头尾、y 是背（朝镜头）、z 是左右宽。侧面窄的鱼从上看像根棍，左右加宽一点
+    const Lk = LOOK[f.type];
+    const wide = a.dragon ? 1 : (Lk && Lk.wid < 0.5 ? 1.6 : 1.15);
+    grp.scale.set(s, s, s * wide);
+    grp.rotation.order = 'ZXY';     // 先绕背脊摆身，再把背翻向镜头，最后转到游的方向
+    grp.userData.wide = wide;
     const z = (f.ph % 1) * (Z_FISH_MAX - Z_FISH_MIN) + Z_FISH_MIN;
     grp.position.set(wx(f.x), wy(f.y), z);
     grp.userData.z = z;
@@ -1807,20 +1919,39 @@
         fishViews.delete(f);
       }
     }
+    let nShadow = 0;
     for (const f of fish) {
       let v = fishViews.get(f);
       if (!v) { v = makeFishView(f); fishViews.set(f, v); }
-      const z = v.userData.z;
-      v.position.set(wx(f.x), wy(f.y) + Math.sin(f.t * 2.2 + f.ph) * 0.18, z);
-      const yaw = (f.dir > 0 ? 0 : Math.PI) + (f.ph % 1 - 0.5) * 0.55 + Math.sin(f.t * 1.6 + f.ph) * 0.16;
-      v.rotation.set(0, yaw, Math.sin(f.t * 1.9 + f.ph) * 0.06);
+      // 俯视：鱼头朝着它真正在游的方向（按位移算，摆着游、受惊乱窜都跟着转），背朝镜头
+      const U = v.userData, px = wx(f.x), py = wy(f.y);
+      if (U.px == null) { U.px = px; U.py = py; U.hd = f.dir > 0 ? 0 : Math.PI; }
+      const mdx = px - U.px, mdy = py - U.py;
+      if (mdx * mdx + mdy * mdy > 1e-6) {
+        let dA = Math.atan2(mdy, mdx) - U.hd;
+        dA = Math.atan2(Math.sin(dA), Math.cos(dA));
+        U.hd += dA * 0.15;
+      }
+      U.px = px; U.py = py;
+      v.position.set(px, py, U.z + Math.sin(f.t * 2.2 + f.ph) * 0.18);
+      v.rotation.set(Math.PI / 2, Math.sin(f.t * 1.6 + f.ph) * 0.16, U.hd);
+      // 沙上的影子：光从左上来，影子落在右下；鱼越大影子越大
+      if (shadowMesh && nShadow < shadowMesh.instanceMatrix.count) {
+        const sc = v.scale.x, len = U.dragon ? 3.6 : 2.5 * ((LOOK[f.type] && LOOK[f.type].len) || 1);
+        tmpV.set(px + 1.6, py - 2.0, FLOOR_Z + 0.4);
+        tmpQ.setFromEuler(tmpE.set(0, 0, U.hd));
+        tmpS.set(sc * len * 1.1, sc * (U.dragon ? 1.0 : 1.5 * (U.wide || 1)), 1);
+        tmpM.compose(tmpV, tmpQ, tmpS);
+        shadowMesh.setMatrixAt(nShadow++, tmpM);
+      }
       if (v.userData.dragon) {
         // 龙鱼：管状身体顺着正弦脊线摆，越靠尾越细
         const D = v.userData, A = ASSET[f.type];
         const NV = D.NV, RA = D.RA;
         const pA = D.geo.attributes.position, nA = D.geo.attributes.normal, cA = D.geo.attributes.color;
-        const yAt = u => Math.sin(u * 6.0 - f.t * 4.4 + f.ph) * 0.52 * (1.12 - u * 0.72);
-        const zAt = u => Math.sin(u * 4.2 - f.t * 3.1 + f.ph) * 0.22;
+        // 俯视：大的蛇形摆在左右（z），上下（y，朝镜头）只轻轻起伏
+        const zAt = u => Math.sin(u * 6.0 - f.t * 4.4 + f.ph) * 0.52 * (1.12 - u * 0.72);
+        const yAt = u => Math.sin(u * 4.2 - f.t * 3.1 + f.ph) * 0.12;
         for (let i = 0; i < NV; i++) {
           const u = i / (NV - 1);
           const x = -1.5 + u * 3.0, y = yAt(u), z = zAt(u);
@@ -1838,9 +1969,9 @@
             const k = (i * RA + j) * 3;
             pA.array[k] = x + nx * rr; pA.array[k + 1] = y + ny * rr; pA.array[k + 2] = z + nz * rr;
             nA.array[k] = nx; nA.array[k + 1] = ny; nA.array[k + 2] = nz;
-            const s2 = (sa + 1) / 2;
-            tmpC.copy(A.cBelly).lerp(A.cBody, s2);
-            if (sa > 0.3) tmpC.lerp(A.cTop, Math.min(1, (sa - 0.3) / 0.7) * 0.85);
+            const up = -ca;                               // 朝 +y（背，朝镜头）那一面
+            tmpC.copy(A.cBelly).lerp(A.cBody, (up + 1) / 2);
+            if (up > 0.3) tmpC.lerp(A.cTop, Math.min(1, (up - 0.3) / 0.7) * 0.6);
             cA.array[k] = tmpC.r; cA.array[k + 1] = tmpC.g; cA.array[k + 2] = tmpC.b;
           }
         }
@@ -1848,19 +1979,18 @@
         for (let i = 0; i < 11; i++) {
           const u = 0.06 + i * 0.078;
           const x = -1.52 + u * 3.0;
-          const y = yAt(u) + 0.2;
-          tmpV.set(x, y, 0);
-          tmpQ.setFromEuler(tmpE.set(0, 0, -Math.atan2(yAt(u + 0.05) - yAt(u), 0.15)));
+          tmpV.set(x, yAt(u) + 0.24, zAt(u));
+          tmpQ.setFromEuler(tmpE.set(0, -Math.atan2(zAt(u + 0.05) - zAt(u), 0.15), 0));
           tmpS.set(0.9, 0.9, 0.9);
           tmpM.compose(tmpV, tmpQ, tmpS);
           v.userData.spike.setMatrixAt(i, tmpM);
         }
         v.userData.spike.instanceMatrix.needsUpdate = true;
         // 头 / 尾跟着脊线端点的切线转
-        v.userData.head.position.set(1.5, yAt(0.965), 0);
-        v.userData.head.rotation.z = Math.atan2(yAt(1) - yAt(0.9), 0.3);
-        v.userData.tail.position.set(-1.5, yAt(0), 0);
-        v.userData.tail.rotation.z = Math.atan2(yAt(0.1) - yAt(0), 0.3) * 1.5;
+        v.userData.head.position.set(1.5, yAt(0.965), zAt(0.965));
+        v.userData.head.rotation.set(0, -Math.atan2(zAt(1) - zAt(0.9), 0.3), 0);
+        v.userData.tail.position.set(-1.5, yAt(0), zAt(0));
+        v.userData.tail.rotation.set(0, -Math.atan2(zAt(0.1) - zAt(0), 0.3) * 1.5, 0);
       } else if (v.userData.tail) {
         v.userData.tail.rotation.y = Math.sin(f.t * v.userData.tailSpd + f.ph) * v.userData.tailAmp;
       }
@@ -1873,32 +2003,39 @@
         if (hit.visible) hit.material.opacity = Math.min(0.5, f.flash * 0.5);
       }
     }
+    if (shadowMesh) { shadowMesh.count = nShadow; shadowMesh.instanceMatrix.needsUpdate = true; }
   }
 
   /* ---------- 炮台 ---------- */
   function buildCannon() {
     const grp = new THREE.Group();
     grp.position.set(0, wy(CY), 1.6);
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0x1b3a42, roughness: 0.5, metalness: 0.25 });
-    const goldMat = new THREE.MeshStandardMaterial({ color: 0xd8a94a, roughness: 0.32, metalness: 0.55, emissive: 0x3a2200, emissiveIntensity: 0.7 });
-    const steelMat = new THREE.MeshStandardMaterial({ color: 0x6d9aa4, roughness: 0.3, metalness: 0.3, emissive: 0x0b2a33, emissiveIntensity: 0.7 });
+    // 金碧：底座是碧玉漆（深青、有光泽），炮身整根鎏金，铜箍更亮
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0x0e6a5c, roughness: 0.28, metalness: 0.35, emissive: 0x032a24, emissiveIntensity: 0.6 });
+    const goldMat = new THREE.MeshStandardMaterial({ color: 0xffd36a, roughness: 0.22, metalness: 0.75, emissive: 0x5a3400, emissiveIntensity: 0.8 });
+    const steelMat = new THREE.MeshStandardMaterial({ color: 0xf0b840, roughness: 0.26, metalness: 0.7, emissive: 0x4a2a00, emissiveIntensity: 0.75 });
 
+    // 俯视：底座这几件的轴原本朝上（y），整组转 90° 让轴朝镜头——从上看就是一圈圈同心的盘
+    const baseG = new THREE.Group();
+    baseG.rotation.x = Math.PI / 2;
+    grp.add(baseG);
     const base = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 4.6, 2.6, 30), baseMat);
     base.position.y = -1.7;
-    grp.add(base);
+    baseG.add(base);
     const collar = new THREE.Mesh(new THREE.TorusGeometry(3.0, 0.4, 8, 30), goldMat);
     collar.rotation.x = Math.PI / 2;
     collar.position.y = -0.3;
-    grp.add(collar);
+    baseG.add(collar);
     const dome = new THREE.Mesh(new THREE.SphereGeometry(2.6, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), steelMat);
     dome.position.y = -0.05;
     dome.scale.set(1, 0.62, 1);
-    grp.add(dome);
+    baseG.add(dome);
     const deck = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.9, 0.7, 24), baseMat);
     deck.position.y = 0.5;
-    grp.add(deck);
+    baseG.add(deck);
 
     const pivot = new THREE.Group();
+    pivot.position.z = 1.4;          // 炮管平躺在底座上面，绕镜头轴转
     grp.add(pivot);
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.75, 5.0, 26), steelMat);
     barrel.position.y = 3.0;
@@ -2178,6 +2315,13 @@
     for (const m of kelpMats) {
       m.rotation.z = Math.sin(t * 0.9 + m.userData.base) * 0.12;
     }
+    for (const sp of twinkles) {
+      const k = Math.max(0, Math.sin(t * sp.userData.sp * 2 + sp.userData.ph));
+      const kk = k * k * k;
+      sp.scale.setScalar(sp.userData.s * (0.2 + kk));
+      sp.material.opacity = kk;
+      sp.material.rotation = t * 0.6 + sp.userData.ph;
+    }
     for (let i = 0; i < rays.length; i++) {
       rays[i].position.x += Math.sin(t * 0.2 + i) * 0.004;
     }
@@ -2219,25 +2363,95 @@
     return { x: CX + Math.sin(aim) * (BARREL + 10), y: CY - Math.cos(aim) * (BARREL + 10) };
   }
 
+  /* 血条：胶囊形、玻璃底、渐变填充 + 一截"刚掉的血"白条慢慢追上来（街机捕鱼那种）。
+     小鱼挨打才出现、停手 2 秒淡出；大鱼（≥16×）一直在，没挨打时半透明，左头挂一枚写着倍数的金币；
+     鱼王更宽、金框、头顶一条"鱼王 · 80×"的缎带，血少了会闪。 */
+  function pill(x, y, w, h) {
+    const r = h / 2;
+    g.beginPath();
+    g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2);
+    g.lineTo(x + r, y + h); g.arc(x + r, y + r, r, Math.PI / 2, Math.PI * 1.5); g.closePath();
+  }
+  function hpColors(p, boss) {
+    if (boss) return p > 0.3 ? ['#fff1a8', '#ffc232', '#c87a08'] : ['#ffd0a8', '#ff6a3a', '#a01a08'];
+    if (p > 0.6) return ['#d8ffe8', '#46e08a', '#178a4c'];
+    if (p > 0.3) return ['#fff4c0', '#ffc83a', '#b8780a'];
+    return ['#ffd8c8', '#ff5a3a', '#a01808'];
+  }
   function drawHpBar(f) {
     const F = FISH[f.type];
-    // 大鱼一直有血条；小鱼挨过打之后才出现一条小血条——
-    // "打够血量就翻"这件事，小鱼也得看得见进度（issue 02）
     const big = F.v >= 16 || f.boss || F.dragon;
-    if (!big && f.hp >= 1) return;
+    const now = performance.now();
+    const p = Math.max(0, Math.min(1, f.hp));
+    if (f._hp0 !== f.hp) { if (f._hp0 != null) f._hitAt = now; f._hp0 = f.hp; }
+    if (f._lag == null || f._lag < p) f._lag = p;
+    f._lag += (p - f._lag) * 0.06;                       // 白条每帧追 6%：大约半秒追上
+    const since = f._hitAt ? (now - f._hitAt) / 1000 : 99;
+    let alpha;
+    if (!big) {
+      if (p >= 1 || since > 2.6) return;
+      alpha = since < 2 ? 1 : 1 - (since - 2) / 0.6;
+    } else alpha = f.boss || since < 3 ? 1 : (p < 1 ? 0.8 : 0.55);
     hpBarsDrawn++;
     if (!big) hpBarsSmallDrawn++;
-    const w = big ? Math.max(44, f.r * (F.dragon ? 2.6 : 2.1)) : Math.max(30, f.r * 1.9), h = big ? 5 : 4;
-    const x = f.x - w / 2, y = f.y - f.r * (F.dragon ? 1.08 : 1.3) - 12;
-    g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(x - 1, y - 1, w + 2, h + 2);
-    g.fillStyle = '#0b2730'; g.fillRect(x, y, w, h);
-    const p = Math.max(0, Math.min(1, f.hp));
-    g.fillStyle = f.boss ? '#ffd257' : (p > 0.5 ? '#6cf0a8' : '#ffb03a');
-    g.fillRect(x, y, w * p, h);
-    if (f.boss) {
-      g.font = '700 10px system-ui,sans-serif'; g.textAlign = 'center';
-      g.fillStyle = '#ffe6a0'; g.fillText('鱼王', f.x, y - 4);
+
+    const w = f.boss ? Math.max(96, f.r * 2.4) : big ? Math.max(50, f.r * (F.dragon ? 2.3 : 1.9)) : Math.max(26, f.r * 1.6);
+    const h = f.boss ? 9 : big ? 6 : 4;
+    // 贴着画布上沿时往下压：鱼王头顶那条缎带要整条看得见
+    const x = Math.max(big ? (f.boss ? 24 : 20) : 4, Math.min(W - w - 4, f.x - w / 2)), y = Math.max(f.boss ? 24 : 6, f.y - f.r * (F.dragon ? 1.08 : 1.25) - (f.boss ? 18 : 10));
+    g.save();
+    g.globalAlpha = alpha;
+    // 玻璃底
+    pill(x - 1.5, y - 1.5, w + 3, h + 3);
+    g.fillStyle = 'rgba(4,18,24,.72)'; g.fill();
+    if (f.boss) { g.lineWidth = 1.5; g.strokeStyle = '#e8b84a'; g.stroke(); }
+    else { g.lineWidth = 1; g.strokeStyle = 'rgba(210,250,255,.35)'; g.stroke(); }
+    g.save(); pill(x, y, w, h); g.clip();
+    // 刚掉的那截：白
+    if (f._lag > p + 0.002) { g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(x, y, w * f._lag, h); }
+    // 填充：上亮下暗三段渐变 + 顶上一道高光
+    const [hi, mid, lo] = hpColors(p, f.boss);
+    const gr = g.createLinearGradient(0, y, 0, y + h);
+    gr.addColorStop(0, hi); gr.addColorStop(0.45, mid); gr.addColorStop(1, lo);
+    g.fillStyle = gr; g.fillRect(x, y, w * p, h);
+    g.fillStyle = 'rgba(255,255,255,.28)'; g.fillRect(x, y, w * p, Math.max(1, h * 0.3));
+    // 刻度：大鱼十格，鱼王二十格
+    if (big) {
+      g.fillStyle = 'rgba(0,0,0,.35)';
+      const n = f.boss ? 20 : 10;
+      for (let i = 1; i < n; i++) g.fillRect(x + w * i / n - 0.5, y, 1, h);
     }
+    g.restore();
+    // 血少了闪一下（鱼王 < 30%）
+    if (f.boss && p < 0.3 && Math.floor(now / 160) % 2) {
+      pill(x - 1.5, y - 1.5, w + 3, h + 3); g.lineWidth = 2; g.strokeStyle = 'rgba(255,90,50,.9)'; g.stroke();
+    }
+    // 大鱼：左头挂一枚金币，写倍数
+    if (big) {
+      const cr = f.boss ? 10 : 8, cx = x - cr + 2, cy = y + h / 2;
+      const cg = g.createRadialGradient(cx - cr * 0.35, cy - cr * 0.4, 1, cx, cy, cr);
+      cg.addColorStop(0, '#fff6c8'); cg.addColorStop(0.55, '#f2b83a'); cg.addColorStop(1, '#8a5206');
+      g.beginPath(); g.arc(cx, cy, cr, 0, Math.PI * 2); g.fillStyle = cg; g.fill();
+      g.lineWidth = 1; g.strokeStyle = '#5a3404'; g.stroke();
+      g.font = '900 ' + (F.v >= 100 ? cr * 0.8 : cr * 0.95).toFixed(1) + 'px system-ui,sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#4a2a02'; g.fillText(String(F.v), cx, cy + 0.5);
+    }
+    // 鱼王：头顶一条缎带
+    if (f.boss) {
+      const label = '鱼王 · ' + F.v + '×';
+      g.font = '900 12px system-ui,"PingFang SC",sans-serif';
+      const tw = g.measureText(label).width + 18, ry = y - 19, mx = x + w / 2;
+      g.beginPath();
+      g.moveTo(mx - tw / 2 - 6, ry); g.lineTo(mx + tw / 2 + 6, ry); g.lineTo(mx + tw / 2, ry + 8);
+      g.lineTo(mx + tw / 2 + 6, ry + 16); g.lineTo(mx - tw / 2 - 6, ry + 16); g.lineTo(mx - tw / 2, ry + 8); g.closePath();
+      const rb = g.createLinearGradient(0, ry, 0, ry + 16);
+      rb.addColorStop(0, '#d8301e'); rb.addColorStop(1, '#7a0c06');
+      g.fillStyle = rb; g.fill(); g.lineWidth = 1; g.strokeStyle = '#ffd36a'; g.stroke();
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#ffe9a8'; g.fillText(label, mx, ry + 8.5);
+    }
+    g.restore();
   }
 
   /* 鱼谱表 */
@@ -2265,8 +2479,24 @@
     }
   }
 
+  // 炮台旁边一枚金币，写着当前炮倍——街机捕鱼的炮台都把倍数铸在身上
+  function drawBetBadge() {
+    const cx = CX + 58, cy = H - 18, r = 15;
+    const gr = g.createRadialGradient(cx - 5, cy - 6, 1, cx, cy, r);
+    gr.addColorStop(0, '#fffbe0'); gr.addColorStop(0.45, '#ffd862'); gr.addColorStop(0.8, '#c8861a'); gr.addColorStop(1, '#6a4206');
+    g.save();
+    g.shadowColor = 'rgba(255,200,80,.7)'; g.shadowBlur = 10;
+    g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fillStyle = gr; g.fill();
+    g.shadowBlur = 0;
+    g.lineWidth = 1.5; g.strokeStyle = '#4a2a02'; g.stroke();
+    g.beginPath(); g.arc(cx, cy, r - 3.5, 0, Math.PI * 2); g.lineWidth = 1; g.strokeStyle = 'rgba(120,70,4,.6)'; g.stroke();
+    g.font = '900 ' + (S.bet >= 10 ? 12 : 14) + 'px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#4a2a02'; g.fillText(S.bet + '×', cx, cy + 1);
+    g.restore();
+  }
   let lockLit = false;
   function drawAimUi(t) {
+    drawBetBadge();
     if (lockLit !== !!locked) { lockLit = !!locked; $('btnLock').classList.toggle('on', lockLit); }   // 锁着鱼的时候锁定键亮
     const m = muzzle();
     if (locked && fish.includes(locked)) {
@@ -2310,9 +2540,9 @@
   function drawGlass() {
     const vg = g.createRadialGradient(W / 2, H * 0.46, H * 0.32, W / 2, H * 0.46, H * 0.78);
     vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,.3)');
+    vg.addColorStop(1, 'rgba(0,30,40,.22)');
     g.fillStyle = vg; g.fillRect(0, 0, W, H);
-    g.save(); g.globalAlpha = 0.34; g.fillStyle = scanPat; g.fillRect(0, 0, W, H); g.restore();
+    g.save(); g.globalAlpha = 0.18; g.fillStyle = scanPat; g.fillRect(0, 0, W, H); g.restore();
   }
 
   const scanCv = document.createElement('canvas');
@@ -2965,9 +3195,9 @@
     for (let i = 0; i < 3; i++) {
       const over = $('stage').getBoundingClientRect().height - window.innerHeight;
       if (over <= 1) break;
-      const w = cab.getBoundingClientRect().width - 14;
+      const w = cab.getBoundingClientRect().width - 24;   // 金框两边各 12
       const h = Math.max(200, w * H / W - over);
-      cab.style.width = Math.round(h * W / H + 14) + 'px';
+      cab.style.width = Math.round(h * W / H + 24) + 'px';
     }
   }
   addEventListener('resize', fitPhone);
