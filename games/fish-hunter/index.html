@@ -167,7 +167,7 @@
   .btn.bet.on{color:#2c1902;background:linear-gradient(180deg,#ffe391,#f0b53a 50%,#c8820f);border-color:#ffe9ae}
   .btn.bet.on small{color:#5d3c04}
   .btn:disabled{opacity:.4;cursor:default}
-  .row.utility{grid-template-columns:repeat(4,1fr);margin-top:10px}
+  .row.utility{grid-template-columns:repeat(5,1fr);margin-top:10px}
   .row.utility .btn{padding:7px 4px;font-size:12px;border-radius:4px}
 
   .panel{
@@ -422,6 +422,16 @@
   .sheet{border-color:#ffd862;box-shadow:0 0 0 1px #000,0 0 0 4px #9a6508,0 0 60px rgba(255,190,70,.2)}
   .sheet h2{color:#ffe9a8;border-bottom-color:#ffd862}
 
+  /* 爆点（issue 09）：飞进币袋的金币，到了币袋那块 LED 闪一下 */
+  .coinfly{position:fixed;inset:0;pointer-events:none;z-index:40;overflow:hidden}
+  .coinfly i{position:absolute;left:-9px;top:-9px;width:18px;height:18px;border-radius:50%;will-change:transform;
+    background:radial-gradient(circle at 35% 30%,#fffbe0 0 12%,#ffd862 30%,#e0a326 62%,#8a5206 100%);
+    box-shadow:0 0 8px rgba(255,200,80,.85),inset 0 0 0 1.5px rgba(90,52,4,.7)}
+  .asset.pulse{animation:balpulse .35s ease-out}
+  @keyframes balpulse{0%{box-shadow:0 0 0 1px #2a1802,0 0 0 3px #fff2c0,0 0 0 4px #6a4206,0 0 26px rgba(255,210,90,.9)}100%{}}
+  .asset.pulse .v{animation:balnum .35s ease-out}
+  @keyframes balnum{0%{transform:scale(1.18)}100%{transform:scale(1)}}
+
   /* ---------- 手机：一屏放下整台机器，次要按钮收进「菜单」（和聚宝盆同一套） ----------
      竖屏：招牌压薄、屏幕按真实可见高度缩（fitPhone），炮倍 / 开炮键永远在屏内；
      玩法 / 鱼谱 / 网具 / 暂停 / 重置战绩 / 全屏 收进右上角的菜单。横屏：屏幕在左，按键在右。 */
@@ -529,6 +539,7 @@
     <button class="btn" id="btnBook">鱼谱</button>
     <button class="btn" id="btnNet">网具</button>
     <button class="btn" id="btnPause">暂停</button>
+    <button class="btn on" id="btnBots">陪打:开</button>
   </div>
 
   <div class="panel">
@@ -569,6 +580,7 @@
       <button class="btn" data-go="btnPause">暂停</button>
       <button class="btn" data-go="btnReset">重置战绩</button>
       <button class="btn" data-go="btnFull">全屏</button>
+      <button class="btn" data-go="btnBots" id="menuBots" style="grid-column:1 / -1">机器人陪打：开</button>
     </div>
     <button class="closebtn" data-close>回到海里</button>
   </div>
@@ -694,7 +706,7 @@
 
   /* ================= 战绩存档（币不在里面） ================= */
   const SAVE_KEY = 'fishhunter.v1';
-  const S = { v: 1, bet: 1, sound: true, auto: false, caught: 0, gained: 0, best: 0, king: 0, spent: 0, net: 1, skin: 0, skins: 1, kingNext: false };
+  const S = { v: 1, bet: 1, sound: true, auto: false, caught: 0, gained: 0, best: 0, king: 0, spent: 0, net: 1, skin: 0, skins: 1, kingNext: false, bots: true };
   try {
     const raw = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
     if (raw && raw.v === 1) Object.assign(S, raw);
@@ -776,6 +788,8 @@
       setTimeout(() => tone(1170, 0.18, 'sine', 0.05, 200), 170);
     },
     king() { [220, 176, 148].forEach((f, i) => setTimeout(() => tone(f, 0.3, 'sawtooth', 0.045, -30), i * 110)); },
+    coin() { tone(1500 + Math.random() * 500, 0.04, 'square', 0.018, 300); },
+    fanfare() { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => setTimeout(() => tone(f, i === 6 ? 0.5 : 0.16, 'triangle', 0.06, 0), i * 120)); },
     miss() { tone(250, 0.07, 'sine', 0.022, -110); },
     empty() { tone(170, 0.12, 'sine', 0.04, -60); },
     tide() { tone(300, 0.16, 'sine', 0.04, 220); }
@@ -1073,6 +1087,7 @@
 
     buildTank();
     buildCannon();
+    buildBotCannons();
     buildParticleMeshes();
 
     threeReady = true;
@@ -2076,16 +2091,16 @@
   }
 
   /* ---------- 子弹 / 网 / 光圈 ---------- */
-  function makeShotView() {
+  function makeShotView(owner) {
     const grp = new THREE.Group();
     const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34, 0),
-      new THREE.MeshBasicMaterial({ color: 0xd8fbff }));
+      new THREE.MeshBasicMaterial({ color: owner ? owner.net : 0xd8fbff }));
     grp.add(core);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.05, 6, 24),
-      new THREE.MeshBasicMaterial({ color: 0x8fe8ff, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+      new THREE.MeshBasicMaterial({ color: owner ? owner.ring : 0x8fe8ff, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
     grp.add(ring);
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: glowTex, color: 0x9df3ff, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false
+      map: glowTex, color: owner ? owner.ring : 0x9df3ff, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false
     }));
     halo.scale.set(2.4, 2.4, 1);
     grp.add(halo);
@@ -2109,16 +2124,16 @@
     }
     for (const s of shots) {
       let v = shotViews.get(s);
-      if (!v) { v = makeShotView(); shotViews.set(s, v); }
+      if (!v) { v = makeShotView(s.owner); shotViews.set(s, v); }
       v.position.set(wx(s.x), wy(s.y), Z_SHOT);
       v.userData.ring.rotation.set(t * 6, t * 4.2, 0);
-      const k = 1 - Math.min(1, Math.hypot(s.x - CX, s.y - CY) / 300);
+      const k = s.owner ? 0.3 : 1 - Math.min(1, Math.hypot(s.x - CX, s.y - CY) / 300);
       v.rotation.z = s.spin;
       v.scale.setScalar(0.8 + k * 0.5);
     }
   }
 
-  function netFx(x, y, radius, col) {
+  function netFx(x, y, radius, col, solid) {
     let fx = fxPool.pop();
     if (!fx) { fx = buildNetFx(); }
     fx.grp.visible = true;
@@ -2130,6 +2145,9 @@
     fx.t = 0; fx.max = 0.44; fx.grow = radius / SH;
     fx.ringMat.color.set(col);
     fx.lineMat.color.set(col);
+    // 机器人的网用正常混合：加色混合在亮沙上会把橙 / 紫都冲成白，分不清是谁的网
+    const bl = solid ? THREE.NormalBlending : THREE.AdditiveBlending;
+    if (fx.ringMat.blending !== bl) { fx.ringMat.blending = bl; fx.lineMat.blending = bl; fx.ringMat.needsUpdate = true; fx.lineMat.needsUpdate = true; }
     scene.add(fx.grp);
     fxLive.push(fx);
   }
@@ -2245,7 +2263,7 @@
     // 2D 逻辑推进的网 / 光圈，在这里变成 3D 特效（同一份 parts，只加不改）
     for (const p of parts) {
       if (seenFx.has(p)) continue;
-      if (p.kind === 'net') { seenFx.add(p); netFx(p.x, p.y, p.grow, p.col || '#bff6ff'); }
+      if (p.kind === 'net') { seenFx.add(p); netFx(p.x, p.y, p.grow, p.col || '#bff6ff', p.bot); }
       else if (p.kind === 'ring') { seenFx.add(p); flashFx(p.x, p.y, Math.max(1.8, Math.min(6.5, (p.grow || 40) / 13)), p.col); }
     }
     // 金币
@@ -2345,6 +2363,7 @@
     syncShots(t);
     syncFx(dt);
     syncParticles(t);
+    syncBotCannons();
     if (cannonPivot) {
       cannonPivot.rotation.z = -aim;
       const kick = recoil * 0.55;
@@ -2464,19 +2483,106 @@
     $('bookTable').innerHTML = rows;
   })();
 
+  // 金色大字：先弹（0.4 → 1.25 → 1），再慢慢往上飘，最后三成时间淡出
   function drawPops() {
     for (const p of pops) {
       const k = 1 - p.life / p.max;
+      const sc = k < 0.12 ? 0.4 + k / 0.12 * 0.85 : k < 0.24 ? 1.25 - (k - 0.12) / 0.12 * 0.25 : 1;
+      const y = p.y - (k < 0.24 ? 0 : (k - 0.24) * 46);
       g.save();
-      g.globalAlpha = Math.min(1, (1 - k) * 2.2);
-      g.font = '900 ' + p.size + 'px system-ui,-apple-system,sans-serif';
+      g.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1;
+      g.translate(p.x, y); g.scale(sc, sc);
+      g.font = '900 ' + p.size + 'px system-ui,-apple-system,"PingFang SC",sans-serif';
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.lineWidth = 3; g.strokeStyle = 'rgba(40,16,0,.7)';
-      g.strokeText(p.text, p.x, p.y - k * 34);
-      g.fillStyle = '#ffe27a';
-      g.fillText(p.text, p.x, p.y - k * 34);
+      if (p.big) { g.shadowColor = 'rgba(255,190,60,.9)'; g.shadowBlur = 14; }
+      g.lineJoin = 'round'; g.lineWidth = Math.max(4, p.size * 0.16); g.strokeStyle = '#3a1c00';
+      g.strokeText(p.text, 0, 0);
+      g.shadowBlur = 0;
+      const gr = g.createLinearGradient(0, -p.size * 0.5, 0, p.size * 0.5);
+      gr.addColorStop(0, '#fffbe0'); gr.addColorStop(0.45, '#ffd862'); gr.addColorStop(0.55, '#f0a020'); gr.addColorStop(1, '#ffe08a');
+      g.fillStyle = p.col || gr; g.fillText(p.text, 0, 0);
       g.restore();
     }
+  }
+
+  /* 金币飞进币袋：一层 fixed 的 DOM，从鱼在页面上的位置飞到币袋那块 LED，先往外弹一下再收进去。
+     到了就让币袋闪一下、叮一声。动画走 Web Animations（不占游戏的每帧）；reduced-motion 只闪不飞。 */
+  const flyLayer = document.createElement('div');
+  flyLayer.className = 'coinfly';
+  document.body.appendChild(flyLayer);
+  function flyCoins(x, y, n, wait) {
+    const bal = $('uiBal'), cvr = cv.getBoundingClientRect(), br = bal.getBoundingClientRect();
+    const pulse = () => { bal.parentElement.classList.remove('pulse'); void bal.offsetWidth; bal.parentElement.classList.add('pulse'); };
+    if (reduce || !br.width || !flyLayer.animate) { pulse(); return; }
+    const sx = cvr.left + x / W * cvr.width, sy = cvr.top + y / H * cvr.height;
+    const tx = br.left + br.width * 0.35, ty = br.top + br.height / 2;
+    for (let i = 0; i < n; i++) {
+      const c = document.createElement('i');
+      flyLayer.appendChild(c);
+      const a = Math.random() * Math.PI * 2, d = 24 + Math.random() * 46;
+      const mx = sx + Math.cos(a) * d, my = sy + Math.sin(a) * d - 20;
+      const anim = c.animate([
+        { transform: `translate(${sx}px,${sy}px) scale(.4)`, opacity: 0 },
+        { transform: `translate(${mx}px,${my}px) scale(1.15)`, opacity: 1, offset: 0.28 },
+        { transform: `translate(${tx}px,${ty}px) scale(.55)`, opacity: 1 }
+      ], { duration: 720 + Math.random() * 260, delay: (wait || 0) + i * 45, easing: 'cubic-bezier(.4,0,.7,1)', fill: 'both' });
+      anim.onfinish = () => { c.remove(); if (i % 3 === 0) { pulse(); sfx.coin(); } };
+    }
+  }
+
+  /* 鱼王整屏庆祝（3 秒）：暗场 + 一圈转动的金色光芒 + "捕获鱼王"金字 + 赔付从 0 数上去，金币雨一阵一阵砸 */
+  let celeb = null;
+  function startCeleb(f, pay) {
+    celeb = { t: 0, max: 3.2, pay, rains: 0 };
+    shake = 1;
+    sfx.fanfare();
+  }
+  function celebTick(dt) {
+    if (!celeb) return;
+    celeb.t += dt;
+    if (celeb.rains < 9 && celeb.t > celeb.rains * 0.18) {
+      celeb.rains++;
+      burst(40 + Math.random() * (W - 80), 60 + Math.random() * (H - 200), 14, 1.6);
+    }
+    if (celeb.t >= celeb.max) celeb = null;
+  }
+  function drawCeleb() {
+    if (!celeb) return;
+    const t = celeb.t, k = t / celeb.max;
+    const fadeIn = Math.min(1, t / 0.25), fadeOut = k > 0.82 ? (1 - k) / 0.18 : 1, A = fadeIn * fadeOut;
+    const cx = W / 2, cy = H * 0.42;
+    g.save();
+    g.globalAlpha = A * 0.55; g.fillStyle = '#021014'; g.fillRect(0, 0, W, H);
+    // 光芒：24 道扇形，慢慢转
+    g.globalAlpha = A * 0.55;
+    g.translate(cx, cy); g.rotate(t * 0.6);
+    const R = Math.hypot(W, H);
+    const rg = g.createRadialGradient(0, 0, 10, 0, 0, R * 0.6);
+    rg.addColorStop(0, 'rgba(255,240,170,.95)'); rg.addColorStop(1, 'rgba(255,190,60,0)');
+    g.fillStyle = rg;
+    for (let i = 0; i < 24; i += 2) {
+      g.beginPath(); g.moveTo(0, 0);
+      g.arc(0, 0, R, i / 24 * Math.PI * 2, (i + 1) / 24 * Math.PI * 2); g.closePath(); g.fill();
+    }
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // 金字：弹进来
+    const pop = t < 0.35 ? 0.3 + t / 0.35 * 0.9 : t < 0.5 ? 1.2 - (t - 0.35) / 0.15 * 0.2 : 1;
+    g.globalAlpha = A;
+    g.translate(cx, cy); g.scale(pop, pop);
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    const title = (sz, txt, y) => {
+      g.font = '900 ' + sz + 'px system-ui,-apple-system,"PingFang SC",sans-serif';
+      g.shadowColor = 'rgba(255,190,60,.95)'; g.shadowBlur = 22;
+      g.lineWidth = sz * 0.16; g.strokeStyle = '#3a1c00'; g.strokeText(txt, 0, y);
+      g.shadowBlur = 0;
+      const gr = g.createLinearGradient(0, y - sz / 2, 0, y + sz / 2);
+      gr.addColorStop(0, '#fffbe6'); gr.addColorStop(0.4, '#ffe07a'); gr.addColorStop(0.52, '#e8961a'); gr.addColorStop(1, '#fff0b0');
+      g.fillStyle = gr; g.fillText(txt, 0, y);
+    };
+    title(46, '捕获鱼王', -26);
+    const n = Math.round(celeb.pay * Math.min(1, Math.max(0, (t - 0.3) / 1.2)));
+    title(38, '+' + fmt(n) + ' 币', 30);
+    g.restore();
   }
 
   // 炮台旁边一枚金币，写着当前炮倍——街机捕鱼的炮台都把倍数铸在身上
@@ -2582,7 +2688,9 @@
     hpBarsSmallDrawn = 0;
     for (const f of hpList) drawHpBar(f);
     drawPops();
+    drawBotSeats();
     drawAimUi(t);
+    drawCeleb();
     g.restore();
     drawGlass();
   }
@@ -2745,13 +2853,12 @@
     burst(f.x, f.y, cn, tier);
     parts.push({ kind: 'ring', x: f.x, y: f.y, s: f.r * 0.4, grow: f.r * (FISH[f.type].dragon ? 2.6 : 1.7),
                  life: 0.34, max: 0.34, col: FISH[f.type].col });
-    // 大额由中间那行闪光报数，不再叠一个一样的飘字
-    if (pay < 20 && !f.boss) {
-      pops.push({ x: f.x, y: f.y - 10, text: '+' + pay, life: 1.1, max: 1.1, size: 19 });
-    }
+    // 爆点（issue 09）：金色大字在鱼身上弹出来（越值钱越大），金币一串飞进币袋；鱼王另开整屏庆祝
+    if (!f.boss) pops.push({ x: f.x, y: f.y - 6, text: '+' + fmt(pay), life: 1.25, max: 1.25, size: Math.round(20 + Math.min(30, Math.sqrt(pay) * 3)), big: pay >= 20 });
+    flyCoins(f.x, f.y, f.boss ? 24 : Math.min(14, 3 + Math.round(Math.sqrt(pay) * 1.4)), f.boss ? 1500 : 0);   // 鱼王：等金字数完再飞，别从字上划过去
     shake = Math.max(shake, Math.min(1, 0.22 + pay / 180));
-    if (f.boss) { flash('鱼王！ +' + pay); sfx.big(); toast('鱼王入账 +' + pay + ' 币'); }
-    else if (pay >= 20) { flash('+' + pay); sfx.big(); }
+    if (f.boss) { startCeleb(f, pay); toast('鱼王入账 +' + fmt(pay) + ' 币'); }
+    else if (pay >= 20) sfx.big();
     else sfx.catch();
     syncHud();
     return pay;
@@ -2857,7 +2964,7 @@
   // 一张网落下去罩住一小片（半径跟着网口等级走）。伤害预算固定（0.95 × 炮倍），先砸中网的那条；
   // 把它打死了，剩下的力道才溢给网里别的鱼——所以"一网多收"只发生在收尾那一下，
   // 不会因为撒进鱼群就白送钱（总预算没变，溢出只是不浪费）。
-  function netBurst(x, y, primary) {
+  function netBurst(x, y, primary, owner) {
     const inside = [];
     for (const f of fish) {
       const d = Math.hypot(f.x - x, f.y - y);
@@ -2867,9 +2974,9 @@
     const order = [primary].concat(inside.filter(f => f !== primary));
     const jitter = 0.62 + Math.random() * 0.76;
     let budget = 0.95 * jitter;
-    run.hits++;
-    parts.push({ kind: 'net', x, y, s: 13, grow: NET_R, life: 0.4, max: 0.4, spin: Math.random() * 6.28 });
-    parts.push({ kind: 'ring', x, y, s: 6, grow: NET_R * 0.9, life: 0.3, max: 0.3, col: '#bff6ff' });
+    if (!owner) run.hits++;                     // 命中率只算你自己的网
+    parts.push({ kind: 'net', x, y, s: 13, grow: NET_R, life: 0.4, max: 0.4, spin: Math.random() * 6.28, col: owner ? owner.net : undefined, bot: !!owner });
+    parts.push({ kind: 'ring', x, y, s: 6, grow: NET_R * 0.9, life: 0.3, max: 0.3, col: owner ? owner.net : '#bff6ff' });
     const killed = [];
     for (const f of order) {
       if (budget <= 1e-4) break;
@@ -2895,8 +3002,124 @@
       }
       if (f.hp <= 0) killed.push(f);
     }
-    if (killed.length) killed.forEach(f => catchFish(f));
-    else sfx.hit();
+    if (killed.length) killed.forEach(f => owner ? botCatch(f, owner) : catchFish(f));
+    else if (!owner) sfx.hit();
+  }
+
+  /* ================= 机器人陪打（issue 10） =================
+     桌子上方两个座位，各有一门炮、自己的网色、自己的分。它们和你打同一池鱼、共用同一份血量：
+     谁的网把鱼打死，鱼就赔给谁（v × 那个人的炮倍）。
+     为什么不改你的账：每一发的伤害只看 0.95 × 抖动、跟炮倍无关，所以每一发"是致命那一发"的概率
+     对谁都一样，你每打中一发的期望回收还是 0.95 × 你的炮倍——机器人抢走你打残的鱼、你收掉它们打残的鱼，
+     两头抵掉（ADR-0008 末尾）。它们的分是假的，不进币袋。 */
+  const BOTS = [
+    { name: '阿龙', x: 104, col: '#ff7a4a', net: '#ff7040', ring: 0xff6a3a },
+    { name: '小美', x: 336, col: '#c88aff', net: '#a860ff', ring: 0xb070ff }
+  ];
+  const BOT_Y = 26;
+  for (const b of BOTS) {
+    b.y = BOT_Y; b.aim = Math.PI; b.aimT = Math.PI; b.cd = 1 + Math.random() * 2;
+    b.bet = [1, 2, 5][(Math.random() * 3) | 0]; b.score = 0; b.target = null; b.recoil = 0; b.betT = 20 + Math.random() * 30;
+  }
+  let botsOn = S.bots !== false;
+  function botMuzzle(b) { return { x: b.x + Math.sin(b.aim) * 34, y: b.y - Math.cos(b.aim) * 34 }; }
+  function botPick(b) {
+    // 挑"离自己近、在炮口前面、带伤的、值钱的"；偶尔换口味，两台不会老盯着同一条
+    let best = null, bs = 1e9;
+    for (const f of fish) {
+      if (f.x < 10 || f.x > W - 10 || f.y < b.y + 40) continue;
+      const d = Math.hypot(f.x - b.x, f.y - b.y);
+      const score = d - f.r * 1.6 - (1 - f.hp) * 160 - FISH[f.type].v * 1.5 + Math.random() * 60;
+      if (score < bs) { bs = score; best = f; }
+    }
+    return best;
+  }
+  function botLead(b, f) {
+    const t = Math.hypot(f.x - b.x, f.y - b.y) / SHOT_SPD;
+    const vy = f.amp * f.freq * Math.cos(f.t * f.freq + f.ph);
+    const tx = f.x + f.vx * t * 0.85, ty = f.y + vy * t * 0.85;
+    return Math.atan2(tx - b.x, -(ty - b.y));
+  }
+  function botsTick(dt) {
+    if (!botsOn) return;
+    for (const b of BOTS) {
+      b.recoil = Math.max(0, b.recoil - dt * 6);
+      if ((b.betT -= dt) <= 0) { b.betT = 25 + Math.random() * 40; b.bet = [1, 2, 5, 10][(Math.random() * 4) | 0]; }
+      if (!b.target || !fish.includes(b.target) || Math.random() < dt * 0.4) b.target = botPick(b);
+      if (b.target) b.aimT = botLead(b, b.target);
+      // 炮口转向：夹在朝下那半圈里
+      b.aimT = Math.max(Math.PI / 2 + 0.25, Math.min(Math.PI * 1.5 - 0.25, (b.aimT + Math.PI * 2) % (Math.PI * 2)));
+      b.aim += (b.aimT - b.aim) * Math.min(1, dt * 8);
+      if ((b.cd -= dt) <= 0 && b.target) {
+        b.cd = 0.32 + Math.random() * 0.34;
+        const m = botMuzzle(b), a = b.aim + (Math.random() - 0.5) * 0.09;   // 手没你稳
+        shots.push({ x: m.x, y: m.y, vx: Math.sin(a) * SHOT_SPD, vy: -Math.cos(a) * SHOT_SPD, life: 0, spin: Math.random() * 6.28, owner: b });
+        b.recoil = 1;
+      }
+    }
+  }
+  // 机器人打死了鱼：鱼没了，分记在它座位上，金币往它那边散；不碰币袋、不碰你的战绩
+  function botCatch(f, b) {
+    const idx = fish.indexOf(f);
+    if (idx < 0) return;
+    fish.splice(idx, 1); hpDirty = true;
+    if (locked === f) locked = null;
+    const pay = FISH[f.type].v * b.bet;
+    b.score += pay;
+    burst(f.x, f.y, f.boss ? 20 : 6, f.boss ? 1.6 : 0.9);
+    pops.push({ x: f.x, y: f.y - 6, text: '+' + fmt(pay), life: 1.0, max: 1.0, size: Math.round(16 + Math.min(14, Math.sqrt(pay) * 1.6)), col: b.col });
+    if (f.boss) toast(b.name + ' 打下了鱼王 +' + fmt(pay));
+  }
+  function drawBotSeats() {
+    if (!botsOn) return;
+    for (const b of BOTS) {
+      const w = 92, h = 20, x = b.x - w / 2, y = 2;
+      g.save();
+      pill(x, y, w, h);
+      g.fillStyle = 'rgba(14,10,4,.78)'; g.fill();
+      g.lineWidth = 1.5; g.strokeStyle = '#e0a326'; g.stroke();
+      g.fillStyle = b.col; g.beginPath(); g.arc(x + 10, y + h / 2, 4.5, 0, Math.PI * 2); g.fill();
+      g.font = '700 10px system-ui,"PingFang SC",sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+      g.fillStyle = '#ffe9b0'; g.fillText(b.name + ' ' + b.bet + '×', x + 18, y + h / 2 + 0.5);
+      g.textAlign = 'right'; g.fillStyle = '#ffd862'; g.font = '700 10px ui-monospace,Menlo,monospace';
+      g.fillText(fmt(b.score), x + w - 8, y + h / 2 + 0.5);
+      g.restore();
+    }
+  }
+  function setBots(on) {
+    botsOn = on; S.bots = on; save(true);
+    if (!on) for (let i = shots.length - 1; i >= 0; i--) if (shots[i].owner) shots.splice(i, 1);
+    for (const v of botViews) v.visible = on;
+    $('btnBots').textContent = on ? '陪打:开' : '陪打:关';
+    $('btnBots').classList.toggle('on', on);
+    if ($('menuBots')) $('menuBots').textContent = on ? '机器人陪打：开' : '机器人陪打：关';
+  }
+  const botViews = [];
+  function buildBotCannons() {
+    for (const b of BOTS) {
+      const grp = new THREE.Group();
+      grp.position.set(wx(b.x), wy(b.y), 1.6);
+      const baseG = new THREE.Group(); baseG.rotation.x = Math.PI / 2; grp.add(baseG);
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.9, 1.6, 26),
+        new THREE.MeshStandardMaterial({ color: new THREE.Color(b.col).multiplyScalar(0.55), roughness: 0.3, metalness: 0.35 }));
+      base.position.y = -1; baseG.add(base);
+      const gold = new THREE.MeshStandardMaterial({ color: 0xffd36a, roughness: 0.22, metalness: 0.75, emissive: 0x5a3400, emissiveIntensity: 0.7 });
+      const collar = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.26, 8, 26), gold);
+      collar.rotation.x = Math.PI / 2; baseG.add(collar);
+      const pivot = new THREE.Group(); pivot.position.z = 1.2; grp.add(pivot);
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, 3.4, 20), gold);
+      barrel.position.y = 2; pivot.add(barrel);
+      const band = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.14, 6, 20),
+        new THREE.MeshStandardMaterial({ color: b.ring, roughness: 0.4, emissive: b.ring, emissiveIntensity: 0.5 }));
+      band.rotation.x = Math.PI / 2; band.position.y = 3.3; pivot.add(band);
+      scene.add(grp);
+      grp.visible = botsOn;
+      b.pivot = pivot;
+      botViews.push(grp);
+    }
+  }
+  function syncBotCannons() {
+    for (const b of BOTS) if (b.pivot) { b.pivot.rotation.z = -b.aim; b.pivot.position.y = 0; b.pivot.position.x = 0; b.pivot.children[0].position.y = 2 - b.recoil * 0.4; }
   }
 
   /* ================= 每帧 ================= */
@@ -2984,8 +3207,8 @@
         // 打空了：网还是要张开——张开了却什么也没罩住，这一发就白花了（issue 02）
         shots.splice(i, 1);
         parts.push({ kind: 'net', x: Math.max(0, Math.min(W, s.x)), y: Math.max(0, Math.min(H, s.y)),
-          s: 13, grow: NET_R, life: 0.34, max: 0.34, spin: Math.random() * 6.28, col: '#6f9aa8' });
-        sfx.miss();
+          s: 13, grow: NET_R, life: 0.34, max: 0.34, spin: Math.random() * 6.28, col: s.owner ? s.owner.net : '#6f9aa8', bot: !!s.owner });
+        if (!s.owner) sfx.miss();
         continue;
       }
       let hit = null;
@@ -2997,7 +3220,7 @@
         const dx = f.x - (px + sx * tt), dy = (f.y - (py + sy * tt)) * 1.15;
         if (dx * dx + dy * dy < (f.hr + 7) * (f.hr + 7)) { hit = f; break; }
       }
-      if (hit) { shots.splice(i, 1); netBurst(s.x, s.y, hit); }
+      if (hit) { shots.splice(i, 1); netBurst(s.x, s.y, hit, s.owner); }
     }
 
     for (let i = parts.length - 1; i >= 0; i--) {
@@ -3012,6 +3235,8 @@
         p.vx *= 0.985;
       }
     }
+    celebTick(dt);
+    if (!paused) botsTick(dt);
     for (let i = pops.length - 1; i >= 0; i--) {
       pops[i].life -= dt;
       if (pops[i].life <= 0) pops.splice(i, 1);
@@ -3182,6 +3407,8 @@
     paused = anyModal();
   }
   $('btnMenu').addEventListener('click', () => openModal('mMenu'));
+  setBots(botsOn);   // 按存档同步按钮文字
+  $('btnBots').addEventListener('click', () => { setBots(!botsOn); toast(botsOn ? '机器人陪打：开（它们的分不进你的币袋）' : '机器人陪打：关'); });
   document.querySelectorAll('#mMenu [data-go]').forEach(b => b.addEventListener('click', () => {
     closeModal('mMenu');
     $(b.dataset.go).click();
@@ -3314,7 +3541,7 @@
     bigTide: isBigTide,
     get hpBars() { return hpBarsDrawn; },
     get hpBarsSmall() { return hpBarsSmallDrawn; },
-    linkPoll, linkSend,
+    linkPoll, linkSend, get celeb() { return !!celeb; }, BOTS, setBots, get botsOn() { return botsOn; },
     resetRun() {
       S.caught = 0; S.gained = 0; S.best = 0; S.king = 0; S.spent = 0;
       run.got = 0; run.spent = 0; run.catches = 0; run.fired = 0; run.hits = 0;

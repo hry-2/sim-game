@@ -507,6 +507,49 @@ const path = require('path');
       qs: thr.qs, fired: thr.fired, secs: +thr.secs.toFixed(1)
     }));
 
+  /* ================= 机器人陪打（issue 10）================= */
+  // 机器人的网打死鱼：分记在它的座位上；币袋、本局渔获、命中次数一个都不动。关掉以后它们不再开炮
+  const bot = await page.evaluate(async () => {
+    const d = window.__fish;
+    d.setSpawner(false); d.clearFish(); d.clearShots(); d.setBots(true);
+    const B = d.BOTS[0], s0 = B.score, w0 = d.wallet, got0 = d.run.got, hits0 = d.run.hits;
+    const f = d.spawn('clown', { x: 200, y: 200 }); f.hp = 0.01;
+    d.netAt(200, 200, f, B);
+    const credited = B.score - s0 === 2 * B.bet, gone = !d.fish.includes(f);
+    const untouched = d.wallet === w0 && d.run.got === got0 && d.run.hits === hits0;
+    await new Promise(r => setTimeout(r, 2500));
+    const shotsOn = d.shots.filter(x => x.owner).length + (d.BOTS[0].score + d.BOTS[1].score > 0 ? 1 : 0);
+    d.setBots(false);
+    d.spawn('shark', { x: 200, y: 250 });
+    await new Promise(r => setTimeout(r, 1500));
+    const shotsOff = d.shots.filter(x => x.owner).length;
+    d.setBots(true); d.setSpawner(true);
+    return { credited, gone, untouched, shotsOff, wallet: d.wallet === w0 };
+  });
+  const botOk = bot.credited && bot.gone && bot.untouched && bot.shotsOff === 0;
+  console.log('bot kills credit the bot, never your wallet; toggle stops them:', botOk ? 'PASS' : 'FAIL', JSON.stringify(bot));
+
+  /* ================= 爆点（issue 09）================= */
+  // 抓到鱼：金币飞进币袋（DOM 层），飞完自己清掉；鱼王：整屏庆祝出现、3 秒多后自己结束
+  const juice = await page.evaluate(async () => {
+    const d = window.__fish;
+    d.setSpawner(false); d.clearFish();
+    const f = d.spawn('shark', { x: 200, y: 200 }); d.catchFish(f);
+    await new Promise(r => setTimeout(r, 120));
+    const flying = document.querySelectorAll('.coinfly i').length;
+    await new Promise(r => setTimeout(r, 1800));
+    const left = document.querySelectorAll('.coinfly i').length;
+    const k = d.spawn('king', { x: 200, y: 200 }); d.catchFish(k);
+    await new Promise(r => setTimeout(r, 300));
+    const celebOn = d.celeb;
+    await new Promise(r => setTimeout(r, 3600));
+    const celebOff = !d.celeb && document.querySelectorAll('.coinfly i').length === 0;
+    d.setSpawner(true);
+    return { flying, left, celebOn, celebOff };
+  });
+  const juiceOk = juice.flying > 0 && juice.left === 0 && juice.celebOn && juice.celebOff;
+  console.log('coins fly to wallet & clean up; king celebration ends:', juiceOk ? 'PASS' : 'FAIL', JSON.stringify(juice));
+
   /* ================= 全柜联动（issue 29 / ADR-0010）================= */
   // 抓到鱼王 / 龙鱼往信箱给聚宝盆发信；收到聚宝盆的开奖信，下一潮鱼王必来（就算不是第 3 潮）
   const link = await page.evaluate(() => {
@@ -551,7 +594,7 @@ const path = require('path');
   console.log('home purse == wallet:', purseOk ? 'PASS' : 'FAIL', JSON.stringify(homeInfo));
 
   console.log('runtime errors:', errors.length === 0 ? 'NONE (PASS)' : errors.join(' | '));
-  const allPass = linkOk && threeOk && seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && dragonOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
+  const allPass = botOk && juiceOk && linkOk && threeOk && seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && dragonOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
     saveOk && paused && resumed && overflow <= 0 && homeInfo.card && homeInfo.lit > 100 &&
     purseOk && errors.length === 0 &&
     hudOk && barOk && missOk && schoolOk && tierOk && bigTideOk && thrOk && netFrontOk && coinOk;
