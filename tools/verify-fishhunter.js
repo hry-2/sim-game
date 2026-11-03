@@ -32,6 +32,9 @@ const path = require('path');
   /* ---------- 开局 ---------- */
   const st0 = await page.evaluate(() => {
     const d = window.__fish;
+    // 每日任务按日期挑、完成会发币：下面那些"赔多少就进多少"的断言会随日期偶尔差 5 币。
+    // 先把今天的任务清空（任务自己在后面单独测）
+    d.dailyEnsure(); d.S.daily.m = []; d.S.daily.all = true;
     return {
       wallet: d.wallet,
       hud: +document.getElementById('uiBal').textContent.replace(/,/g, ''),
@@ -141,11 +144,12 @@ const path = require('path');
       d.netAt(220, 300, f);
       out[type] = { pay: d.wallet - w0, caught: d.S.caught - c0, gone: !d.fish.includes(f), v: d.FISH[type].v };
     }
+    d.renderBook();                       // 图鉴（issue 12）打开时才渲染
     return { out, rows: document.querySelectorAll('#bookTable tr').length,
       tagged: document.querySelectorAll('#bookTable tr').length &&
         [...document.querySelectorAll('#bookTable tr')].filter(tr => tr.textContent.includes('龙鱼')).length };
   });
-  const dragonOk = dragonRes.rows === 13 && dragonRes.tagged === 4 &&
+  const dragonOk = dragonRes.rows === 16 && dragonRes.tagged === 4 &&
     ['jade', 'flame', 'aurum', 'violet'].every(t => dragonRes.out[t].pay === dragonRes.out[t].v &&
       dragonRes.out[t].caught === 1 && dragonRes.out[t].gone);
   console.log('4 dragon fish pay by value & tagged in book:', dragonOk ? 'PASS' : 'FAIL', JSON.stringify(dragonRes));
@@ -202,7 +206,8 @@ const path = require('path');
   await page.click('#skinRow .skin[data-skin="2"]');
   await page.waitForTimeout(80);
   const skinEq = await page.evaluate(() => window.__fish.S.skin);
-  const skinOk = skinRes.locked === 2 && skinRes.unlocked === 0 && skinRes.bits === 7 && skinEq === 2;
+  const skinOk = skinRes.locked === 3 && skinRes.unlocked === 1 &&   // 第 4 件「龙鳞金」要集齐图鉴
+    skinRes.bits === 7 && skinEq === 2;
   console.log('skins unlock by catches & equip:', skinOk ? 'PASS' : 'FAIL', JSON.stringify({ skinRes, skinEq }));
   await page.click('#mNet .closebtn[data-close]');
 
@@ -593,8 +598,117 @@ const path = require('path');
   console.log('home thumbnail lit:', homeInfo.lit, homeInfo.lit > 100 ? 'PASS' : 'FAIL');
   console.log('home purse == wallet:', purseOk ? 'PASS' : 'FAIL', JSON.stringify(homeInfo));
 
+  /* ================= 特殊鱼 / 等级 / 任务 / 事件 / 图鉴（issue 11~16）================= */
+  await page.goto(url, { timeout: 90000 });          // 上面去过首页，回到机台
+  await page.waitForFunction(() => !!window.__fish, null, { timeout: 30000 });
+  await page.evaluate(() => document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show')));
+  const sp = await page.evaluate(() => {
+    const d = window.__fish;
+    d.setPaused(false); d.setBots(false); d.setSpawner(false); d.wallet = 1e5;
+    const out = {};
+    // 等级门：Lv.1 权重里没有特殊鱼，Lv.4 三种都有
+    d.setXp(0); const w1 = d.weights();
+    d.setXp(d.xpFor(4)); const w4 = d.weights();
+    out.gate = w1.crab === 0 && w1.jelly === 0 && w1.ice === 0 && w4.crab > 0 && w4.jelly > 0 && w4.ice > 0;
+    // 血量 = v + store：炸弹蟹 6 + 24
+    out.hpv = d.hpv(d.FISH.crab) === 30 && d.hpv(d.FISH.clown) === 2;
+    // 炸弹蟹：一圈小鱼（满血）在 125 内，圈外一条；打死蟹 → 圈里的按近到远收掉，圈外那条不动
+    const ring = (sp) => {
+      d.clearFish();
+      const c = d.spawn(sp, { x: 220, y: 240, spd: 1e-4 });
+      const inR = [], far = d.spawn('clown', { x: 420, y: 470, spd: 1e-4 });
+      for (let i = 0; i < 6; i++) inR.push(d.spawn('clown', { x: 220 + Math.cos(i) * 70, y: 240 + Math.sin(i) * 70, spd: 1e-4 }));
+      c.hp = 1e-6;
+      const w0 = d.wallet, g0 = d.run.got;
+      d.netAt(c.x, c.y, c);
+      return { killed: inR.filter(f => !d.fish.includes(f)).length, farHp: far.hp, got: d.run.got - g0, w: d.wallet - w0, c: !d.fish.includes(c) };
+    };
+    out.bomb = ring('crab'); out.bombFx = d.blasts.length > 0;
+    // 6 条小丑鱼 × v2 = 12 < store 24：全收；外加蟹自己 6 → 18
+    out.bombOk = out.bomb.c && out.bomb.killed === 6 && out.bomb.farHp === 1 && out.bomb.got === 18 && out.bomb.w === 18;
+    out.chain = ring('jelly'); out.chainFx = d.bolts.length > 0;
+    out.chainOk = out.chain.c && out.chain.killed === 6 && out.chain.got === 6 * 2 + 8;
+    // store 不够时只花 store：三条金鲨（v40）在网外、炸圈里，掉的血加起来正好 24 个 v 单位
+    d.clearFish();
+    const c2 = d.spawn('crab', { x: 220, y: 240, spd: 1e-4 });
+    const sharks = [[-100, 0], [100, 0], [0, 100]].map(([dx, dy]) => d.spawn('gold', { x: 220 + dx, y: 240 + dy, spd: 1e-4 }));
+    c2.hp = 1e-6; d.netAt(c2.x, c2.y, c2);
+    const spent = sharks.reduce((s, f) => s + (1 - f.hp) * 40, 0);
+    out.budgetOk = Math.abs(spent - 24) < 1e-6 && sharks.every(f => d.fish.includes(f));
+    // 冰晶鲀：打死 → 全场定住，鱼不动、不出新鱼；5 秒后解冻
+    d.clearFish();
+    const ic = d.spawn('ice', { x: 220, y: 240, spd: 1e-4 });
+    const mover = d.spawn('tang', { x: 100, y: 200 });
+    ic.hp = 1e-6; d.netAt(ic.x, ic.y, ic);
+    const fz = d.freezeT, x0 = mover.x;
+    d.setSpawner(true); const n0 = d.fish.length;
+    d.sim(2);
+    out.freeze = { fz, still: mover.x === x0, noSpawn: d.fish.length === n0 };
+    d.sim(3.2);
+    out.freeze.thaw = d.freezeT === 0 && mover.x !== x0;
+    d.setSpawner(false);
+    out.freezeOk = out.freeze.fz === 5 && out.freeze.still && out.freeze.noSpawn && out.freeze.thaw;
+    // 机器人打死特殊鱼：放出去的赔付记在它座位上，你的币袋不动
+    d.setBots(true);
+    d.clearFish();
+    const bc = d.spawn('crab', { x: 220, y: 240, spd: 1e-4 });
+    for (let i = 0; i < 4; i++) d.spawn('clown', { x: 220 + i * 20, y: 280, spd: 1e-4 });
+    bc.hp = 1e-6;
+    const b = d.BOTS[0], s0 = b.score, w0 = d.wallet;
+    d.netAt(bc.x, bc.y, bc, b);
+    out.botSp = { score: b.score - s0, wallet: d.wallet - w0, left: d.fish.length };
+    out.botSpOk = out.botSp.score === (6 + 4 * 2) * b.bet && out.botSp.wallet === 0 && out.botSp.left === 0;
+    d.setBots(false);
+    return out;
+  });
+  const specialOk = sp.gate && sp.hpv && sp.bombOk && sp.bombFx && sp.chainOk && sp.chainFx && sp.budgetOk && sp.freezeOk && sp.botSpOk;
+  console.log('special fish: bomb / chain / freeze release their stored damage:', specialOk ? 'PASS' : 'FAIL', JSON.stringify(sp));
+
+  const prog = await page.evaluate(() => {
+    const d = window.__fish;
+    const out = {};
+    // 经验 / 升级：抓鱼按 v 攒经验（不乘炮倍），跨过门槛升级、HUD 跟着变
+    d.setXp(0); d.S.bet = 10; d.clearFish();
+    d.S.dex = {};
+    const f = d.spawn('shark', { x: 200, y: 200, spd: 1e-4 }); d.catchFish(f);
+    out.xp = d.S.xp;                                   // 24 + 头一次收录 30
+    out.xpOk = d.S.xp === 54 && d.LV === 1;
+    d.gainXp(d.xpFor(2) - d.S.xp);
+    out.lvOk = d.LV === 2 && document.getElementById('uiLv').textContent.startsWith('Lv.2');
+    d.S.bet = 1;
+    // 图鉴：抓到过的才写名字，全收齐解锁第 4 件网衣
+    d.renderBook();
+    out.dexRow = document.querySelectorAll('#bookTable tr:not(.unseen)').length;
+    for (const k of Object.keys(d.FISH)) d.S.dex[k] = d.S.dex[k] || 1;
+    d.S.skins = 7; d.clearFish(); d.catchFish(d.spawn('clown', { x: 200, y: 200, spd: 1e-4 }));
+    out.dexOk = out.dexRow === 1 && d.dexAll() && (d.S.skins & 8) === 8;
+    // 每日任务：挑 3 条；做完一条发 5 币
+    d.S.daily = null; d.dailyEnsure();
+    const m = d.S.daily.m[0], def = d.MISSIONS[m.i];
+    const w0 = d.wallet;
+    d.missionBump(def.k, def.n);
+    out.task = { n: d.S.daily.m.length, done: m.done, pay: d.wallet - w0, btn: document.getElementById('btnDaily').textContent };
+    out.taskOk = out.task.n === 3 && m.done && out.task.pay === 5 && out.task.btn.includes('1/3');
+    d.renderDaily();
+    out.taskUi = document.querySelectorAll('#dailyList .mission').length === 3 && document.querySelectorAll('#lvList tr').length === 9;
+    // 海底事件：没人开炮不倒数；开着炮会来，蟹群放三只炸弹蟹
+    d.clearFish();
+    const e0 = d.S.events;
+    d.sim(400);
+    out.idle = d.S.events === e0;
+    d.setXp(d.xpFor(4));
+    d.fireEvent(d.EVENTS.find(e => e.k === 'crabs'));
+    out.crabs = d.fish.filter(f => f.type === 'crab').length;
+    d.setSpawner(true); d.S.auto = true; d.sim(200); d.S.auto = false; d.setSpawner(false);
+    out.evOk = out.idle && out.crabs === 3 && d.S.events >= e0 + 2;
+    d.S.daily.m = []; d.S.daily.all = true;
+    return out;
+  });
+  const progOk = prog.xpOk && prog.lvOk && prog.dexOk && prog.taskOk && prog.taskUi && prog.evOk;
+  console.log('level / codex / daily tasks / sea events:', progOk ? 'PASS' : 'FAIL', JSON.stringify(prog));
+
   console.log('runtime errors:', errors.length === 0 ? 'NONE (PASS)' : errors.join(' | '));
-  const allPass = botOk && juiceOk && linkOk && threeOk && seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && dragonOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
+  const allPass = specialOk && progOk && botOk && juiceOk && linkOk && threeOk && seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && dragonOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
     saveOk && paused && resumed && overflow <= 0 && homeInfo.card && homeInfo.lit > 100 &&
     purseOk && errors.length === 0 &&
     hudOk && barOk && missOk && schoolOk && tierOk && bigTideOk && thrOk && netFrontOk && coinOk;
