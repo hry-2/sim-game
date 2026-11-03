@@ -451,6 +451,12 @@
     -webkit-mask:radial-gradient(closest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px));
     mask:radial-gradient(closest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px))}
 
+  /* 能量没有上限：攒够两次以上，键帽右上角挂个「×N」 */
+  .abtn .cnt{position:absolute;right:-7px;top:-6px;z-index:1;min-width:20px;padding:1px 5px;border-radius:9px;
+    font:700 11px/16px var(--pix);font-style:normal;color:#1a0d04;text-align:center;
+    background:linear-gradient(180deg,#ffe9a8,#f0b53a);box-shadow:0 0 0 1px #5a3a18,0 2px 4px rgba(0,0,0,.6)}
+  .abtn .cnt:empty{display:none}
+
   /* 底栏的能量格：10 格 LED */
   .meter{display:inline-block;width:48px;height:8px;align-self:center;border:1px solid #1e3a2b;
     background:linear-gradient(90deg,var(--led) calc(var(--e,1) * 100%),#0f2018 0);
@@ -518,6 +524,17 @@
     input[type=range]::-webkit-slider-thumb{width:30px;height:30px;margin-top:-12px}
     input[type=range]::-moz-range-thumb{width:30px;height:30px}
     .sliderbox{padding:2px 14px 0}   /* 滑轨两头离屏幕边远一点：iOS 从边缘划是系统的后退手势 */
+    /* 控制台压到屏幕底（大拇指够得着）：画面吃不完的富余留在控制台上面 */
+    #stage{min-height:100dvh;display:flex;flex-direction:column}
+    .deck{flex:1;display:flex;flex-direction:column}
+    .ctl{margin-top:auto}
+  }
+  /* 高一点的手机：六颗键排两排三颗，键帽做大 */
+  @media (max-width:600px) and (min-height:740px){
+    .abtns{grid-template-columns:repeat(3,1fr);row-gap:10px;margin-top:8px}
+    .abtn{--d:60px}
+    .abtn b{font-size:14px}
+    .abtn small{font-size:10px}
   }
   @media (orientation:landscape) and (max-height:500px){
     body{align-items:stretch}
@@ -617,8 +634,8 @@
       <button class="abtn violet" id="btnDrop5"><span class="cap"></span><b>投 5 枚</b><small>5 币</small></button>
       <button class="abtn teal" id="btnDrop10"><span class="cap"></span><b>投 10 枚</b><small>10 币</small></button>
       <button class="abtn red auto" id="btnAuto"><span class="cap"></span><b>自动</b><small id="autoLab">点击开启</small></button>
-      <button class="abtn blue energy" id="btnShake"><span class="cap"></span><b>震台</b><small>50 能量</small></button>
-      <button class="abtn orange energy" id="btnTower"><span class="cap"></span><b>币塔</b><small>100 能量</small></button>
+      <button class="abtn blue energy" id="btnShake"><span class="cap"><i class="cnt" id="cntShake"></i></span><b>震台</b><small>50 能量</small></button>
+      <button class="abtn orange energy" id="btnTower"><span class="cap"><i class="cnt" id="cntTower"></i></span><b>币塔</b><small>100 能量</small></button>
     </div>
   </div>
 
@@ -647,7 +664,7 @@
     <ul>
       <li><b>投币</b>：拖动滑块选左右落点（或直接点机台选位置），币会落在<b>推板上</b>，被推板推下前缘、靠惯性掉到前方的<b>大台子</b>上；台子上的币被一路推到<b>最前缘</b>掉下去，就是你的。</li>
       <li><b>连锁</b>：别小看一枚币——落下的那一下会挤动整排。挑币堆最满的位置投，一口吃一排。</li>
-      <li><b>侧槽</b>：前沿左右两个暗色角落是侧槽，从那儿掉下去的币<b>进槽、不赔</b>。这是机器的抽水——别往两边投，正中间的<b>出币口</b>才是你的。</li>
+      <li><b>侧槽</b>：前沿左右两个暗色角落是侧槽，从那儿掉下去的币<b>不归你</b>，会顺着回币道<b>重新落回推板</b>。正中间的<b>出币口</b>掉下去的才是你的。</li>
       <li><b>抽奖口</b>：落币口下面那道铜轨上，有个发光的框左右来回滑。你投的币<b>正好穿过框</b>，电子屏就转一次三格转盘——金金金撒 3 枚、凤凤凤撒凤凰币、塔塔塔砸一摞币塔、宝宝宝送一个奖品、狂狂狂开狂热。奖励都是撒到币堆上的，推下出币口才算你的。追着框投能多转，但框跑到两边时追过去，币就正对侧槽了。</li>
       <li><b>奖品</b>：每投 500 枚，台上来一个大奖品（福袋 15 / 金元宝 25 / 金蟾 40）。它埋在币堆里，被币挤着慢慢往前走，推下出币口一次结清；掉进侧槽就没了。投币位置旁边的读数会写"台上有什么 / 还差几枚"。</li>
       <li><b>特殊币</b>：银色的凤凰币。掉落得 5 币，并推进电子屏进度；<b>300 格开奖</b>，全场币雨。凤凰币是机器自己撒的，投进去的永远是 1 币的币。</li>
@@ -659,7 +676,7 @@
       <li><b>生肖币</b>：投出去的币偶尔是一枚翠绿的生肖纪念币（照样值 1 币）。推下出币口收进图鉴，十二枚集齐解锁墨绿台呢。</li>
       <li><b>每日任务</b>：每天三条，完成一条 500 积分，全做完再送 500。点「任务」看进度。</li>
       <li><b>连击</b>：5 秒内连续有币掉落就连击叠加，倍率最高 3×，<b>乘的是积分</b>，断了清零。</li>
-      <li><b>能量</b>：只靠投币攒（每枚 +0.25），满 50 能震台、满 100 能召唤币塔。</li>
+      <li><b>能量</b>：只靠投币攒（每枚 +0.25），满 50 能震台、满 100 能召唤币塔，没有上限。</li>
       <li><b>积分</b>：赢币会累积分，攒够了去<b>积分兑换</b>换币或免费币塔（见奖表）。</li>
       <li><b>账</b>：长期玩下来，每投 1 枚大约回 0.8 枚——和街机一样，机器是要抽水的。挂机不投币，机器不会自己往外吐。</li>
       <li><b>币袋</b>：这台机器没有自己的余额——你投的、赢的币都在<b>全柜通用的币袋</b>里，回首页顶栏能看到它。所以「重置机台」只清分数和台面，不会退币。</li>
@@ -685,7 +702,7 @@
       <tr><td><span class="icon">🐉</span>生肖币 · 翠</td><td>1 币 + 收藏 · 投币时偶尔出现</td></tr>
       <tr><td><span class="icon">🎰</span>电子屏开奖</td><td>300 格 → 币雨 + 3000 积分 + 狂热</td></tr>
       <tr><td><span class="icon">📳</span>震台</td><td>50 能量 · 全场抖动 0.9 秒</td></tr>
-      <tr><td><span class="icon">🗼</span>召唤币塔</td><td>100 能量 · 一摞 14 枚砸进主台</td></tr>
+      <tr><td><span class="icon">🗼</span>召唤币塔</td><td>100 能量 · 一摞 24 枚砸进主台</td></tr>
     </table>
     <h3>生肖收藏 · <span id="zodCount">0 / 12</span></h3>
     <p class="dim">投出去的币偶尔是一枚翠绿的生肖纪念币（照样值 1 币）。推下出币口就收进来，重复的换 50 积分；进侧槽就没了。集齐十二枚解锁墨绿台呢。</p>
@@ -742,9 +759,9 @@
     <h2>规则奖表</h2>
     <table>
       <tr><td>出币口掉落（中间）</td><td>面值</td></tr>
-      <tr><td>侧槽掉落（左右暗角）</td><td>不赔</td></tr>
+      <tr><td>侧槽掉落（左右暗角）</td><td>不赔 · 币重新落回推板</td></tr>
       <tr><td>凤凰币掉落</td><td>5 币 · 电子屏 +1</td></tr>
-      <tr><td>穿过抽奖口</td><td>转一次：金金金 3 枚 · 凤凤凤 凤凰币 · 塔塔塔 10 枚币塔 · 宝宝宝 奖品 · 狂狂狂 狂热（约 1/4 中）</td></tr>
+      <tr><td>穿过抽奖口</td><td>转一次：金金金 3 枚 · 凤凤凤 凤凰币 · 塔塔塔 16 枚币塔 · 宝宝宝 奖品 · 狂狂狂 狂热（约 1/4 中）</td></tr>
       <tr><td>彩球推下出币口</td><td>宾果卡点亮一格 · 每条新线撒 6 枚 · 九格全亮送奖品 + 狂热 · 重复 +30 积分</td></tr>
       <tr><td>狂热时间（狂狂狂 / 开奖 / 宾果）</td><td>12 秒 · 侧槽也赔 · 推板快 1.6 倍 · 冷却 90 秒</td></tr>
       <tr><td>台面事件（每 2.5~4.5 分钟，只在有人玩时）</td><td>地震 · 金币雨 6 枚 · 推板冲刺 8 秒 · 彩球加送 · 凤凰降临 3 枚</td></tr>
@@ -758,7 +775,7 @@
       <tr><td>积分兑换</td><td>2000 积分 → 10 币 · 3000 积分 → 免费币塔</td></tr>
     </table>
     <h3>能量</h3>
-    <p class="dim">只靠投币攒：每投 1 枚 +0.25，上限 100。不会随时间自己回——挂机攒能量召币塔是白拿币。</p>
+    <p class="dim">只靠投币攒：每投 1 枚 +0.25，没有上限，攒多少存多少。不会随时间自己回——挂机攒能量召币塔是白拿币。</p>
     <button class="closebtn" data-close>知道了</button>
   </div>
 </div>
@@ -770,7 +787,7 @@
     <p class="dim">积分是这台机器给你记的账：赢币按连击倍率累，开奖再送 3000。攒够了可以换东西，换来的币照常算你的余额。积分换币是一笔小小的返还，不是回本的办法。</p>
     <table>
       <tr><td>10 枚币 · 直接进余额</td><td>2000 积分</td></tr>
-      <tr><td>免费币塔 · 14 枚砸进台面（不耗能量）</td><td>3000 积分</td></tr>
+      <tr><td>免费币塔 · 24 枚砸进台面（不耗能量）</td><td>3000 积分</td></tr>
     </table>
     <div class="row c2">
       <button class="btn gold" id="btnBuyCoin">换 10 枚<small>2000 积分</small></button>
@@ -855,7 +872,7 @@ const LAYER_DRAG = 0.03;   // 层间摩擦系数（每帧把上层速度向上�
    实测一分钟白赚 50 多枚。现在 400 枚投币攒一座塔。
    实测 20 分钟：只自动投币 0.81；能量满就召塔 + 积分够就换币的"最会玩" 0.93。 */
 const SHOP_COIN_COST = 2000, SHOP_COIN_GET = 10;
-const SHOP_TOWER_COST = 3000;      // 一座塔 14 枚 ≈ 回 12 枚：比换币略划算，但它是"看一次倾泻"的选项
+const SHOP_TOWER_COST = 3000;      // 一座塔 24 枚（两凤凰一元宝）：比换币划算，但它是"看一次倾泻"的选项
 const ENERGY_PER_COIN = 0.25;
 
 /* ---------- 状态 ---------- */
@@ -1034,7 +1051,7 @@ function spawnPlayerCoin() {
     flashText('余额见底 · 机器补你 10 枚', '#ffcf4d', 17);
     save();
   }
-  S.bal -= 1; S.totalIn += 1; S.energy = Math.min(100, S.energy + ENERGY_PER_COIN);
+  S.bal -= 1; S.totalIn += 1; S.energy += ENERGY_PER_COIN;   // 不设上限：攒多少存多少
   const r = WORLD.coinR;
   let x = S.pos * (WORLD.wallX - r - 0.06);
   if (!Number.isFinite(x)) x = 0;   // 守卫：坏位置不生成坏币
@@ -1117,10 +1134,11 @@ function winCoin(c) {
   // 所以回收率只由"一枚掉出去的币值多少"决定。抽水全在侧槽：两角掉下去的币进侧槽、不赔，
   // 只推凤凰进度；连击只乘积分。长期实测 ≈ 0.83（旧规则连击乘钱 + 侧槽 ×2 是 ≈ 4.8，全柜通胀）。
   if (Math.abs(c.x) > SIDE_X && !feverOn()) {
+    // 侧槽的币不是你的，也不被机器吞掉：顺着回币道送回去，过一会儿重新落到推板上。
     // 侧槽不推凤凰进度：推的话侧槽越宽、开奖越勤（实测侧槽 0.72 时 20 分钟开 2~3 次奖），越收水越往外吐
     clack(0.4);
-    addFx(c.x, 0, WORLD.dropZ + 0.1, '侧槽', '#8a9aa8');
-    if (S.spProgress >= 300) jackpot();
+    addFx(c.x, 0, WORLD.dropZ + 0.1, '回推板', '#8a9aa8');
+    recycleQ.push({ t: RECYCLE_DELAY, type: c.type, zod: c.zod });
     updateHUD();
     return;
   }
@@ -1137,6 +1155,21 @@ function winCoin(c) {
   addFx(c.x, 0, WORLD.dropZ + 0.1, '+' + v, c.type === 1 ? '#cfd8e8' : c.type === 2 ? '#ffb3f0' : '#ffcf4d');
   if (S.spProgress >= 300) jackpot();
   updateHUD(); save();
+}
+// 侧槽回币道：掉进侧槽的币排队，RECYCLE_DELAY 秒后从推板后段重新落下（游戏时间，暂停时不走）
+const RECYCLE_DELAY = 0.8;
+const recycleQ = [];
+function recycleTick(dt) {
+  for (let i = recycleQ.length - 1; i >= 0; i--) {
+    const q = recycleQ[i];
+    if ((q.t -= dt) > 0) continue;
+    recycleQ.splice(i, 1);
+    const x = (Math.random() * 2 - 1) * (WORLD.wallX - WORLD.coinR - 0.1);
+    const c = makeCoin(x, WORLD.baseBack + 0.07 + Math.random() * 0.19, 0, q.type, 0);
+    if (q.type === 3) c.zod = q.zod;
+    c.state = 1; c.y = 0.55; c.vy = 0; c.vz = 0.16;
+    coins.push(c);
+  }
 }
 function bumpCombo() {
   S.combo = Math.min(30, S.combo + 1);
@@ -1528,7 +1561,7 @@ const SLOT_TABLE = [            // 转盘一次的结果：权重 / 三格 / 奖
   { k: 'miss',    w: 100 },     // 75 → 100（issue 29）：机台等级把框加宽以后，追框的玩家每投更容易中
   { k: 'coins',   w: 21, sym: '金', n: 3 },     // 3 枚通宝撒进币堆
   { k: 'phoenix', w: 9,  sym: '凤', n: 1 },     // 1 枚凤凰币（5 币 + 电子屏 1 格）
-  { k: 'tower',   w: 4,  sym: '塔', n: 10 },    // 10 枚通宝一摞砸进币堆
+  { k: 'tower',   w: 4,  sym: '塔', n: 16 },    // 16 枚通宝一摞砸进币堆
   { k: 'prize',   w: 2,  sym: '宝' },           // 奖品（台上已有就换成 5 枚通宝）
   { k: 'fever',   w: 1.5, sym: '狂' }          // 狂热时间（冷却里转出来就当金金金）
 ];
@@ -1611,11 +1644,21 @@ function pileRain(n, type) {
 }
 // 一摞币竖着砸进币堆中间（不吃能量的小币塔，全是通宝）
 function pileStack(n) {
-  const r = WORLD.coinR, cx = (Math.random() - 0.5) * 0.6;
-  for (let i = 0; i < n; i++) {
-    const c = makeCoin(cx + (Math.random() - 0.5) * 0.03, WORLD.tableFront + 0.12 - i * 0.015, 0, 0, 0);
-    c.state = 1; c.y = 1.5 + i * WORLD.coinT * 2.2; c.vy = 0; c.towerD = i;
+  dropStack((Math.random() - 0.5) * 0.6, WORLD.tableFront + 0.12, Array(n).fill(0));
+}
+// 币塔：一整根柱子竖直落下、整根同时着地，落定就是一座完整的塔。
+// 每枚币记住脚下那枚（c.under），台面上每步把它钉回脚下那枚的正上方（见 physicsStep 末尾），
+// 推板 / 币堆挤它时整根一起走；脚下那枚没了、被挤歪、或震台时才散开。
+function dropStack(cx, z, types) {
+  const T = WORLD.coinT;
+  const base = supportHeight(cx, z, WORLD.coinR, 0);
+  let under = null;
+  for (let i = 0; i < types.length; i++) {
+    const c = makeCoin(cx, z, 0, types[i], 0);
+    c.state = 1; c.y = 1.5 + base + i * T; c.vy = 0;
+    c.towerD = i; c.towerH = base + i * T; c.spin = 0; c.spinV = 0; c.under = under;
     coins.push(c);
+    under = c;
   }
 }
 
@@ -1745,18 +1788,13 @@ function doTower() {
   S.energy -= 100; sTower(); dropTowerStack();
   updateHUD(); save();
 }
-// 一摞 14 枚砸进主台（能量币塔 / 积分兑换的免费币塔共用）
+// 一摞 TOWER_N 枚砸进主台（能量币塔 / 积分兑换的免费币塔共用）：两枚凤凰币 + 一枚元宝，其余通宝
+const TOWER_N = 24;
 function dropTowerStack() {
   const r = WORLD.coinR;
-  const cx0 = S.pos * (WORLD.wallX - r - 0.1);
-  const n = 14;
-  for (let i = 0; i < n; i++) {
-    const type = i === 3 || i === 9 ? 1 : i === 12 ? 2 : 0;
-    const c = makeCoin(cx0 + (Math.random() - 0.5) * 0.03, WORLD.tableFront + 0.10 - i * 0.02, 0, type, 0);
-    c.state = 1; c.y = 1.5 + i * WORLD.coinT * 2.2; c.vy = 0;
-    c.towerD = i;
-    coins.push(c);
-  }
+  const types = Array(TOWER_N).fill(0);
+  types[5] = types[15] = 1; types[21] = 2;
+  dropStack(S.pos * (WORLD.wallX - r - 0.1), WORLD.tableFront + 0.12, types);
 }
 
 /* ---------- 物理 ---------- */
@@ -1825,6 +1863,8 @@ function physicsStep(dt) {
   const vpf = Math.cos(pushPhase) * WORLD.PUSH_AMP * (Math.PI * 2 / PUSH_PERIOD) * pushSpd;
   const r = WORLD.coinR, T = WORLD.coinT;
 
+  recycleTick(dt);
+
   /* -- 下落状态（投币 / 币塔 / 开奖币） -- */
   for (const c of coins) {
     if (c.state !== 1) continue;
@@ -1837,9 +1877,15 @@ function physicsStep(dt) {
     c.spin += c.spinV * dt;
     // 落点支撑面：推板行程内 = 板面（PUSH_TOP），行程外 = 台面，再叠邻近币堆顶（h 是绝对高度）。
     // 下落全程按支撑面判定，落定高度与最后一帧严格衔接，不会落地瞬间跳一下
-    const surf = supportHeight(c.x, c.z, r, c.z < pf ? WORLD.PUSH_TOP : 0);
+    const surf = c.towerD != null ? c.towerH : supportHeight(c.x, c.z, r, c.z < pf ? WORLD.PUSH_TOP : 0);
     if (c.y <= surf) {
       const impact = -c.vy;
+      if (c.towerD != null) {          // 币塔整根同时着地：不弹，只有最底下那枚出声、震开邻居
+        c.state = 0; c.y = 0; c.h = surf; c.vx = 0; c.vz = 0; c.vyH = 0;
+        if (c.towerD === 0) { sCoinLand(); impactNeighbors(c, impact, pf); }
+        c.towerD = undefined;
+        continue;
+      }
       if (impact > 1.05 && (c.bounces || 0) < 2) {
         // 落地轻弹一跳：把"啪地钉死"化成 小回弹→落定 两拍
         c.bounces = (c.bounces || 0) + 1;
@@ -1959,6 +2005,14 @@ function physicsStep(dt) {
   }
 
   separateLayer(settled, 2);
+  // 币塔整根走：每枚钉回脚下那枚的正上方（币塔是按自底向上的顺序进数组的，一遍就传到塔顶）。
+  // 脚下那枚掉出台面 / 不在正下方一层了 / 震台 → 这一枚散开，以后就是普通的币
+  for (const c of settled) {
+    const u = c.under;
+    if (!u) continue;
+    if (u.state !== 0 || S.shakeT > 0 || Math.abs(c.h - u.h - T) > T * 0.5) { c.under = null; continue; }
+    c.x = u.x; c.z = u.z; c.vx = u.vx; c.vz = u.vz;
+  }
   plateCount = plateN;
   if (prize) {
     const st = bigStep(prize, dt, settled, pf, vpf);
@@ -2430,7 +2484,7 @@ function buildCabinet() {
     g.fillText(txt, 160, 43);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   };
-  gutterTex = [labelTex('侧槽 不赔', '#b4c0c8'), labelTex('狂热 也赔', '#ffcf4d')];
+  gutterTex = [labelTex('侧槽 回板', '#b4c0c8'), labelTex('狂热 也赔', '#ffcf4d')];
   const gutterLabel = gutterLabelMat = new THREE.MeshBasicMaterial({ map: gutterTex[0] });
   for (const sx of [-1, 1]) {
     const pad = new THREE.Mesh(new THREE.PlaneGeometry(gw, gDepth), gutterMat);
@@ -2690,6 +2744,7 @@ function syncBalls() {
   }
 }
 
+const COIN_FACE_Y = 0;   // 币面贴图转到这个角度时，字在镜头里是正的
 function syncCoins() {
   const seen = new Set();
   for (const c of coins) {
@@ -2702,7 +2757,11 @@ function syncCoins() {
       scene.add(m); c._m = m;
     }
     m.position.set(c.x, realY(c), c.z);
-    m.rotation.y = c.spin;
+    // 币面字朝着镜头摆正，只留一点随机歪（±8°）：以前按 c.spin 整圈乱转，「1」看着像「7」「L」。
+    // 下落和刚落定时再按 spin 晃一点，落定余摆衰减完就正回来
+    const tilt = ((c.id * 0.618) % 1 - 0.5) * 0.28;
+    const sway = c.state !== 0 ? 1 : c.wobT;
+    m.rotation.y = COIN_FACE_Y + tilt + Math.sin(c.spin) * 0.5 * sway;
     if (c.state !== 0) {
       // 下落/出场：随自旋相位翻滚摇摆，落体不再是刚性平移
       m.rotation.x = Math.sin(c.spin * 2.6) * 0.3;
@@ -2791,13 +2850,22 @@ function updateDisp(t) {
   dispTex.needsUpdate = true;
 }
 
+// 手机竖屏取景（fitPhone 算好）：基准画面是 440×400 那一帧；
+// 下沿切掉 PHONE_CROP（侧槽字下面那条黑），上沿多露 camTop（屏幕高有富余时往上露出顶灯）
+const PHONE_CROP = 0.1;
+let camTop = 0, phoneView = false;
 function resizeThree() {
   if (!renderer) return;
   const w = cv.clientWidth || 440;
-  const h = Math.round(w * 400 / 440);
+  const baseH = w * 400 / 440;
+  const h = Math.round(phoneView ? baseH * (1 - PHONE_CROP) + camTop : baseH);
   cv.style.height = h + 'px';
   renderer.setSize(w, h, false);
-  if (camera) { camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  if (!camera) return;
+  camera.aspect = w / baseH;
+  if (phoneView) camera.setViewOffset(w, baseH, 0, -camTop, w, h);
+  else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
 }
 
 function render(t, dt) {
@@ -2861,12 +2929,15 @@ function updateHUD() {
   $('uiCoins').textContent = coins.filter(c => c.state === 0).length;
   $('btnShake').disabled = S.energy < 50;
   $('btnTower').disabled = S.energy < 100;
+  const nShake = Math.floor(S.energy / 50), nTower = Math.floor(S.energy / 100);
+  $('cntShake').textContent = nShake >= 2 ? '×' + nShake : '';
+  $('cntTower').textContent = nTower >= 2 ? '×' + nTower : '';
   // 街机外观（issue 30）：LED 残影、能量圈、能量格、投币门、狂热时屏框跑马灯变红
   $('uiBal').dataset.ghost = String($('uiBal').textContent).replace(/\d/g, '8');
   $('uiScore').dataset.ghost = String($('uiScore').textContent).replace(/\d/g, '8');
   $('btnShake').style.setProperty('--pct', Math.min(1, S.energy / 50).toFixed(3));
   $('btnTower').style.setProperty('--pct', Math.min(1, S.energy / 100).toFixed(3));
-  $('uiMeter').style.setProperty('--e', (S.energy / 100).toFixed(2));
+  $('uiMeter').style.setProperty('--e', Math.min(1, S.energy / 100).toFixed(2));   // 条只画到 100，数字照实显示
   const ic = $('insertCoin'), playing = S.activeT > 0 || S.auto;
   ic.textContent = playing ? '♪ GOOD LUCK ♪' : 'INSERT COIN';
   ic.className = playing ? 'play' : 'blink';
@@ -3039,7 +3110,8 @@ const phoneMQ = window.matchMedia('(max-width: 600px)');
 function fitPhone() {
   const cab = document.querySelector('.play .cab');
   cab.style.width = '';
-  if (phoneMQ.matches) {
+  phoneView = phoneMQ.matches; camTop = 0;
+  if (phoneView) {
     for (let i = 0; i < 3; i++) {
       resizeThree();
       const over = $('stage').getBoundingClientRect().height - window.innerHeight;
@@ -3048,6 +3120,10 @@ function fitPhone() {
       const h = Math.max(170, w * 400 / 440 - over);
       cab.style.width = Math.round(h * 440 / 400 + 14) + 'px';
     }
+    // 屏幕还有富余：画面往上多露一点（最多基准高的 18%），剩下的空留在控制台上面（CSS 把控制台压到屏幕底）
+    const spare = document.querySelector('.ctl').getBoundingClientRect().top
+      - document.querySelector('.statline').getBoundingClientRect().bottom - 6;
+    if (spare > 1) camTop = Math.min(spare, cv.clientWidth * 400 / 440 * 0.18);
   }
   resizeThree();
 }
@@ -3078,7 +3154,7 @@ $('btnResetYes').addEventListener('click', () => {
   S.totalIn = 0; S.totalOut = 0; S.jackpots = 0; S.feedT = 4;
   S.prizeIn = 0; S.prizeType = -1; S.gateHits = 0; S.prizes = 0; S.slot = null; S.slotQ = 0; prize = null;
   S.feverT = 0; S.feverCD = 0; setGutterLook(false); balls.length = 0; S.ballIn = 0; S.rushT = 0;   // 生肖收藏和今日任务不清：那是你攒的，不是机台的
-  coins.length = 0; coinMeshMap.forEach(m => scene && scene.remove(m)); coinMeshMap.clear();
+  coins.length = 0; recycleQ.length = 0; coinMeshMap.forEach(m => scene && scene.remove(m)); coinMeshMap.clear();
   stopAuto();
   $('mReset').classList.remove('show');
   flashText('机台已重置', '#ffcf4d', 22);
@@ -3135,7 +3211,7 @@ window.addEventListener('orientationchange', resizeThree);
      否则叠层币会被横向摇散，开局雪崩式把币堆推下前沿；
    - 前后左右的列距抖动保持温和，自平衡的位移远小于到掉落口的空档。 */
 function seedCoins() {
-  coins.length = 0;
+  coins.length = 0; recycleQ.length = 0;
   const r = WORLD.coinR, T = WORLD.coinT;
   let rnd = 524287;
   const rand = () => (rnd = (rnd * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
