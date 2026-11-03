@@ -861,7 +861,7 @@ const WORLD = {
 
 let plateCount = 0;
 const FEED_CAP = 300;   // 台面少于这么多枚才慢慢补币
-// |x| 超过它就是侧槽：掉下去不赔币（抽水，见 winCoin / ADR-0009）。
+// |x| 超过它就是侧槽：掉下去不赔币，币重新落回推板（见 winCoin / ADR-0009 2026-11-03）。
 // 0.90 → 0.76 → 0.74 → 0.72：抽奖口、奖品、狂热、宾果多吐的那部分从这里收回来（issue 26 / 27 / 28）
 const SIDE_X = 0.72;
 const LAYER_DRAG = 0.03;   // 层间摩擦系数（每帧把上层速度向上层的速度拉 3%）
@@ -1131,8 +1131,8 @@ function supportHeight(x, z, r, base) {
 /* ---------- 掉落结算 ---------- */
 function winCoin(c) {
   // 账（ADR-0009）：币的个数进出大致守恒（掉出去的 ≈ 投进来的 + 机器撒的），
-  // 所以回收率只由"一枚掉出去的币值多少"决定。抽水全在侧槽：两角掉下去的币进侧槽、不赔，
-  // 只推凤凰进度；连击只乘积分。长期实测 ≈ 0.83（旧规则连击乘钱 + 侧槽 ×2 是 ≈ 4.8，全柜通胀）。
+  // 所以回收率只由"一枚掉出去的币值多少"决定。两角掉下去的币进侧槽、不赔，但不被吞：回推板重新落下。
+  // 侧槽不再抽水，长期回收 ≈ 1.17（有意超 1，见 ADR-0009 2026-11-03）；连击只乘积分。
   if (Math.abs(c.x) > SIDE_X && !feverOn()) {
     // 侧槽的币不是你的，也不被机器吞掉：顺着回币道送回去，过一会儿重新落到推板上。
     // 侧槽不推凤凰进度：推的话侧槽越宽、开奖越勤（实测侧槽 0.72 时 20 分钟开 2~3 次奖），越收水越往外吐
@@ -2126,7 +2126,7 @@ function setGutterLook(fever) {
   gutterLabelMat.needsUpdate = true;
 }
 // 机位：比原来（2.35, 3.50 → 看 0.50, 0.40）近一点、低头多一点——币台从画面的一半涨到约 2/3，
-// 后墙电子屏仍然读得出数，两角的侧槽和"出币口"字样都留在画里（侧槽不赔，得看得见）
+// 后墙电子屏仍然读得出数，两角的侧槽和"出币口"字样都留在画里（侧槽不赔、币回推板，得看得见）
 const CAM_POS = [0, 2.3, 3.3], CAM_LOOK = [0, 0.32, 0.5];
 let dispCanvas = null, dispTex = null, dispCtx = null;
 let pusher = null, pusherEdge = null, pusherNose = null, PZB = 0;
@@ -2472,7 +2472,7 @@ function buildCabinet() {
   lip.position.set(0, -0.015, WORLD.dropZ + 0.007);
   scene.add(lip);
 
-  // 侧槽（ADR-0009）：前沿两角 |x| > SIDE_X 掉下去的币不赔。规则得看得见——
+  // 侧槽（ADR-0009）：前沿两角 |x| > SIDE_X 掉下去的币不赔、回推板。规则得看得见——
   // 台呢上压一块暗色槽区、槽边一道铜分隔条，正脸写"侧槽"；中间写"出币口"。
   const gw = wallX - SIDE_X, gDepth = 0.2;
   gutterMat = new THREE.MeshStandardMaterial({ color: 0x140806, roughness: 0.9, transparent: true, opacity: 0.72, depthWrite: false });
@@ -3047,7 +3047,7 @@ function loop(now) {
   });
   box.addEventListener('pointermove', e => { if (box.hasPointerCapture(e.pointerId)) slideTo(e.clientX); });
 }
-// 落点标签：落点正对侧槽那一条时标红——往那儿投，币大半进槽不赔
+// 落点标签：落点正对侧槽那一条时标红——往那儿投，币大半进槽、不赔（回推板重来）
 function posLabel() {
   const el = $('uiPos');
   const x = S.pos * (WORLD.wallX - WORLD.coinR - 0.06);

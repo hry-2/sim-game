@@ -155,7 +155,8 @@ const path = require('path');
   // ---- 账：长期回收率（ADR-0009）----
   // 用 sim() 快进游戏时间，不渲染。回归史：连击乘钱 + 侧槽 ×2 + 投出凤凰币，
   // 长期每投 1 枚回 4.8 枚（全柜币袋通胀）；短测 60 投又只回 13%——两头都没被测出来。
-  // ① 挂机不投币：机器不该自己往外吐币  ② 一直自动投：回收落在 0.6~0.95
+  // ① 挂机不投币：机器不该自己往外吐币  ② 一直自动投：回收落在 0.95~1.4
+  //    （2026-11-03 起侧槽的币回推板、不再抽水，有意超 1 ≈ 1.17；跌回 1 以下说明侧槽又在吞币）
   // ③ 帧率无关：物理是固定步长，60Hz / 120Hz 屏同一台机器
   const econ = await page.evaluate(() => {
     const d = window.__coinpusher, S = d.S;
@@ -172,9 +173,9 @@ const path = require('path');
       nan: d.coins.filter(c => !Number.isFinite(c.x + c.z + c.y + c.h)).length };
   });
   const idleOk = econ.idle <= 5;
-  const rateOk = econ.rate >= 0.6 && econ.rate <= 1.0 && econ.nan === 0 && econ.live > 150 && econ.live < 480;
+  const rateOk = econ.rate >= 0.95 && econ.rate <= 1.4 && econ.nan === 0 && econ.live > 150 && econ.live < 480;
   console.log('idle machine pays nothing (3 min):', idleOk ? 'PASS' : 'FAIL', JSON.stringify({ idle: econ.idle }));
-  console.log('long-run payout 0.6~1.0 (10 min auto; 20-min calibration ≈ 0.84):', rateOk ? 'PASS' : 'FAIL', JSON.stringify(econ));
+  console.log('long-run payout 0.95~1.4 (10 min auto; 20-min calibration ≈ 1.17):', rateOk ? 'PASS' : 'FAIL', JSON.stringify(econ));
   await page.evaluate(() => { window.__coinpusher.S.bal = 300; });
 
   // ---- 抽奖口 + 奖品（issue 26）----
