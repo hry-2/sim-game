@@ -149,7 +149,7 @@ const path = require('path');
       tagged: document.querySelectorAll('#bookTable tr').length &&
         [...document.querySelectorAll('#bookTable tr')].filter(tr => tr.textContent.includes('龙鱼')).length };
   });
-  const dragonOk = dragonRes.rows === 16 && dragonRes.tagged === 4 &&
+  const dragonOk = dragonRes.rows === 18 && dragonRes.tagged === 4 &&
     ['jade', 'flame', 'aurum', 'violet'].every(t => dragonRes.out[t].pay === dragonRes.out[t].v &&
       dragonRes.out[t].caught === 1 && dragonRes.out[t].gone);
   console.log('4 dragon fish pay by value & tagged in book:', dragonOk ? 'PASS' : 'FAIL', JSON.stringify(dragonRes));
@@ -456,7 +456,7 @@ const path = require('path');
 
   const bigTideRes = await page.evaluate(async () => {
     const d = window.__fish;
-    const mark = d.tideLog.length;
+    const mark = d.tideLog.length, fm = d.formLog.length;
     d.clearFish();
     d.setTide(4);
     d.forceTide();
@@ -466,6 +466,7 @@ const path = require('path');
       tide: d.tide,
       boss: d.fish.some(f => f.boss),
       fish: d.fish.length,
+      form: d.formLog.slice(fm).map(x => x.k + ':' + x.n),
       rec: rec ? { tide: rec.tide, big: rec.big, schools: rec.schools.map(s => s.type + 'x' + s.n) } : null
     };
   });
@@ -473,8 +474,9 @@ const path = require('path');
   // 群里的鱼是从画面外一批批游进来的，断言会被出场时机带跑。
   const bigTideOk = bigTideRes.tide === 5 && bigTideRes.boss === true &&
     !!bigTideRes.rec && bigTideRes.rec.tide === 5 && bigTideRes.rec.big === true &&
-    bigTideRes.rec.schools.length === 2 && bigTideRes.rec.schools.every(s => !/x0$/.test(s));
-  console.log('big tide (every 5th) brings two schools + a king:',
+    bigTideRes.rec.schools.length === 1 && bigTideRes.rec.schools.every(s => !/x0$/.test(s)) &&
+    bigTideRes.form.length === 1 && +bigTideRes.form[0].split(':')[1] >= 17;   // issue 22：第二群换成一个鱼阵
+  console.log('big tide (every 5th) brings a school + a formation + a king:',
     bigTideOk ? 'PASS' : 'FAIL', JSON.stringify(bigTideRes));
 
   /* ================= issue 03：落盘节流 + HUD 增量写 ================= */
@@ -690,13 +692,13 @@ const path = require('path');
     out.task = { n: d.S.daily.m.length, done: m.done, pay: d.wallet - w0, btn: document.getElementById('btnDaily').textContent };
     out.taskOk = out.task.n === 3 && m.done && out.task.pay === 5 && out.task.btn.includes('1/3');
     d.renderDaily();
-    out.taskUi = document.querySelectorAll('#dailyList .mission').length === 3 && document.querySelectorAll('#lvList tr').length === 9;
+    out.taskUi = document.querySelectorAll('#dailyList .mission').length === 3 && document.querySelectorAll('#lvList tr').length === 11;
     // 海底事件：没人开炮不倒数；开着炮会来，蟹群放三只炸弹蟹
     d.clearFish();
     const e0 = d.S.events;
     d.sim(400);
     out.idle = d.S.events === e0;
-    d.setXp(d.xpFor(4));
+    d.setXp(d.xpFor(4)); d.clearFish();          // 闲着那 400 秒里涨潮会自己带进特殊鱼：清掉再数
     d.fireEvent(d.EVENTS.find(e => e.k === 'crabs'));
     out.crabs = d.fish.filter(f => f.type === 'crab').length;
     d.setSpawner(true); d.S.auto = true; d.sim(200); d.S.auto = false; d.setSpawner(false);
@@ -707,8 +709,137 @@ const path = require('path');
   const progOk = prog.xpOk && prog.lvOk && prog.dexOk && prog.taskOk && prog.taskUi && prog.evOk;
   console.log('level / codex / daily tasks / sea events:', progOk ? 'PASS' : 'FAIL', JSON.stringify(prog));
 
+  /* ================= 擂台赛（issue 17）================= */
+  const ar = await page.evaluate(() => {
+    const d = window.__fish;
+    d.setPaused(false); d.setSpawner(false); d.clearFish(); d.wallet = 1e5;
+    d.S.arena = { tier: 0, wins: 0, played: 0, best: 0 };
+    d.setBots(false);
+    d.startArena();
+    const out = { botsOn: d.botsOn, running: !!d.arena };
+    // 擂台分 = v，不乘炮倍；最后 30 秒翻倍；机器人抓的记在它那一格
+    d.S.bet = 10; d.clearFish();
+    d.catchFish(d.spawn('shark', { x: 200, y: 200, spd: 1e-4 }));
+    out.me = d.arena.sc[0];
+    d.arena.t = 20;
+    d.catchFish(d.spawn('shark', { x: 200, y: 200, spd: 1e-4 }));
+    out.me2 = d.arena.sc[0];
+    const bf = d.spawn('clown', { x: 200, y: 200, spd: 1e-4 }); bf.hp = 1e-6;
+    d.netAt(bf.x, bf.y, bf, d.BOTS[1]);
+    out.bot = d.arena.sc[2];
+    d.S.bet = 1;
+    // 打完：你分最高 → 第一、升段、记一场；没开模态之外不卡住
+    d.arena.sc = [999, 10, 10]; d.sim(21);
+    out.end = { running: !!d.arena, rank: d.arenaLast.rank, tier: d.S.arena.tier, played: d.S.arena.played, wins: d.S.arena.wins };
+    document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show')); d.setPaused(false);
+    // 认输：不算场次
+    d.startArena(); d.endArena(true);
+    out.quit = d.S.arena.played === 1 && !d.arena;
+    // 平分算输
+    d.startArena(); d.arena.sc = [50, 50, 10]; d.arena.t = 0.01; d.sim(0.1);
+    out.tie = d.arenaLast.rank;
+    document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show')); d.setPaused(false);
+    return out;
+  });
+  const arenaOk = ar.botsOn && ar.running && ar.me === 24 && ar.me2 === 72 && ar.bot === 4 &&   // 机器人那条也在决胜时刻：2 × 2
+    !ar.end.running && ar.end.rank === 1 && ar.end.tier === 1 && ar.end.played === 1 && ar.end.wins === 1 && ar.quit && ar.tie === 2;
+  console.log('arena: score by v, final 30s doubles, win ranks up, quit not counted:', arenaOk ? 'PASS' : 'FAIL', JSON.stringify(ar));
+
+  /* ================= 钻头蟹 / 招财鱼 / 鱼王分阶段 / 外观商店（issue 18~21）================= */
+  const more = await page.evaluate(async () => {
+    const d = window.__fish;
+    d.setPaused(false); d.setBots(false); d.setSpawner(false); d.wallet = 1e5; d.setXp(d.xpFor(10)); d.S.bet = 1;
+    const out = {};
+    // 钻头：直着往上钻，穿过一排满血小丑鱼（每条只钻一次），力道花完为止；总共花掉的正好是 store
+    d.clearFish();
+    d.S.net = 1; d.syncNet();                     // 前面升过网口：大网会把余力溢到第一条小丑鱼身上
+    // 泳道夹在 96~372 之间：蟹放最底下，金鲨放最上头（判定圈大，要排在第 5 条小丑鱼后面才钻到）
+    const c = d.spawn('drill', { x: 220, y: 372, spd: 1e-4, amp: 0 });
+    const col = [0, 1, 2, 3, 4].map(i => d.spawn('clown', { x: 220, y: 300 - i * 35, spd: 1e-4, amp: 0 }));
+    const gold = d.spawn('gold', { x: 220, y: 96, spd: 1e-4, amp: 0 });
+    c.hp = 1e-6; const g0 = d.run.got;
+    d.netAt(c.x, c.y, c);
+    out.drillOut = d.drills.length === 1;
+    d.sim(2);
+    const spentGold = (1 - gold.hp) * 40;
+    out.drill = { killed: col.filter(f => !d.fish.includes(f)).length, got: d.run.got - g0, spentGold: +spentGold.toFixed(4), left: d.drills.length };
+    // 5 条 × 2 = 10 + 蟹自己 8 = 18；剩下 14 花在金鲨上
+    out.drillOk = out.drillOut && out.drill.killed === 5 && out.drill.got === 18 && Math.abs(spentGold - 14) < 1e-6 && out.drill.left === 0;
+    // 招财鱼：血量 23.5，赔付 = 10 × 炮倍 × 转出来的倍数；转盘 1.4 秒后弹字
+    d.clearFish();
+    out.luckyHp = d.hpv(d.FISH.lucky) === 23.5;
+    const W = d.WHEEL, mean = W.reduce((s, w) => s + w.m * w.w, 0) / W.reduce((s, w) => s + w.w, 0);
+    out.mean = mean;
+    const pays = [];
+    d.S.bet = 2;
+    for (let i = 0; i < 400; i++) { const f = d.spawn('lucky', { x: 200, y: 200, spd: 1e-4 }); pays.push(d.catchFish(f)); }
+    d.S.bet = 1;
+    out.wheelSet = pays.every(p => W.some(w => p === 10 * 2 * w.m));
+    out.wheelAvg = +(pays.reduce((a, b) => a + b, 0) / pays.length / 20).toFixed(2);
+    out.wheelSpin = d.wheels.length > 0;
+    d.sim(3);
+    out.wheelOk = out.luckyHp && Math.abs(mean - 2.35) < 1e-9 && out.wheelSet && out.wheelAvg > 2.0 && out.wheelAvg < 2.7 && out.wheelSpin && d.wheels.length === 0;
+    // 鱼王：一半血召唤 6 条护卫，两成血狂暴（加速 1.5 倍），出画面前掉头一次
+    d.clearFish();
+    const k = d.spawn('king', { x: 220, y: 240, fromLeft: true });
+    const vx0 = k.vx;
+    k.hp = 0.501; d.netAt(k.x, k.y, k);          // 一发只掉 1% 左右：贴着门槛打
+    const esc = d.fish.length - 1;
+    k.hp = 0.201; d.netAt(k.x, k.y, k);
+    out.king = { esc, p1: !!k.p1, rage: !!k.rage, speed: +(k.vx / vx0).toFixed(2) };
+    k.x = 440 - 30; d.sim(0.1);
+    out.king.turned = !!k.turned && k.vx < 0;
+    out.kingOk = out.king.esc === 6 && out.king.p1 && out.king.rage && out.king.speed === 1.5 && out.king.turned;
+    // 商店：第一下只亮价钱，第二下才扣币；钱不够不卖；买了换上
+    d.wallet = 700; d.S.gunOwn = 1; d.S.gun = 0; d.syncNet();
+    const b1 = document.querySelector('#gunRow .skin[data-i="1"]');
+    b1.click();
+    const afterOne = d.wallet;
+    b1.click();
+    out.shop = { first: afterOne === 700, paid: d.wallet === 100, gun: d.S.gun, own: (d.S.gunOwn & 2) === 2 };
+    const b3 = document.querySelector('#gunRow .skin[data-i="3"]');
+    b3.click(); b3.click();
+    out.shop.poor = d.wallet === 100 && d.S.gun === 1 && (d.S.gunOwn & 8) === 0;
+    document.querySelector('#gunRow .skin[data-i="0"]').click();
+    out.shop.back = d.S.gun === 0 && d.wallet === 100;
+    out.shopOk = out.shop.first && out.shop.paid && out.shop.gun === 1 && out.shop.own && out.shop.poor && out.shop.back;
+    d.wallet = 1e5;
+    return out;
+  });
+  /* ================= 鱼阵（issue 22）================= */
+  const fm = await page.evaluate(() => {
+    const d = window.__fish;
+    d.setPaused(false); d.setBots(false); d.setSpawner(true); d.clearFish(); d.clearShots();
+    d.S.auto = false;                    // 开着自动炮海底事件会自己来鱼阵，数不准
+    const out = {};
+    for (const k of ['ring', 'goose', 'helix', 'spiral']) {
+      d.clearFish(); d.setTide(1);           // 一轮 34 秒：别跑到第 5 潮，大潮会自己再来一个鱼阵
+      d.startFormation(k);
+      d.sim(0.1);
+      const n0 = d.fish.length + d.formQ;
+      d.sim(4);
+      const onScreen = d.fish.filter(f => f.x > 0 && f.x < 440 && f.y > 0 && f.y < 500).length;
+      const formFish = d.fish.filter(f => f.path).length, wild = d.fish.filter(f => !f.path).length;
+      d.sim(30);
+      out[k] = { n0, onScreen, wild, left: d.fish.filter(f => f.path).length, formT: d.formT };
+    }
+    // 阵里的鱼照常赔：v × 炮倍
+    d.clearFish(); d.startFormation('ring'); d.sim(5);
+    const f = d.fish.find(x => x.type === 'clown'), w0 = d.wallet;
+    d.catchFish(f);
+    out.pay = d.wallet - w0;
+    d.clearFish();
+    return out;
+  });
+  const formOk = ['ring', 'goose', 'helix', 'spiral'].every(k => fm[k].n0 >= 17 && fm[k].onScreen >= 8 && fm[k].wild === 0 && fm[k].left === 0 && fm[k].formT === 0) &&
+    fm.pay === 2;
+  console.log('formations: 4 shapes enter, pause wild spawns, then leave:', formOk ? 'PASS' : 'FAIL', JSON.stringify(fm));
+
+  const moreOk = formOk && more.drillOk && more.wheelOk && more.kingOk && more.shopOk;
+  console.log('drill crab / lucky wheel / king phases / cosmetic shop:', moreOk ? 'PASS' : 'FAIL', JSON.stringify(more));
+
   console.log('runtime errors:', errors.length === 0 ? 'NONE (PASS)' : errors.join(' | '));
-  const allPass = specialOk && progOk && botOk && juiceOk && linkOk && threeOk && seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && dragonOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
+  const allPass = moreOk && arenaOk && specialOk && progOk && botOk && juiceOk && linkOk && threeOk && seedOk && cleanOk && walletOk0 && shotOk && betOk && payOk && netOk && dragonOk && netUpOk && maxOk && skinOk && reliefOk && aimOk &&
     saveOk && paused && resumed && overflow <= 0 && homeInfo.card && homeInfo.lit > 100 &&
     purseOk && errors.length === 0 &&
     hudOk && barOk && missOk && schoolOk && tierOk && bigTideOk && thrOk && netFrontOk && coinOk;

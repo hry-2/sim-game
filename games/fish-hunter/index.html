@@ -167,7 +167,7 @@
   .btn.bet.on{color:#2c1902;background:linear-gradient(180deg,#ffe391,#f0b53a 50%,#c8820f);border-color:#ffe9ae}
   .btn.bet.on small{color:#5d3c04}
   .btn:disabled{opacity:.4;cursor:default}
-  .row.utility{grid-template-columns:repeat(6,1fr);margin-top:10px}
+  .row.utility{grid-template-columns:repeat(7,1fr);margin-top:10px}
   .row.utility .btn{padding:7px 4px;font-size:12px;border-radius:4px}
 
   .panel{
@@ -257,6 +257,14 @@
   .mission.done .mt span{color:#8ff0d6}
   .mission.done .bar i{background:linear-gradient(90deg,#2f7f6e,#8ff0d6)}
   #lvList tr.lock td{opacity:.5}
+  /* 擂台（issue 17） */
+  #btnArena{color:#ffd862}
+  .ladder{display:flex;gap:6px;margin:10px 0 4px}
+  .ladder span{flex:1;padding:6px 0;text-align:center;font-size:12px;font-weight:700;border:1px solid #2b524a;border-radius:4px;color:#5f8a80}
+  .ladder span.past{color:var(--c);opacity:.6}
+  .ladder span.on{color:#1a1006;background:var(--c);border-color:var(--c);box-shadow:0 0 12px var(--c)}
+  #arenaResult .big{font-size:20px;font-weight:900;color:#ffe08a;margin:8px 0 4px}
+  #arenaResult tr.me td{color:#8ff0d6;font-weight:700}
   #lvList td:first-child{width:3.4em;white-space:nowrap}
   #lvList td:last-child{text-align:left;white-space:normal;font-family:var(--cjk);line-height:1.4}
   #bookTable tr.unseen td{color:#5f8a80}
@@ -272,6 +280,8 @@
   .skin span{display:block;margin-top:2px;font-size:9px;color:#6f968c;letter-spacing:.06em}
   .skin.on{border-color:var(--gold);color:#ffe08a;box-shadow:inset 0 0 14px rgba(255,207,77,.18)}
   .skin.lock{opacity:.42;cursor:not-allowed}
+  .skin.confirm{border-color:#ff8a3a;color:#ffd0a0;box-shadow:inset 0 0 14px rgba(255,120,40,.25)}
+  #gunRow,#seaRow{grid-template-columns:repeat(4,1fr)}
   /* ================================================================
      街机外观（和聚宝盆同一套，issue 30 的捕鱼版）：拉丝黑钢控制台 + 铜螺丝 + 圆顶灯键；
      LED 屏带"8888"残影；屏幕外框一圈青色跑马灯；机身两侧压一道深海蓝 + 铜条。
@@ -552,7 +562,8 @@
     <button class="btn" id="btnHow">玩法</button>
     <button class="btn" id="btnBook">图鉴</button>
     <button class="btn" id="btnDaily">任务 0/3</button>
-    <button class="btn" id="btnNet">网具</button>
+    <button class="btn" id="btnArena">擂台</button>
+    <button class="btn" id="btnNet">装备</button>
     <button class="btn" id="btnPause">暂停</button>
     <button class="btn on" id="btnBots">陪打:开</button>
   </div>
@@ -592,7 +603,8 @@
       <button class="btn" data-go="btnHow">玩法</button>
       <button class="btn" data-go="btnBook">图鉴</button>
       <button class="btn" data-go="btnDaily" id="menuDaily">任务 0/3</button>
-      <button class="btn" data-go="btnNet">网具</button>
+      <button class="btn" data-go="btnArena" id="menuArena" style="grid-column:1 / -1;color:#ffd862">⚔ 擂台赛</button>
+      <button class="btn" data-go="btnNet">装备 · 商店</button>
       <button class="btn" data-go="btnPause">暂停</button>
       <button class="btn" data-go="btnReset">重置战绩</button>
       <button class="btn" data-go="btnFull">全屏</button>
@@ -618,6 +630,7 @@
       <li><b>网具</b>：网口能用币袋里的币升级（300 / 800 币，罩 48 → 58 → 70），只加罩住的面积、不加每发伤害；网衣按累计渔获解锁，纯外观。</li>
       <li><b>特殊鱼</b>（机台升级解锁）：<b>炸弹蟹</b>打死炸一圈、<b>雷霆水母</b>打死电一串（最多 8 条）、<b>冰晶鲀</b>打死全场冰封 5 秒。它们比同价的鱼耐打——多挨的那几发就是存进去的伤害，死的时候一次放出去，炸到 / 电到的鱼照常赔给你。</li>
       <li><b>机台等级 / 每日任务 / 海底事件</b>：抓鱼攒经验升级；每天三条任务，每条 +5 币；玩着玩着海底会来鱼潮、龙鱼、蟹群、寒流——只改出鱼的时机，不改赔付。</li>
+      <li><b>擂台赛</b>：和两个机器人比 3 分钟，按抓到的鱼的倍数记分（不乘炮倍），最后 30 秒翻倍。第一名升段（青铜 → 白银 → 黄金 → 钻石），段位越高它们越凶。只发经验，不发币。</li>
       <li><b>全柜联动</b>：抓到<b>鱼王</b>，聚宝盆台上就落一个奖品；抓到<b>龙鱼</b>，聚宝盆撒一颗彩球。聚宝盆开奖或宾果全亮，这边<b>下一潮鱼王必来</b>。</li>
       <li><b>币袋</b>：这台机器没有自己的余额，炮打出去的、鱼翻出来的都是<b>全柜通用的币袋</b>——和聚宝盆是同一袋。币袋见底时，机器会保底借你 10 枚（45 秒一次）。</li>
     </ul>
@@ -638,6 +651,21 @@
   </div>
 </div>
 
+<!-- 擂台 -->
+<div class="modal" id="mArena">
+  <div class="sheet">
+    <h2>擂台赛 · <span id="arenaTier">青铜擂台</span></h2>
+    <div id="arenaResult" style="display:none"></div>
+    <p>和阿龙、小美比 <b>3 分钟</b>谁抓得多。擂台分 = 抓到的鱼的倍数（<b>不乘炮倍</b>，大炮买不到名次）；<b>最后 30 秒分数翻倍</b>。拿第一升段，段位越高它们出手越快越准。</p>
+    <div class="ladder" id="arenaLadder"></div>
+    <p class="dim" id="arenaStat"></p>
+    <p class="dim">币照常扣、照常赔，和平时一样；擂台只发经验（第一名 100~500，第二名四分之一）。</p>
+    <button class="closebtn" id="btnArenaGo">开打 · 3 分钟</button>
+    <button class="closebtn" id="btnArenaQuit" style="display:none;background:#0b1d1d;color:var(--ink);border:1px solid var(--line)">认输退出</button>
+    <button class="closebtn" data-close style="background:#0b1d1d;color:var(--ink);border:1px solid var(--line)">回到海里</button>
+  </div>
+</div>
+
 <!-- 任务 + 机台等级 -->
 <div class="modal" id="mDaily">
   <div class="sheet">
@@ -654,7 +682,7 @@
 <!-- 网具 -->
 <div class="modal" id="mNet">
   <div class="sheet">
-    <h2>网具</h2>
+    <h2>装备</h2>
     <p class="dim">网口只买罩得宽，不买伤害：一张网的伤害预算还是 0.95 × 炮倍。</p>
     <table>
       <tr><td>当前网口</td><td id="netLv">Lv.1 · 罩 48</td></tr>
@@ -666,6 +694,11 @@
     <h3>网衣</h3>
     <div class="skins" id="skinRow"></div>
     <p class="dim" id="skinTip">网衣是纯外观，不影响伤害和赔付。按累计渔获解锁。</p>
+    <h3>炮台皮肤 · 花币买</h3>
+    <div class="skins" id="gunRow"></div>
+    <h3>海色 · 花币买</h3>
+    <div class="skins" id="seaRow"></div>
+    <p class="dim">炮台和海色是纯外观，买了就是你的。没买的点一下看价钱，再点一下才扣币。</p>
     <button class="closebtn" data-close>收网</button>
   </div>
 </div>
@@ -738,7 +771,9 @@
   /* ================= 战绩存档（币不在里面） ================= */
   const SAVE_KEY = 'fishhunter.v1';
   const S = { v: 1, bet: 1, sound: true, auto: false, caught: 0, gained: 0, best: 0, king: 0, spent: 0, net: 1, skin: 0, skins: 1, kingNext: false, bots: true,
-              xp: null, dex: {}, daily: null, events: 0 };
+              xp: null, dex: {}, daily: null, events: 0,
+              arena: { tier: 0, wins: 0, played: 0, best: 0 },
+              gun: 0, gunOwn: 1, sea: 0, seaOwn: 1 };
   try {
     const raw = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
     if (raw && raw.v === 1) Object.assign(S, raw);
@@ -829,6 +864,8 @@
     boom() { tone(90, 0.45, 'sawtooth', 0.07, -60); tone(160, 0.25, 'square', 0.04, -120); },
     zap() { for (let i = 0; i < 5; i++) setTimeout(() => tone(1400 + Math.random() * 900, 0.05, 'sawtooth', 0.03, -900), i * 45); },
     freeze() { [1760, 1568, 1319, 1175].forEach((f, i) => setTimeout(() => tone(f, 0.22, 'sine', 0.04, 40), i * 70)); },
+    tick() { tone(1800, 0.025, 'square', 0.02, 0); },
+    drill() { tone(140, 0.5, 'sawtooth', 0.05, 380); setTimeout(() => tone(900, 0.3, 'square', 0.02, -400), 60); },
     level() { [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => tone(f, 0.16, 'triangle', 0.06, 0), i * 90)); }
   };
 
@@ -855,11 +892,21 @@
        放出去的伤害照常按 v 换赔付，没打着鱼就落空。账还是 0.95 × 炮倍 / 发（ADR-0008 末尾）。 */
     crab:    { v: 6,  r: 30, spd: 17, name: '炸弹蟹', col: '#ff5a32', special: 'bomb',   store: 24 },
     jelly:   { v: 8,  r: 28, spd: 21, name: '雷霆水母', col: '#ffe14a', special: 'chain', store: 24 },
-    ice:     { v: 6,  r: 26, spd: 24, name: '冰晶鲀', col: '#9fe8ff', special: 'freeze', store: 6 }
+    ice:     { v: 6,  r: 26, spd: 24, name: '冰晶鲀', col: '#9fe8ff', special: 'freeze', store: 6 },
+    drill:   { v: 8,  r: 30, spd: 17, name: '钻头蟹', col: '#4a9aff', special: 'drill',  store: 24 },
+    // 招财鱼：打死转一次转盘，赔付 × 转出来的倍数。血量按转盘的平均倍数算（10 × 2.35 = 23.5），期望不变
+    lucky:   { v: 10, r: 28, spd: 23, name: '招财鱼', col: '#ff4a3a', special: 'wheel',  store: 13.5 }
   };
+  // 转盘：五格，平均倍数 0.4×1 + 0.3×2 + 0.15×3 + 0.1×5 + 0.05×8 = 2.35（改格子要连 lucky.store 一起改）
+  const WHEEL = [{ m: 1, w: 40, c: '#5a8a9a' }, { m: 2, w: 30, c: '#2f9a6a' }, { m: 3, w: 15, c: '#3a6ad8' }, { m: 5, w: 10, c: '#a040d0' }, { m: 8, w: 5, c: '#e0301a' }];
+  function rollWheel() {
+    let r = Math.random() * 100;
+    for (let i = 0; i < WHEEL.length; i++) { r -= WHEEL[i].w; if (r <= 0) return i; }
+    return 0;
+  }
   // 一条鱼的血量（以"v 单位"计）：普通鱼 = v；特殊鱼多存一份 store
   const hpv = F => F.v + (F.store || 0);
-  const SPECIAL_TAG = { bomb: '炸', chain: '电', freeze: '冰' };
+  const SPECIAL_TAG = { bomb: '炸', chain: '电', freeze: '冰', drill: '钻', wheel: '转' };
 
   /* 龙鱼的配色：鳞脊 / 肚皮 / 鳍 / 角 / 须 / 眼睛的辉光 */
   const DRAGON = {
@@ -897,6 +944,23 @@
   if (!NET_LV[S.net]) S.net = 1;
   if (!SKINS[S.skin]) S.skin = 0;
   S.skins = (S.skins | 1) & ((1 << SKINS.length) - 1);
+
+  /* 外观商店（issue 20）：花币买炮台皮肤和海色。纯外观，不改伤害、不改赔付——
+     它是币袋唯一的"只出不进"的出口：币多到没地方花的时候，这里接着。 */
+  const GUNS = [
+    { name: '鎏金', cost: 0,    steel: 0xf0b840, gold: 0xffd36a, base: 0x0e6a5c, em: 0x4a2a00, dot: '#ffd36a' },
+    { name: '赤铜', cost: 600,  steel: 0xd8703a, gold: 0xffc088, base: 0x5a1a10, em: 0x4a1000, dot: '#d8703a' },
+    { name: '冰晶', cost: 1500, steel: 0xcff4ff, gold: 0xf2fdff, base: 0x1a4a7a, em: 0x1a5a7a, dot: '#bfefff' },
+    { name: '墨玉', cost: 3000, steel: 0x24342e, gold: 0xffd36a, base: 0x061a14, em: 0x0a2a20, dot: '#3a6a5a' }
+  ];
+  const SEAS = [
+    { name: '碧海', cost: 0,    bg: 0x2a9aa8, fog: 0x3aa8b4, tint: 0x18b8c8, op: 0.30, hemi: 0xe8fdff, hi: 0.75, key: 0xfff6e0, ki: 1.5, dot: '#2ab8c8' },
+    { name: '夕照', cost: 800,  bg: 0xc88a5a, fog: 0xd09a6a, tint: 0xff8a40, op: 0.24, hemi: 0xffe8c8, hi: 0.8,  key: 0xffd0a0, ki: 1.5, dot: '#ff9a50' },
+    { name: '夜光', cost: 2000, bg: 0x0c2a48, fog: 0x103a5a, tint: 0x0a2a7a, op: 0.55, hemi: 0x9ac0ff, hi: 0.55, key: 0xc8d8ff, ki: 1.0, dot: '#3a5ad8' }
+  ];
+  if (!GUNS[S.gun]) S.gun = 0;
+  if (!SEAS[S.sea]) S.sea = 0;
+  S.gunOwn |= 1; S.seaOwn |= 1;
   let NET_R = NET_LV[S.net].r;
   function checkSkins() {
     for (let i = 0; i < SKINS.length; i++) {
@@ -924,7 +988,9 @@
     { lv: 2,  t: '新鱼「炸弹蟹」：打死炸一圈', fish: 'crab' },
     { lv: 3,  t: '新鱼「雷霆水母」：打死电一串', fish: 'jelly' },
     { lv: 4,  t: '新鱼「冰晶鲀」：打死冰封全场 5 秒', fish: 'ice' },
+    { lv: 5,  t: '新鱼「钻头蟹」：打死放出一根钻头，穿鱼、撞墙反弹', fish: 'drill' },
     { lv: 5,  t: '炮座镶玉（外观）', cannon: 1 },
+    { lv: 6,  t: '新鱼「招财鱼」：打死转转盘，赔付 ×1~×8', fish: 'lucky' },
     { lv: 6,  t: '海底事件更常来（约 2.5 分 → 1.5 分一次）', ev: true },
     { lv: 7,  t: '炮口焰换金色（外观）', flame: true },
     { lv: 8,  t: '每日任务多一条（3 → 4）', task4: true },
@@ -969,7 +1035,10 @@
     { k: 'bomb',   n: 2,  t: '打爆 2 只炸弹蟹', lv: 2 },
     { k: 'chain',  n: 2,  t: '打死 2 只雷霆水母', lv: 3 },
     { k: 'freeze', n: 1,  t: '冰封全场 1 次', lv: 4 },
-    { k: 'pjack',  n: 1,  t: '在聚宝盆开一次奖（全柜联动）' }
+    { k: 'drill',  n: 2,  t: '打死 2 只钻头蟹', lv: 5 },
+    { k: 'wheel',  n: 2,  t: '转 2 次招财转盘', lv: 6 },
+    { k: 'pjack',  n: 1,  t: '在聚宝盆开一次奖（全柜联动）' },
+    { k: 'arena',  n: 1,  t: '赢一场擂台赛' }
   ];
   const MISSION_COIN = 5, MISSION_ALL = 5, MISSION_XP = 100;
   function todayKey() {
@@ -1050,7 +1119,8 @@
     { k: 'dragons', t: '双 龙 过 海', w: 2 },     // 一对龙鱼
     { k: 'crabs',   t: '蟹 群 横 行', w: 2, need: 'crab' },   // 三只炸弹蟹
     { k: 'king',    t: '鱼 王 巡 游', w: 1 },     // 场上没鱼王就来一条
-    { k: 'cold',    t: '寒 流',      w: 1 }      // 白送一次 3 秒冰封
+    { k: 'cold',    t: '寒 流',      w: 1 },     // 白送一次 3 秒冰封
+    { k: 'form',    t: '鱼 阵',      w: 2 }      // 来一个鱼阵（issue 22）
   ];
   let activeT = 0, eventT = 150;
   function eventTick(dt) {
@@ -1072,6 +1142,7 @@
     else if (ev.k === 'crabs') { for (let i = 0; i < 3; i++) spawnFish('crab', { fromLeft: i % 2 === 0, y: 130 + i * 90 }); }
     else if (ev.k === 'king') { if (fish.some(f => f.boss)) spawnSchool(); else spawnKing(); }
     else if (ev.k === 'cold') { freezeT = 3; sfx.freeze(); }
+    else if (ev.k === 'form') { startFormation(); missionBump('event'); save(); return; }   // 鱼阵自己会闪字
     flash('海底事件 · ' + ev.t);
     toast('海底事件 · ' + ev.t.replace(/ /g, ''));
     missionBump('event');
@@ -1124,6 +1195,8 @@
     setText('uiKingTop', fmt(S.king));
     setText('uiTide', tideLabel());
     setText('uiLv', LV >= LV_MAX ? 'Lv.' + LV : 'Lv.' + LV + ' ' + Math.floor((S.xp - xpFor(LV)) / (xpFor(LV + 1) - xpFor(LV)) * 100) + '%');
+    const ab = arena ? '⚔ ' + Math.ceil(arena.t) : '擂台';
+    if (hudCache.arena !== ab) { hudCache.arena = ab; $('btnArena').textContent = ab; $('btnArena').classList.toggle('on', !!arena); }
     const dd = dailyDone();
     if (hudCache.daily !== dd) { hudCache.daily = dd; $('btnDaily').textContent = '任务 ' + dd; $('menuDaily').textContent = '任务 ' + dd; }
     setText('uiSpent', fmt(run.spent));
@@ -1298,7 +1371,9 @@
     const hemi = new THREE.HemisphereLight(0xe8fdff, 0x1a5a62, 0.75);
     hemi.position.set(0.2, 0.3, 1);
     scene.add(hemi);
+    seaHemi = hemi;
     const key = new THREE.DirectionalLight(0xfff6e0, 1.5);
+    seaKey = key;
     key.position.set(-12, 18, 40);
     scene.add(key);
     const fill = new THREE.DirectionalLight(0x9ff0ff, 0.35);
@@ -1533,6 +1608,8 @@
       new THREE.MeshBasicMaterial({ color: 0x18b8c8, transparent: true, opacity: 0.3, depthWrite: false, fog: false }));
     waterTint.position.z = FLOOR_Z + 0.6;   // 压得很低：只染沙地，金币堆、宝箱、珊瑚都露在上面、颜色是亮的
     scene.add(waterTint);
+    seaTint = waterTint.material;
+    applySea();
 
     // 鱼影：每条鱼在沙上一块软影子（实例化，一个 draw）
     shadowMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1),
@@ -1583,6 +1660,10 @@
                crab: true, eye: .07, lure: true, lurePos: [-0.12, 1.02, 0.12], lureCol: 0xffc040, glow: '#ff3a10', glowI: .12 },
     jelly:   { len: .80, hgt: .55, wid: .80, top: '#fff7b0', body: '#ffd84a', belly: '#8a6cff', fin: '#b9a4ff', finTip: '#fff6c0',
                jelly: true, glow: '#ffd23a', glowI: .5 },
+    drill:   { len: .72, hgt: .34, wid: .95, top: '#123f8a', body: '#3d8cf0', belly: '#c8e2ff', fin: '#2a6fd0', finTip: '#a8d4ff',
+               crab: true, drill: true, eye: .07, glow: '#2a6aff', glowI: .12 },
+    lucky:   { len: .92, hgt: .66, wid: .62, top: '#a8100c', body: '#ff4a3a', belly: '#ffe0a0', fin: '#ffc23a', finTip: '#fff2b0',
+               wheel: true, metal: .4, glow: '#ff8a20', glowI: .3, eye: .1, iris: '#3a1a00' },
     ice:     { len: .80, hgt: .74, wid: .70, top: '#3d8fc0', body: '#9fe0ff', belly: '#f2fdff', fin: '#7fd0f6', finTip: '#e8fbff',
                spikes: true, spikeCol: '#f2fdff', spots: '#3d8fc0', glow: '#6fd8ff', glowI: .3, eye: .12, iris: '#1a4a8a' }
   };
@@ -1829,6 +1910,26 @@
         }
       }
     }
+    // 招财鱼：背上驮一面小转盘（五色扇区 + 金边 + 中间金钉）
+    if (L.wheel) {
+      // 五个扇区各自一块纯色（顶点色要是跨扇区插值，整面会糊成一片粉）
+      for (let i = 0; i < WHEEL.length; i++) {
+        const sec = new THREE.CircleGeometry(0.46, 10, i / WHEEL.length * Math.PI * 2, Math.PI * 2 / WHEEL.length);
+        sec.rotateX(-Math.PI / 2);
+        sec.translate(-0.05, L.hgt * 0.95 + 0.02, 0);
+        bodyParts.push(paintSolid(sec, WHEEL[i].c));
+      }
+      const back = new THREE.CylinderGeometry(0.47, 0.47, 0.05, 30);
+      back.translate(-0.05, L.hgt * 0.95 - 0.02, 0);
+      bodyParts.push(paintSolid(back, '#5a3404'));
+      const rim = new THREE.TorusGeometry(0.46, 0.05, 6, 40);
+      rim.rotateX(Math.PI / 2);
+      rim.translate(-0.05, L.hgt * 0.95 + 0.03, 0);
+      bodyParts.push(paintSolid(rim, '#ffd35a'));
+      const pin = new THREE.SphereGeometry(0.08, 10, 8);
+      pin.translate(-0.05, L.hgt * 0.95 + 0.06, 0);
+      bodyParts.push(paintSolid(pin, '#fff2b0'));
+    }
     // 王冠：一圈金箍 + 五个尖 + 红宝石
     if (L.crown) {
       const cx = L.len * 0.42, cy = L.hgt * 0.86;
@@ -1849,7 +1950,8 @@
     const bodyGeo = mergeGeos(bodyParts);
     const tailGeo = finShape(L.tail || L.fin, L.sharkTail ? 0.5 : 0.6, L.sharkTail ? 0.5 : 0.52, null, 0, L.tailTip || L.finTip);
     tailGeo.rotateX(Math.PI / 2);   // 尾鳍平放：俯视看得见整片尾巴，摆尾（绕背脊轴转）就是左右甩
-    return fishMats(L, bodyGeo, tailGeo, -L.len * 0.9, L.sharkTail ? 1.15 : 1);
+    // 缓存：同种鱼共用一份几何和材质（以前每条新鱼都重搭一遍几何）
+    return (ASSET[type] = fishMats(L, bodyGeo, tailGeo, -L.len * 0.9, L.sharkTail ? 1.15 : 1));
   }
 
   function fishMats(L, bodyGeo, tailGeo, tailX, tailS, tailSpd, tailAmp) {
@@ -1979,6 +2081,26 @@
         parts.push(paintSolid(c, t < 0 ? L.finTip : L.top));
       }
     }
+    if (L.drill) {
+      // 背上的钻头：一根金色螺纹锥，尖朝前
+      const cone = new THREE.ConeGeometry(0.3, 1.1, 18, 8);
+      const cp = cone.attributes.position, cc = new Float32Array(cp.count * 3);
+      const c0 = new THREE.Color('#ffe08a'), c1 = new THREE.Color('#a86a10');
+      for (let i = 0; i < cp.count; i++) {
+        const y = cp.getY(i), th = Math.atan2(cp.getZ(i), cp.getX(i));
+        tmpC.copy(Math.sin(th * 2 + y * 14) > 0 ? c0 : c1);        // 螺纹：一圈亮一圈暗，绕着往上拧
+        cc[i * 3] = tmpC.r; cc[i * 3 + 1] = tmpC.g; cc[i * 3 + 2] = tmpC.b;
+      }
+      cone.setAttribute('color', new THREE.BufferAttribute(cc, 3));
+      cone.rotateZ(-Math.PI / 2);
+      cone.translate(0.1, 0.5, 0);
+      parts.push(cone);
+      const collarD = new THREE.TorusGeometry(0.3, 0.07, 6, 18);
+      collarD.rotateY(Math.PI / 2);
+      collarD.translate(-0.45, 0.5, 0);
+      parts.push(paintSolid(collarD, '#3a3f4a'));
+      return crabLegs(L, parts);
+    }
     // 背上的炸弹：黑球 + 金箍 + 引信
     const bomb = new THREE.SphereGeometry(0.42, 20, 14);
     bomb.translate(-0.08, 0.62, 0);
@@ -1990,7 +2112,10 @@
     cap.translate(-0.1, 1.05, 0.04);
     parts.push(paintSolid(cap, '#ffcf4d'));
     parts.push(tube([[-0.1, 1.08, 0.04], [-0.14, 1.12, 0.1], [-0.12, 1.02, 0.12]], 0.025, '#d9c08a', 6));
-    // 腿：每边四条，两节，往后掠
+    return crabLegs(L, parts);
+  }
+  // 腿：每边四条，两节，往后掠
+  function crabLegs(L, parts) {
     const legs = [];
     for (const s of [-1, 1]) for (let i = 0; i < 4; i++) {
       const x0 = L.len * (0.3 - i * 0.26), a = -0.25 - i * 0.28;
@@ -2221,7 +2346,7 @@
         lure.scale.set(0.9, 0.9, 1);
         lure.position.set(lp[0], lp[1], lp[2]);
         grp.userData.lureY = lp[1];
-        grp.userData.spark = !!Lk0.crab;
+        grp.userData.spark = !!Lk0.crab && !Lk0.drill;
         grp.add(lure);
         grp.userData.lure = lure;
       }
@@ -2347,6 +2472,17 @@
       } else if (v.userData.tail) {
         v.userData.tail.rotation.y = Math.sin(f.t * v.userData.tailSpd + f.ph) * v.userData.tailAmp;
       }
+      if (f.boss && ASSET.king) {
+        const A = ASSET.king, Lk = LOOK.king;
+        if (f.rage) {
+          const k = 0.5 + Math.sin(t * 9) * 0.5;
+          A.mat.color.setRGB(1, 0.42 + 0.12 * k, 0.36); A.tailMat.color.copy(A.mat.color);   // 顶点色 × 红：整条泛红
+          A.mat.emissive.setHex(0xff1a08); A.mat.emissiveIntensity = 0.35 + k * 0.35;
+        } else if (A.mat.emissiveIntensity !== Lk.glowI) {
+          A.mat.color.setRGB(1, 1, 1); A.tailMat.color.setRGB(1, 1, 1);
+          A.mat.emissive.set(Lk.glow); A.mat.emissiveIntensity = Lk.glowI;
+        }
+      }
       if (v.userData.lure) {
         const Ul = v.userData;
         if (Ul.spark) {   // 引信火星：一闪一闪
@@ -2357,10 +2493,12 @@
       const hit = v.userData.hit;
       if (hit) {
         const ice = freezeT > 0 ? Math.min(1, freezeT / 0.6) * 0.42 : 0;
-        hit.visible = f.flash > 0.02 || ice > 0;
+        const rage = f.rage ? 0.28 + Math.sin(t * 9) * 0.14 : 0;
+        hit.visible = f.flash > 0.02 || ice > 0 || rage > 0;
         if (hit.visible) {
-          hit.material.color.setHex(f.flash > ice ? 0xffffff : 0x9fe8ff);
-          hit.material.opacity = Math.max(ice, Math.min(0.5, f.flash * 0.5));
+          hit.material.color.setHex(f.flash > Math.max(ice, rage) ? 0xffffff : rage > ice ? 0xff3a1a : 0x9fe8ff);
+          hit.material.opacity = Math.max(ice, rage, Math.min(0.5, f.flash * 0.5));
+          if (f.rage) hit.scale.set(5.2, 3.2, 1);
         }
       }
     }
@@ -2465,8 +2603,17 @@
     scene.add(grp);
     cannonPivot = pivot;
     cannonMuzzle = mouth;
-    cannonGold = goldMat; cannonSteel = steelMat;
+    cannonGold = goldMat; cannonSteel = steelMat; cannonBase = baseMat;
     applyLevel();
+  }
+  let seaHemi = null, seaKey = null, seaTint = null, cannonBase = null;
+  function applySea() {
+    if (!seaTint) return;
+    const c = SEAS[S.sea];
+    scene.background.setHex(c.bg); scene.fog.color.setHex(c.fog);
+    seaTint.color.setHex(c.tint); seaTint.opacity = c.op;
+    seaHemi.color.setHex(c.hemi); seaHemi.intensity = c.hi;
+    seaKey.color.setHex(c.key); seaKey.intensity = c.ki;
   }
   let gemMat = null, cannonGold = null, cannonSteel = null, betCv = null, betTex = null, betPainted = 0;
   // 金章：外圈压花、里面凸起的炮倍数字
@@ -2497,9 +2644,14 @@
     gemMat.color.setHex(jade ? 0x3ad0a0 : 0xd8203a);
     gemMat.emissive.setHex(jade ? 0x0a7a5a : 0x500810);
     if (muzzleFlash) muzzleFlash.material.color.setHex(lvFlag('flame') ? 0xffd060 : 0xbff6ff);
-    dragonGun = LV_UNLOCKS.some(u => u.cannon >= 2 && LV >= u.lv);
-    cannonSteel.color.setHex(dragonGun ? 0xffe08a : 0xf0b840);
-    cannonSteel.emissive.setHex(dragonGun ? 0x7a4a00 : 0x4a2a00);
+    // 九龙金只在默认的鎏金炮上亮；买了别的皮肤就按皮肤的色
+    const G = GUNS[S.gun];
+    dragonGun = S.gun === 0 && LV_UNLOCKS.some(u => u.cannon >= 2 && LV >= u.lv);
+    cannonSteel.color.setHex(dragonGun ? 0xffe08a : G.steel);
+    cannonSteel.emissive.setHex(dragonGun ? 0x7a4a00 : G.em);
+    cannonSteel.emissiveIntensity = 0.75;
+    cannonGold.color.setHex(G.gold);
+    cannonBase.color.setHex(G.base);
   }
   let dragonGun = false;
 
@@ -2874,14 +3026,14 @@
     if (F.special) {
       const cr = 8, cx = x + w + cr - 2, cy = y + h / 2;
       g.beginPath(); g.arc(cx, cy, cr, 0, Math.PI * 2);
-      g.fillStyle = F.special === 'bomb' ? '#c8301a' : F.special === 'chain' ? '#6a48e0' : '#2a8ac0'; g.fill();
+      g.fillStyle = { bomb: '#c8301a', chain: '#6a48e0', freeze: '#2a8ac0', drill: '#1a5ac8', wheel: '#d0a010' }[F.special]; g.fill();
       g.lineWidth = 1.2; g.strokeStyle = '#ffe9a8'; g.stroke();
       g.font = '900 10px system-ui,"PingFang SC",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillStyle = '#fff6d0'; g.fillText(SPECIAL_TAG[F.special], cx, cy + 0.5);
     }
     // 鱼王：头顶一条缎带
     if (f.boss) {
-      const label = '鱼王 · ' + F.v + '×';
+      const label = f.rage ? '鱼王 · 狂暴' : '鱼王 · ' + F.v + '×';
       g.font = '900 12px system-ui,"PingFang SC",sans-serif';
       const tw = g.measureText(label).width + 18, ry = y - 19, mx = x + w / 2;
       g.beginPath();
@@ -2901,7 +3053,7 @@
     $('dexNow').textContent = dexCount() + ' / ' + dexKeys().length;
     $('bookTable').innerHTML = Object.keys(FISH).map(k => {
       const F = FISH[k], n = S.dex[k] || 0;
-      const kind = F.boss ? '鱼王' : F.dragon ? '龙鱼' : F.special ? { bomb: '炸一圈', chain: '电一串', freeze: '冰封 5 秒' }[F.special] : '';
+      const kind = F.boss ? '鱼王' : F.dragon ? '龙鱼' : F.special ? { bomb: '炸一圈', chain: '电一串', freeze: '冰封 5 秒', drill: '钻头', wheel: '转盘 ×1~8' }[F.special] : '';
       const lock = F.special && !lvHas(k) ? '机台 Lv.' + LV_UNLOCKS.find(u => u.fish === k).lv + ' 解锁' : '';
       return '<tr class="' + (n ? '' : 'unseen') + '"><td>' + (n ? F.name : '？？？') + (kind ? '<span class="tag">' + kind + '</span>' : '') +
         '<small>' + (n ? '抓到 ' + n + ' 条' : (lock || '还没抓到过')) + '</small></td><td>' +
@@ -3102,8 +3254,11 @@
     drawBlasts();
     for (const f of hpList) drawHpBar(f);
     drawBolts(t);
+    drawDrills();
     drawPops();
+    drawWheels();
     drawBotSeats();
+    drawArena(t);
     drawAimUi(t);
     drawCeleb();
     g.restore();
@@ -3186,7 +3341,9 @@
       // 特殊鱼按机台等级解锁（issue 13）
       crab: lvHas('crab') ? 2.0 : 0,
       jelly: lvHas('jelly') ? 1.6 : 0,
-      ice: lvHas('ice') ? 1.0 : 0
+      ice: lvHas('ice') ? 1.0 : 0,
+      drill: lvHas('drill') ? 1.4 : 0,
+      lucky: lvHas('lucky') ? 1.2 : 0
     };
   }
   function pickType() {
@@ -3201,7 +3358,7 @@
   function spawnFish(type, opt) {
     opt = opt || {};
     const F = FISH[type];
-    if (!F || fish.length > MAXFISH + 6) return null;
+    if (!F || (!opt.force && fish.length > MAXFISH + 6)) return null;   // 鱼阵（force）不受上限：阵要整整齐齐
     const fromLeft = opt.fromLeft !== undefined ? opt.fromLeft : Math.random() < 0.5;
     const dir = fromLeft ? 1 : -1;
     const r = F.r * (opt.r || (0.92 + Math.random() * 0.16));
@@ -3288,6 +3445,92 @@
     schoolLog.push({ gid, type, n: fish.length - mark });
   }
 
+  /* ================= 鱼阵（issue 22） =================
+     大潮和海底事件里来一波编排好的阵型：圆阵 / 螺旋 / 雁阵 / 双龙绞（双螺旋）。
+     阵里的鱼走一条写死的轨道（f.path(τ) → {x, y}），不摆、不漂、受惊也不乱窜，走完就离场。
+     只改"鱼怎么来"：每条鱼的赔付、血量一个不动。阵型进行中暂停自然出鱼，别把阵冲散。 */
+  let formT = 0;                       // 鱼阵还要占场多久（秒）：期间不自然出鱼
+  const formQ = [];                    // 定时出鱼队列：{ at, fn }（螺旋要一条一条吐）
+  let formClock = 0;
+  const FORMS = [
+    { k: 'ring',   t: '圆 阵' },
+    { k: 'spiral', t: '螺 旋 阵' },
+    { k: 'goose',  t: '雁 阵' },
+    { k: 'helix',  t: '双 龙 绞' }
+  ];
+  const formLog = [];                  // 验证脚本用：{ k, n }
+  function pathFish(type, path, len, extra) {
+    const p0 = path(0);
+    const f = spawnFish(type, Object.assign({ x: p0.x, y: p0.y, force: true, amp: 0, drift: 0 }, extra || {}));
+    if (!f) return null;
+    f.path = path; f.pathLen = len; f.vy = 0; f.life = 0;
+    return f;
+  }
+  function rare(fallback) {             // 阵眼 / 领头：解锁了就放一条特殊鱼，没解锁放大鱼
+    const pool = ['lucky', 'crab', 'jelly', 'drill'].filter(lvHas);
+    return pool.length && Math.random() < 0.7 ? pool[(Math.random() * pool.length) | 0] : fallback;
+  }
+  function startFormation(k) {
+    const F = k ? FORMS.find(x => x.k === k) : FORMS[(Math.random() * FORMS.length) | 0];
+    const s = Math.random() < 0.5 ? 1 : -1;            // 从左还是从右进
+    const X = x => s > 0 ? x : W - x;                   // 镜像
+    const gid = ++grpSeq, mark = fish.length;
+    const tag = { grp: gid };
+    if (F.k === 'ring') {
+      // 外圈 16 条小丑鱼、内圈 8 条蓝刀鱼反着转，圈心一条大的；整个阵慢慢横穿
+      const V = 42, len = (W + 360) / V;
+      const cx = t => X(-170 + t * V), cy = 234;
+      for (let i = 0; i < 16; i++) { const a0 = i / 16 * Math.PI * 2; pathFish('clown', t => ({ x: cx(t) + Math.cos(a0 + t * 0.55) * 112, y: cy + Math.sin(a0 + t * 0.55) * 112 * 0.78 }), len, tag); }
+      for (let i = 0; i < 8; i++) { const a0 = i / 8 * Math.PI * 2; pathFish('tang', t => ({ x: cx(t) + Math.cos(a0 - t * 0.8) * 58, y: cy + Math.sin(a0 - t * 0.8) * 58 * 0.78 }), len, tag); }
+      pathFish(rare('turtle'), t => ({ x: cx(t), y: cy }), len, tag);
+      formT = len * 0.7;
+    } else if (F.k === 'spiral') {
+      // 从屏幕中间一条一条吐出来，转着往外甩
+      const cx = W / 2, cy = 226, N = 28, len = 9;
+      formClock = 0;
+      for (let i = 0; i < N; i++) {
+        const a0 = i * 0.62 * s, type = i === N - 1 ? rare('puffer') : (i % 3 === 2 ? 'lantern' : 'clown');
+        formQ.push({ at: i * 0.16, fn: () => pathFish(type, t => {
+          const r = 8 + t * 34, a = a0 + t * 1.05 * s;
+          return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r * 0.74 };
+        }, len, tag) });
+      }
+      formT = N * 0.16 + 6;
+    } else if (F.k === 'goose') {
+      // 雁阵：一条大鱼领头，两翼各 8 条往后斜排开，整队一边飞一边轻轻起伏
+      const V = 74, len = (W + 420) / V;
+      const lx = t => -70 + t * V, ly = t => 234 + Math.sin(t * 0.9) * 26;
+      pathFish(rare('shark'), t => ({ x: X(lx(t)), y: ly(t) }), len, tag);
+      for (const side of [-1, 1]) for (let k = 1; k <= 8; k++) {
+        const type = k % 2 ? 'tang' : 'clown';
+        pathFish(type, t => ({ x: X(lx(t) - k * 30), y: ly(t - k * 0.08) + side * k * 19 }), len + 5, tag);
+      }
+      formT = len * 0.6;
+    } else {
+      // 双龙绞：两股鱼排成正弦，互为反相，一边游一边绞在一起
+      const V = 58, len = (W + 520) / V;
+      for (const ph of [0, Math.PI]) for (let i = 0; i < 12; i++) {
+        const type = ph ? 'clown' : 'tang', off = i * 34;
+        pathFish(i === 0 ? (ph ? rare('jade') : 'flame') : type, t => {
+          const x = -40 - off + t * V;
+          return { x: X(x), y: 234 + Math.sin(x / 62 + t * 1.3 + ph) * 92 };
+        }, len, tag);
+      }
+      formT = len * 0.6;
+    }
+    formLog.push({ k: F.k, n: fish.length - mark + formQ.length });
+    flash('鱼阵 · ' + F.t);
+    toast('鱼阵来了 · ' + F.t.replace(/ /g, '') + '（阵里的鱼照常赔）');
+    sfx.king();
+    return F.k;
+  }
+  function formTick(dt) {
+    if (formT > 0) formT = Math.max(0, formT - dt);
+    if (!formQ.length) return;
+    formClock += dt;
+    while (formQ.length && formQ[0].at <= formClock) formQ.shift().fn();
+  }
+
   function spawnKing() {
     if (fish.some(f => f.boss)) return;
     spawnFish('king', { fromLeft: Math.random() < .5, y: 200 + Math.random() * 60, spd: 1 });
@@ -3320,7 +3563,8 @@
     fish.splice(idx, 1);
     hpDirty = true;
     if (locked === f) locked = null;
-    const F = FISH[f.type], pay = F.v * S.bet;
+    const F = FISH[f.type], wi = F.special === 'wheel' ? rollWheel() : -1, mult = wi < 0 ? 1 : WHEEL[wi].m;
+    const pay = F.v * S.bet * mult;
     wallet = Math.min(9999999, wallet + pay);
     walletSave(wallet);
     S.caught++; S.gained += pay;
@@ -3336,13 +3580,15 @@
     parts.push({ kind: 'ring', x: f.x, y: f.y, s: f.r * 0.4, grow: f.r * (FISH[f.type].dragon ? 2.6 : 1.7),
                  life: 0.34, max: 0.34, col: FISH[f.type].col });
     // 爆点（issue 09）：金色大字在鱼身上弹出来（越值钱越大），金币一串飞进币袋；鱼王另开整屏庆祝
-    if (!f.boss) pops.push({ x: f.x, y: f.y - 6, text: '+' + fmt(pay), life: 1.25, max: 1.25, size: Math.round(20 + Math.min(30, Math.sqrt(pay) * 3)), big: pay >= 20 });
-    flyCoins(f.x, f.y, f.boss ? 24 : Math.min(14, 3 + Math.round(Math.sqrt(pay) * 1.4)), f.boss ? 1500 : 0);   // 鱼王：等金字数完再飞，别从字上划过去
+    if (wi >= 0) spinWheel(f.x, f.y, wi, pay, null);   // 招财鱼：先转盘，转停了再弹字
+    else if (!f.boss) pops.push({ x: f.x, y: f.y - 6, text: '+' + fmt(pay), life: 1.25, max: 1.25, size: Math.round(20 + Math.min(30, Math.sqrt(pay) * 3)), big: pay >= 20 });
+    flyCoins(f.x, f.y, f.boss ? 24 : Math.min(14, 3 + Math.round(Math.sqrt(pay) * 1.4)), f.boss ? 1500 : wi >= 0 ? WHEEL_SPIN * 1000 : 0);   // 鱼王：等金字数完再飞，别从字上划过去
     shake = Math.max(shake, Math.min(1, 0.22 + pay / 180));
     if (f.boss) { startCeleb(f, pay); toast('鱼王入账 +' + fmt(pay) + ' 币'); }
     else if (pay >= 20) sfx.big();
     else sfx.catch();
     onCatch(f);
+    arenaScore(0, f, mult);
     syncHud();
     releaseStore(f, null);
     return pay;
@@ -3434,7 +3680,7 @@
 
   function leadAngle(f) {
     const t = Math.hypot(f.x - CX, f.y - CY) / SHOT_SPD;
-    const vy = f.amp * f.freq * Math.cos(f.t * f.freq + f.ph);
+    const vy = f.path ? f.vy : f.amp * f.freq * Math.cos(f.t * f.freq + f.ph);
     return clampAim(Math.atan2(f.x + f.vx * t * 0.85 - CX, -((f.y + vy * t * 0.85) - CY)));
   }
 
@@ -3472,6 +3718,7 @@
       const use = Math.min(budget, need);
       if (use >= need) f.hp = 0; else f.hp -= use / hv;
       budget -= use;
+      if (f.boss) bossPhase(f);
       f.flash = 1;
       if (!f.boss) f.flee = 0.5;
       // 同群一起受惊：一起加速、一起乱窜，然后归队（issue 04）
@@ -3499,12 +3746,162 @@
      每跳把预算花在那条鱼身上；冰晶鲀：全场定住 5 秒（store 就是这 5 秒的价钱）。
      放出去的伤害和网的伤害是同一种东西：按血量（hpv）扣，打死了按 v × 炮倍赔给"打死特殊鱼的那个人"。 */
   const BOMB_R = 125, CHAIN_HOP = 165, CHAIN_MAX = 8, FREEZE_LEN = 5;
+  const DRILL_SPD = 430, DRILL_LIFE = 1.6, DRILL_R = 16, DRILL_END_R = 90;
   let freezeT = 0;
-  const bolts = [], blasts = [];
+  const bolts = [], blasts = [], drills = [];
+  function drillTick(dt) {
+    for (let i = drills.length - 1; i >= 0; i--) {
+      const d = drills[i];
+      d.x += d.vx * dt; d.y += d.vy * dt; d.life -= dt; d.spin += dt * 30;
+      if (d.x < 12 && d.vx < 0 || d.x > W - 12 && d.vx > 0) { d.vx = -d.vx; sfx.hit(); }
+      if (d.y < 40 && d.vy < 0 || d.y > H - 60 && d.vy > 0) { d.vy = -d.vy; sfx.hit(); }
+      d.trail.push([d.x, d.y]); if (d.trail.length > 14) d.trail.shift();
+      for (const o of fish) {
+        if (d.budget <= 1e-4) break;
+        if (o.hp <= 0 || d.seen.has(o)) continue;
+        if (Math.hypot(o.x - d.x, o.y - d.y) > o.hr + DRILL_R) continue;
+        d.seen.add(o);
+        d.budget -= spendOn(o, d.budget);
+        if (o.hp <= 0) d.total += d.owner ? botCatch(o, d.owner) : catchFish(o);
+      }
+      if (d.life > 0 && d.budget > 1e-4) continue;
+      // 收尾：剩下的力道就地炸一小圈
+      if (d.budget > 1e-4) {
+        const near = fish.filter(o => o.hp > 0 && Math.hypot(o.x - d.x, o.y - d.y) <= DRILL_END_R + o.r * 0.5)
+          .sort((a, b) => Math.hypot(a.x - d.x, a.y - d.y) - Math.hypot(b.x - d.x, b.y - d.y));
+        const hit = [];
+        for (const o of near) { if (d.budget <= 1e-4) break; d.budget -= spendOn(o, d.budget); hit.push(o); }
+        for (const o of hit) if (o.hp <= 0 && fish.includes(o)) d.total += d.owner ? botCatch(o, d.owner) : catchFish(o);
+        blasts.push({ x: d.x, y: d.y, r: 14, grow: DRILL_END_R, life: 0.45, max: 0.45, col: '120,180,255' });
+        sfx.boom();
+      }
+      if (d.total > 0) pops.push({ x: d.x, y: d.y - 20, text: '钻头 +' + fmt(d.total), life: 1.6, max: 1.6,
+        size: Math.round(24 + Math.min(26, Math.sqrt(d.total) * 2.4)), big: true, col: d.owner ? d.owner.col : undefined });
+      drills.splice(i, 1);
+    }
+  }
+  /* 转盘（招财鱼）：1.4 秒，先快后慢停在转出来的那一格；停了弹"×5"和赔付。钱在打死那一刻就进了币袋 */
+  const WHEEL_SPIN = 1.4;
+  const wheels = [];
+  function spinWheel(x, y, wi, pay, owner) {
+    const seg = Math.PI * 2 / WHEEL.length;
+    // 指针在正上方：最后要让第 wi 格的中线对着它，再多转 4 圈
+    const end = -Math.PI / 2 - (wi + 0.5) * seg - Math.PI * 8;
+    wheels.push({ x: Math.max(50, Math.min(W - 50, x)), y: Math.max(70, Math.min(H - 90, y)), wi, pay, owner, t: 0, end, done: false });
+    sfx.tick();
+  }
+  function wheelTick(dt) {
+    for (let i = wheels.length - 1; i >= 0; i--) {
+      const w = wheels[i];
+      const before = Math.floor(wheelAngle(w) / (Math.PI * 2 / WHEEL.length));
+      w.t += dt;
+      if (!w.done && Math.floor(wheelAngle(w) / (Math.PI * 2 / WHEEL.length)) !== before && w.t < WHEEL_SPIN) sfx.tick();
+      if (!w.done && w.t >= WHEEL_SPIN) {
+        w.done = true;
+        const m = WHEEL[w.wi].m;
+        pops.push({ x: w.x, y: w.y + 54, text: '+' + fmt(w.pay), life: 1.4, max: 1.4, size: Math.round(22 + Math.min(28, Math.sqrt(w.pay) * 2.6)), big: true, col: w.owner ? w.owner.col : undefined });
+        if (m >= 5) { flash('转出 ×' + m); shake = Math.max(shake, 0.6); sfx.fanfare(); } else sfx.big();
+      }
+      if (w.t >= WHEEL_SPIN + 0.9) wheels.splice(i, 1);
+    }
+  }
+  function wheelAngle(w) {
+    const k = Math.min(1, w.t / WHEEL_SPIN), ease = 1 - Math.pow(1 - k, 3);
+    return w.end * ease;
+  }
+  function drawWheels() {
+    for (const w of wheels) {
+      const R = 40, seg = Math.PI * 2 / WHEEL.length, a = wheelAngle(w);
+      const fade = w.t > WHEEL_SPIN + 0.5 ? 1 - (w.t - WHEEL_SPIN - 0.5) / 0.4 : 1;
+      const pop = Math.min(1, w.t / 0.15);
+      g.save();
+      g.globalAlpha = Math.max(0, fade);
+      g.translate(w.x, w.y); g.scale(pop, pop);
+      g.shadowColor = 'rgba(255,200,80,.8)'; g.shadowBlur = 16;
+      g.beginPath(); g.arc(0, 0, R + 5, 0, Math.PI * 2); g.fillStyle = '#5a3404'; g.fill();
+      g.shadowBlur = 0;
+      for (let i = 0; i < WHEEL.length; i++) {
+        g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, R, a + i * seg, a + (i + 1) * seg); g.closePath();
+        g.fillStyle = WHEEL[i].c; g.fill();
+        g.strokeStyle = '#ffe08a'; g.lineWidth = 1.5; g.stroke();
+        const mid = a + (i + 0.5) * seg;
+        g.save(); g.rotate(mid); g.translate(R * 0.64, 0); g.rotate(Math.PI / 2);
+        g.font = '900 13px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillStyle = '#fff'; g.fillText('×' + WHEEL[i].m, 0, 0);
+        g.restore();
+      }
+      g.beginPath(); g.arc(0, 0, R + 3, 0, Math.PI * 2); g.strokeStyle = '#ffd35a'; g.lineWidth = 3; g.stroke();
+      g.beginPath(); g.arc(0, 0, 7, 0, Math.PI * 2); g.fillStyle = '#ffe08a'; g.fill();
+      // 指针（正上方）
+      g.beginPath(); g.moveTo(0, -R + 8); g.lineTo(-7, -R - 8); g.lineTo(7, -R - 8); g.closePath();
+      g.fillStyle = '#fff6d0'; g.fill(); g.strokeStyle = '#5a3404'; g.lineWidth = 1.5; g.stroke();
+      if (w.done) {
+        const m = WHEEL[w.wi].m, k = Math.min(1, (w.t - WHEEL_SPIN) / 0.2);
+        g.font = '900 ' + Math.round(18 + 16 * k) + 'px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.lineWidth = 5; g.strokeStyle = '#5a1004'; g.strokeText('×' + m, 0, -R - 22);
+        g.fillStyle = m >= 5 ? '#ffec6a' : '#fff'; g.fillText('×' + m, 0, -R - 22);
+      }
+      g.restore();
+    }
+  }
+
+  // 钻头：一根金色螺纹锥 + 一条蓝白尾迹
+  function drawDrills() {
+    for (const d of drills) {
+      g.save();
+      g.lineCap = 'round';
+      for (let i = 1; i < d.trail.length; i++) {
+        const k = i / d.trail.length;
+        g.strokeStyle = 'rgba(30,110,255,' + (0.55 * k).toFixed(3) + ')'; g.lineWidth = 14 * k;
+        g.beginPath(); g.moveTo(d.trail[i - 1][0], d.trail[i - 1][1]); g.lineTo(d.trail[i][0], d.trail[i][1]); g.stroke();
+      }
+      g.translate(d.x, d.y); g.rotate(Math.atan2(d.vy, d.vx)); g.scale(1.3, 1.3);
+      g.shadowColor = 'rgba(255,220,120,.9)'; g.shadowBlur = 14;
+      const gr = g.createLinearGradient(-14, 0, 22, 0);
+      gr.addColorStop(0, '#a86a10'); gr.addColorStop(0.5, '#ffe08a'); gr.addColorStop(1, '#fffbe0');
+      g.fillStyle = gr;
+      g.beginPath(); g.moveTo(24, 0); g.lineTo(-12, -11); g.lineTo(-12, 11); g.closePath(); g.fill();
+      g.shadowBlur = 0;
+      g.strokeStyle = 'rgba(90,50,4,.8)'; g.lineWidth = 1.6;          // 螺纹：几道斜线跟着转
+      for (let j = 0; j < 4; j++) {
+        const u = ((j / 4 + d.spin * 0.05) % 1), xx = -10 + u * 30, hh = 11 * (1 - (xx + 12) / 36);
+        g.beginPath(); g.moveTo(xx - 3, -hh); g.lineTo(xx + 3, hh); g.stroke();
+      }
+      g.restore();
+    }
+  }
+  /* 鱼王分阶段（issue 19）：血掉到一半召唤一群护卫（6 条小鱼围着它游）；
+     掉到两成狂暴——游快 1.5 倍、红光，但会掉头再穿一次场（不会狂暴完就跑掉，让你白打）。
+     只改鱼王怎么游、多来几条小鱼，赔付和血量一个不动。 */
+  function bossPhase(f) {
+    if (f.hp <= 0) return;
+    if (!f.p1 && f.hp <= 0.5) {
+      f.p1 = true;
+      const gid = ++grpSeq, fromLeft = f.vx > 0;
+      for (let i = 0; i < 6; i++) {
+        const a = i / 6 * Math.PI * 2;
+        const ty = i % 2 ? 'tang' : 'clown';
+        const e = spawnFish(ty, { x: f.x + Math.cos(a) * 70, y: f.y + Math.sin(a) * 55, fromLeft, grp: gid,
+          lane: f.lane, slot: Math.sin(a) * 55, spd: Math.abs(f.vx) / FISH[ty].spd, drift: 0, amp: f.amp, freq: f.freq, ph: f.ph });
+        if (e) e.t = f.t;                      // 同一个摆动相位：护卫贴着鱼王一起起伏
+      }
+      flash('鱼王召唤护卫');
+      sfx.king();
+    }
+    if (!f.p2 && f.hp <= 0.2) {
+      f.p2 = true; f.rage = true;
+      f.vx *= 1.5;
+      flash('鱼王狂暴');
+      toast('鱼王狂暴 · 它会掉头再穿一次，别停手');
+      shake = Math.max(shake, 0.6);
+      sfx.boom();
+    }
+  }
   function spendOn(o, budget) {
     const hv = hpv(FISH[o.type]), need = o.hp * hv, use = Math.min(budget, need);
     if (use >= need) o.hp = 0; else o.hp -= use / hv;
     o.flash = 1;
+    if (o.boss) bossPhase(o);
     if (!o.boss) o.flee = 0.5;
     return use;
   }
@@ -3517,6 +3914,16 @@
       blasts.push({ x: f.x, y: f.y, r: 40, grow: 520, life: 0.7, max: 0.7, col: '160,230,255' });
       flash('冰 封');
       sfx.freeze();
+      return;
+    }
+    if (F.special === 'wheel') return;           // 招财鱼的 store 是转盘的平均倍数，赔付里已经兑了
+    if (F.special === 'drill') {
+      // 钻头顺着"打它的那门炮 → 蟹"的方向钻出去，一路穿鱼（每条只钻一次），撞墙反弹，1.6 秒后剩下的力道就地炸开
+      const ox = owner ? owner.x : CX, oy = owner ? owner.y : CY;
+      let dx = f.x - ox, dy = f.y - oy; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+      drills.push({ x: f.x, y: f.y, vx: dx * DRILL_SPD, vy: dy * DRILL_SPD, life: DRILL_LIFE, budget: F.store, owner, seen: new Set([f]), total: 0, trail: [], spin: 0 });
+      sfx.drill();
+      shake = Math.max(shake, 0.4);
       return;
     }
     let budget = F.store;
@@ -3593,7 +4000,7 @@
   }
   function botLead(b, f) {
     const t = Math.hypot(f.x - b.x, f.y - b.y) / SHOT_SPD;
-    const vy = f.amp * f.freq * Math.cos(f.t * f.freq + f.ph);
+    const vy = f.path ? f.vy : f.amp * f.freq * Math.cos(f.t * f.freq + f.ph);
     const tx = f.x + f.vx * t * 0.85, ty = f.y + vy * t * 0.85;
     return Math.atan2(tx - b.x, -(ty - b.y));
   }
@@ -3608,8 +4015,9 @@
       b.aimT = Math.max(Math.PI / 2 + 0.25, Math.min(Math.PI * 1.5 - 0.25, (b.aimT + Math.PI * 2) % (Math.PI * 2)));
       b.aim += (b.aimT - b.aim) * Math.min(1, dt * 8);
       if ((b.cd -= dt) <= 0 && b.target) {
-        b.cd = 0.32 + Math.random() * 0.34;
-        const m = botMuzzle(b), a = b.aim + (Math.random() - 0.5) * 0.09;   // 手没你稳
+        const sk = arena ? ARENA_TIERS[arena.tier].skill : 1;   // 擂台：段位越高手越快越稳
+        b.cd = (0.32 + Math.random() * 0.34) / sk;
+        const m = botMuzzle(b), a = b.aim + (Math.random() - 0.5) * 0.09 / sk;   // 手没你稳
         shots.push({ x: m.x, y: m.y, vx: Math.sin(a) * SHOT_SPD, vy: -Math.cos(a) * SHOT_SPD, life: 0, spin: Math.random() * 6.28, owner: b });
         b.recoil = 1;
       }
@@ -3618,11 +4026,14 @@
   // 机器人打死了鱼：鱼没了，分记在它座位上，金币往它那边散；不碰币袋、不碰你的战绩
   function botCatch(f, b) {
     const idx = fish.indexOf(f);
-    if (idx < 0) return;
+    if (idx < 0) return 0;
     fish.splice(idx, 1); hpDirty = true;
     if (locked === f) locked = null;
-    const pay = FISH[f.type].v * b.bet;
+    const wi = FISH[f.type].special === 'wheel' ? rollWheel() : -1, mult = wi < 0 ? 1 : WHEEL[wi].m;
+    const pay = FISH[f.type].v * b.bet * mult;
     b.score += pay;
+    arenaScore(BOTS.indexOf(b) + 1, f, mult);
+    if (wi >= 0) spinWheel(f.x, f.y, wi, pay, b);
     burst(f.x, f.y, f.boss ? 20 : 6, f.boss ? 1.6 : 0.9);
     pops.push({ x: f.x, y: f.y - 6, text: '+' + fmt(pay), life: 1.0, max: 1.0, size: Math.round(16 + Math.min(14, Math.sqrt(pay) * 1.6)), col: b.col });
     if (f.boss) toast(b.name + ' 打下了鱼王 +' + fmt(pay));
@@ -3641,11 +4052,121 @@
       g.font = '700 10px system-ui,"PingFang SC",sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
       g.fillStyle = '#ffe9b0'; g.fillText(b.name + ' ' + b.bet + '×', x + 18, y + h / 2 + 0.5);
       g.textAlign = 'right'; g.fillStyle = '#ffd862'; g.font = '700 10px ui-monospace,Menlo,monospace';
-      g.fillText(fmt(b.score), x + w - 8, y + h / 2 + 0.5);
+      const sv = arena ? arena.sc[BOTS.indexOf(b) + 1] : b.score;   // 座位窄：过千写成 1.1k，别压到名字
+      g.fillText(sv >= 1e4 ? Math.round(sv / 1000) + 'k' : sv >= 1000 ? (sv / 1000).toFixed(1) + 'k' : fmt(sv), x + w - 8, y + h / 2 + 0.5);
       g.restore();
     }
   }
+  /* ================= 擂台赛（issue 17） =================
+     你和两个机器人比 3 分钟谁抓得多。比的是"擂台分"= 抓到的鱼的倍数 v（不乘炮倍——大炮买不到名次），
+     最后 30 秒决胜时刻分数翻倍。赢了升段，机器人跟着变快变稳（只在擂台里）。
+     不碰账：每一发还是 0.95 × 炮倍，机器人变强只是抢鱼更凶（ADR-0008 末尾：抢走的和收掉的两头抵掉）。
+     奖励只有经验和段位，不发币。 */
+  const ARENA_LEN = 180, ARENA_FINAL = 30;
+  const ARENA_TIERS = [
+    { name: '青铜', skill: 2.0, col: '#d8945a', xp: 100 },
+    { name: '白银', skill: 2.6, col: '#d6e2ea', xp: 200 },
+    { name: '黄金', skill: 3.2, col: '#ffd23a', xp: 300 },
+    { name: '钻石', skill: 3.6, col: '#8fe8ff', xp: 500 }
+  ];
+  if (!S.arena || typeof S.arena !== 'object') S.arena = { tier: 0, wins: 0, played: 0, best: 0 };
+  S.arena.tier = Math.max(0, Math.min(ARENA_TIERS.length - 1, S.arena.tier | 0));
+  let arena = null;                        // { t, tier, sc: [你, 阿龙, 小美], final }
+  let arenaLast = null;                    // 上一场的结果（结算面板用）
+  function arenaScore(who, f, mult) {
+    if (!arena) return;
+    const k = arena.t <= ARENA_FINAL ? 2 : 1;
+    arena.sc[who] += FISH[f.type].v * k * (mult || 1);
+  }
+  function startArena() {
+    if (arena) return;
+    if (!botsOn) setBots(true);
+    arena = { t: ARENA_LEN, tier: S.arena.tier, sc: [0, 0, 0], final: false };
+    for (const b of BOTS) { b.cd = 0.4 + Math.random() * 0.4; b.target = null; }
+    spawnSchool(); spawnSchool();          // 开场来两群，别对着空海倒数
+    flash(ARENA_TIERS[arena.tier].name + '擂台 · 开打');
+    sfx.king();
+    syncHud();
+  }
+  function arenaTick(dt) {
+    if (!arena) return;
+    arena.t -= dt;
+    if (!arena.final && arena.t <= ARENA_FINAL) {
+      arena.final = true;
+      flash('决胜时刻 · 分数翻倍');
+      sfx.fanfare();
+    }
+    if (arena.t <= 0) endArena();
+    else if (Math.ceil(arena.t) !== Math.ceil(arena.t + dt)) syncHud();
+  }
+  function endArena(quit) {
+    const a = arena;
+    arena = null;
+    if (!a) return;
+    const me = a.sc[0], rank = 1 + a.sc.slice(1).filter(x => x >= me).length;   // 平分算你输：要赢就赢干净
+    const T = ARENA_TIERS[a.tier];
+    arenaLast = { rank, sc: a.sc, tier: a.tier, quit: !!quit, up: false, xp: 0 };
+    if (!quit) {
+      S.arena.played++;
+      S.arena.best = Math.max(S.arena.best, me);
+      if (rank === 1) {
+        S.arena.wins++;
+        if (S.arena.tier < ARENA_TIERS.length - 1) { S.arena.tier++; arenaLast.up = true; }
+        arenaLast.xp = T.xp;
+        missionBump('arena');
+      } else if (rank === 2) arenaLast.xp = Math.round(T.xp / 4);
+      if (arenaLast.xp) gainXp(arenaLast.xp);
+      save(true);
+      if (rank === 1) { flash('擂台第一'); sfx.fanfare(); } else sfx.tide();
+      if (!simming) openModal('mArena');
+    }
+    syncHud();
+  }
+  // 屏幕正上方（两个座位中间）：倒计时 + 你的分；决胜时刻整块变红金
+  function drawArena(t) {
+    if (!arena) return;
+    const w = 128, h = 38, x = W / 2 - w / 2, y = 2;
+    const fin = arena.final, T = ARENA_TIERS[arena.tier];
+    g.save();
+    g.beginPath(); g.moveTo(x + 8, y); g.lineTo(x + w - 8, y); g.quadraticCurveTo(x + w, y, x + w, y + 8);
+    g.lineTo(x + w, y + h - 8); g.quadraticCurveTo(x + w, y + h, x + w - 8, y + h); g.lineTo(x + 8, y + h);
+    g.quadraticCurveTo(x, y + h, x, y + h - 8); g.lineTo(x, y + 8); g.quadraticCurveTo(x, y, x + 8, y); g.closePath();
+    const bg = g.createLinearGradient(0, y, 0, y + h);
+    bg.addColorStop(0, fin ? '#8a1408' : '#1c140a'); bg.addColorStop(1, fin ? '#3a0604' : '#0a0704');
+    g.fillStyle = bg; g.globalAlpha = 0.88; g.fill(); g.globalAlpha = 1;
+    g.lineWidth = fin && Math.floor(t * 4) % 2 ? 2.5 : 1.5; g.strokeStyle = fin ? '#ffcf4d' : '#e0a326'; g.stroke();
+    const sec = Math.max(0, Math.ceil(arena.t)), mm = Math.floor(sec / 60), ss = String(sec % 60).padStart(2, '0');
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '700 9px system-ui,"PingFang SC",sans-serif'; g.fillStyle = T.col;
+    g.fillText(T.name + '擂台' + (fin ? ' · 分数 ×2' : ''), W / 2, y + 9);
+    g.font = '900 16px ui-monospace,Menlo,monospace'; g.fillStyle = fin ? '#fff0b0' : '#ffe9b0';
+    g.fillText(mm + ':' + ss, W / 2 - 26, y + 26);
+    g.font = '900 13px ui-monospace,Menlo,monospace'; g.fillStyle = '#8ff0d6';
+    const lead = arena.sc[0] > Math.max(arena.sc[1], arena.sc[2]);
+    g.fillText((lead ? '▲' : '') + fmt(arena.sc[0]), W / 2 + 28, y + 26);
+    g.restore();
+  }
+  function renderArena() {
+    const T = ARENA_TIERS[S.arena.tier], r = arenaLast;
+    $('arenaTier').textContent = T.name + '擂台';
+    $('arenaTier').style.color = T.col;
+    $('arenaStat').textContent = '打过 ' + S.arena.played + ' 场 · 赢 ' + S.arena.wins + ' 场 · 最高 ' + S.arena.best + ' 分';
+    $('arenaLadder').innerHTML = ARENA_TIERS.map((t, i) =>
+      '<span class="' + (i === S.arena.tier ? 'on' : i < S.arena.tier ? 'past' : '') + '" style="--c:' + t.col + '">' + t.name + '</span>').join('');
+    if (r) {
+      const names = ['你'].concat(BOTS.map(b => b.name));
+      const order = [0, 1, 2].sort((a, b) => r.sc[b] - r.sc[a] || (a === 0 ? 1 : b === 0 ? -1 : 0));
+      $('arenaResult').innerHTML = '<p class="big">' + (r.rank === 1 ? '🏆 第一名' : '第 ' + r.rank + ' 名') +
+        (r.up ? ' · 升到' + ARENA_TIERS[S.arena.tier].name : '') + '</p><table>' +
+        order.map((i, n) => '<tr class="' + (i === 0 ? 'me' : '') + '"><td>' + (n + 1) + '. ' + names[i] + '</td><td>' + fmt(r.sc[i]) + ' 分</td></tr>').join('') +
+        '</table><p class="dim">' + (r.xp ? '+' + r.xp + ' 经验' : '这场没有经验') + (r.rank === 1 ? '' : ' · 拿第一才升段') + '</p>';
+      $('arenaResult').style.display = '';
+    } else $('arenaResult').style.display = 'none';
+    $('btnArenaGo').textContent = r ? '再来一场' : '开打 · 3 分钟';
+  }
+
   function setBots(on) {
+    if (!on && arena) endArena(true);        // 关陪打 = 退出擂台
     botsOn = on; S.bots = on; save(true);
     if (!on) for (let i = shots.length - 1; i >= 0; i--) if (shots[i].owner) shots.splice(i, 1);
     for (const v of botViews) v.visible = on;
@@ -3710,8 +4231,8 @@
       const mark = schoolLog.length;
       spawnSchool();
       if (big) {
-        // 大潮：一次进两群鱼，鱼王必来（issue 05）
-        spawnSchool();
+        // 大潮：一群鱼 + 一个鱼阵（issue 22），鱼王必来（issue 05）
+        startFormation();
         spawnKing();
         flash('大潮');
       } else if (tide % 3 === 0) spawnKing();
@@ -3726,7 +4247,8 @@
     if (frozen) freezeT = Math.max(0, freezeT - dt);
     eventTick(dt);
     spawnT -= dt;
-    if (spawnerOn && !frozen && spawnT <= 0 && fish.length < MAXFISH) {
+    formTick(dt);
+    if (spawnerOn && !frozen && formT <= 0 && spawnT <= 0 && fish.length < MAXFISH) {
       spawnFish(pickType());
       spawnT = 0.18 + Math.random() * 0.26;
     }
@@ -3736,6 +4258,15 @@
       f.flash = Math.max(0, f.flash - dt * 4);
       if (frozen) continue;                    // 冰封：整片海定住（摆尾、起伏全停）
       f.t += dt; f.life += dt;
+      if (f.path) {
+        // 鱼阵：位置全由轨道函数给，速度按位移反算（瞄准提前量、鱼头朝向都用它）
+        const p = f.path(f.life);
+        f.vx = (p.x - f.x) / dt; f.vy = (p.y - f.y) / dt;
+        f.x = p.x; f.y = p.y;
+        f.dir = f.vx >= 0 ? 1 : -1;
+        if (f.life > f.pathLen) { fish.splice(i, 1); if (locked === f) locked = null; hpDirty = true; }
+        continue;
+      }
       f.flee = Math.max(0, f.flee - dt);
       f.x += f.vx * (f.flee > 0 ? 1.32 : 1) * dt;
       // 泳道慢慢漂（鱼王不漂：它必须可预期）；同群走同一条基准线
@@ -3759,6 +4290,7 @@
             life: 0.7 + Math.random() * 0.4, max: 1.1 });
         }
       }
+      if (f.rage && !f.turned && (f.vx > 0 ? f.x > W - f.r * 0.8 : f.x < f.r * 0.8)) { f.vx = -f.vx; f.turned = true; }
       const m = f.r * 3.2;
       if (f.x < -m || f.x > W + m) { fish.splice(i, 1); if (locked === f) locked = null; hpDirty = true; }
     }
@@ -3800,7 +4332,10 @@
     }
     for (let i = bolts.length - 1; i >= 0; i--) if ((bolts[i].life -= dt) <= 0) bolts.splice(i, 1);
     for (let i = blasts.length - 1; i >= 0; i--) if ((blasts[i].life -= dt) <= 0) blasts.splice(i, 1);
+    drillTick(dt);
+    wheelTick(dt);
     celebTick(dt);
+    arenaTick(dt);
     if (!paused) botsTick(dt);
     for (let i = pops.length - 1; i >= 0; i--) {
       pops[i].life -= dt;
@@ -3919,7 +4454,49 @@
     skinRow.appendChild(b);
   });
 
+  // 商店两排：已有 → 点了换上；没有 → 第一下亮出价钱，第二下才扣币（扣了就落盘）
+  function shopRow(rowId, list, ownKey, curKey, apply) {
+    const row = $(rowId);
+    list.forEach((it, i) => {
+      const b = document.createElement('button');
+      b.className = 'skin'; b.type = 'button'; b.dataset.i = i;
+      b.addEventListener('click', () => {
+        const own = S[ownKey] & (1 << i);
+        if (own) {
+          if (S[curKey] === i) return;
+          S[curKey] = i; save(true); apply(); syncNet(); sfx.tide(); toast('换上 ' + it.name);
+          return;
+        }
+        if (!b.classList.contains('confirm')) {
+          row.querySelectorAll('.confirm').forEach(x => x.classList.remove('confirm'));
+          b.classList.add('confirm'); syncNet();
+          return;
+        }
+        if (wallet < it.cost) { sfx.empty(); toast('币袋不够 · 还差 ' + fmt(it.cost - wallet) + ' 币'); b.classList.remove('confirm'); syncNet(); return; }
+        wallet -= it.cost; walletSave(wallet); flushWallet();
+        S[ownKey] |= (1 << i); S[curKey] = i; save(true);
+        b.classList.remove('confirm');
+        apply(); syncNet(); syncHud();
+        sfx.big(); toast('买下 ' + it.name + ' · −' + fmt(it.cost) + ' 币');
+      });
+      row.appendChild(b);
+    });
+  }
+  function syncShopRow(rowId, list, ownKey, curKey) {
+    [...$(rowId).children].forEach((el, i) => {
+      const it = list[i], own = S[ownKey] & (1 << i), conf = el.classList.contains('confirm');
+      el.innerHTML = '<i style="background:' + it.dot + '"></i><b>' + it.name + '</b><span>' +
+        (S[curKey] === i ? '用着' : own ? '已有' : conf ? '再点买 · ' + fmt(it.cost) : fmt(it.cost) + ' 币') + '</span>';
+      el.classList.toggle('on', S[curKey] === i);
+      el.classList.toggle('lock', !own && !conf && wallet < it.cost);
+    });
+  }
+  shopRow('gunRow', GUNS, 'gunOwn', 'gun', applyLevel);
+  shopRow('seaRow', SEAS, 'seaOwn', 'sea', applySea);
+
   function syncNet() {
+    syncShopRow('gunRow', GUNS, 'gunOwn', 'gun');
+    syncShopRow('seaRow', SEAS, 'seaOwn', 'sea');
     NET_R = NET_LV[S.net].r;
     const lv = NET_LV[S.net], nx = NET_LV[S.net + 1];
     $('netLv').textContent = 'Lv.' + S.net + ' · 罩 ' + lv.r + ' · ' + lv.name;
@@ -3967,6 +4544,11 @@
     if (id === 'mNet') syncNet();
     if (id === 'mBook') renderBook();
     if (id === 'mDaily') renderDaily();
+    if (id === 'mArena') {
+      renderArena();
+      $('btnArenaGo').textContent = arena ? '继续比赛（还剩 ' + Math.ceil(arena.t) + ' 秒）' : $('btnArenaGo').textContent;
+      $('btnArenaQuit').style.display = arena ? '' : 'none';
+    }
     if (id === 'mReset') $('btnResetYes').textContent = '确认重置';
   }
   function closeModal(id) {
@@ -4000,6 +4582,9 @@
   $('btnHow').addEventListener('click', () => openModal('mHow'));
   $('btnBook').addEventListener('click', () => openModal('mBook'));
   $('btnDaily').addEventListener('click', () => openModal('mDaily'));
+  $('btnArena').addEventListener('click', () => openModal('mArena'));
+  $('btnArenaGo').addEventListener('click', () => { closeModal('mArena'); if (!arena) startArena(); });
+  $('btnArenaQuit').addEventListener('click', () => { endArena(true); closeModal('mArena'); toast('退出擂台 · 这场不算'); });
   $('btnNet').addEventListener('click', () => openModal('mNet'));
   $('btnPause').addEventListener('click', () => openModal('mPause'));
   $('btnPauseCont').addEventListener('click', () => closeModal('mPause'));
@@ -4082,7 +4667,7 @@
     spawn: spawnFish, catchFish, fire: fireOnce, nearest: nearestFish, netAt: netBurst,
     /* 清场：直接截断 fish 数组不会通知血条缓存，hpList 会留着已经不存在的鱼。
        调试/测试统一走这个口子。 */
-    clearFish() { fish.length = 0; hpDirty = true; },
+    clearFish() { fish.length = 0; hpDirty = true; formT = 0; formQ.length = 0; },   // 清场也收掉没走完的鱼阵
     clearShots() { shots.length = 0; },
     setSpawner(v) { spawnerOn = !!v; },
     netR: () => NET_R, syncNet,
@@ -4110,9 +4695,11 @@
     get hpBars() { return hpBarsDrawn; },
     get hpBarsSmall() { return hpBarsSmallDrawn; },
     /* issue 11~15 的验证口 */
-    get freezeT() { return freezeT; }, bolts, blasts, hpv, releaseStore, gainXp, get LV() { return LV; }, xpFor,
+    GUNS, SEAS, applySea, startFormation, formLog, get formT() { return formT; }, get formQ() { return formQ.length; }, FORMS,
+    get freezeT() { return freezeT; }, bolts, blasts, drills, wheels, WHEEL, hpv, releaseStore, gainXp, get LV() { return LV; }, xpFor,
     setXp(n) { S.xp = n; LV = levelOf(n); applyLevel(); syncHud(); }, MISSIONS, missionBump, dailyEnsure, fireEvent, EVENTS,
     eventTick, get activeT() { return activeT; }, dexAll, renderDaily, renderBook,
+    startArena, endArena, get arena() { return arena; }, get arenaLast() { return arenaLast; }, ARENA_TIERS,
     linkPoll, linkSend, get celeb() { return !!celeb; }, BOTS, setBots, get botsOn() { return botsOn; },
     /* 快进：按 1/60 秒一步跑 sec 秒的逻辑（不渲染），量回收率用 */
     sim(sec) { simming = true; try { for (let i = Math.round(sec * 60); i > 0; i--) update(1 / 60); } finally { simming = false; } },
