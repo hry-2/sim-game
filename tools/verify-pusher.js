@@ -162,6 +162,9 @@ const path = require('path');
     const d = window.__coinpusher, S = d.S;
     const was = S.paused;
     S.paused = true; S.auto = false; S.queue = 0; S.bal = 1e6;
+    // 先放 60 秒：前面几步刚投的币还在上层窄台 / 半空里，它们砸下去推出来的币是"在路上的"，不算挂机白吐。
+    // 量的是放完以后那 3 分钟：侧槽回币要是把币一圈圈送回来再砸，这里会一直出（2026-11-04 抓到过 26~61 / 3 分钟）
+    d.sim(60);
     const b0 = S.bal; d.sim(180);
     const idle = Math.round(S.bal - b0);
     S.auto = true; S.autoT = 0; S.pos = 0;   // 前面点机台把落点挪到了最左——那一条正对侧槽，币大半进槽不赔
@@ -172,9 +175,11 @@ const path = require('path');
     return { idle, rate: +((S.totalOut - out0) / (S.totalIn - in0)).toFixed(2), coinsIn: S.totalIn - in0, live,
       nan: d.coins.filter(c => !Number.isFinite(c.x + c.z + c.y + c.h)).length };
   });
-  const idleOk = econ.idle <= 5;
+  // 前沿币堆在挂机时也会偶尔蹭下一两摞（2026-11-03 以前的版本同一测法 0~5；加了二层推板 0~9，偶尔 16，
+  // 掉的全是前沿开局铺的那几列，不是上层漏的）。这条防的是"一直往外吐"：侧槽回币连锁那会儿是每 3 分钟 26~61
+  const idleOk = econ.idle <= 20;
   const rateOk = econ.rate >= 0.95 && econ.rate <= 1.4 && econ.nan === 0 && econ.live > 150 && econ.live < 480;
-  console.log('idle machine pays nothing (3 min):', idleOk ? 'PASS' : 'FAIL', JSON.stringify({ idle: econ.idle }));
+  console.log('idle machine pays ~nothing (3 min, <= 20):', idleOk ? 'PASS' : 'FAIL', JSON.stringify({ idle: econ.idle }));
   console.log('long-run payout 0.95~1.4 (10 min auto; 20-min calibration ≈ 1.17):', rateOk ? 'PASS' : 'FAIL', JSON.stringify(econ));
   await page.evaluate(() => { window.__coinpusher.S.bal = 300; });
 
@@ -226,7 +231,8 @@ const path = require('path');
     const d = window.__coinpusher, S = d.S, W = d.WORLD;
     const was = S.paused; S.paused = true; S.auto = false; S.queue = 0;
     const edgeCoin = (x, type, zod) => {
-      const c = Object.assign({}, d.coins.find(c => c.state === 0), { id: 990000 + Math.floor(Math.random() * 9999), x, z: W.dropZ + 0.005, h: 0, vx: 0, vz: 0, state: 0, type, zod, _m: null });
+      const c = Object.assign({}, d.coins.find(c => c.state === 0), { id: 990000 + Math.floor(Math.random() * 9999), x, z: W.dropZ + 0.005, h: 0, vx: 0, vz: 0, state: 0, type, zod, _m: null,
+        tier: 0, under: null, towerD: undefined });   // 抄来的那枚可能在上层窄台 / 是币塔的一节，这几样不能跟着抄
       d.coins.push(c);
     };
     S.feverT = 0; S.feverCD = 0;
@@ -248,7 +254,7 @@ const path = require('path');
     d.dailyEnsure();
     const m = S.daily.m[0], before = S.score;
     m.done = false; m.p = 0;
-    const kinds = ['phoenix', 'gate', 'prize', 'slotwin', 'combo', 'fever', 'zod', 'coins'];
+    const kinds = ['phoenix', 'gate', 'prize', 'slotwin', 'combo', 'fever', 'zod', 'coins', 'ball', 'fishking', 'fishdragon'];   // 跟 MISSIONS 的顺序一致
     const k = kinds[m.i];
     for (let i = 0; i < 120 && !m.done; i++) d.missionBump(k, k === 'combo' ? 99 : 1);
     const mission = m.done && S.score - before >= 500;
