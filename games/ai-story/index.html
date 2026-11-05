@@ -20,7 +20,8 @@
     --safe-b:env(safe-area-inset-bottom,0px);
   }
   *{box-sizing:border-box}
-  html,body{height:100%}
+  html{height:100%}
+  body{min-height:100%}   /* 不能锁死成一屏高：顶栏的吸顶只在 body 范围里有效，剧情一长顶栏就被带走了 */
   body{
     margin:0;color:var(--ink);font:15px/1.7 var(--sans);
     background:var(--art),var(--bg);
