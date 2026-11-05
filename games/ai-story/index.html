@@ -121,6 +121,8 @@
   /* 正文一行三十来个字最好读，所以正文栏封顶 40rem，两栏一起居中 */
   .game{display:grid;grid-template-columns:minmax(0,40rem) 240px;gap:28px;justify-content:center;align-items:start}
   .story{min-height:50vh;padding-bottom:12px}
+  /* 长局：屏幕外的段落先不排版不绘制，滚到附近再画 */
+  .story > .turn,.story > .check,.story > .scene-cut{content-visibility:auto;contain-intrinsic-size:auto 90px}
   .turn{margin:0 0 20px}
   .turn.you{
     margin-left:auto;max-width:85%;width:fit-content;
@@ -1821,9 +1823,10 @@ function fmt(text){
 
 // 检定卡：🎲 骰点 + 属性 + 技能 + 天赋 = 总点数 对比难度，再给结果。st 是检定发生前的状态
 const CHECK_RESULT = { success:['成功','ok'], fail:['失败','bad'], crit:['大成功','crit'], fumble:['大失败','bad'] };
-function checkCard(chk, die, st){
+// terms 是检定发生那一刻的属性 / 技能 / 天赋加值；归档里存的就是它，不用再回头找当时的状态
+function checkCard(chk, die, terms){
   if (!chk || !die) return '';
-  const t = checkTerms(chk, st), total = die + t.attr + t.skill + t.talent, [label, cls] = CHECK_RESULT[chk.result];
+  const t = terms, total = die + t.attr + t.skill + t.talent, [label, cls] = CHECK_RESULT[chk.result] || CHECK_RESULT.success;
   const parts = [`<b class="dv">${ico('dice', 'die-ic')}<span class="n" data-final="${die}">${die}</span></b>`, `${esc(chk.attr)} ${t.attr}`];
   if (t.skill) parts.push(`${esc(chk.skill)} ${t.skill}`);
   if (t.talent) parts.push(`天赋 ${t.talent}`);
@@ -1850,23 +1853,38 @@ function rollDice(card){
 // 换了地点就在两段之间插一道场景分隔，下一段首字放大
 const sceneCut = loc => `<div class="scene-cut"><span>${ico('pin')}${esc(loc)}</span></div>`;
 
+// 正文按“视图”画：一条消息 → { r:'u' 玩家 / 'g' 说书人, t 正文, d 骰点, rr 重骰, cut 换到的地点, chk 检定 }。
+// 压缩前情提要时，被截掉的消息变成视图存进 game.archive：说书人不再看原文，但页面上照样能往回翻
+function msgView(m, die, st){
+  if (m.role === 'user') return m.hidden ? null : { r:'u', t:m.content, d:m.die || 0, rr:m.reroll || 0 };
+  const v = { r:'g', t:visibleText(m.content) };
+  const loc = m.state && m.state.location;
+  if (loc && loc !== (st.location || '')) v.cut = loc;
+  if (m.state && m.state.check && die) v.chk = { ...m.state.check, d:die, terms:checkTerms(m.state.check, st) };
+  return v;
+}
+function viewHtml(v){
+  if (v.r === 'u') return `<div class="turn you">${esc(v.t)}${v.d ? `<span class="die">🎲${v.rr ? '1→' : ''}${v.d}</span>` : ''}</div>`;
+  return (v.cut ? sceneCut(v.cut) : '') + (v.chk ? checkCard(v.chk, v.chk.d, v.chk.terms) : '') +
+    `<div class="turn gm${v.cut ? ' opening' : ''}">${fmt(v.t)}</div>`;
+}
+// 把 history 里的消息逐条转成视图（要按顺序走，好知道每条之前的状态和骰点）
+function historyViews(list, st){
+  let die = 0;
+  const out = [];
+  for (const m of list){
+    if (m.role === 'user') die = m.die || 0;
+    const v = msgView(m, die, st);
+    if (v) out.push(v);
+    if (m.state) st = fillRpg(m.state);
+  }
+  return out;
+}
+// 整页重绘：只在开局、读档、撤回、重写这类时候用；平常每回合只往末尾追加
 function renderStory(){
-  const el = $('story'); el.innerHTML = '';
-  if (game.memory) el.insertAdjacentHTML('beforeend', `<div class="turn sys">—— 更早的剧情已收进「前情提要」——</div>`);
-  let die = 0, st = fillRpg(game.baseState || (game.baseState = blankState()));
-  game.history.forEach(m => {
-    if (m.role === 'user'){
-      die = m.die || 0;
-      if (m.hidden) return;
-      el.insertAdjacentHTML('beforeend', `<div class="turn you">${esc(m.content)}${m.die ? `<span class="die">🎲${m.reroll ? '1→' : ''}${m.die}</span>` : ''}</div>`);
-    } else {
-      const loc = m.state && m.state.location, cut = loc && loc !== (st.location || '');
-      if (cut) el.insertAdjacentHTML('beforeend', sceneCut(loc));
-      if (m.state && m.state.check) el.insertAdjacentHTML('beforeend', checkCard(m.state.check, die, st));
-      el.insertAdjacentHTML('beforeend', `<div class="turn gm${cut ? ' opening' : ''}">${fmt(visibleText(m.content))}</div>`);
-      if (m.state) st = fillRpg(m.state);
-    }
-  });
+  const arch = game.archive || [];
+  const head = game.memory && !arch.length ? `<div class="turn sys">—— 更早的剧情已收进「前情提要」——</div>` : '';
+  $('story').innerHTML = head + [...arch, ...historyViews(game.history, fillRpg(game.baseState || (game.baseState = blankState())))].map(viewHtml).join('');
 }
 
 function renderSide(){
@@ -2255,7 +2273,7 @@ async function runTurn(){
     const before = curState(), state = parseState(raw, before);
     const lastUser = game.history[game.history.length - 1];
     if (state.location && state.location !== (before.location || '')){ el.insertAdjacentHTML('beforebegin', sceneCut(state.location)); el.classList.add('opening'); }
-    if (state.check){ el.insertAdjacentHTML('beforebegin', checkCard(state.check, lastUser && lastUser.die, before)); rollDice(el.previousElementSibling); }
+    if (state.check && lastUser && lastUser.die){ el.insertAdjacentHTML('beforebegin', checkCard(state.check, lastUser.die, checkTerms(state.check, before))); rollDice(el.previousElementSibling); }
     game.history.push({ role:'assistant', content:raw, state });
     if (state.talentPick && !before.talentPick) setTimeout(openTalent, 400);
     const news = [];
@@ -2310,10 +2328,15 @@ function act(text){
   let die = 1 + Math.floor(Math.random() * 20), reroll = 0;
   if (die === 1 && hasTalent(curState(), 'lucky')){ reroll = 1; die = 1 + Math.floor(Math.random() * 20); }
   const last = game.history[game.history.length - 1];
-  if (last && last.role === 'user' && !last.hidden) game.history.pop();   // 上一条没回成，换成这条
-  game.history.push({ role:'user', content:text, die, reroll });
+  if (last && last.role === 'user' && !last.hidden){   // 上一条没回成，换成这条
+    game.history.pop();
+    const tail = $('story').lastElementChild;
+    if (tail && tail.classList.contains('you')) tail.remove();
+  }
+  const m = { role:'user', content:text, die, reroll };
+  game.history.push(m);
   $('input').value = '';
-  renderStory();
+  $('story').insertAdjacentHTML('beforeend', viewHtml(msgView(m)));
   runTurn();
 }
 
@@ -2339,10 +2362,11 @@ async function compressIfLong(){
       game.memory = sum.trim();
       // 截掉的那段里最后的状态留作底，免得侧栏归零
       let base = game.baseState;
+      game.archive = [...(game.archive || []), ...historyViews(old, fillRpg(base || blankState()))];
       for (const m of old) if (m.state) base = m.state;
       game.baseState = base;
       game.history = game.history.slice(cut);
-      renderStory(); autosave();
+      autosave();                                      // 页面上的正文没变，不用重绘
     }
   }catch{ /* 下回合再试 */ }
   compressing = false;
