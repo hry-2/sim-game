@@ -1422,7 +1422,8 @@ function stateRule(){
 - equip 只写换上 / 卸下的格子（weapon / armor / trinket），卸下写 null。
 - quests 只写新接、有进展、结束的；title 不超过 12 字且不要改；type 是 main / side；status 是 active / done / failed。
 - reps 只写声望变了的势力。npcs 只写出场或变了的人：favor 好感，love 心动（仅 ♥），bond 关系（仅变化时），note 近况不超过 20 字，新人物加 role。
-${nChoicesRule()}
+${nChoicesRule()}${game.setup.name ? '' : `
+- 主角还没有名字：在故事里给主角起一个贴合世界的名字（已经起过就沿用），并在状态块里写 "name":"名字"。页面记下后就不用再写。`}
 - ${R.hp}归零或结局时 "gameOver":true、choices 为空，正文写出结局。`;
 }
 
@@ -1479,7 +1480,7 @@ function systemPrompt(){
 ${s.world || '由你决定一个有趣的世界。'}
 
 【主角】
-名字：${s.name || '由你起一个合适的名字'}
+名字：${s.name || '还没有，由你起一个贴合世界的名字，并写进状态块的 name'}
 身份：${s.role || '由你根据世界决定'}${s.origin ? `\n出身：${s.origin}` : ''}${s.backstory ? `\n背景故事：${s.backstory}（围绕它埋伏笔，让过去的人和事找上门）` : ''}
 
 【主持原则】
@@ -1640,6 +1641,7 @@ function parseState(raw, prev){
       equip:mergeEquip(prev.equip, s.equip, prev.attrs), quests:mergeQuests(prev.quests, s.quests),
       reps:mergeReps(prev.reps, s.reps),
       choices:arr(s.choices).slice(0, 5), gameOver:!!s.gameOver,
+      pcName:typeof s.name === 'string' ? s.name.trim().slice(0, 12) : '',   // 说书人给主角起的名字，只在玩家没填名字时有用
     };
     // 特殊事件加属性：单次最多 ±2
     if (s.attrUp && typeof s.attrUp === 'object'){
@@ -2326,6 +2328,7 @@ async function runTurn(){
     if (state.location && state.location !== (before.location || '')){ el.insertAdjacentHTML('beforebegin', sceneCut(state.location)); el.classList.add('opening'); }
     if (state.check && lastUser && lastUser.die){ el.insertAdjacentHTML('beforebegin', checkCard(state.check, lastUser.die, checkTerms(state.check, before))); rollDice(el.previousElementSibling); }
     game.history.push({ role:'assistant', content:raw, state });
+    if (!game.setup.name && state.pcName){ game.setup.name = state.pcName; sysNote(`说书人给你起名「${state.pcName}」。`); }
     if (state.talentPick && !before.talentPick) setTimeout(openTalent, 400);
     const news = [];
     if (state.lvUp){
