@@ -167,6 +167,11 @@
     background:linear-gradient(transparent,var(--bg) 24%);
   }
   .composer .box{display:flex;gap:8px;align-items:flex-end}
+  .newbelow{
+    position:absolute;left:50%;top:-30px;transform:translateX(-50%);z-index:4;
+    padding:4px 14px;border-radius:999px;font-size:12px;
+    background:var(--brand);color:var(--on-brand);border:0;box-shadow:0 4px 14px rgba(0,0,0,.4);
+  }
   .composer textarea{min-height:44px;max-height:160px;flex:1}
   .composer .btn{min-width:64px;height:44px}
   .composer .btn.stop{background:var(--panel-2);color:var(--ink);border:1px solid var(--line)}
@@ -183,7 +188,8 @@
   .alert .x{background:none;border:0;color:var(--muted);font-size:16px;line-height:1;padding:2px 4px}
   .alert.info{border-color:var(--line);background:var(--panel);color:var(--muted)}
   .alert.good{border-color:color-mix(in srgb,var(--brand) 50%,transparent);background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--ink)}
-  .alert.info #btnRetry,.alert.good #btnRetry{display:none}
+  .alert.wait{border-color:color-mix(in srgb,var(--brand) 45%,transparent);background:var(--panel);color:var(--ink)}
+  .alert.info #btnRetry,.alert.good #btnRetry,.alert.wait #btnRetry{display:none}
 
   .usage{margin-left:auto;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:help}
   .more{position:relative}
@@ -682,6 +688,7 @@
       <div class="story" id="story"></div>
       <div class="choices" id="choices"></div>
       <div class="composer">
+        <button class="newbelow hide" id="newBelow" type="button">↓ 新内容</button>
         <div class="alert hide" id="alert">
           <span class="t" id="alertText"></span>
           <button class="ghost" id="btnRetry">重试</button>
@@ -814,6 +821,7 @@
     <label class="f"><span>温度（越高越放飞）</span><input type="number" id="cfgTemp" min="0" max="2" step="0.1"></label>
     <label class="f"><span>每段最多字数（max_tokens）</span><input type="number" id="cfgMax" min="200" max="8000" step="100"></label>
   </div>
+  <label class="f"><span>每分钟最多请求（0 = 不限；被限流时会自动填上）</span><input type="number" id="cfgRpm" min="0" max="600" step="1"></label>
   <p class="hint" id="usageAll"></p>
   <p class="hint">Key 只存在这个浏览器的 localStorage 里，请求直接从浏览器发到上面的地址，不经过别的服务器。别在公用电脑上保存。</p>
   <div class="msg" id="cfgMsg"></div>
@@ -837,7 +845,8 @@ const PROVIDERS = [
   { name:'DeepSeek',   base:'https://api.deepseek.com/v1',    model:'deepseek-chat' },
   { name:'OpenRouter', base:'https://openrouter.ai/api/v1',   model:'' },
 ];
-const DEFAULT_CFG = { base:PROVIDERS[0].base, key:'', model:PROVIDERS[0].model, temp:0.9, max:1200 };
+// rpm：每分钟最多发几个请求，0 表示不限；撞到服务商限流时会自动记下来
+const DEFAULT_CFG = { base:PROVIDERS[0].base, key:'', model:PROVIDERS[0].model, temp:0.9, max:1200, rpm:0 };
 const KNOWN_MODELS = ['agnes-3.0-flash','agnes-3.0-qwen','agnes-2.5-pro-alpha','agnes-2.0-flash'];
 
 const store = {
@@ -1272,7 +1281,7 @@ function explainError(e, status, body){
   if (e && e.name === 'AbortError') return '已停止。';
   if (status === 401 || status === 403) return `鉴权失败（${status}）：Key 不对或没有这个模型的权限。\n${body||''}`;
   if (status === 404) return `地址或模型不存在（404）：检查接口地址末尾是不是 /v1，模型名有没有拼错。\n${body||''}`;
-  if (status === 429) return `请求太频繁或额度用完了（429）。\n${body||''}`;
+  if (status === 429) return `接口限流（429）：每分钟请求太多，或者额度用完了。${cfg.rpm ? `已经把每分钟上限记为 ${cfg.rpm} 次，之后会自动放慢；` : ''}稍等一会儿再点「重试」。\n${body||''}`;
   if (status) return `接口返回 ${status}。\n${body||''}`;
   return '连不上接口：网络不通，或这个服务不允许网页直接调用（CORS）。\n' +
          '可以先点「接口设置 → 测试连接」看看；如果一直这样，需要换一家服务商或加一层转发代理。\n' +
@@ -1294,9 +1303,50 @@ const USAGE_OPT_KEY = 'aistory.noStreamUsage';
 let noStreamUsage = store.get(USAGE_OPT_KEY, false);
 const JSON_MODE_KEY = 'aistory.noJsonMode';
 let noJsonMode = store.get(JSON_MODE_KEY, false);
-async function postChat(body, signal){
+/* ---- 限流：按每分钟上限排队；撞到 429 就记住上限，等到窗口过去再发 ---- */
+const reqLog = [];                                   // 最近发出请求的时间
+const recentReqs = () => { const t = Date.now() - 60000; while (reqLog.length && reqLog[0] < t) reqLog.shift(); return reqLog.length; };
+function sleepFor(ms, signal, onWait){
+  return new Promise((resolve, reject) => {
+    const end = Date.now() + ms;
+    let timer = 0;
+    const stop = () => { clearTimeout(timer); reject(new DOMException('已停止', 'AbortError')); };
+    if (signal){ if (signal.aborted) return stop(); signal.addEventListener('abort', stop, { once:true }); }   // 点「停止」立刻生效
+    const tick = () => {
+      const left = Math.ceil((end - Date.now()) / 1000);
+      if (left <= 0){ if (signal) signal.removeEventListener('abort', stop); resolve(); return; }
+      if (onWait) onWait(left);
+      timer = setTimeout(tick, Math.min(1000, end - Date.now()));
+    };
+    tick();
+  });
+}
+// 发请求前：最近一分钟已经发满 rpm 个，就等到最早那个滑出窗口
+async function pace(signal, onWait){
+  const rpm = +cfg.rpm || 0;
+  if (rpm > 0 && recentReqs() >= rpm) await sleepFor(reqLog[reqLog.length - rpm] + 60000 - Date.now() + 300, signal, onWait);
+  reqLog.push(Date.now());
+}
+// 429：从 Retry-After 读等待时间，读不到就等到一分钟窗口过去；顺手把这一分钟发成功的个数记成上限
+function onRateLimited(res){
+  const ok = recentReqs() - 1;
+  if (ok >= 1 && (!cfg.rpm || cfg.rpm > ok)){
+    cfg.rpm = ok;
+    // 只改存下来的 rpm：「测试连接」时 cfg 里是表单上还没保存的值，不能顺手存进去
+    const saved = { ...DEFAULT_CFG, ...store.get(CFG_KEY, {}) }; saved.rpm = ok; store.set(CFG_KEY, saved);
+  }
+  const ra = +res.headers.get('retry-after');
+  return ra > 0 ? ra * 1000 : Math.max(5000, (reqLog[0] || Date.now()) + 60000 - Date.now() + 500);
+}
+
+// onWait(秒)：需要等的时候每秒回调一次，让界面显示倒计时；不传就表示等不起（后台任务），直接报错
+async function postChat(body, signal, onWait){
   if (body.stream && !noStreamUsage) body = { ...body, stream_options:{ include_usage:true } };
+  let limited = 0, trustServer = false;
   for (let attempt = 0; ; attempt++){
+    if (trustServer) reqLog.push(Date.now());       // 服务商给了 Retry-After，就按它说的时间重试，不再自己排队
+    else await pace(signal, onWait);
+    trustServer = false;
     let res;
     try{
       res = await fetch(apiBase() + '/chat/completions', { method:'POST', headers:headers(), signal, body:JSON.stringify(body) });
@@ -1306,7 +1356,12 @@ async function postChat(body, signal){
       continue;
     }
     if (res.ok) return res;
-    if ((res.status === 429 || res.status >= 500) && attempt < 1){
+    if (res.status === 429){
+      const wait = onRateLimited(res);
+      if (onWait && limited++ < 2){ await sleepFor(wait, signal, onWait); trustServer = +res.headers.get('retry-after') > 0; continue; }
+      throw { status:429, body:await readErr(res) };
+    }
+    if (res.status >= 500 && attempt < 1){
       await new Promise(r => setTimeout(r, RETRY_DELAY));
       continue;
     }
@@ -1357,9 +1412,9 @@ function renderUsage(){
 }
 
 // 流式对话：onDelta(全文) 每收到一段就回调一次，返回最终全文
-async function chatStream(messages, onDelta, signal){
+async function chatStream(messages, onDelta, signal, onWait){
   const res = await postChat({ model:cfg.model.trim(), messages, stream:true,
-    temperature:Number(cfg.temp) || 0.9, max_tokens:Number(cfg.max) || 1200 }, signal);
+    temperature:Number(cfg.temp) || 0.9, max_tokens:Number(cfg.max) || 1200 }, signal, onWait);
 
   // 有的服务商忽略 stream 直接回整包 JSON
   const ct = res.headers.get('content-type') || '';
@@ -1396,9 +1451,9 @@ async function chatStream(messages, onDelta, signal){
 }
 
 // json：要求服务商用 JSON 模式输出（不支持的服务商会在 postChat 里自动去掉这个参数）
-async function chatOnce(messages, maxTokens, temperature, json){
+async function chatOnce(messages, maxTokens, temperature, json, onWait){
   const res = await postChat({ model:cfg.model.trim(), messages, temperature:temperature ?? 0.3, max_tokens:maxTokens || 600,
-    ...(json && !noJsonMode ? { response_format:{ type:'json_object' } } : {}) });
+    ...(json && !noJsonMode ? { response_format:{ type:'json_object' } } : {}) }, null, onWait);
   const j = await res.json();
   lastUsage = j.usage || null;
   return stripThink(j.choices?.[0]?.message?.content || '');
@@ -2302,6 +2357,16 @@ function hideAlert(){ clearTimeout(alertTimer); $('alert').classList.add('hide')
 
 function scrollEnd(){ window.scrollTo({ top:document.body.scrollHeight, behavior:'smooth' }); }
 
+// 新内容在输入框下面看不见时，亮一个“↓ 新内容”，点了才滚过去；滚到底自己消失
+function updateNewBelow(){
+  const story = $('story'), last = $('choices').childElementCount ? $('choices') : story.lastElementChild;
+  if (!last || $('scrGame').classList.contains('hide')){ $('newBelow').classList.add('hide'); return; }
+  const visibleBottom = document.querySelector('.composer').getBoundingClientRect().top;
+  $('newBelow').classList.toggle('hide', last.getBoundingClientRect().bottom <= visibleBottom + 8);
+}
+window.addEventListener('scroll', () => { if (!$('newBelow').classList.contains('hide')) updateNewBelow(); }, { passive:true });
+$('newBelow').onclick = () => { scrollEnd(); $('newBelow').classList.add('hide'); };
+
 /* ================= 回合 ================= */
 async function runTurn(){
   if (!cfgReady()){ openCfg('先填好接口地址、Key 和模型。'); return; }
@@ -2309,7 +2374,7 @@ async function runTurn(){
   const el = document.createElement('div');
   el.className = 'turn gm cursor';
   $('story').appendChild(el);
-  scrollEnd();
+  scrollEnd();                       // 只在玩家发出行动的这一刻滚一次；之后生成多长都不再拽页面
   setBusy(true);
   aborter = new AbortController();
   let raw = '';
@@ -2318,8 +2383,9 @@ async function runTurn(){
     raw = await chatStream(msgs, full => {
       raw = full;
       el.innerHTML = fmt(visibleText(full));
-      if (window.innerHeight + window.scrollY > document.body.scrollHeight - 160) window.scrollTo(0, document.body.scrollHeight);
-    }, aborter.signal);
+      updateNewBelow();
+    }, aborter.signal, sec => showAlert(`接口限流：这一分钟的请求数到上限了，${sec} 秒后自动继续。不想等可以点「停止」。`, 'wait'));
+    hideAlert();
     addUsage(msgs, raw);
     raw = stripThink(raw);
     if (!raw.trim()) throw { status:0, body:'', message:'模型返回了空内容' };
@@ -2371,7 +2437,7 @@ async function runTurn(){
     aborter = null;
     setBusy(false);
     justTurned = false;
-    scrollEnd();
+    updateNewBelow();
   }
   compressIfLong();
 }
@@ -2667,7 +2733,8 @@ $('btnGenRules').onclick = async () => {
   try{
     const who = [$('pcName').value.trim() && '主角名字：' + $('pcName').value.trim(), $('pcRole').value.trim() && '主角身份：' + $('pcRole').value.trim()].filter(Boolean).join('\n');
     const genMsgs = [{ role:'system', content:GEN_SYSTEM }, { role:'user', content:'世界设定：\n' + world + (who ? '\n' + who : '') }];
-    let raw = await chatOnce(genMsgs, 2500, 0.8, true);
+    const genWait = sec => { $('genHint').textContent = `接口限流，${sec} 秒后自动继续……`; };
+    let raw = await chatOnce(genMsgs, 2500, 0.8, true, genWait);
     addUsage(genMsgs, raw, false);   // 还没开局，只记进累计
     let g;
     try{ g = looseJSON(raw); }catch(err){
@@ -2675,7 +2742,7 @@ $('btnGenRules').onclick = async () => {
       $('genHint').textContent = '格式没写对，正在让说书人重写一遍……';
       const fixMsgs = [...genMsgs, { role:'assistant', content:raw },
         { role:'user', content:`你上面的 JSON 不合法（${err.message}）。请重新输出完整、合法的 JSON 对象，只输出 JSON。` }];
-      raw = await chatOnce(fixMsgs, 2500, 0.3, true);
+      raw = await chatOnce(fixMsgs, 2500, 0.3, true, genWait);
       addUsage(fixMsgs, raw, false);
       g = looseJSON(raw);
     }
@@ -2908,12 +2975,13 @@ function exportGame(){
 function setDot(ok){ $('cfgDot').className = 'dot ' + (ok ? 'on' : 'bad'); }
 function fillCfgForm(c){
   $('cfgBase').value = c.base; $('cfgKey').value = c.key; $('cfgModel').value = c.model;
-  $('cfgTemp').value = c.temp; $('cfgMax').value = c.max;
+  $('cfgTemp').value = c.temp; $('cfgMax').value = c.max; $('cfgRpm').value = c.rpm || 0;
 }
 function readCfgForm(){
   return { base:$('cfgBase').value.trim(), key:$('cfgKey').value.trim(), model:$('cfgModel').value.trim(),
            temp:Math.min(2, Math.max(0, parseFloat($('cfgTemp').value) || 0.9)),
-           max:Math.min(8000, Math.max(200, parseInt($('cfgMax').value, 10) || 1200)) };
+           max:Math.min(8000, Math.max(200, parseInt($('cfgMax').value, 10) || 1200)),
+           rpm:Math.min(600, Math.max(0, parseInt($('cfgRpm').value, 10) || 0)) };
 }
 function cfgMsg(t, cls){ const m = $('cfgMsg'); m.textContent = t || ''; m.className = 'msg ' + (cls || ''); }
 function openCfg(note){
@@ -2940,6 +3008,7 @@ $('btnModels').onclick = async () => {
   const old = cfg; cfg = { ...cfg, ...readCfgForm() };
   cfgMsg('正在拉取模型列表……');
   try{
+    reqLog.push(Date.now());
     const res = await fetch(apiBase() + '/models', { headers:headers() });
     if (!res.ok) throw { status:res.status, body:await readErr(res) };
     const j = await res.json();
