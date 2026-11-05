@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>游戏柜 · sim-game</title>
-<meta name="description" content="一个人做的网页游戏合集：效用 AI 生活模拟、赛博朋克像素生存射击。全部单文件、零依赖、点开就玩。">
+<meta name="description" content="八个单文件网页游戏：街机、动作、模拟生存、聚会、AI 文字冒险。零依赖、点开就玩。">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Silkscreen&family=Noto+Sans+SC:wght@400;500&display=swap">
 <style>
@@ -24,6 +24,7 @@
     --nod:#3ddc97;
     --coin:#ffcf4d;
     --fish:#3fd8e0;
+    --tale:#e0a85a;
     --cjk:'Noto Sans SC',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
     --disp:'Chakra Petch','Noto Sans SC',system-ui,sans-serif;
     --pix:'Silkscreen','Chakra Petch',ui-monospace,monospace;
@@ -88,14 +89,27 @@
   }
   .lede b{color:var(--ink);font-weight:500}
 
+  /* ---------- 分类跳转 ---------- */
+  .jump{margin:18px 0 0;display:flex;flex-wrap:wrap;gap:8px}
+  .jump a{
+    display:flex;align-items:center;gap:8px;padding:6px 12px;
+    font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.04em;
+    color:var(--ink);text-decoration:none;
+    background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+    transition:border-color .16s,background .16s;
+  }
+  .jump a:hover,.jump a:focus-visible{background:var(--panel-2);border-color:color-mix(in srgb,var(--accent) 45%,var(--line));outline:none}
+  .jump i{font-style:normal;font-family:var(--pix);font-size:10px;color:var(--dim)}
+
   /* ---------- 卡带架 ---------- */
   h2.sec{
-    margin:52px 0 18px;font-family:var(--pix);font-size:11px;
-    letter-spacing:.24em;color:var(--dim);text-transform:uppercase;font-weight:400;
-    display:flex;align-items:center;gap:14px;
+    margin:44px 0 16px;font-family:var(--disp);font-size:17px;font-weight:600;
+    letter-spacing:.06em;color:var(--ink);
+    display:flex;align-items:baseline;gap:12px;scroll-margin-top:16px;
   }
-  h2.sec::after{content:"";flex:1;height:1px;background:var(--line)}
-  .rack{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+  h2.sec span{font-family:var(--cjk);font-size:12px;font-weight:400;letter-spacing:.04em;color:var(--dim)}
+  h2.sec::after{content:"";flex:1;height:1px;background:var(--line);align-self:center}
+  .rack{display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))}
 
   .cart{
     display:grid;grid-template-rows:auto 1fr;
@@ -133,15 +147,16 @@
     letter-spacing:.18em;color:var(--dim);margin-top:6px;
   }
   .body p{margin:0;color:var(--muted);font-size:14px}
-  .spec{
-    margin-top:auto;padding-top:6px;display:grid;gap:1px 0;
-    border-top:1px solid var(--line);
+  .tag{
+    margin-left:8px;padding:1px 6px;font-style:normal;font-size:9px;
+    color:var(--muted);border:1px solid var(--line);
   }
-  .spec div{
-    display:flex;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);
+  .spec{
+    margin-top:auto;display:flex;gap:12px;padding:8px 0;
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);
     font-size:13px;
   }
-  .spec dt,.spec .k{
+  .spec .k{
     flex:0 0 4.5em;color:var(--dim);font-size:11px;letter-spacing:.1em;
     padding-top:2px;
   }
@@ -158,28 +173,12 @@
   .go::after{content:"▸";transition:transform .16s}
   .cart:hover .go::after{transform:translateX(4px)}
 
-  /* ---------- 说明区 ---------- */
-  .notes{
-    margin-top:44px;display:grid;gap:18px;
-    grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-  }
-  .note{border-top:2px solid var(--line);padding-top:14px}
-  .note h4{
-    margin:0 0 8px;font-family:var(--disp);font-weight:600;font-size:14px;
-    letter-spacing:.02em;color:var(--ink);
-  }
-  .note p{margin:0;font-size:13px;color:var(--muted)}
-  .note code{
-    font-family:var(--pix);font-size:11px;color:var(--amber);
-    background:#0a0e0c;padding:1px 5px;border:1px solid var(--line);
-  }
   footer{
     margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
-    display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
-    font-family:var(--pix);font-size:10px;letter-spacing:.16em;color:var(--dim);
+    display:flex;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;
+    font-size:12px;color:var(--dim);
   }
-  footer a{color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line)}
-  footer a:hover{color:var(--amber);border-color:var(--amber)}
+  footer code{font-family:var(--pix);font-size:10px;color:var(--muted)}
   @media (prefers-reduced-motion:reduce){
     .cart{transition:none}
     .go::after{transition:none}
@@ -192,169 +191,33 @@
   <header>
     <div class="marquee">
       <h1>游戏柜</h1>
-      <span class="en">arcade cabinet / 6 titles</span>
+      <span class="en">arcade cabinet / 8 titles</span>
       <a class="purse" href="games/coin-pusher/index.html" title="币袋：全柜通用，街机里赢">
         <span class="k">币袋</span><b id="purseNum">300</b><span class="u">币</span>
       </a>
     </div>
     <div class="rule"></div>
     <div class="rule"></div>
-    <p class="lede">
-      六个自己写的网页游戏。都是 <b>单个 HTML 文件</b>——没有构建步骤、没有 npm 依赖、
-      美术和音效全部由代码生成，双击就能跑，扔到任何静态托管上也一样。
-      挑一个开始玩。<b>币袋</b>里的币全柜通用：在街机里赢来的，存进同一个袋子。
-    </p>
+    <p class="lede">八个单文件网页游戏，点开就玩。街机赢的币存进<b>币袋</b>，全柜通用。</p>
+    <nav class="jump" aria-label="分类">
+      <a href="#arcade" style="--accent:var(--coin)">街机<i>2</i></a>
+      <a href="#party" style="--accent:var(--nod)">聚会<i>1</i></a>
+      <a href="#action" style="--accent:var(--neon)">动作<i>2</i></a>
+      <a href="#life" style="--accent:var(--sim)">模拟 · 生存<i>2</i></a>
+      <a href="#tale" style="--accent:var(--tale)">文字冒险<i>1</i></a>
+    </nav>
   </header>
 
-  <h2 class="sec">卡带</h2>
-
+  <h2 class="sec" id="arcade">街机<span>共用币袋 · 永久运行</span></h2>
   <div class="rack">
-
-    <a class="cart" href="games/sim/index.html" style="--accent:var(--sim)">
-      <canvas class="shot" id="shotSim" width="192" height="108"></canvas>
-      <div class="body">
-        <div class="kicker">生活模拟 · 效用 AI</div>
-        <h3>市 井<span class="sub">SIM-GAME · UTILITY AI PROTOTYPE</span></h3>
-        <p>
-          你操控小满，另外三个人由效用 AI 自主生活——饿了去做饭、闷了去找人聊天。
-          物件主动广播「我能满足什么需求」，角色只负责打分挑最高的，
-          所以加新玩法不用改 AI。生产链靠前置条件自然串起来：林地 → 工作台 → 摊位 → 粮店 → 炉灶。
-        </p>
-        <div class="spec">
-          <div><span class="k">操作</span><span class="v"><kbd>WASD</kbd><kbd>E</kbd><kbd>T</kbd> 移动 / 交互 / 托管给 AI</span></div>
-          <div><span class="k">看点</span><span class="v">点任意 NPC 能看见它此刻的打分排名</span></div>
-        </div>
-        <div class="go">进入</div>
-      </div>
-    </a>
-
-    <a class="cart" href="games/neon-scrapline/index.html" style="--accent:var(--neon)">
-      <canvas class="shot" id="shotNeon" width="192" height="108"></canvas>
-      <div class="body">
-        <div class="kicker">生存射击 · Roguelite</div>
-        <h3>霓虹废钢线<span class="sub">NEON SCRAPLINE · TOP-DOWN SHOOTER</span></h3>
-        <p>
-          下城区的废钢回收线上打穿三十波机兵，撤离上货梯。俯视角像素射击，
-          十七把武器分三条路 —— 远程、近战、炼金各带一把，抽到同类的会替换，所以每张换装卡都是个决定。改的是打法不是数值：霰弹带后坐、磁轨穿透一整排、电弧自动跳、榴弹越过前排、振动刀贴身一刀砍一片、
-          熔切光束只咬最前面那一个、布雷器不用瞄改成算他们会走哪、回旋刃飞出去再飞回来来回各穿一次。三把近战各解一个近战自己的难题：振动刀把人推开腾空间、命中回血；冲锋撞角让「冲过去」本身就是攻击（那一下无敌，但方向按下就改不了）；力场盾在挥击之间一直举着，正面来的子弹直接弹开 —— 挡不住撞上来的人。炼金那一路不靠杀人，它的直接输出只有远程的一到三成，价值全在后果上。三种属性各两种投法：嬗（撒一片金雾／向前扎一道印记，之后谁杀的都算双倍）、熔（地上浇一滩／往前烧出一道墙）、引（把人拽成一堆／反过来炸开一圈把人推走）。关键在于它跟你手上那把远程枪会互动：<b>子弹穿过自己的区域会被附上属性</b>——穿过金雾的子弹打死的也算双倍，穿过熔金的附带灼烧，穿过引力场的弹道被拽向核心、等于替你修准头。所以炼金不是「第三把伤害更低的枪」，是给另外两把摆盘的那一层。六把的解锁全挂在据点那头 —— 卖货、炼钢、做生意、名声。属性一共五种：嬗、熔、引来自炼金，霜和雷把本来就散落在各处的效果收进了同一套——冷凝弹头给霜，电弧链和静电场给雷。其中<b>霜是全游戏唯一的硬控</b>：叠满三层冻住一秒，刀锋犬的冲刺、拆解臂的蓄力撞起手之后别的都拦不住，冻住能打断。
-          十一种敌人里有六种逼你改打法：正面挡伤的铁闸、靠近就炸的爆囊、给同伴加护盾的中继、死了裂成两只的裂解体、远处蓄力打直线的钉枪手、甩钩把你拽过去的拖曳者。
-          第一次遇见都会给一句该怎么应对，之后在暂停界面的图鉴里随时能翻回来。
-          三种 BOSS 轮着来，各自要换一套打法：母体核心绕着圈躲螺旋弹幕，拆解臂站定发亮就是要直线撞过来、得横着走，母巢不追你但一直吐无人机、得冲过去先拆巢。每个掉到一半血都换形态。三张场地各有自己的地形：回收线上的传送带推着所有人走、熔渣池的池子站上去就烧（敌人也一样，可以把带盾的引进去）、冷却塔的冷凝罐打爆炸一片。每十波加一层新机制。每次升级三选一，23 条改装词条可叠加，后期才铺开的几条改的是机制不是数值：折返弹撞墙反弹、蓄能枪机奖励点射、拆解标记让死人旁边的跟着倒霉、回收协议把废钢换成血、护航无人机绕着你转自己找目标。九个里程碑解锁新枪与新词条，废钢买起手武器，
-          敌人会掉废钢，波间开一次回收站：现场修复、注入强化、多一次重摇、军械调拨（直接买一把已解锁的枪）。
-          刻意只卖消耗品和内容，不卖永久数值——那条线归词条管。没花完的废钢存进档案，所以「现在买」和「留到下一局」是个真选择。
-          敌人还掉具体的零件，而且跟你打了谁绑定——重装机甲掉伺服马达、无人机掉光学镜组、拖曳者掉绞盘齿轮。
-          捡回来在据点摆摊卖：每种零件有看不见的心理价位带，你出价，客人一个个走到摊前看货，掏钱还是转身走当场演给你看，嫌贵会走、走多了砸名声；
-          每局的行情还不一样，两种缺货一种积压，所以「今天该打谁」每局都在变。
-          档案那头是一座据点：精炼炉把废钢炼成精炼钢，装配台用精炼钢给九把枪各装一个改装件——点射管拿射速换穿透、散焦透镜拿单体伤害换扫一片、遥爆模块让雷改成手动引爆。
-          每个改装件都是交换不是升级，弹药库、情报站、义体车间给的也只是「多一格货」「多知道一点」「指定一条保底」，没有一栋建筑加战斗数值。
-          做够生意还能养一只：拾荒犬让你今天指定的那一种零件掉率翻倍、账房猫开门多来三位客人、信鸦多看几波情报——
-          三只都只管经营，跟着你跑的那只不参与战斗，战斗力那条线归词条管。
-          三个底座各带代价——开局只有一把枪，其余都要打出来。还有每日局与六套涂装：种子取当天日期，全世界今天同一局。涂装改的是轮廓不只是颜色——母体长角、磁轨顶环、废钢支天线、霓虹戴灯冠、幽灵罩兜帽，因为在 320×180 的画布上叠着泛光，只换颜色等于没换。
-          场上会掉六种临时增益，超频、护壁、吸附、磁暴、时滞、血偿，都只有几秒，值不值得冒险跑过去捡是当场的决定。
-          精英怪带一圈标记、个头大一号、掉双倍好处，而且各带一个词缀——自愈要一口气打掉、护盾要绕后、殉爆别贴着收尾、呼叫得优先拆，环的颜色就是它的身份；每隔几波还会摇到一个波次修饰——七种组合：只有刀锋犬但速度翻倍、
-          全是带盾的、一半是爆囊、一屏都在裂、盾墙后面架着钉枪手、拖曳者拽住你让狗扑上来——用组合换难度，不是把血条拉长。
-          打穿一次解锁下一档危险等级，四档一路上抬同一条三十波曲线，高档位分数也更高。
-        </p>
-        <div class="spec">
-          <div><span class="k">操作</span><span class="v"><kbd>WASD</kbd><kbd>MOUSE</kbd><kbd>SPACE</kbd> 移动 / 瞄准开火 / 相位冲刺 · <kbd>1-6</kbd> 直接换枪 · 手机与手柄双摇杆</span></div>
-          <div><span class="k">看点</span><span class="v">升级了人物身上真的多一件东西；换枪连人一起变，胸前弹带、背上电容塔、肩上电极叉各是一件</span></div>
-          <div><span class="k">一局</span><span class="v">30 波 · 六场 BOSS · 一局只拿得到一半词条，所以每局的打法都不一样</span></div>
-          <div><span class="k">重玩</span><span class="v">四档危险等级各存一条记录 · 每日局全世界同一种子 · 六套纯外观涂装</span></div>
-          <div><span class="k">构筑</span><span class="v">暂停和选牌时都看得到这一局装了什么，满级的词条单独标出来；三次重摇救空牌</span></div>
-          <div><span class="k">经济</span><span class="v">局内捡废钢 → 波间商店花掉，或者留着存进档案换起手武器</span></div>
-        </div>
-        <div class="go">进入</div>
-      </div>
-    </a>
-
-    <a class="cart" href="games/nightharbor/index.html" style="--accent:var(--harbor)">
-      <canvas class="shot" id="shotHarbor" width="192" height="108"></canvas>
-      <div class="body">
-        <div class="kicker">潜入 · 剧情 · 原型</div>
-        <h3>夜 港<span class="sub">NIGHT HARBOR · STEALTH &amp; BRANCHING STORY</span></h3>
-        <p>
-          明烛把你优化了。义体是公司预支的，合同没做满，三处义体一起变成欠款，宽限期 90 天。
-          守卫有视锥和警觉三态，同一间屋硬冲、潜行、绕背处决都走得通。
-          台词全部来自一份 markdown 剧本，脚本解析后嵌进游戏——改剧本就是改游戏。
-        </p>
-        <div class="spec">
-          <div><span class="k">操作</span><span class="v"><kbd>WASD</kbd><kbd>MOUSE</kbd><kbd>CTRL</kbd><kbd>E</kbd> 移动 / 瞄准 / 蹲伏 / 处决交互</span></div>
-          <div><span class="k">看点</span><span class="v">看不看那块硬盘，第二天街坊说的话不一样</span></div>
-        </div>
-        <div class="go">进入</div>
-      </div>
-    </a>
-
-    <a class="cart" href="games/quiet-street/index.html" style="--accent:var(--street)">
-      <canvas class="shot" id="shotStreet" width="192" height="108"></canvas>
-      <div class="body">
-        <div class="kicker">生存 · 日志 · 在做</div>
-        <h3>静 街<span class="sub">QUIET STREET · POST-OUTBREAK SURVIVAL LOG</span></h3>
-        <p>
-          疫后小镇里的一个普通人。没有终局，只有一份写到你死那天的日志——
-          而你的死因，总是三天前你自己做的某个决定。
-          引擎不是饥饿，是<b>噪音</b>：每个有产出的动作都在出声，钉一下木板 10 格、一枪 40 格，
-          而全镇三百二十只僵尸是<b>固定存量</b>，不刷怪，只在六个街区之间跟着噪音迁移。
-          你把它们引到东边，西边就真的空了；清出来的街，七天不回流。
-          死了不是从头开始：镇子还在，你钉的板、种的田、翻空的柜子都在，
-          而上一个你几小时后会站起来，穿着你上一局的全套装备——想拿回自己的斧头，得先杀掉自己。
-          现在做到 T1：镇子生成器（96×80、六街区、32 栋房、131 个容器，四层表全部可复现）。
-        </p>
-        <div class="spec">
-          <div><span class="k">操作</span><span class="v"><kbd>WASD</kbd><kbd>SHIFT</kbd><kbd>CTRL</kbd><kbd>E</kbd> 走 / 跑 / 蹲 / 互动 · <kbd>J</kbd> 日志</span></div>
-          <div><span class="k">看点</span><span class="v">死亡屏不给分数，给因果：死于什么 / 什么时候种下的 / 当时怎么做才对</span></div>
-          <div><span class="k">种子</span><span class="v"><code>?seed=</code> 钉死整座镇，同一个种子的镇一模一样</span></div>
-        </div>
-        <div class="go">进入</div>
-      </div>
-    </a>
-
-    <a class="cart" href="games/nod/index.html" style="--accent:var(--nod)">
-      <canvas class="shot" id="shotNod" width="192" height="108"></canvas>
-      <div class="body">
-        <div class="kicker">聚会 · 两个人 · 面对面猜词</div>
-        <h3>点 头<span class="sub">NOD · TILT-TO-SCORE CHARADES</span></h3>
-        <p>
-          柜子里唯一一款<b>两个人面对面</b>的游戏，也是唯一一款你得站起来玩的。
-          一个人把手机举到额头、<b>屏幕朝外</b>（横竖都行），另一个人看着词往外传；
-          举手机的人猜中了就把手机<b>往下翻</b>，说不出来<b>往上翻</b>跳过。
-          因为屏幕朝外，举手机的那个人<b>自始至终看不见屏幕</b>——
-          这一条决定了其余所有设计：反馈只走声音，跳过不设次数上限（看不见的资源不该让人管理），
-          过程里也不报比分。判定门限 45°，翻过去先出确认画面，<b>转回来才亮下一个词</b>，
-          于是一次大幅翻转不会连判两次——去抖是靠一个你本来就要做的动作。
-          规则只有一条，十六个词包一视同仁：看词的人怎么描述都行——比划、说话、演——
-          但<b>不能说词里出现过的字</b>。这条没有代码在管，靠桌上的人自觉。
-          时间到了给总结：猜中、跳过、平均每词几秒，以及按顺序排开的整局词表；
-          <b>点一条能改判</b>——传感器抖一下不该让你丢分。关掉就没了，不存档。
-        </p>
-        <div class="spec">
-          <div><span class="k">操作</span><span class="v">手机往下翻 = 猜中 · 往上翻 = 跳过 · 横屏竖屏都认 · 没有陀螺仪时点屏幕下半 / 上半，桌面上 <kbd>↓</kbd><kbd>↑</kbd></span></div>
-          <div><span class="k">看点</span><span class="v">猜的人全程看不见屏幕，整局只靠声音判断自己刚才对没对</span></div>
-          <div><span class="k">一局</span><span class="v">60 / 120 / 180 秒三档 · 十六个词包 4547 词 + 跨包混抽的「随机」</span></div>
-          <div><span class="k">真机</span><span class="v">iOS 要 HTTPS 才给陀螺仪，局域网 http 上会静默退到点击</span></div>
-        </div>
-        <div class="go">进入</div>
-      </div>
-    </a>
 
     <a class="cart" href="games/coin-pusher/index.html" style="--accent:var(--coin)">
       <canvas class="shot" id="shotCoin" width="192" height="108"></canvas>
       <div class="body">
-        <div class="kicker">街机 · 物理 · 单人</div>
-          <h3>聚宝盆<span class="sub">COIN PUSHER · TRUE 3D</span></h3>
-        <p>
-          一台<b>永远在推</b>的推币机。上层推板每 2.8 秒拱一次，力道只够推着贴它的那一层，
-          后面的币靠前面的币传力——所以落下的那一下会挤动整排，挑币堆最满的位置投，一口吃一排。
-          拖滑块选落点，震台抖一抖，再召一座币塔砸进主台；
-          前沿左右两个角是侧槽，掉下去必出银凤凰，电子屏攒满 300 格开奖撒币雨。
-          5 秒内连掉就叠连击、倍率最高 3×，断了清零——所以「再等一枚」永远是台面上最贵的决定。
-          <b>Three.js 真 3D</b>：立体金币、有纵深的机台、透视视角（首次需联网加载引擎）。
-        </p>
-        <div class="spec">
-          <div><span class="k">操作</span><span class="v"><kbd>空格</kbd> 投币 · <kbd>←</kbd><kbd>→</kbd> 挪落点 · <kbd>S</kbd> 震台 · <kbd>T</kbd> 币塔 · 手机全触控</span></div>
-          <div><span class="k">看点</span><span class="v">连锁掉落：一枚币下去，半排在动；连击断在第四枚最难受</span></div>
-          <div><span class="k">机台</span><span class="v">永久运行 · 赢的币进<b>币袋</b>（全柜通用）· 积分 / 电子屏进度存档，刷新不丢</span></div>
-        </div>
+        <div class="kicker">推币机 · 3D 物理</div>
+        <h3>聚宝盆<span class="sub">COIN PUSHER</span></h3>
+        <p>推板一直在推，挑币堆最满的地方投，一枚下去挤动一整排。前沿掉的币归你，侧槽的币回到推板上；攒能量开磁铁、挡板、长推，召币塔砸进池子。</p>
+        <div class="spec"><span class="k">操作</span><span class="v"><kbd>空格</kbd> 投币 · <kbd>←</kbd><kbd>→</kbd> 落点 · 手机全触控</span></div>
         <div class="go">进入</div>
       </div>
     </a>
@@ -362,54 +225,105 @@
     <a class="cart" href="games/fish-hunter/index.html" style="--accent:var(--fish)">
       <canvas class="shot" id="shotFish" width="192" height="108"></canvas>
       <div class="body">
-        <div class="kicker">街机 · 3D 射击 · 单人</div>
+        <div class="kicker">捕鱼 · 3D 射击</div>
         <h3>捕鱼达人<span class="sub">FISH HUNTER</span></h3>
-        <p>
-          一台<b>3D 水下街机</b>：鱼群在深浅不一的水层里游，点屏幕就撒网——网罩住一小片，打够血量整条翻成币，收尾时能一网收好几条。
-          <b>炮倍</b>（1/2/5/10×）只放大输赢：一条鱼要挨几发是定死的，赌的是你打不打得中。
-          底栏一直挂着<b>命中率</b>和<b>本局净额</b>：这台机器的手艺全在命中率上，账一眼看得见。
-          小丑鱼两三网一条，鲨鱼要二十几网，<b>鱼王</b>要八十多网、赔 80×炮倍。
-          网口能花币升三级（罩 48 → 58 → 70），只加面积不加伤害；网衣按累计渔获换。
-          还有四条<b>龙鱼</b>——青龙、赤龙、金龙、紫电龙，蛇形长身摆着过来，紫电龙身上带电弧。
-          同种的鱼是<b>一群</b>：一起游、一起受惊，挨了打就一起炸开再归队。
-          每 40 秒涨一次潮，来的鱼更大更多；每 5 潮一次<b>大潮</b>——两群鱼一起进，鱼王必来，稀有的龙鱼也比平时多。
-          锁定一条鱼，炮口会算提前量；自动开炮负责找最顺手的那个。
-          和聚宝盆是<b>同一袋币</b>：炮打出去的和鱼翻出来的，都是全柜通用的那袋。
-        </p>
-        <div class="spec">
-          <div><span class="k">操作</span><span class="v">点屏幕瞄准开炮 · 按住连发 · <kbd>空格</kbd> 开炮 · <kbd>L</kbd> 锁定 · <kbd>A</kbd> 自动 · 手机全触控</span></div>
-          <div><span class="k">看点</span><span class="v">锁定鱼王钉到血皮那一瞬最爽；炮倍越高压得越重</span></div>
-          <div><span class="k">机台</span><span class="v">潮汐 / 鱼王 / 最高单捕都存档 · 赢的币进<b>币袋</b>（和聚宝盆同一袋）</span></div>
-        </div>
+        <p>点屏幕撒网，打够血量整条鱼翻成币。炮倍只放大输赢，赌的是命中率。鱼王、龙鱼、特殊鱼、鱼阵，还有和机器人比分的擂台赛。</p>
+        <div class="spec"><span class="k">操作</span><span class="v">点屏开炮 · <kbd>L</kbd> 锁定 · <kbd>A</kbd> 自动 · 手机全触控</span></div>
         <div class="go">进入</div>
       </div>
     </a>
 
   </div>
 
-  <div class="notes">
-    <div class="note">
-      <h4>本地跑</h4>
-      <p>直接双击 <code>games/*/index.html</code> 就行。想起服务：<code>npm run dev</code>，然后开 <code>localhost:5173</code>。</p>
-    </div>
-    <div class="note">
-      <h4>为什么都是单文件</h4>
-      <p>精灵图、音效、关卡数据全部内嵌或由代码现场生成。没有加载失败，没有跨域问题，一个文件就是完整的游戏。</p>
-    </div>
-    <div class="note">
-      <h4>币袋</h4>
-      <p>街机里赢的币进同一个袋子，存在这台浏览器里（<code>arcade.wallet.v1</code>）；
-         顶栏显示的就是它。以后接进来的机台读写的也是它。</p>
-    </div>
-    <div class="note">
-      <h4>授权</h4>
-      <p>源代码 MIT；<code>assets/</code> 下的美术与剧情数据为专有，保留一切权利。</p>
-    </div>
+  <h2 class="sec" id="party">聚会<span>两个人 · 面对面</span></h2>
+  <div class="rack">
+
+    <a class="cart" href="games/nod/index.html" style="--accent:var(--nod)">
+      <canvas class="shot" id="shotNod" width="192" height="108"></canvas>
+      <div class="body">
+        <div class="kicker">猜词 · 手机举额头</div>
+        <h3>点 头<span class="sub">NOD</span></h3>
+        <p>一个人把手机举到额头，屏幕朝外，另一个人看词描述。猜中往下翻，跳过往上翻。十六个词包，4547 个词。</p>
+        <div class="spec"><span class="k">操作</span><span class="v">手机下翻 = 猜中 · 上翻 = 跳过 · 桌面 <kbd>↓</kbd><kbd>↑</kbd></span></div>
+        <div class="go">进入</div>
+      </div>
+    </a>
+
+  </div>
+
+  <h2 class="sec" id="action">动作<span>射击 · 潜入</span></h2>
+  <div class="rack">
+
+    <a class="cart" href="games/neon-scrapline/index.html" style="--accent:var(--neon)">
+      <canvas class="shot" id="shotNeon" width="192" height="108"></canvas>
+      <div class="body">
+        <div class="kicker">俯视射击 · Roguelite</div>
+        <h3>霓虹废钢线<span class="sub">NEON SCRAPLINE</span></h3>
+        <p>在下城区回收线上打穿三十波机兵。十七把武器分远程、近战、炼金三路，23 条改装词条，十一种敌人加三种 BOSS。打下的零件拿回据点摆摊卖，还能养拾荒犬、账房猫、信鸦；护航无人机跟着你打。</p>
+        <div class="spec"><span class="k">操作</span><span class="v"><kbd>WASD</kbd> 移动 · <kbd>鼠标</kbd> 瞄准开火 · <kbd>空格</kbd> 冲刺 · 手机双摇杆</span></div>
+        <div class="go">进入</div>
+      </div>
+    </a>
+
+    <a class="cart" href="games/nightharbor/index.html" style="--accent:var(--harbor)">
+      <canvas class="shot" id="shotHarbor" width="192" height="108"></canvas>
+      <div class="body">
+        <div class="kicker">潜入 · 分支剧情<em class="tag">原型</em></div>
+        <h3>夜 港<span class="sub">NIGHT HARBOR</span></h3>
+        <p>义体欠款还剩 90 天宽限期。守卫有视锥和警觉三态，同一间屋硬冲、潜行、绕背处决都走得通；你做过的事，第二天街坊会说起。</p>
+        <div class="spec"><span class="k">操作</span><span class="v"><kbd>WASD</kbd> 移动 · <kbd>CTRL</kbd> 蹲伏 · <kbd>E</kbd> 处决 / 交互</span></div>
+        <div class="go">进入</div>
+      </div>
+    </a>
+
+  </div>
+
+  <h2 class="sec" id="life">模拟 · 生存<span>慢慢玩</span></h2>
+  <div class="rack">
+
+    <a class="cart" href="games/sim/index.html" style="--accent:var(--sim)">
+      <canvas class="shot" id="shotSim" width="192" height="108"></canvas>
+      <div class="body">
+        <div class="kicker">生活模拟 · 效用 AI</div>
+        <h3>市 井<span class="sub">SIM-GAME</span></h3>
+        <p>你操控小满，另外三个人自己过日子：饿了做饭，闷了找人聊天。点任意一个 NPC，能看到它此刻在想做什么。</p>
+        <div class="spec"><span class="k">操作</span><span class="v"><kbd>WASD</kbd> 移动 · <kbd>E</kbd> 交互 · <kbd>T</kbd> 托管给 AI</span></div>
+        <div class="go">进入</div>
+      </div>
+    </a>
+
+    <a class="cart" href="games/quiet-street/index.html" style="--accent:var(--street)">
+      <canvas class="shot" id="shotStreet" width="192" height="108"></canvas>
+      <div class="body">
+        <div class="kicker">疫后生存 · 日志<em class="tag">在做</em></div>
+        <h3>静 街<span class="sub">QUIET STREET</span></h3>
+        <p>全镇三百二十只僵尸跟着噪音迁移，不刷新。死了镇子还在，上一个你会穿着全套装备站起来。死亡屏不给分数，给的是死因。</p>
+        <div class="spec"><span class="k">操作</span><span class="v"><kbd>WASD</kbd> 走 · <kbd>SHIFT</kbd> 跑 · <kbd>E</kbd> 互动 · <kbd>J</kbd> 日志</span></div>
+        <div class="go">进入</div>
+      </div>
+    </a>
+
+  </div>
+
+  <h2 class="sec" id="tale">文字冒险<span>AI 主持 · 自带 Key</span></h2>
+  <div class="rack">
+
+    <a class="cart" href="games/ai-story/index.html" style="--accent:var(--tale)">
+      <canvas class="shot" id="shotTale" width="192" height="108"></canvas>
+      <div class="body">
+        <div class="kicker">文字冒险 · 大模型主持</div>
+        <h3>说书人<span class="sub">STORYTELLER</span></h3>
+        <p>大模型当主持人，你说做什么，它讲接下来发生什么。六个开局剧本，也能自己写世界；有风险的行动掷 d20 判定，体力和背包记在侧栏，剧情长了自动压成前情提要。</p>
+        <div class="spec"><span class="k">接口</span><span class="v">页面里填自己的 Key · 默认 Agnes 国内 · OpenAI 兼容都能接</span></div>
+        <div class="go">进入</div>
+      </div>
+    </a>
+
   </div>
 
   <footer>
-    <span>sim-game · 游戏柜</span>
-    <span>源码 MIT · 资产保留一切权利</span>
+    <span>全部单文件 · 双击 <code>games/*/index.html</code> 就能跑</span>
+    <span>源码 MIT · <code>assets/</code> 保留一切权利</span>
   </footer>
 </div>
 
@@ -913,14 +827,62 @@
     for (let yy = 0; yy < H; yy += 2) fi.fillRect(0, yy, W, 1);
   }
 
+  // 8) 说书人：烛光下一页纸，字一行行写出来，最后亮起三个选项
+  const taCv = document.getElementById('shotTale'), ta = taCv.getContext('2d');
+  const taleRows = [52, 38, 58, 30, 46];
+  function drawTale(t) {
+    ta.fillStyle = '#0f0d0a'; ta.fillRect(0, 0, W, H);
+    // 烛光晕
+    const fl = .8 + .2 * Math.sin(t * 9) * Math.sin(t * 3.7);
+    const glow = ta.createRadialGradient(30, 40, 2, 30, 40, 70);
+    glow.addColorStop(0, 'rgba(255,190,110,' + (.32 * fl).toFixed(3) + ')');
+    glow.addColorStop(1, 'rgba(255,190,110,0)');
+    ta.fillStyle = glow; ta.fillRect(0, 0, W, H);
+    // 蜡烛
+    ta.fillStyle = '#e9dcc0'; ta.fillRect(26, 52, 8, 30);
+    ta.fillStyle = '#3a3026'; ta.fillRect(22, 82, 16, 3);
+    ta.fillStyle = '#ffcf7a'; ta.fillRect(28, 44 - (fl * 2 | 0), 4, 7);
+    ta.fillStyle = '#fff2c8'; ta.fillRect(29, 47, 2, 3);
+    // 纸
+    const px = 56, py = 10, pw = 122, ph = 88;
+    ta.fillStyle = '#d8ccb0'; ta.fillRect(px, py, pw, ph);
+    ta.fillStyle = 'rgba(80,60,30,.10)'; ta.fillRect(px, py, 3, ph);
+    // 正文：按时间逐行写出，一轮 7 秒
+    const p = (t % 7) / 7, shown = p * 9;
+    ta.fillStyle = '#5a4a36';
+    for (let i = 0; i < taleRows.length; i++) {
+      const k = Math.max(0, Math.min(1, shown - i));
+      if (k > 0) ta.fillRect(px + 8, py + 9 + i * 8, (taleRows[i] + 40) * k | 0, 3);
+    }
+    // 光标
+    const cur = Math.min(taleRows.length - 1, shown | 0);
+    if (shown < taleRows.length && (t * 2 | 0) % 2) {
+      const k = Math.max(0, Math.min(1, shown - cur));
+      ta.fillStyle = '#b8722a'; ta.fillRect(px + 9 + ((taleRows[cur] + 40) * k | 0), py + 8 + cur * 8, 2, 5);
+    }
+    // 三个选项
+    if (shown > taleRows.length + .4) {
+      for (let i = 0; i < 3; i++) {
+        const on = (t * 1.2 | 0) % 3 === i;
+        ta.fillStyle = on ? '#e0a85a' : '#b9ab8c';
+        ta.fillRect(px + 8, py + 54 + i * 10, 3, 5);
+        ta.fillStyle = on ? '#8a5a20' : '#8f8268';
+        ta.fillRect(px + 14, py + 55 + i * 10, [46, 62, 38][i], 3);
+      }
+    }
+    // 扫描线
+    ta.fillStyle = 'rgba(0,0,0,.20)';
+    for (let yy = 0; yy < H; yy += 2) ta.fillRect(0, yy, W, 1);
+  }
+
   let t0 = performance.now();
   function frame(now) {
     const t = (now - t0) / 1000;
-    drawSim(t); drawNeon(t); drawHarbor(t); drawStreet(t); drawNod(t); drawCoinThumb(t); drawFishThumb(t);
+    drawSim(t); drawNeon(t); drawHarbor(t); drawStreet(t); drawNod(t); drawCoinThumb(t); drawFishThumb(t); drawTale(t);
     if (!reduce) requestAnimationFrame(frame);
   }
   // 首帧【同步】画一次，别等 rAF：页面在后台标签里打开时浏览器根本不触发 rAF，
-  // 七张卡带就全是空白的，等切回来才突然出现。
+  // 八张卡带就全是空白的，等切回来才突然出现。
   frame(t0);
   if (!reduce) requestAnimationFrame(frame);
 })();

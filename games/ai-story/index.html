@@ -1,0 +1,832 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f0e0c">
+<title>说书人</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@400;500&display=swap">
+<style>
+  :root{
+    --bg:#0f0e0c; --panel:#171512; --panel-2:#1e1b17; --line:#2e2a24;
+    --ink:#e9e3d6; --muted:#9a917f; --dim:#5f584c;
+    --brand:#e0a85a;                       /* 烛火色：按钮、选中、说书人的字头 */
+    --you:#8fb6d9;                         /* 玩家的行动 */
+    --hp:#d9584c; --ok:#7fc48a;
+    --serif:'Noto Serif SC','Songti SC',serif;
+    --sans:'Noto Sans SC',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    --safe-b:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;color:var(--ink);font:15px/1.7 var(--sans);
+    background:radial-gradient(110% 70% at 50% -10%,rgba(224,168,90,.10),transparent 60%),var(--bg);
+    background-attachment:fixed;
+  }
+  button,input,textarea,select{font:inherit;color:inherit}
+  button{cursor:pointer}
+  a{color:var(--brand)}
+  .hide{display:none!important}
+
+  /* ---------- 顶栏 ---------- */
+  .top{
+    position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;
+    padding:10px 16px;background:rgba(15,14,12,.88);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .top h1{margin:0;font:700 18px/1 var(--serif);color:var(--brand);letter-spacing:.08em}
+  .top .back{color:var(--muted);text-decoration:none;font-size:13px}
+  .top .sp{flex:1}
+  .ghost{
+    background:none;border:1px solid var(--line);border-radius:6px;padding:5px 10px;
+    font-size:13px;color:var(--muted);
+  }
+  .ghost:hover{border-color:var(--brand);color:var(--ink)}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--dim);margin-right:6px;vertical-align:1px}
+  .dot.on{background:var(--ok)} .dot.bad{background:var(--hp)}
+
+  .wrap{max-width:1040px;margin:0 auto;padding:16px}
+
+  /* ---------- 通用 ---------- */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+  label.f{display:block;margin:0 0 12px}
+  label.f > span{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  input[type=text],input[type=password],input[type=number],textarea,select{
+    width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;
+    padding:8px 10px;outline:none;
+  }
+  input:focus,textarea:focus,select:focus{border-color:var(--brand)}
+  textarea{resize:vertical;min-height:70px;line-height:1.6}
+  .btn{
+    background:var(--brand);color:#1a1207;border:0;border-radius:6px;padding:8px 16px;font-weight:500;
+  }
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+  .msg{font-size:13px;margin-top:8px;white-space:pre-wrap;word-break:break-all}
+  .msg.err{color:var(--hp)} .msg.ok{color:var(--ok)}
+
+  /* ---------- 设置弹层 ---------- */
+  dialog{
+    width:min(520px,calc(100vw - 32px));max-height:calc(100vh - 32px);
+    background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:20px;
+  }
+  dialog::backdrop{background:rgba(0,0,0,.6)}
+  dialog h2{margin:0 0 14px;font:600 17px var(--serif)}
+  .presetrow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .presetrow button{font-size:12px}
+
+  /* ---------- 开局 ---------- */
+  .intro{text-align:center;margin:18px 0 22px}
+  .intro h2{margin:0;font:700 clamp(24px,5vw,34px)/1.3 var(--serif);letter-spacing:.06em}
+  .intro p{margin:6px 0 0;color:var(--muted)}
+  .scen{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:16px}
+  .scen button{
+    text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+    transition:border-color .15s,background .15s;
+  }
+  .scen button:hover{border-color:var(--dim)}
+  .scen button.sel{border-color:var(--brand);background:var(--panel-2)}
+  .scen b{display:block;font:600 16px var(--serif)}
+  .scen small{display:block;color:var(--muted);font-size:12px;line-height:1.55;margin-top:4px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .slots{margin-top:16px}
+  .slot{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+  .slot:first-of-type{border-top:0}
+  .slot .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .slot .t i{font-style:normal;color:var(--muted);margin-left:6px}
+
+  /* ---------- 游戏中 ---------- */
+  .game{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:16px;align-items:start}
+  .story{min-height:50vh;padding-bottom:12px}
+  .turn{margin:0 0 20px}
+  .turn.you{
+    margin-left:auto;max-width:85%;width:fit-content;
+    background:rgba(143,182,217,.08);border:1px solid rgba(143,182,217,.25);border-radius:10px;
+    padding:6px 12px;color:var(--you);font-size:14px;
+  }
+  .turn.you .die{color:var(--muted);font-size:12px;margin-left:8px}
+  .turn.gm{font:400 17px/1.95 var(--serif);letter-spacing:.01em}
+  .turn.gm p{margin:0 0 .8em}
+  .turn.gm b{color:var(--brand);font-weight:600}
+  .turn.sys{font-size:13px;color:var(--muted);text-align:center}
+  .turn.err{font-size:13px;color:var(--hp);white-space:pre-wrap;border-left:2px solid var(--hp);padding-left:10px}
+  .cursor::after{content:'▍';color:var(--brand);animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  .choices{display:flex;flex-direction:column;gap:6px;margin:0 0 12px}
+  .choices button{
+    text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px;
+    font-size:14px;transition:border-color .15s;
+  }
+  .choices button:hover{border-color:var(--brand)}
+  .choices button::before{content:'▸ ';color:var(--brand)}
+
+  .composer{
+    position:sticky;bottom:0;padding:10px 0 calc(10px + var(--safe-b));
+    background:linear-gradient(transparent,var(--bg) 24%);
+  }
+  .composer .box{display:flex;gap:8px;align-items:flex-end}
+  .composer textarea{min-height:44px;max-height:160px;flex:1}
+  .composer .tools{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .composer .tools .ghost{font-size:12px;padding:3px 9px}
+
+  .side{position:sticky;top:64px;display:flex;flex-direction:column;gap:12px}
+  .side h3{margin:0 0 8px;font:600 12px var(--sans);color:var(--muted);letter-spacing:.1em}
+  .bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+  .bar i{display:block;height:100%;background:var(--hp);transition:width .4s}
+  .kv{font-size:13px;margin:6px 0 0}
+  .kv span{color:var(--muted)}
+  .tags{display:flex;flex-wrap:wrap;gap:5px}
+  .tags span{font-size:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:1px 7px}
+  .tags .none{color:var(--dim);border:0;background:none;padding:0}
+  .mem{font-size:12px;color:var(--muted);max-height:180px;overflow:auto;white-space:pre-wrap}
+
+  @media (max-width:760px){
+    .game{grid-template-columns:1fr}
+    .side{position:static;order:-1;display:grid;grid-template-columns:1fr 1fr}
+    .side .card{padding:10px 12px}
+    .side .memcard{display:none}
+    .two{grid-template-columns:1fr}
+    .turn.gm{font-size:16px}
+  }
+</style>
+<body>
+
+<header class="top">
+  <a class="back" href="../../index.html">← 游戏柜</a>
+  <h1>说书人</h1>
+  <span class="sp"></span>
+  <button class="ghost hide" id="btnMenu">回目录</button>
+  <button class="ghost" id="btnCfg"><span class="dot" id="cfgDot"></span>接口设置</button>
+</header>
+
+<!-- ============ 开局 ============ -->
+<main class="wrap" id="scrStart">
+  <div class="intro">
+    <h2>说书人</h2>
+    <p>AI 主持的文字冒险。选一个开局，或者自己写一个世界。</p>
+  </div>
+
+  <div class="scen" id="scenList"></div>
+
+  <div class="card">
+    <div class="two">
+      <label class="f"><span>你的名字</span><input type="text" id="pcName" placeholder="留空让说书人起名" maxlength="20"></label>
+      <label class="f"><span>身份 / 出身</span><input type="text" id="pcRole" placeholder="例：落第书生、退役雇佣兵" maxlength="40"></label>
+    </div>
+    <label class="f"><span>世界设定（选了开局会自动填，可以改）</span><textarea id="world" rows="4"></textarea></label>
+    <label class="f"><span>额外要求（可选）</span><input type="text" id="extra" placeholder="例：节奏慢一点、多一些对话、不要太血腥" maxlength="200"></label>
+    <div class="row">
+      <button class="btn" id="btnStart">开始</button>
+      <span class="hint" id="startHint"></span>
+    </div>
+  </div>
+
+  <div class="card slots">
+    <h3 style="margin:0 0 6px;font:600 13px var(--sans);color:var(--muted)">存档</h3>
+    <div id="slotList"></div>
+    <div class="row" style="margin-top:8px">
+      <button class="ghost" id="btnImport">从文件导入</button>
+      <input type="file" id="fileImport" accept="application/json,.json" class="hide">
+    </div>
+  </div>
+</main>
+
+<!-- ============ 游戏中 ============ -->
+<main class="wrap hide" id="scrGame">
+  <div class="game">
+    <div>
+      <div class="story" id="story"></div>
+      <div class="composer">
+        <div class="choices" id="choices"></div>
+        <div class="box">
+          <textarea id="input" rows="1" placeholder="你打算怎么做？（Enter 发送，Shift+Enter 换行）"></textarea>
+          <button class="btn" id="btnSend">行动</button>
+        </div>
+        <div class="tools">
+          <button class="ghost" id="btnStop" disabled>停止</button>
+          <button class="ghost" id="btnReroll">重写这段</button>
+          <button class="ghost" id="btnUndo">撤回一步</button>
+          <button class="ghost" id="btnSave">存档</button>
+          <button class="ghost" id="btnExport">导出</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="side">
+      <div class="card">
+        <h3>状态</h3>
+        <div class="bar"><i id="hpBar" style="width:100%"></i></div>
+        <p class="kv"><span>体力</span> <b id="hpText">—</b></p>
+        <p class="kv"><span>地点</span> <b id="locText">—</b></p>
+        <p class="kv"><span>时间</span> <b id="timeText">—</b></p>
+        <div class="tags" id="statusTags" style="margin-top:8px"></div>
+      </div>
+      <div class="card">
+        <h3>随身物品</h3>
+        <div class="tags" id="invTags"></div>
+      </div>
+      <div class="card memcard">
+        <h3>前情提要</h3>
+        <div class="mem" id="memText">（剧情变长后，早先的内容会压缩到这里）</div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<!-- ============ 接口设置 ============ -->
+<dialog id="dlgCfg">
+  <h2>接口设置</h2>
+  <div class="presetrow" id="presetRow"></div>
+  <label class="f"><span>接口地址（Base URL，OpenAI 兼容）</span><input type="text" id="cfgBase" spellcheck="false" autocomplete="off"></label>
+  <label class="f"><span>API Key</span>
+    <div class="row" style="flex-wrap:nowrap">
+      <input type="password" id="cfgKey" spellcheck="false" autocomplete="off" placeholder="sk-...">
+      <button class="ghost" id="btnEye" type="button">显示</button>
+    </div>
+  </label>
+  <label class="f"><span>模型</span>
+    <div class="row" style="flex-wrap:nowrap">
+      <input type="text" id="cfgModel" list="modelList" spellcheck="false" autocomplete="off">
+      <button class="ghost" id="btnModels" type="button">拉取列表</button>
+    </div>
+    <datalist id="modelList"></datalist>
+  </label>
+  <div class="two">
+    <label class="f"><span>温度（越高越放飞）</span><input type="number" id="cfgTemp" min="0" max="2" step="0.1"></label>
+    <label class="f"><span>每段最多字数（max_tokens）</span><input type="number" id="cfgMax" min="200" max="8000" step="100"></label>
+  </div>
+  <p class="hint">Key 只存在这个浏览器的 localStorage 里，请求直接从浏览器发到上面的地址，不经过别的服务器。别在公用电脑上保存。</p>
+  <div class="msg" id="cfgMsg"></div>
+  <div class="row" style="margin-top:14px;justify-content:flex-end">
+    <button class="ghost" id="btnClearKey" type="button">清除 Key</button>
+    <button class="ghost" id="btnTest" type="button">测试连接</button>
+    <button class="btn" id="btnCfgSave" type="button">保存</button>
+  </div>
+</dialog>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= 配置 ================= */
+const CFG_KEY = 'aistory.cfg.v1', SAVE_KEY = 'aistory.saves.v1', SLOT_N = 4;   // 槽 0 = 自动存档
+
+const PROVIDERS = [
+  { name:'Agnes 国内', base:'https://apihub.agnes-ai.cn/v1',  model:'agnes-2.5-pro-alpha' },
+  { name:'Agnes 国际', base:'https://apihub.agnes-ai.com/v1', model:'agnes-2.5-pro-alpha' },
+  { name:'DeepSeek',   base:'https://api.deepseek.com/v1',    model:'deepseek-chat' },
+  { name:'OpenRouter', base:'https://openrouter.ai/api/v1',   model:'' },
+];
+const DEFAULT_CFG = { base:PROVIDERS[0].base, key:'', model:PROVIDERS[0].model, temp:0.9, max:1200 };
+const KNOWN_MODELS = ['agnes-2.5-pro-alpha','agnes-2.0-flash'];
+
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch{ return false; } },
+};
+let cfg = { ...DEFAULT_CFG, ...store.get(CFG_KEY, {}) };
+
+/* ================= 开局剧本 ================= */
+const SCENARIOS = [
+  { id:'wuxia', name:'江湖夜雨', tag:'武侠',
+    world:'北宋末年，江湖暗流涌动。一本失传的剑谱残页重现于临安城，三大门派、朝廷鹰犬与一个神秘的地下钱庄都在找它。你是一个刚下山、身上只有几两碎银的年轻人，在一个雨夜走进了城外的悦来客栈。' },
+  { id:'xianxia', name:'凡骨问道', tag:'修仙',
+    world:'修真界以灵根定资质。你是青云宗外门最底层的杂役弟子，灵根驳杂，三年未能筑基。某日清扫藏经阁后山时，你在一块裂开的石碑下发现了一枚会说话的古旧玉佩。' },
+  { id:'cthulhu', name:'雾港来信', tag:'克苏鲁',
+    world:'1923 年，新英格兰海边小镇印斯茅斯附近。你收到失踪多年的叔叔寄来的一封信和一把铜钥匙，信里只有一句话：“不要在涨潮时打开它。”镇上的人看你的眼神很奇怪。理智值是有限的。' },
+  { id:'cyber', name:'霓虹欠债人', tag:'赛博朋克',
+    world:'2087 年，新九龙。你的义眼是赊来的，债主是一家叫“白鹭金融”的公司，还剩 72 小时还款期限。今晚，一个陌生号码发来一份工作：从荒坂塔第 40 层偷出一枚数据芯片，报酬刚好够还债。' },
+  { id:'apoc', name:'最后的补给站', tag:'末日生存',
+    world:'病毒爆发后第 47 天。你独自躲在城郊一座废弃加油站的便利店里，食物只剩两天的量。收音机里断断续续地重复着一个坐标，说那里有军方的安全区。外面的东西，夜里会变多。' },
+  { id:'detective', name:'雪夜山庄', tag:'本格推理',
+    world:'民国二十三年冬，大雪封山。你受邀来到富商沈家的山庄参加寿宴，当晚沈老爷被发现死在反锁的书房里。山庄里有九个人，电话线被切断了。你是唯一一个不姓沈、也不是仆人的客人。' },
+  { id:'custom', name:'自己写', tag:'自定义', world:'' },
+];
+
+/* ================= 状态 ================= */
+const blankState = () => ({ hp:10, maxHp:10, location:'', time:'', inventory:[], status:[], choices:[], gameOver:false });
+let game = null;         // { id, title, setup:{name,role,world,extra}, history:[{role,content,state?,die?}], memory, created }
+let busy = false, aborter = null;
+
+/* ================= DOM ================= */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ================= 接口 ================= */
+function apiBase(){
+  return (cfg.base || '').trim().replace(/\/+$/,'').replace(/\/chat\/completions$/,'');
+}
+function headers(){
+  return { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key.trim() };
+}
+function cfgReady(){ return !!(apiBase() && cfg.key.trim() && cfg.model.trim()); }
+
+// 把 fetch 抛出的错误翻译成人话
+function explainError(e, status, body){
+  if (e && e.name === 'AbortError') return '已停止。';
+  if (status === 401 || status === 403) return `鉴权失败（${status}）：Key 不对或没有这个模型的权限。\n${body||''}`;
+  if (status === 404) return `地址或模型不存在（404）：检查接口地址末尾是不是 /v1，模型名有没有拼错。\n${body||''}`;
+  if (status === 429) return `请求太频繁或额度用完了（429）。\n${body||''}`;
+  if (status) return `接口返回 ${status}。\n${body||''}`;
+  return '连不上接口：网络不通，或这个服务不允许网页直接调用（CORS）。\n' +
+         '可以先点「接口设置 → 测试连接」看看；如果一直这样，需要换一家服务商或加一层转发代理。\n' +
+         (e && e.message ? '（' + e.message + '）' : '');
+}
+
+async function readErr(res){
+  try{
+    const t = await res.text();
+    try{ const j = JSON.parse(t); return (j.error && (j.error.message || j.error)) || j.message || t; }catch{ return t.slice(0,300); }
+  }catch{ return ''; }
+}
+
+// 流式对话：onDelta(全文) 每收到一段就回调一次，返回最终全文
+async function chatStream(messages, onDelta, signal){
+  const res = await fetch(apiBase() + '/chat/completions', {
+    method:'POST', headers:headers(), signal,
+    body:JSON.stringify({ model:cfg.model.trim(), messages, stream:true,
+      temperature:Number(cfg.temp) || 0.9, max_tokens:Number(cfg.max) || 1200 }),
+  });
+  if (!res.ok) throw { status:res.status, body:await readErr(res) };
+
+  // 有的服务商忽略 stream 直接回整包 JSON
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('application/json')){
+    const j = await res.json();
+    const t = j.choices?.[0]?.message?.content || '';
+    onDelta(t); return t;
+  }
+
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = '', full = '';
+  for (;;){
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream:true });
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0){
+      const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      if (!line.startsWith('data:')) continue;
+      const data = line.slice(5).trim();
+      if (data === '[DONE]') return full;
+      try{
+        const j = JSON.parse(data);
+        if (j.error) throw { status:500, body:j.error.message || JSON.stringify(j.error) };
+        const d = j.choices?.[0]?.delta?.content ?? j.choices?.[0]?.message?.content ?? '';
+        if (d){ full += d; onDelta(full); }
+      }catch(err){ if (err && err.status) throw err; }
+    }
+  }
+  return full;
+}
+
+async function chatOnce(messages, maxTokens){
+  const res = await fetch(apiBase() + '/chat/completions', {
+    method:'POST', headers:headers(),
+    body:JSON.stringify({ model:cfg.model.trim(), messages, temperature:0.3, max_tokens:maxTokens || 600 }),
+  });
+  if (!res.ok) throw { status:res.status, body:await readErr(res) };
+  const j = await res.json();
+  return j.choices?.[0]?.message?.content || '';
+}
+
+/* ================= 提示词 ================= */
+const STATE_RULE = `【输出格式 —— 必须遵守】
+每次回复先写叙事正文，然后另起一行，输出一个状态块，格式严格如下（JSON 必须合法，不要加代码块标记）：
+<state>
+{"hp":当前体力整数,"maxHp":体力上限整数,"location":"当前地点","time":"故事内的时间","inventory":["物品",...],"status":["状态",...],"choices":["行动选项1","行动选项2","行动选项3"],"gameOver":false}
+</state>
+- choices 给 3 个，彼此差异明显，每个不超过 20 字；玩家也可能不选而自由行动。
+- 体力归零或主角死亡/故事结局时 "gameOver":true，choices 给空数组，正文写出结局。
+- status 写临时状态（受伤、中毒、被追捕、理智动摇等），没有就给空数组。`;
+
+function systemPrompt(){
+  const s = game.setup;
+  return `你是一位经验丰富的文字冒险游戏主持人（说书人），用简体中文主持一场单人互动小说。
+
+【世界】
+${s.world || '由你决定一个有趣的世界。'}
+
+【主角】
+名字：${s.name || '由你起一个合适的名字'}
+身份：${s.role || '由你根据世界决定'}
+
+【主持原则】
+- 第二人称“你”叙述，每段 150～400 字，画面感强，有对话时用引号。
+- 只描写玩家行动的结果和世界的反应，绝不替玩家做决定、说话或行动。
+- 世界有自己的逻辑：鲁莽行为有代价，NPC 有自己的动机和记忆，前面埋的伏笔要回收。
+- 玩家每次行动会附一个 d20 骰点（1～20）。只有行动有风险或不确定时才参考它：1～5 失败且有麻烦，6～10 勉强或有代价，11～15 成功，16～20 漂亮地成功。没有风险的行动忽略骰点，也不要在正文里提到骰子。
+- 物品和体力要前后一致，用掉的东西从 inventory 移除。
+${s.extra ? '- 玩家额外要求：' + s.extra + '\n' : ''}
+${game.memory ? '【前情提要（较早的剧情已压缩）】\n' + game.memory + '\n' : ''}
+${STATE_RULE}`;
+}
+
+// 只把最近的对话发出去；更早的已经压进 memory
+function buildMessages(){
+  return [{ role:'system', content:systemPrompt() },
+          ...game.history.map(m => ({ role:m.role, content:m.role === 'user' ? userText(m) : m.content }))];
+}
+function userText(m){ return m.die ? `${m.content}\n（本回合骰点：${m.die}）` : m.content; }
+
+/* ================= 解析 AI 输出 ================= */
+// 正文 = <state> 之前的部分；流式时把半截的 "<sta" 也藏起来
+function visibleText(raw){
+  let t = raw;
+  const i = t.indexOf('<state');
+  if (i >= 0) t = t.slice(0, i);
+  else {
+    const m = t.match(/<s?t?a?t?e?$/);
+    if (m && m[0]) t = t.slice(0, -m[0].length);
+  }
+  return t.replace(/```\s*$/,'').trim();
+}
+function parseState(raw, prev){
+  let body = null;
+  const m = raw.match(/<state>([\s\S]*?)(<\/state>|$)/);
+  if (m) body = m[1];
+  else {
+    const j = raw.lastIndexOf('{"hp"');
+    if (j >= 0) body = raw.slice(j);
+  }
+  if (!body) return { ...prev, choices:[] };
+  body = body.replace(/```(json)?/g,'').trim();
+  const a = body.indexOf('{'), b = body.lastIndexOf('}');
+  if (a < 0 || b < a) return { ...prev, choices:[] };
+  try{
+    const s = JSON.parse(body.slice(a, b + 1));
+    const arr = v => Array.isArray(v) ? v.map(String).filter(Boolean) : [];
+    const num = (v, d) => Number.isFinite(+v) ? Math.round(+v) : d;
+    const maxHp = Math.max(1, num(s.maxHp, prev.maxHp));
+    return {
+      hp:Math.max(0, Math.min(maxHp, num(s.hp, prev.hp))), maxHp,
+      location:String(s.location ?? prev.location), time:String(s.time ?? prev.time),
+      inventory:arr(s.inventory), status:arr(s.status), choices:arr(s.choices).slice(0, 5),
+      gameOver:!!s.gameOver,
+    };
+  }catch{ return { ...prev, choices:[] }; }
+}
+
+function curState(){
+  for (let i = game.history.length - 1; i >= 0; i--) if (game.history[i].state) return game.history[i].state;
+  return game.baseState || blankState();
+}
+
+/* ================= 渲染 ================= */
+function fmt(text){
+  return esc(text).split(/\n{1,}/).filter(p => p.trim())
+    .map(p => '<p>' + p.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>') + '</p>').join('');
+}
+
+function renderStory(){
+  const el = $('story'); el.innerHTML = '';
+  if (game.memory) el.insertAdjacentHTML('beforeend', `<div class="turn sys">—— 更早的剧情已收进「前情提要」——</div>`);
+  game.history.forEach((m, i) => {
+    if (m.role === 'user'){
+      if (m.hidden) return;
+      el.insertAdjacentHTML('beforeend', `<div class="turn you">${esc(m.content)}${m.die ? `<span class="die">🎲${m.die}</span>` : ''}</div>`);
+    } else {
+      el.insertAdjacentHTML('beforeend', `<div class="turn gm">${fmt(visibleText(m.content))}</div>`);
+    }
+  });
+}
+
+function renderSide(){
+  const s = curState();
+  $('hpBar').style.width = (100 * s.hp / s.maxHp) + '%';
+  $('hpText').textContent = `${s.hp} / ${s.maxHp}`;
+  $('locText').textContent = s.location || '—';
+  $('timeText').textContent = s.time || '—';
+  const tags = (arr, none) => arr.length ? arr.map(t => `<span>${esc(t)}</span>`).join('') : `<span class="none">${none}</span>`;
+  $('statusTags').innerHTML = tags(s.status, '无异常');
+  $('invTags').innerHTML = tags(s.inventory, '空空如也');
+  $('memText').textContent = game.memory || '（剧情变长后，早先的内容会压缩到这里）';
+
+  const ch = $('choices');
+  ch.innerHTML = '';
+  if (s.gameOver){
+    ch.innerHTML = `<div class="turn sys">—— 故事结束 —— 可以「撤回一步」换个选择，或回目录开新局。</div>`;
+  } else if (!busy) {
+    s.choices.forEach(c => {
+      const b = document.createElement('button');
+      b.textContent = c; b.onclick = () => act(c);
+      ch.appendChild(b);
+    });
+  }
+}
+
+function setBusy(v){
+  busy = v;
+  $('btnSend').disabled = v; $('btnStop').disabled = !v;
+  $('btnReroll').disabled = v; $('btnUndo').disabled = v;
+  $('btnSave').disabled = v;
+  renderSide();
+}
+
+function scrollEnd(){ window.scrollTo({ top:document.body.scrollHeight, behavior:'smooth' }); }
+
+/* ================= 回合 ================= */
+async function runTurn(){
+  if (!cfgReady()){ openCfg('先填好接口地址、Key 和模型。'); return; }
+  const el = document.createElement('div');
+  el.className = 'turn gm cursor';
+  $('story').appendChild(el);
+  scrollEnd();
+  setBusy(true);
+  aborter = new AbortController();
+  let raw = '';
+  try{
+    raw = await chatStream(buildMessages(), full => {
+      raw = full;
+      el.innerHTML = fmt(visibleText(full));
+      if (window.innerHeight + window.scrollY > document.body.scrollHeight - 160) window.scrollTo(0, document.body.scrollHeight);
+    }, aborter.signal);
+    if (!raw.trim()) throw { status:0, body:'', message:'模型返回了空内容' };
+    const state = parseState(raw, curState());
+    game.history.push({ role:'assistant', content:raw, state });
+    el.classList.remove('cursor');
+    el.innerHTML = fmt(visibleText(raw));
+    setDot(true);
+    autosave();
+  }catch(e){
+    el.remove();
+    // 停止时如果已经写了一半，保留这半段
+    if (e && e.name === 'AbortError' && raw.trim()){
+      game.history.push({ role:'assistant', content:raw, state:parseState(raw, curState()) });
+      renderStory();
+    } else {
+      // 失败：把刚才那条玩家输入退回输入框，方便重发
+      const last = game.history[game.history.length - 1];
+      if (last && last.role === 'user'){
+        game.history.pop();
+        if (!last.hidden) $('input').value = last.content;
+        renderStory();
+      }
+      const box = document.createElement('div');
+      box.className = 'turn err';
+      box.textContent = explainError(e, e && e.status, e && e.body);
+      $('story').appendChild(box);
+      if (!(e && e.name === 'AbortError')) setDot(false);
+    }
+  }finally{
+    aborter = null;
+    setBusy(false);
+    scrollEnd();
+  }
+  compressIfLong();
+}
+
+function act(text){
+  text = text.trim();
+  if (!text || busy || curState().gameOver) return;
+  const die = 1 + Math.floor(Math.random() * 20);
+  game.history.push({ role:'user', content:text, die });
+  $('input').value = '';
+  renderStory();
+  runTurn();
+}
+
+// 历史太长时，把较早的部分压成摘要。失败就算了，下回合再试
+const KEEP = 12, LIMIT = 24;
+let compressing = false;
+async function compressIfLong(){
+  if (compressing || game.history.length <= LIMIT) return;
+  compressing = true;
+  let cut = game.history.length - KEEP;
+  if (game.history[cut].role !== 'user') cut++;      // 保证留下的部分从玩家行动开始
+  const old = game.history.slice(0, cut);
+  const transcript = old.map(m => (m.role === 'user' ? '玩家：' + m.content : '说书人：' + visibleText(m.content))).join('\n');
+  $('memText').textContent = '（正在整理前情提要……）';
+  try{
+    const sum = await chatOnce([
+      { role:'system', content:'你是剧情记录员。把文字冒险的剧情压缩成要点摘要，保留：主要事件经过、出场人物及其与主角的关系、未解的伏笔和承诺、主角获得或失去的重要物品与能力。用简体中文，条目式，不超过 400 字。只输出摘要。' },
+      { role:'user', content:(game.memory ? '【已有摘要】\n' + game.memory + '\n\n' : '') + '【新增剧情】\n' + transcript },
+    ], 800);
+    if (sum.trim() && game.history.length >= cut){
+      game.memory = sum.trim();
+      // 截掉的那段里最后的状态留作底，免得侧栏归零
+      let base = game.baseState;
+      for (const m of old) if (m.state) base = m.state;
+      game.baseState = base;
+      game.history = game.history.slice(cut);
+      renderStory(); autosave();
+    }
+  }catch{ /* 下回合再试 */ }
+  compressing = false;
+  renderSide();
+}
+
+/* ================= 开局 / 存档 ================= */
+let selScen = SCENARIOS[0];
+function renderScenarios(){
+  $('scenList').innerHTML = '';
+  SCENARIOS.forEach(s => {
+    const b = document.createElement('button');
+    b.className = s === selScen ? 'sel' : '';
+    b.innerHTML = `<b>${esc(s.name)}</b><small>${esc(s.tag)}${s.world ? ' · ' + esc(s.world.slice(0, 44)) + '…' : ' · 在下面写你自己的世界'}</small>`;
+    b.onclick = () => {
+      selScen = s; $('world').value = s.world; renderScenarios();
+      if (!s.world) $('world').focus();
+    };
+    $('scenList').appendChild(b);
+  });
+}
+
+function startGame(){
+  const world = $('world').value.trim();
+  if (!world && selScen.id === 'custom'){ $('startHint').textContent = '自定义开局需要写一点世界设定。'; return; }
+  if (!cfgReady()){ openCfg('先填好接口地址、Key 和模型，再开始。'); return; }
+  game = {
+    id:Date.now().toString(36),
+    title:selScen.id === 'custom' ? (world.slice(0, 12) || '自定义') : selScen.name,
+    setup:{ name:$('pcName').value.trim(), role:$('pcRole').value.trim(), world, extra:$('extra').value.trim() },
+    history:[{ role:'user', hidden:true, content:'【开局】请描写开场：交代主角此刻的处境、身边的环境和一个迫在眉睫的钩子，然后停下来等玩家行动。' }],
+    memory:'', created:Date.now(),
+  };
+  showGame();
+  runTurn();
+}
+
+function showGame(){
+  $('scrStart').classList.add('hide'); $('scrGame').classList.remove('hide'); $('btnMenu').classList.remove('hide');
+  renderStory(); renderSide(); scrollEnd();
+}
+function showStart(){
+  $('scrGame').classList.add('hide'); $('scrStart').classList.remove('hide'); $('btnMenu').classList.add('hide');
+  renderSlots(); window.scrollTo(0, 0);
+}
+
+function saves(){ const s = store.get(SAVE_KEY, []); return Array.isArray(s) ? s : []; }
+function snapshot(){ return { ...game, savedAt:Date.now(), turns:game.history.filter(m => m.role === 'assistant').length }; }
+function writeSlot(i){
+  const s = saves(); s[i] = snapshot();
+  return store.set(SAVE_KEY, s);
+}
+function autosave(){ if (game) writeSlot(0); }
+
+function renderSlots(){
+  const s = saves(), el = $('slotList'); el.innerHTML = '';
+  for (let i = 0; i < SLOT_N; i++){
+    const g = s[i];
+    const row = document.createElement('div'); row.className = 'slot';
+    const label = i === 0 ? '自动' : '槽 ' + i;
+    if (g){
+      const d = new Date(g.savedAt);
+      row.innerHTML = `<span class="t"><b>${label}</b> · ${esc(g.title)}<i>第 ${g.turns} 段 · ${d.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</i></span>`;
+      const load = document.createElement('button'); load.className = 'ghost'; load.textContent = '读取';
+      load.onclick = () => { game = structuredClone(g); delete game.savedAt; delete game.turns; showGame(); };
+      const del = document.createElement('button'); del.className = 'ghost'; del.textContent = '删除';
+      del.onclick = () => { if (confirm('删除这个存档？')){ const a = saves(); a[i] = null; store.set(SAVE_KEY, a); renderSlots(); } };
+      row.append(load, del);
+    } else {
+      row.innerHTML = `<span class="t"><b>${label}</b><i>空</i></span>`;
+    }
+    el.appendChild(row);
+  }
+}
+
+function saveToSlot(){
+  const s = saves();
+  const lines = [];
+  for (let i = 1; i < SLOT_N; i++) lines.push(`${i}：${s[i] ? s[i].title + '（第 ' + s[i].turns + ' 段）' : '空'}`);
+  const n = parseInt(prompt('存到哪个槽？\n' + lines.join('\n'), '1'), 10);
+  if (!(n >= 1 && n < SLOT_N)) return;
+  sysNote(writeSlot(n) ? `已存到槽 ${n}。` : '存档失败：浏览器存储不可用或已满。');
+}
+
+function sysNote(t){
+  const d = document.createElement('div'); d.className = 'turn sys'; d.textContent = t;
+  $('story').appendChild(d); scrollEnd();
+  setTimeout(() => d.remove(), 3000);
+}
+
+function exportGame(){
+  const blob = new Blob([JSON.stringify(snapshot(), null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `说书人-${game.title}-${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ================= 设置弹层 ================= */
+function setDot(ok){ $('cfgDot').className = 'dot ' + (ok ? 'on' : 'bad'); }
+function fillCfgForm(c){
+  $('cfgBase').value = c.base; $('cfgKey').value = c.key; $('cfgModel').value = c.model;
+  $('cfgTemp').value = c.temp; $('cfgMax').value = c.max;
+}
+function readCfgForm(){
+  return { base:$('cfgBase').value.trim(), key:$('cfgKey').value.trim(), model:$('cfgModel').value.trim(),
+           temp:Math.min(2, Math.max(0, parseFloat($('cfgTemp').value) || 0.9)),
+           max:Math.min(8000, Math.max(200, parseInt($('cfgMax').value, 10) || 1200)) };
+}
+function cfgMsg(t, cls){ const m = $('cfgMsg'); m.textContent = t || ''; m.className = 'msg ' + (cls || ''); }
+function openCfg(note){
+  fillCfgForm(cfg); cfgMsg(note || '', note ? 'err' : '');
+  $('dlgCfg').showModal();
+}
+function fillModels(list){
+  $('modelList').innerHTML = [...new Set([...list, ...KNOWN_MODELS])].map(m => `<option value="${esc(m)}">`).join('');
+}
+
+$('presetRow').innerHTML = '';
+PROVIDERS.forEach(p => {
+  const b = document.createElement('button'); b.className = 'ghost'; b.type = 'button'; b.textContent = p.name;
+  b.onclick = () => { $('cfgBase').value = p.base; if (p.model) $('cfgModel').value = p.model; cfgMsg(''); };
+  $('presetRow').appendChild(b);
+});
+$('btnEye').onclick = () => {
+  const k = $('cfgKey'); k.type = k.type === 'password' ? 'text' : 'password';
+  $('btnEye').textContent = k.type === 'password' ? '显示' : '隐藏';
+};
+$('btnModels').onclick = async () => {
+  const old = cfg; cfg = { ...cfg, ...readCfgForm() };
+  cfgMsg('正在拉取模型列表……');
+  try{
+    const res = await fetch(apiBase() + '/models', { headers:headers() });
+    if (!res.ok) throw { status:res.status, body:await readErr(res) };
+    const j = await res.json();
+    const ids = (j.data || j.models || []).map(m => m.id || m.name || m).filter(x => typeof x === 'string');
+    fillModels(ids);
+    cfgMsg(ids.length ? `拿到 ${ids.length} 个模型，点模型输入框可以选。` : '接口通了，但没返回模型列表，请手动填模型名。', 'ok');
+  }catch(e){ cfgMsg(explainError(e, e && e.status, e && e.body), 'err'); }
+  cfg = old;
+};
+$('btnTest').onclick = async () => {
+  const old = cfg; cfg = { ...cfg, ...readCfgForm() };
+  if (!cfgReady()){ cfgMsg('接口地址、Key、模型都要填。', 'err'); cfg = old; return; }
+  cfgMsg('正在发一句测试……');
+  const t0 = performance.now();
+  try{
+    const r = await chatOnce([{ role:'user', content:'用一句话打个招呼，不超过 15 字。' }], 60);
+    cfgMsg(`连接成功（${Math.round(performance.now() - t0)} ms）：${r.trim() || '（返回了空内容）'}`, 'ok');
+    setDot(true);
+  }catch(e){ cfgMsg(explainError(e, e && e.status, e && e.body), 'err'); setDot(false); }
+  cfg = old;
+};
+$('btnCfgSave').onclick = () => {
+  cfg = readCfgForm();
+  store.set(CFG_KEY, cfg);
+  $('dlgCfg').close();
+};
+$('btnClearKey').onclick = () => {
+  $('cfgKey').value = ''; cfg.key = ''; store.set(CFG_KEY, cfg); cfgMsg('Key 已从本机清除。', 'ok');
+  $('cfgDot').className = 'dot';
+};
+$('btnCfg').onclick = () => openCfg();
+
+/* ================= 绑定 ================= */
+$('btnStart').onclick = startGame;
+$('btnMenu').onclick = () => { if (busy && aborter) aborter.abort(); showStart(); };
+$('btnSend').onclick = () => act($('input').value);
+$('input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); act($('input').value); }
+});
+$('input').addEventListener('input', e => {
+  const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(160, t.scrollHeight) + 'px';
+});
+$('btnStop').onclick = () => aborter && aborter.abort();
+$('btnReroll').onclick = () => {
+  if (busy) return;
+  const last = game.history[game.history.length - 1];
+  if (!last || last.role !== 'assistant'){ if (last && last.role === 'user') runTurn(); return; }
+  game.history.pop();
+  renderStory(); runTurn();
+};
+$('btnUndo').onclick = () => {
+  if (busy) return;
+  // 退到最后一次玩家行动之前；开场白不撤
+  const h = game.history;
+  let i = h.length - 1;
+  while (i >= 0 && (h[i].role !== 'user' || h[i].hidden)) i--;
+  if (i < 0){ sysNote('已经是最开始了。'); return; }
+  $('input').value = h[i].content;
+  game.history = h.slice(0, i);
+  renderStory(); renderSide(); autosave();
+};
+$('btnSave').onclick = saveToSlot;
+$('btnExport').onclick = exportGame;
+$('btnImport').onclick = () => $('fileImport').click();
+$('fileImport').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try{
+    const g = JSON.parse(await f.text());
+    if (!g || !Array.isArray(g.history) || !g.setup) throw 0;
+    game = g; delete game.savedAt; delete game.turns;
+    showGame();
+  }catch{ alert('这不是说书人的存档文件。'); }
+};
+
+/* ================= 启动 ================= */
+fillModels([]);
+renderScenarios();
+$('world').value = selScen.world;
+renderSlots();
+if (!cfg.key) setTimeout(() => openCfg('第一次使用：填上你的 API Key（默认已选 Agnes 国内）。'), 300);
+})();
+</script>
+</body>
+</html>
