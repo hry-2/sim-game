@@ -11,6 +11,8 @@
     --bg:#0f0e0c; --panel:#171512; --panel-2:#1e1b17; --line:#2e2a24;
     --ink:#e9e3d6; --muted:#9a917f; --dim:#5f584c;
     --brand:#e0a85a;                       /* 烛火色：按钮、选中、说书人的字头 */
+    --on-brand:#1a1207;                    /* 强调色按钮上的字 */
+    --art:radial-gradient(110% 70% at 50% -10%,color-mix(in srgb,var(--brand) 10%,transparent),transparent 60%);   /* 背景氛围，各世界观自己画 */
     --you:#8fb6d9;                         /* 玩家的行动 */
     --hp:#d9584c; --ok:#7fc48a;
     --serif:'Noto Serif SC','Songti SC',serif;
@@ -21,8 +23,9 @@
   html,body{height:100%}
   body{
     margin:0;color:var(--ink);font:15px/1.7 var(--sans);
-    background:radial-gradient(110% 70% at 50% -10%,rgba(224,168,90,.10),transparent 60%),var(--bg);
+    background:var(--art),var(--bg);
     background-attachment:fixed;
+    transition:background-color .4s;
   }
   button,input,textarea,select{font:inherit;color:inherit}
   button{cursor:pointer}
@@ -32,7 +35,7 @@
   /* ---------- 顶栏 ---------- */
   .top{
     position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;
-    padding:10px 16px;background:rgba(15,14,12,.88);backdrop-filter:blur(8px);
+    padding:10px 16px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);
     border-bottom:1px solid var(--line);
   }
   .top h1{margin:0;font:700 18px/1 var(--serif);color:var(--brand);letter-spacing:.08em}
@@ -40,7 +43,7 @@
   .top .sp{flex:1}
   .ghost{
     background:none;border:1px solid var(--line);border-radius:6px;padding:5px 10px;
-    font-size:13px;color:var(--muted);
+    font-size:13px;color:var(--muted);white-space:nowrap;flex:none;
   }
   .ghost:hover{border-color:var(--brand);color:var(--ink)}
   .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--dim);margin-right:6px;vertical-align:1px}
@@ -59,7 +62,7 @@
   input:focus,textarea:focus,select:focus{border-color:var(--brand)}
   textarea{resize:vertical;min-height:70px;line-height:1.6}
   .btn{
-    background:var(--brand);color:#1a1207;border:0;border-radius:6px;padding:8px 16px;font-weight:500;
+    background:var(--brand);color:var(--on-brand);border:0;border-radius:6px;padding:8px 16px;font-weight:500;
   }
   .btn:disabled{opacity:.45;cursor:not-allowed}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -73,7 +76,12 @@
     background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:20px;
   }
   dialog::backdrop{background:rgba(0,0,0,.6)}
-  dialog h2{margin:0 0 14px;font:600 17px var(--serif)}
+  dialog h2{margin:0 0 14px;padding-right:28px;font:600 17px var(--serif)}
+  .dlg-x{
+    position:absolute;top:12px;right:12px;width:28px;height:28px;padding:0;border-radius:6px;
+    background:none;border:0;color:var(--muted);font-size:20px;line-height:1;
+  }
+  .dlg-x:hover{background:var(--panel-2);color:var(--ink)}
   .presetrow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
   .presetrow button{font-size:12px}
 
@@ -116,7 +124,7 @@
   .turn{margin:0 0 20px}
   .turn.you{
     margin-left:auto;max-width:85%;width:fit-content;
-    background:rgba(143,182,217,.08);border:1px solid rgba(143,182,217,.25);border-radius:10px;
+    background:color-mix(in srgb,var(--you) 8%,transparent);border:1px solid color-mix(in srgb,var(--you) 25%,transparent);border-radius:10px;
     padding:6px 12px;color:var(--you);font-size:14px;
   }
   .turn.you .die{color:var(--muted);font-size:12px;margin-left:8px}
@@ -134,7 +142,7 @@
     background:none;border:1px solid var(--line);border-radius:999px;padding:5px 14px;
     font-size:14px;line-height:1.5;text-align:left;transition:border-color .15s,background .15s;
   }
-  .choices button:hover{border-color:var(--brand);background:rgba(224,168,90,.08)}
+  .choices button:hover{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 8%,transparent)}
   .choices .end{width:100%;font-size:13px;color:var(--muted);text-align:center}
 
   .composer{
@@ -157,7 +165,7 @@
   .alert .ghost{font-size:12px;padding:2px 10px;color:var(--ink)}
   .alert .x{background:none;border:0;color:var(--muted);font-size:16px;line-height:1;padding:2px 4px}
   .alert.info{border-color:var(--line);background:var(--panel);color:var(--muted)}
-  .alert.good{border-color:rgba(224,168,90,.5);background:rgba(224,168,90,.12);color:var(--ink)}
+  .alert.good{border-color:color-mix(in srgb,var(--brand) 50%,transparent);background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--ink)}
   .alert.info #btnRetry,.alert.good #btnRetry{display:none}
 
   .usage{margin-left:auto;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:help}
@@ -199,10 +207,18 @@
   .check .res{margin-left:auto;font-weight:600;font-size:12px;padding:0 8px;border-radius:4px;line-height:20px}
   .check .ck-math{margin-top:2px;color:var(--ink);font-variant-numeric:tabular-nums}
   .check .ck-math b{font-size:15px}
+  .check .dv{display:inline-flex;align-items:center;gap:4px}
+  .check .die-ic{width:16px;height:16px;color:var(--brand)}
+  .check.rolling .die-ic{animation:spin .25s linear infinite}
+  .check.rolling .tot,.check.rolling .vs,.check.rolling .res{opacity:0}
+  .check.landed .tot,.check.landed .res{animation:fadeup .35s ease-out}
+  .check.crit.landed{animation:glow 1.4s ease-out}
+  .check.bad.landed{animation:hit .5s}
+  @keyframes spin{to{transform:rotate(360deg)}}
   .check .vs{color:var(--muted);margin-left:4px}
   .check.ok{border-color:rgba(127,196,138,.4)} .check.ok .res{background:rgba(127,196,138,.18);color:#a9dcb1}
   .check.bad{border-color:rgba(217,88,76,.4)} .check.bad .res{background:rgba(217,88,76,.18);color:#f0b4ad}
-  .check.crit{border-color:rgba(224,168,90,.6);background:rgba(224,168,90,.08)} .check.crit .res{background:var(--brand);color:#1a1207}
+  .check.crit{border-color:color-mix(in srgb,var(--brand) 60%,transparent);background:color-mix(in srgb,var(--brand) 8%,transparent)} .check.crit .res{background:var(--brand);color:var(--on-brand)}
 
   /* 物品 */
   .item{
@@ -212,9 +228,9 @@
   .item i{font-style:normal;color:var(--muted);margin-left:3px}
   .item.t-consumable{border-color:rgba(127,196,138,.35)}
   .item.t-gear{border-color:rgba(111,159,216,.4)}
-  .item.t-quest{border-color:rgba(224,168,90,.45)}
-  .item.sel{background:var(--brand);color:#1a1207;border-color:var(--brand)}
-  .item.sel i{color:#1a1207}
+  .item.t-quest{border-color:color-mix(in srgb,var(--brand) 45%,transparent)}
+  .item.sel{background:var(--brand);color:var(--on-brand);border-color:var(--brand)}
+  .item.sel i{color:var(--on-brand)}
   .idetail{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:13px}
   .idetail .ih{display:flex;align-items:baseline;gap:6px}
   .idetail .ih span{margin-left:auto;font-size:11px;color:var(--muted)}
@@ -222,7 +238,7 @@
   .idetail .ghost{font-size:12px;padding:3px 10px}
 
   /* 商店：出现在选项上面 */
-  .shop{width:100%;padding:10px 12px;border:1px solid rgba(224,168,90,.4);border-radius:10px;background:rgba(224,168,90,.05)}
+  .shop{width:100%;padding:10px 12px;border:1px solid color-mix(in srgb,var(--brand) 40%,transparent);border-radius:10px;background:color-mix(in srgb,var(--brand) 5%,transparent)}
   .sh-h{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
   .sh-h b{font:600 15px var(--serif)}
   .sh-h span{margin-left:auto;font-size:12px;color:var(--brand)}
@@ -265,10 +281,10 @@
   .quest + .qsec{margin-top:12px}
   .quest{padding:9px 10px;margin-bottom:6px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.015)}
   .quest.main{border-left:3px solid var(--brand)}
-  .quest.cur{border-color:rgba(224,168,90,.45);background:rgba(224,168,90,.06)}
+  .quest.cur{border-color:color-mix(in srgb,var(--brand) 45%,transparent);background:color-mix(in srgb,var(--brand) 6%,transparent)}
   .quest .qt{display:flex;align-items:center;gap:6px;font-size:13px}
   .quest .qt b{font-weight:600;flex:1;min-width:0}
-  .quest .tag2{font-size:10px;padding:0 5px;border-radius:3px;background:rgba(224,168,90,.18);color:var(--brand);flex:none}
+  .quest .tag2{font-size:10px;padding:0 5px;border-radius:3px;background:color-mix(in srgb,var(--brand) 18%,transparent);color:var(--brand);flex:none}
   .quest p{margin:3px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
   .quest .nt{color:var(--ink);opacity:.75}
   .quest .nt::before{content:'▸ ';color:var(--dim)}
@@ -291,20 +307,75 @@
   .bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--line)}
   .bar i{display:block;height:100%;background:var(--hp);transition:width .4s}
   .kv{display:flex;align-items:baseline;gap:8px;font-size:13px;margin:6px 0 0}
-  .kv span{color:var(--muted);flex:none;width:3em}
+  .kv span{color:var(--muted);flex:none;width:4.4em;display:flex;align-items:center;gap:4px;white-space:nowrap}
+  .kv .ic{color:var(--brand)}
   .kv b{font-weight:500;min-width:0}
 
+  /* ---------- 图标 ---------- */
+  .ic{width:14px;height:14px;flex:none;vertical-align:-2px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .side h3 .ic{margin-right:6px;color:var(--brand);vertical-align:-3px}
+  .stabs button .ic{margin-right:4px;vertical-align:-2px}
+  .item .ic{width:12px;height:12px;margin-right:4px;vertical-align:-1px;opacity:.8}
+
+  /* ---------- 场景头图 ---------- */
+  .scene{
+    position:relative;height:118px;margin:4px 0 22px;overflow:hidden;border-radius:12px;
+    border:1px solid var(--line);background:linear-gradient(180deg,var(--panel),var(--bg));
+  }
+  .sc-art{position:absolute;inset:0;color:var(--brand)}
+  .sc-art svg{position:absolute;left:0;bottom:0;width:100%;height:100%}
+  .sc-art .far{fill:currentColor;opacity:.16}
+  .sc-art .near{fill:currentColor;opacity:.32}
+  .sc-txt{position:relative;display:flex;flex-direction:column;justify-content:flex-end;height:100%;padding:12px 16px;
+    background:linear-gradient(90deg,color-mix(in srgb,var(--bg) 70%,transparent),transparent 70%)}
+  .sc-txt small{font-size:11px;letter-spacing:.2em;color:var(--muted)}
+  .sc-txt b{font:700 24px/1.3 var(--serif);letter-spacing:.06em;color:var(--ink)}
+  .sc-txt span{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px}
+  .scene.moved .sc-txt b{animation:fadeup .6s ease-out}
+  @keyframes fadeup{from{opacity:0;transform:translateY(6px)}}
+
+  /* 换场景的分隔线 + 首字放大 */
+  .scene-cut{display:flex;align-items:center;gap:12px;margin:26px 0 16px;color:var(--brand);font-size:12px;letter-spacing:.15em}
+  .scene-cut::before,.scene-cut::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--brand) 45%,transparent),transparent)}
+  .scene-cut span{display:flex;align-items:center;gap:5px}
+  .turn.gm.opening p:first-child::first-letter{
+    float:left;font-size:2.7em;line-height:1;margin:.1em .12em 0 0;color:var(--brand);font-weight:700;
+  }
+
   /* ---------- 角色卡 ---------- */
+  .ch-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .ch-head > div{flex:1;min-width:0}
+  .ch-head .ch-title{margin:0}
+  .av.big{
+    position:relative;width:46px;height:46px;font-size:20px;flex:none;
+    box-shadow:0 0 0 2px var(--panel),0 0 0 3px var(--brand);
+  }
+  .av.big::after{
+    content:attr(data-lv);position:absolute;right:-5px;bottom:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;
+    background:var(--brand);color:var(--on-brand);font:700 11px/18px var(--sans);text-align:center;
+  }
+  .card.glow{animation:glow 1.6s ease-out}
+  @keyframes glow{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--brand) 70%,transparent)}40%{box-shadow:0 0 24px 4px color-mix(in srgb,var(--brand) 45%,transparent)}100%{box-shadow:none}}
+  .meter.hit .bar{animation:hit .6s}
+  .meter.heal .bar{animation:heal .8s}
+  @keyframes hit{0%,100%{transform:none}20%{transform:translateX(-3px);border-color:var(--hp)}40%{transform:translateX(3px)}60%{transform:translateX(-2px)}}
+  @keyframes heal{40%{box-shadow:0 0 10px color-mix(in srgb,var(--ok) 60%,transparent)}}
+  .bump{display:inline-block;animation:bump .5s}
+  @keyframes bump{40%{transform:scale(1.3)}}
+  .item.pop{animation:popin .6s ease-out}
+  @keyframes popin{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08)}}
+
   .ch-top{display:flex;align-items:baseline;gap:8px}
   .ch-top b{font:600 17px var(--serif);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ch-top .lv{margin-left:auto;font:600 13px var(--sans);color:var(--brand);flex:none}
   .ch-title{font-size:12px;color:var(--muted);margin:0 0 10px}
-  .meter{display:grid;grid-template-columns:3em minmax(0,1fr) auto 2.6em;align-items:center;gap:8px;margin:6px 0 0;font-size:12px}
-  .meter span{color:var(--muted)}
+  .meter{display:grid;grid-template-columns:4.4em minmax(0,1fr) auto 2.6em;align-items:center;gap:8px;margin:6px 0 0;font-size:12px}
+  .meter > span{color:var(--muted);display:flex;align-items:center;gap:4px;white-space:nowrap}
+  .meter.hp .ic{color:var(--hp)} .meter.mp .ic{color:#6f9fd8} .meter.xp .ic{color:var(--brand)}
   .meter b{font-weight:500;font-variant-numeric:tabular-nums;text-align:right}
   .meter .bar{height:6px}
   .meter.xp i{background:var(--brand)}
-  .xp-next{margin:2px 0 4px calc(3em + 8px);font-size:11px;color:var(--dim)} .meter.mp i{background:#6f9fd8}
+  .xp-next{margin:2px 0 4px calc(4.4em + 8px);font-size:11px;color:var(--dim)} .meter.mp i{background:#6f9fd8}
   em.d{font-style:normal;font-size:11px;font-weight:600;white-space:nowrap}
   em.d.up{color:var(--ok)} em.d.down{color:var(--hp)}
   em.d:not(:empty){animation:pop .9s ease-out}
@@ -319,7 +390,7 @@
   .attr.up b{color:var(--ok)}
   .attr button{
     width:20px;height:20px;padding:0;border-radius:4px;line-height:1;font-size:14px;
-    background:var(--brand);color:#1a1207;border:0;
+    background:var(--brand);color:var(--on-brand);border:0;
   }
   .skill{padding:7px 0;border-top:1px solid var(--line)}
   .skill:first-child{border-top:0;padding-top:0}
@@ -328,7 +399,7 @@
   .skill .dots{letter-spacing:1px;color:var(--brand);font-size:10px}
   .skill .dots i{font-style:normal;color:var(--line)}
   .skill p{margin:2px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
-  .skill .new{font-size:10px;padding:0 5px;border-radius:3px;background:rgba(224,168,90,.18);color:var(--brand)}
+  .skill .new{font-size:10px;padding:0 5px;border-radius:3px;background:color-mix(in srgb,var(--brand) 18%,transparent);color:var(--brand)}
   /* 规则编辑器 */
   .adv{margin:0 0 14px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
   .adv summary{cursor:pointer;padding:10px 12px;list-style:none;font-size:13px}
@@ -398,7 +469,7 @@
   .npc:hover{background:var(--panel-2)}
   .npc:focus-visible{outline:none;border-color:var(--brand)}
   .npc > :not(.av){grid-column:2}
-  .npc.cur{border-color:rgba(224,168,90,.45);background:rgba(224,168,90,.06)}
+  .npc.cur{border-color:color-mix(in srgb,var(--brand) 45%,transparent);background:color-mix(in srgb,var(--brand) 6%,transparent)}
   .av{
     grid-row:1/span 5;width:30px;height:30px;border-radius:50%;
     display:grid;place-items:center;font:600 14px var(--serif);color:#14110d;
@@ -439,6 +510,8 @@
     .game{grid-template-columns:1fr}
     .two{grid-template-columns:1fr}
     .turn.gm{font-size:16px}
+    .scene{height:92px;margin-bottom:16px}
+    .sc-txt b{font-size:20px}
     /* 状态收进顶栏下的一条，点开是一张浮层 */
     .top{flex-wrap:wrap;row-gap:8px}
     body.in-game .strip{
@@ -504,6 +577,7 @@
     <details class="adv" id="advBox">
       <summary>规则设定<small>属性、资源、货币、称号、技能、出身、势力 —— 全部可以改</small></summary>
       <div class="adv-body">
+        <label class="f"><span>界面风格</span><select id="rTheme"></select></label>
         <div class="three">
           <label class="f"><span>资源一（掉光就倒下）</span><div class="pair"><input type="text" id="rHp" maxlength="6"><input type="number" id="rHp0" min="1" max="999"></div></label>
           <label class="f"><span>资源二</span><div class="pair"><input type="text" id="rMp" maxlength="6"><input type="number" id="rMp0" min="1" max="999"></div></label>
@@ -574,6 +648,10 @@
 <main class="wrap hide" id="scrGame">
   <div class="game">
     <div>
+      <div class="scene" id="scene">
+        <div class="sc-art" id="scArt"></div>
+        <div class="sc-txt"><small id="scWorld"></small><b id="scLoc">—</b><span id="scTime"></span></div>
+      </div>
       <div class="story" id="story"></div>
       <div class="choices" id="choices"></div>
       <div class="composer">
@@ -607,15 +685,17 @@
       </nav>
       <div class="pane on" data-pane="char">
       <div class="card">
-        <div class="ch-top"><b id="chName">你</b><span class="lv" id="chLv">Lv1</span></div>
-        <div class="ch-title" id="chTitle"></div>
-        <div class="meter xp"><span>经验</span><div class="bar"><i id="xpBar"></i></div><b id="xpText"></b><em class="d" id="xpD"></em></div>
+        <div class="ch-head">
+          <span class="av big" id="chAv"></span>
+          <div><div class="ch-top"><b id="chName">你</b><span class="lv" id="chLv">Lv1</span></div>
+          <div class="ch-title" id="chTitle"></div></div>
+        </div>
+        <div class="meter xp"><span id="xpName">经验</span><div class="bar"><i id="xpBar"></i></div><b id="xpText"></b><em class="d" id="xpD"></em></div>
         <div class="xp-next" id="xpNext"></div>
         <div class="meter hp"><span id="hpName">体力</span><div class="bar"><i id="hpBar"></i></div><b id="hpText"></b><em class="d" id="hpD"></em></div>
         <div class="meter mp"><span id="mpName">精力</span><div class="bar"><i id="mpBar"></i></div><b id="mpText"></b><em class="d" id="mpD"></em></div>
         <p class="kv"><span id="moneyName">金钱</span><b id="moneyText">0</b><em class="d" id="moneyD"></em></p>
-        <p class="kv"><span>地点</span><b id="locText">—</b></p>
-        <p class="kv"><span>时间</span><b id="timeText">—</b></p>
+
         <div class="tags" id="statusTags" style="margin-top:8px"></div>
       </div>
       <div class="card">
@@ -667,6 +747,7 @@
 
 <!-- ============ 接口设置 ============ -->
 <dialog id="dlgNpc">
+  <button class="dlg-x" type="button" data-close aria-label="关闭">×</button>
   <h2>加入人物</h2>
   <p class="hint" style="margin:-6px 0 12px">说书人会在接下来一两段里让这个人自然登场，之后一直记得他。</p>
   <div id="npcNewRow"></div>
@@ -685,6 +766,7 @@
 </dialog>
 
 <dialog id="dlgCfg">
+  <button class="dlg-x" type="button" data-close aria-label="关闭，不保存">×</button>
   <h2>接口设置</h2>
   <div class="presetrow" id="presetRow"></div>
   <label class="f"><span>接口地址（Base URL，OpenAI 兼容）</span><input type="text" id="cfgBase" spellcheck="false" autocomplete="off"></label>
@@ -979,6 +1061,122 @@ const RULES = {
              origin('学者', '读过很多书', { 智力:2 }, sk('博学', '知道很多冷知识'))],
     factions:[] },
 };
+/* ================= 世界观主题 ================= */
+// 每套：底色 / 面板 / 文字 / 强调色，art 是用渐变画的背景氛围（不用图片）。sans 为真时正文也用无衬线（科幻类）
+const T = (name, c, art, sans) => ({ name, c, art, sans });
+const THEMES = {
+  ink:T('烛火（默认）', ['#0f0e0c','#171512','#1e1b17','#2e2a24','#e9e3d6','#9a917f','#5f584c','#e0a85a','#1a1207','#8fb6d9'],
+    'radial-gradient(110% 70% at 50% -10%,rgba(224,168,90,.10),transparent 60%)'),
+  wuxia:T('水墨江湖', ['#101311','#171b18','#1d221e','#2b322c','#e6e4da','#9aa096','#5c635c','#c8553d','#fff3ec','#9fb7a8'],
+    'radial-gradient(60% 50% at 0% 0%,rgba(205,215,205,.08),transparent 70%),radial-gradient(50% 40% at 100% 100%,rgba(200,85,61,.10),transparent 70%),radial-gradient(90% 30% at 50% 100%,rgba(255,255,255,.03),transparent 70%)'),
+  xianxia:T('仙门玉青', ['#0c1118','#121a24','#18222e','#24313f','#e3ecf2','#8fa3b3','#536474','#7fd6c2','#06201a','#c3b2f0'],
+    'radial-gradient(70% 45% at 50% -5%,rgba(127,214,194,.15),transparent 70%),radial-gradient(40% 30% at 85% 20%,rgba(195,178,240,.09),transparent 70%)'),
+  cthulhu:T('深海迷雾', ['#0a100e','#111a17','#16211d','#22312b','#d6ddd2','#87968c','#4d5c53','#8fb996','#08140d','#a9b7c9'],
+    'radial-gradient(120% 60% at 50% 110%,rgba(60,120,95,.20),transparent 70%),radial-gradient(140% 120% at 50% 40%,transparent 55%,rgba(0,0,0,.55))'),
+  cyber:T('霓虹', ['#08080f','#10101b','#171728','#262642','#e8e6f5','#9592b5','#575478','#ff3fa4','#1a0010','#4fe3ff'],
+    'radial-gradient(60% 40% at 100% 0%,rgba(255,63,164,.15),transparent 70%),radial-gradient(60% 40% at 0% 100%,rgba(79,227,255,.12),transparent 70%),repeating-linear-gradient(0deg,rgba(255,255,255,.02) 0 1px,transparent 1px 3px)', true),
+  apoc:T('废土锈色', ['#13100c','#1b1611','#221c15','#34291e','#e6dccb','#a08f78','#64574a','#d9863a','#1c0d00','#a7b98a'],
+    'radial-gradient(90% 50% at 50% -10%,rgba(217,134,58,.16),transparent 70%),radial-gradient(120% 80% at 50% 120%,rgba(90,60,30,.28),transparent 70%)'),
+  detective:T('民国旧影', ['#14110d','#1c1813','#241f18','#352d22','#ece2cd','#a8987c','#6a5d4a','#c9a35b','#1d1405','#9fb2c4'],
+    'radial-gradient(70% 50% at 50% 0%,rgba(201,163,91,.13),transparent 70%),radial-gradient(150% 120% at 50% 50%,transparent 60%,rgba(0,0,0,.5))'),
+  palace:T('宫墙朱金', ['#150d10','#1e1317','#26181d','#3a2329','#f0e4dc','#b3958f','#6f5552','#d8b04c','#241a00','#e39aa6'],
+    'radial-gradient(80% 50% at 50% -10%,rgba(176,48,58,.24),transparent 70%),radial-gradient(40% 30% at 100% 100%,rgba(216,176,76,.09),transparent 70%)'),
+  spy:T('黑白谍影', ['#0e0f11','#16171a','#1d1f23','#2c2f35','#e4e4e2','#9a9c9f','#5c5f64','#c8423a','#fff2f0','#b9c4cf'],
+    'radial-gradient(50% 60% at 50% -15%,rgba(255,255,255,.09),transparent 70%),repeating-linear-gradient(115deg,rgba(255,255,255,.014) 0 2px,transparent 2px 10px)'),
+  fantasy:T('秘银魔法', ['#0e1016','#151822','#1b1f2b','#2a3042','#e8e6df','#9a9fb2','#5b6075','#d7b45e','#1f1600','#8fb4ff'],
+    'radial-gradient(60% 45% at 15% 0%,rgba(143,180,255,.13),transparent 70%),radial-gradient(50% 40% at 90% 10%,rgba(215,180,94,.11),transparent 70%)'),
+  scifi:T('星海', ['#060a12','#0d1420','#121b2a','#1f2b3f','#dfe8f2','#8a9bb0','#4e5d71','#5fd0ff','#00131c','#b6a6ff'],
+    'radial-gradient(1px 1px at 30px 40px,rgba(255,255,255,.55),transparent) 0 0/170px 170px,radial-gradient(1px 1px at 110px 120px,rgba(255,255,255,.35),transparent) 0 0/230px 230px,radial-gradient(1.5px 1.5px at 60px 150px,rgba(180,220,255,.5),transparent) 0 0/310px 310px,radial-gradient(80% 50% at 50% -10%,rgba(95,208,255,.13),transparent 70%)', true),
+  school:T('午夜校园', ['#0c0e0d','#131716','#191e1c','#26302c','#dfe3dd','#8d9690','#545d58','#d4574e','#fff1ef','#a9c3b5'],
+    'radial-gradient(100% 60% at 50% 0%,rgba(80,120,100,.13),transparent 70%),radial-gradient(150% 110% at 50% 50%,transparent 55%,rgba(0,0,0,.6))'),
+  sanguo:T('赤壁烽火', ['#120f0c','#1a1611','#211c16','#322a20','#ece2d0','#a59682','#665a4b','#c0392b','#fff1ec','#c7a76a'],
+    'radial-gradient(80% 50% at 50% -10%,rgba(192,57,43,.20),transparent 70%),radial-gradient(60% 40% at 100% 100%,rgba(199,167,106,.09),transparent 70%)'),
+};
+const THEME_VARS = ['--bg','--panel','--panel-2','--line','--ink','--muted','--dim','--brand','--on-brand','--you'];
+// 预设世界观默认用同名主题，没有同名的用烛火
+for (const k in RULES) if (!RULES[k].theme) RULES[k].theme = THEMES[k] ? k : 'ink';
+function applyTheme(key){
+  const t = THEMES[key] || THEMES.ink, root = document.documentElement.style;
+  THEME_VARS.forEach((v, i) => root.setProperty(v, t.c[i]));
+  root.setProperty('--art', t.art);
+  if (t.sans) root.setProperty('--serif', 'var(--sans)'); else root.removeProperty('--serif');
+  document.querySelector('meta[name=theme-color]').content = t.c[0];
+}
+
+/* ================= 图标与场景剪影（全部内联 SVG，不加载图片） ================= */
+// 线条图标，24×24，颜色跟着文字走
+const ICON_PATHS = {
+  heart:'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
+  drop:'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z',
+  coin:'M12 4a8 8 0 1 0 .01 0zM9.5 10h5M9.5 14h5',
+  star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
+  pin:'M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11zM12 8a2 2 0 1 0 .01 0z',
+  clock:'M12 4a8 8 0 1 0 .01 0zM12 8v4l3 2',
+  potion:'M10 3h4M11 3v5l-4.5 6.5A5 5 0 0 0 10.6 21h2.8a5 5 0 0 0 4.1-6.5L13 8V3M8 14h8',
+  sword:'M14.5 4.5L20 4l-.5 5.5L9 20l-3-3zM5 15l4 4M4 20l2-2',
+  scroll:'M8 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6M8 4a2 2 0 0 0-4 0v2h4M10 9h6M10 13h6',
+  box:'M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8',
+  flag:'M5 21V4M5 4h11l-2 4 2 4H5',
+  shield:'M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z',
+  spark:'M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6',
+  book:'M5 5a2 2 0 0 1 2-2h12v15H7a2 2 0 0 0-2 2zM5 20V5M9 7h6',
+  people:'M9 5a3 3 0 1 0 .01 0zM3 20a6 6 0 0 1 12 0M16 4a3 3 0 0 1 0 6M21 20a5 5 0 0 0-4-5',
+  bag:'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+  bars:'M5 20V11M12 20V4M19 20v-7',
+  memo:'M6 3h12v18H6zM9 8h6M9 12h6M9 16h4',
+  dice:'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01',
+  user:'M12 4a4 4 0 1 0 .01 0zM4 21a8 8 0 0 1 16 0',
+};
+const ico = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON_PATHS[name]}"/></svg>`;
+
+// 剪影生成器：都画在 600×120 里，底边贴着 y=120
+const rnd = i => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };   // 固定的伪随机，每次画出来一样
+function skyline(seed, lo, hi, minW, maxW, jag){
+  let d = 'M0 120', x = 0, i = seed;
+  while (x < 600){
+    const w = minW + rnd(i++) * (maxW - minW), h = 120 - (lo + rnd(i++) * (hi - lo));
+    if (jag){ d += ` L${x} ${h + 6} L${x + w * .3} ${h} L${x + w * .55} ${h + 9} L${x + w * .8} ${h + 2} L${x + w} ${h + 7}`; }
+    else { d += ` L${x} ${h} L${x + w} ${h}`; if (rnd(i++) > .8) d += ` M${x + w / 2} ${h} L${x + w / 2} ${h - 14} M${x + w} ${h}`; }
+    x += w;
+  }
+  return d + ' L600 120 Z';
+}
+const ridge = (pts, base = 120) => `M0 ${base} ` + pts.map(([x, y]) => `L${x} ${y}`).join(' ') + ` L600 ${base} Z`;
+const waves = (y, amp, n) => { let d = `M0 120 L0 ${y}`; const w = 600 / n; for (let i = 0; i < n; i++) d += ` Q${i * w + w / 2} ${y - amp * (i % 2 ? -1 : 1)} ${(i + 1) * w} ${y}`; return d + ' L600 120 Z'; };
+const battlement = (y, w, gap) => { let d = `M0 120 L0 ${y}`; for (let x = 0; x < 600; x += w + gap) d += ` L${x + w} ${y} L${x + w} ${y + 8} L${x + w + gap} ${y + 8} L${x + w + gap} ${y}`; return d + ' L600 120 Z'; };
+const tower = (x, w, h, roof) => `M${x} 120 L${x} ${h} L${x + w / 2} ${h - roof} L${x + w} ${h} L${x + w} 120 Z`;
+const eaves = (x, w, y, lift) => `M${x - 14} ${y + 4} Q${x} ${y - 2} ${x + 10} ${y - lift} L${x + w - 10} ${y - lift} Q${x + w} ${y - 2} ${x + w + 14} ${y + 4} Z`;
+
+// 每个世界观两层：far 远景淡，near 近景浓
+const SCENES = {
+  ink:{ far:ridge([[0,80],[80,62],[160,76],[260,64],[360,74],[470,60],[600,70]]), near:waves(100, 6, 6) },
+  wuxia:{ far:ridge([[0,85],[40,60],[70,78],[120,28],[165,72],[200,52],[250,88],[300,38],[345,80],[390,60],[440,90],[500,42],[545,78],[600,58]]),
+    near:ridge([[0,100],[60,88],[110,104],[180,92],[260,106],[330,96],[420,108],[480,98],[540,104],[600,96]]) + eaves(446, 48, 92, 10) + 'M452 96 L452 108 L488 108 L488 96 Z' },
+  xianxia:{ far:ridge([[0,92],[50,68],[80,84],[130,36],[170,80],[230,58],[280,92],[600,92]]) + 'M370 46 Q420 34 470 46 L448 64 Q420 74 392 64 Z M410 64 L420 82 L430 64 Z',
+    near:'M0 120 L0 104 Q30 94 60 104 Q90 92 120 104 Q160 96 200 106 Q240 94 280 104 Q330 92 380 104 Q420 96 460 106 Q510 94 550 104 Q580 98 600 102 L600 120 Z' },
+  cthulhu:{ far:ridge([[400,120],[420,96],[455,88],[520,92],[560,108],[600,106]]) + 'M468 92 L476 40 L470 40 L474 30 L486 30 L490 40 L484 40 L492 92 Z',
+    near:waves(102, 7, 12) + 'M150 120 Q136 88 158 72 Q182 58 176 80 Q166 94 174 120 Z M210 120 Q206 100 220 94 Q232 90 226 104 Q222 110 226 120 Z' },
+  cyber:{ far:skyline(3, 30, 80, 20, 46), near:skyline(41, 12, 46, 26, 60) },
+  apoc:{ far:skyline(7, 24, 66, 30, 64, true), near:ridge([[0,108],[90,100],[180,110],[300,104],[420,110],[600,102]]) + 'M500 104 L500 58 L504 58 L504 104 Z M486 52 L540 52 L540 66 L486 66 Z' },
+  detective:{ far:ridge([[0,96],[100,86],[220,94],[340,84],[460,92],[600,86]]),
+    near:'M120 120 L120 72 L190 42 L260 72 L260 120 Z M260 120 L260 80 L360 80 L360 120 Z M150 60 L150 40 L162 40 L162 54 Z M320 80 L320 64 L332 64 L332 80 Z M300 120 L300 96 L316 96 L316 120 Z' },
+  palace:{ far:battlement(92, 18, 10), near:eaves(190, 220, 78, 16) + 'M210 120 L210 82 L390 82 L390 120 Z' + eaves(230, 140, 52, 12) + 'M248 78 L248 56 L352 56 L352 78 Z' },
+  spy:{ far:skyline(19, 26, 60, 26, 52), near:'M60 120 L60 82 Q100 54 140 82 L140 120 Z M292 120 L292 48 L300 32 L308 48 L308 120 Z M286 70 L314 70 L314 76 L286 76 Z M420 120 L420 76 L520 76 L520 120 Z M440 76 Q470 56 500 76 Z' },
+  fantasy:{ far:ridge([[0,90],[120,70],[240,86],[380,64],[520,84],[600,74]]),
+    near:battlement(96, 14, 8) + tower(180, 34, 66, 26) + tower(270, 44, 46, 34) + tower(370, 34, 70, 24) },
+  scifi:{ far:'M0 120 L0 112 Q300 40 600 112 L600 120 Z', near:ridge([[0,110],[140,104],[300,112],[460,102],[600,108]]) + 'M410 40 L462 34 L476 40 L462 46 Z M404 37 L410 40 L404 43 Z' },
+  school:{ far:ridge([[0,98],[150,92],[300,98],[450,90],[600,96]]),
+    near:'M90 120 L90 64 L510 64 L510 120 Z M270 64 L270 30 L330 30 L330 64 Z M300 38 a9 9 0 1 0 .01 0 Z', windows:true },
+  sanguo:{ far:battlement(88, 22, 12), near:'M80 120 L80 40 L83 40 L83 120 Z M83 40 L120 50 L83 62 Z M260 120 L260 30 L263 30 L263 120 Z M263 30 L306 42 L263 56 Z M470 120 L470 46 L473 46 L473 120 Z M473 46 L512 56 L473 68 Z' + ridge([[0,108],[200,102],[400,110],[600,104]]) },
+};
+function sceneArt(key){
+  const s = SCENES[key] || SCENES.ink;
+  // 学校的窗户：在楼体上挖出几排小方块
+  const win = s.windows ? Array.from({ length:16 }, (_, i) => { const x = 110 + (i % 8) * 50 + (i % 8 > 3 ? 20 : 0), y = 76 + Math.floor(i / 8) * 20; return `M${x} ${y} h14 v10 h-14 Z`; }).join(' ') : '';
+  return `<svg viewBox="0 0 600 120" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <path class="far" d="${s.far}"/><path class="near" fill-rule="evenodd" d="${s.near} ${win}"/></svg>`;
+}
+
 const ATTR_BASE = 3, ATTR_FREE = 4, ATTR_START_MAX = 8, ATTR_MAX = 20;
 const PTS_PER_LV = 2, SKILL_MAX_LV = 5, SKILL_MAX = 12;
 // 从 lv 升到 lv+1 要的经验：前期快（40、80、145……），后期慢（Lv10 要 900 出头）
@@ -1626,14 +1824,31 @@ const CHECK_RESULT = { success:['成功','ok'], fail:['失败','bad'], crit:['�
 function checkCard(chk, die, st){
   if (!chk || !die) return '';
   const t = checkTerms(chk, st), total = die + t.attr + t.skill + t.talent, [label, cls] = CHECK_RESULT[chk.result];
-  const parts = [`<b class="dv">🎲 ${die}</b>`, `${esc(chk.attr)} ${t.attr}`];
+  const parts = [`<b class="dv">${ico('dice', 'die-ic')}<span class="n" data-final="${die}">${die}</span></b>`, `${esc(chk.attr)} ${t.attr}`];
   if (t.skill) parts.push(`${esc(chk.skill)} ${t.skill}`);
   if (t.talent) parts.push(`天赋 ${t.talent}`);
   return `<div class="check ${cls}">
     <div class="ck-top">${chk.what ? `<span class="what">${esc(chk.what)}</span>` : ''}<span class="res">${label}</span></div>
-    <div class="ck-math">${parts.join(' + ')} = <b>${total}</b> <span class="vs">对比难度 ${chk.dc}</span></div>
+    <div class="ck-math">${parts.join(' + ')} = <b class="tot">${total}</b> <span class="vs">对比难度 ${chk.dc}</span></div>
   </div>`;
 }
+
+// 新出的检定卡：骰子先乱跳 0.7 秒再停在点数上，然后亮出总点数和结果
+function rollDice(card){
+  const n = card && card.querySelector('.dv .n');
+  if (!n) return;
+  card.classList.add('rolling');
+  const end = Date.now() + 700, tick = () => {
+    if (Date.now() < end){ n.textContent = 1 + Math.floor(Math.random() * 20); setTimeout(tick, 55); return; }
+    n.textContent = n.dataset.final;
+    card.classList.remove('rolling');
+    card.classList.add('landed');
+  };
+  tick();
+}
+
+// 换了地点就在两段之间插一道场景分隔，下一段首字放大
+const sceneCut = loc => `<div class="scene-cut"><span>${ico('pin')}${esc(loc)}</span></div>`;
 
 function renderStory(){
   const el = $('story'); el.innerHTML = '';
@@ -1645,8 +1860,10 @@ function renderStory(){
       if (m.hidden) return;
       el.insertAdjacentHTML('beforeend', `<div class="turn you">${esc(m.content)}${m.die ? `<span class="die">🎲${m.reroll ? '1→' : ''}${m.die}</span>` : ''}</div>`);
     } else {
+      const loc = m.state && m.state.location, cut = loc && loc !== (st.location || '');
+      if (cut) el.insertAdjacentHTML('beforeend', sceneCut(loc));
       if (m.state && m.state.check) el.insertAdjacentHTML('beforeend', checkCard(m.state.check, die, st));
-      el.insertAdjacentHTML('beforeend', `<div class="turn gm">${fmt(visibleText(m.content))}</div>`);
+      el.insertAdjacentHTML('beforeend', `<div class="turn gm${cut ? ' opening' : ''}">${fmt(visibleText(m.content))}</div>`);
       if (m.state) st = fillRpg(m.state);
     }
   });
@@ -1655,8 +1872,6 @@ function renderStory(){
 function renderSide(){
   const s = curState(), R = rules(), before = prevState();
   renderChar(s, R, before);
-  $('locText').textContent = s.location || '—';
-  $('timeText').textContent = s.time || '—';
   const tags = (arr, none) => arr.length ? arr.map(t => `<span>${esc(t)}</span>`).join('') : `<span class="none">${none}</span>`;
   $('statusTags').innerHTML = tags(s.status, '无异常');
   renderInv(s);
@@ -1685,10 +1900,39 @@ function renderSide(){
   }
 }
 
+// 场景头图：世界观剪影 + 当前地点和时间。剪影只在换主题时重画
+let sceneKey = '';
+function renderScene(s){
+  const key = rules().theme || 'ink';
+  if (key !== sceneKey){ $('scArt').innerHTML = sceneArt(key); sceneKey = key; }
+  $('scWorld').textContent = game.title || '';
+  $('scLoc').textContent = s.location || '未知之地';
+  $('scTime').innerHTML = s.time ? ico('clock') + esc(s.time) : '';
+}
+
+// 回合刚结束的那一次重绘才播动效（切页签、加点这些重绘不播）
+let justTurned = false;
+function flash(el, cls){ if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+function turnEffects(s, before){
+  if (!justTurned || !before || before.lv == null) return;
+  if (s.lvUp) flash($('chAv').closest('.card'), 'glow');
+  else {
+    if (s.hp < before.hp) flash(document.querySelector('.meter.hp'), 'hit');
+    if (s.hp > before.hp) flash(document.querySelector('.meter.hp'), 'heal');
+    if (s.mp !== before.mp) flash(document.querySelector('.meter.mp'), s.mp < before.mp ? 'hit' : 'heal');
+  }
+  if (s.money !== before.money) flash($('moneyText'), 'bump');
+  if ((s.location || '') !== (before.location || '')) flash($('scene'), 'moved');
+}
+
 // 角色卡、属性、技能。before 是上一回合的状态，用来标出这回合的变化
 function renderChar(s, R, before){
   const delta = (id, d) => { const e = $(id); e.textContent = d ? (d > 0 ? '+' : '') + d : ''; e.className = 'd ' + (d > 0 ? 'up' : 'down'); };
-  $('chName').textContent = game.setup.name || '你';
+  const nm = game.setup.name || '你';
+  $('chName').textContent = nm;
+  $('chAv').textContent = [...nm][0];
+  $('chAv').style.background = avatarColor(nm);
+  $('chAv').dataset.lv = s.lv;
   $('chLv').textContent = 'Lv' + s.lv;
   $('chTitle').textContent = lvTitle(R, s.lv) + (game.setup.role ? ' · ' + game.setup.role : '');
   const nextT = lvTitle(R, s.lv + 1);
@@ -1696,7 +1940,9 @@ function renderChar(s, R, before){
   $('xpBar').style.width = (100 * s.exp / expNeed(s.lv)) + '%';
   $('xpText').textContent = `${s.exp}/${expNeed(s.lv)}`;
   delta('xpD', s.expGain || 0);
-  $('hpName').textContent = R.hp; $('mpName').textContent = R.mp; $('moneyName').textContent = R.money;
+  $('xpName').innerHTML = ico('star') + '经验';
+  $('hpName').innerHTML = ico('heart') + esc(R.hp); $('mpName').innerHTML = ico('drop') + esc(R.mp); $('moneyName').innerHTML = ico('coin') + esc(R.money);
+  renderScene(s);
   $('hpBar').style.width = (100 * s.hp / s.maxHp) + '%';
   $('hpText').textContent = `${s.hp}/${s.maxHp}`;
   $('mpBar').style.width = (100 * s.mp / s.maxMp) + '%';
@@ -1707,6 +1953,7 @@ function renderChar(s, R, before){
   delta('hpD', b ? s.hp - b.hp : 0);
   delta('mpD', b ? s.mp - b.mp : 0);
   delta('moneyD', before && before.money != null ? s.money - before.money : 0);
+  turnEffects(s, before);
 
   $('ptsText').textContent = s.pts ? `可分配 ${s.pts} 点` : '';
   $('attrList').innerHTML = R.attrs.map(([a, d]) => {
@@ -1781,11 +2028,16 @@ $('stabs').addEventListener('click', e => {
 // 物品：点一下看说明，可以使用 / 装备 / 卖出 / 丢弃。这些都作为玩家的行动发出去，由说书人结算
 const INV_LABEL = { consumable:'消耗品', gear:'装备', quest:'剧情物品', misc:'杂物' };
 let invSel = null;
+const ITEM_ICON = { consumable:'potion', gear:'sword', quest:'scroll', misc:'box' };
+function isNewItem(i){
+  const b = prevState(), was = b && (b.inventory || []).find(x => (x.name || x) === i.name);
+  return !was || (was.qty || 1) < i.qty;
+}
 function renderInv(s){
   const inv = s.inventory || [];
   if (!inv.some(i => i.name === invSel)) invSel = null;
   $('invTags').innerHTML = inv.length ? inv.map(i =>
-    `<button class="item t-${i.type}${i.name === invSel ? ' sel' : ''}" data-item="${esc(i.name)}">${esc(i.name)}${i.qty > 1 ? `<i>×${i.qty}</i>` : ''}</button>`).join('')
+    `<button class="item t-${i.type}${i.name === invSel ? ' sel' : ''}${justTurned && isNewItem(i) ? ' pop' : ''}" data-item="${esc(i.name)}">${ico(ITEM_ICON[i.type])}${esc(i.name)}${i.qty > 1 ? `<i>×${i.qty}</i>` : ''}</button>`).join('')
     : '<span class="none">空空如也</span>';
   const it = inv.find(i => i.name === invSel), box = $('invDetail');
   if (!it){ box.innerHTML = ''; box.classList.add('hide'); return; }
@@ -2002,7 +2254,8 @@ async function runTurn(){
     if (!raw.trim()) throw { status:0, body:'', message:'模型返回了空内容' };
     const before = curState(), state = parseState(raw, before);
     const lastUser = game.history[game.history.length - 1];
-    if (state.check) el.insertAdjacentHTML('beforebegin', checkCard(state.check, lastUser && lastUser.die, before));
+    if (state.location && state.location !== (before.location || '')){ el.insertAdjacentHTML('beforebegin', sceneCut(state.location)); el.classList.add('opening'); }
+    if (state.check){ el.insertAdjacentHTML('beforebegin', checkCard(state.check, lastUser && lastUser.die, before)); rollDice(el.previousElementSibling); }
     game.history.push({ role:'assistant', content:raw, state });
     if (state.talentPick && !before.talentPick) setTimeout(openTalent, 400);
     const news = [];
@@ -2028,6 +2281,7 @@ async function runTurn(){
     el.innerHTML = fmt(visibleText(raw));
     setDot(true);
     autosave();
+    justTurned = true;
   }catch(e){
     el.remove();
     // 停止时如果已经写了一半，保留这半段
@@ -2044,6 +2298,7 @@ async function runTurn(){
   }finally{
     aborter = null;
     setBusy(false);
+    justTurned = false;
     scrollEnd();
   }
   compressIfLong();
@@ -2177,7 +2432,7 @@ function normRules(o){
   return {
     hp:str(o.hp, D.hp, 6), mp:str(o.mp, D.mp, 6), money:str(o.money, D.money, 6),
     hp0:int(o.hp0, D.hp0, 1, 999), mp0:int(o.mp0, D.mp0, 1, 999), money0:int(o.money0, D.money0, 0, 99999),
-    mpUse:str(o.mpUse, D.mpUse, 80), attrs,
+    mpUse:str(o.mpUse, D.mpUse, 80), attrs, theme:THEMES[o.theme] ? o.theme : 'ink',
     titles:titles.length ? titles : clone(D.titles),
     skills:(Array.isArray(o.skills) ? o.skills : []).map(skill).filter(Boolean).slice(0, 6),
     pool:str(Array.isArray(o.pool) ? o.pool.join('、') : o.pool, '', 200),
@@ -2193,7 +2448,9 @@ function normRules(o){
 // ---- 编辑器 <-> draft ----
 const lines = v => v.split('\n').map(x => x.trim()).filter(Boolean);
 const cut = (x, re) => x.split(re).map(y => y.trim());
+$('rTheme').innerHTML = Object.entries(THEMES).map(([k, t]) => `<option value="${k}">${t.name}</option>`).join('');
 function fillRulesForm(R){
+  $('rTheme').value = R.theme || 'ink';
   $('rHp').value = R.hp; $('rHp0').value = R.hp0; $('rMp').value = R.mp; $('rMp0').value = R.mp0;
   $('rMoney').value = R.money; $('rMoney0').value = R.money0; $('rMpUse').value = R.mpUse;
   $('rAttrs').innerHTML = '';
@@ -2215,6 +2472,7 @@ function readRulesForm(){
   const attrs = [...$('rAttrs').children].map(r => [r.querySelector('.an').value, r.querySelector('.ad').value]);
   const names = attrs.map(a => a[0].trim());
   return normRules({
+    theme:$('rTheme').value,
     hp:$('rHp').value, hp0:$('rHp0').value, mp:$('rMp').value, mp0:$('rMp0').value,
     money:$('rMoney').value, money0:$('rMoney0').value, mpUse:$('rMpUse').value, attrs,
     titles:cut($('rTitles').value, /[\n、,，]/),
@@ -2233,6 +2491,7 @@ function readRulesForm(){
 // 编辑器有改动：重算 draft，属性分配按名字保留已分的点
 function onRulesInput(){
   draft = readRulesForm();
+  applyTheme(draft.theme);
   const keep = startAttrs;
   startAttrs = Object.fromEntries(draft.attrs.map(([a]) => [a, keep[a] ?? ATTR_BASE]));
   if (Object.values(startAttrs).reduce((t, v) => t + v - ATTR_BASE, 0) > ATTR_FREE) startAttrs = Object.fromEntries(draft.attrs.map(([a]) => [a, ATTR_BASE]));
@@ -2294,7 +2553,7 @@ $('origin').onchange = showOrigin;
 /* ================= 让说书人生成规则 ================= */
 // 示例本身必须是合法 JSON：模型会照着示例的样子写，示例里夹中文说明，它就会写出坏 JSON
 const GEN_EXAMPLE = {
-  name:'齿轮之城', tag:'蒸汽朋克',
+  name:'齿轮之城', tag:'蒸汽朋克', theme:'detective',
   hp:'生命', hp0:18, mp:'蒸汽压', mp0:30, mpUse:'驱动机械臂会消耗蒸汽压，给锅炉加煤可以恢复，太低时装置会卡死',
   money:'英镑', money0:12,
   attrs:[{ name:'精密', desc:'修理、拆解、精细操作' }, { name:'机巧', desc:'发明、改装' }, { name:'胆识', desc:'冒险、对峙' }, { name:'社交', desc:'交涉、伪装' }],
@@ -2315,6 +2574,7 @@ const GEN_SYSTEM = `你是桌面角色扮演游戏的规则设计师。根据玩
 - skills 3 个起手技能；pool 是 12 个常见技能，用顿号隔开。
 - origins 3 个出身，bonus 合计 2 点，属性名必须来自 attrs。
 - factions 3 个势力，rep 是 -30 到 30 的整数。
+- theme 从这些界面风格里选最贴合的一个，写它的英文键：${Object.entries(THEMES).map(([k, t]) => `${k}（${t.name}）`).join('、')}。
 - npcs 4 个人物，有盟友、对手、中立、神秘人；favor0 只能是 -50、-25、0、25、50；其中 1～2 个 romance 为 true。
 
 只输出一个合法的 JSON 对象：键名和字符串都用英文双引号，用英文逗号和冒号，不要注释，不要多余的逗号，不要代码块标记，不要任何解释。下面是格式示例（内容要换成这个世界的，origins / factions / npcs 要写满个数）：
@@ -2495,11 +2755,13 @@ function startGame(){
 function showGame(){
   $('scrStart').classList.add('hide'); $('scrGame').classList.remove('hide'); $('btnMenu').classList.remove('hide');
   document.body.classList.add('in-game');
+  applyTheme(rules().theme);
   hideAlert(); renderStory(); renderSide(); renderUsage(); scrollEnd();
 }
 function showStart(){
   $('scrGame').classList.add('hide'); $('scrStart').classList.remove('hide'); $('btnMenu').classList.add('hide');
   document.body.classList.remove('in-game'); toggleSheet(false);
+  if (draft) applyTheme(draft.theme);
   renderSlots(); window.scrollTo(0, 0);
 }
 
@@ -2619,6 +2881,16 @@ $('btnClearKey').onclick = () => {
 };
 $('btnCfg').onclick = () => openCfg();
 
+// 所有弹窗：× 关闭；点弹窗外面的遮罩也关闭（Esc 浏览器本来就支持）。关闭不保存任何改动
+document.querySelectorAll('dialog').forEach(d => {
+  d.addEventListener('click', e => {
+    if (e.target.closest('[data-close]')){ d.close(); return; }
+    if (e.target !== d) return;                       // 点在弹窗里的东西上
+    const r = d.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close();
+  });
+});
+
 /* ================= 绑定 ================= */
 $('btnStart').onclick = startGame;
 $('btnMenu').onclick = () => { if (busy && aborter) aborter.abort(); showStart(); };
@@ -2680,6 +2952,12 @@ $('fileImport').onchange = async e => {
 fillModels([]);
 renderScenarios();
 pickScenario(selScen);
+
+// 侧栏卡片标题和页签配图标
+const H3_ICON = { 属性:'bars', 装备:'sword', 天赋:'spark', 技能:'book', 人物:'people', 势力声望:'shield', 随身物品:'bag', 前情提要:'memo' };
+document.querySelectorAll('.side h3').forEach(h => { const k = h.firstChild && h.firstChild.textContent.trim(); if (H3_ICON[k]) h.insertAdjacentHTML('afterbegin', ico(H3_ICON[k])); });
+const TAB_ICON = { char:'user', quest:'flag', rel:'people', bag:'bag' };
+document.querySelectorAll('#stabs button').forEach(b => b.insertAdjacentHTML('afterbegin', ico(TAB_ICON[b.dataset.tab])));
 renderSlots();
 if (!cfg.key) setTimeout(() => openCfg('第一次使用：填上你的 API Key（默认已选 Agnes 国内）。'), 300);
 })();
