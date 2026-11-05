@@ -1067,6 +1067,8 @@ const RETRY_DELAY = 1500;
 // 流式请求默认带 stream_options 要用量；服务商不认这个参数（400 且报错里提到它）就去掉重发，并记住
 const USAGE_OPT_KEY = 'aistory.noStreamUsage';
 let noStreamUsage = store.get(USAGE_OPT_KEY, false);
+const JSON_MODE_KEY = 'aistory.noJsonMode';
+let noJsonMode = store.get(JSON_MODE_KEY, false);
 async function postChat(body, signal){
   if (body.stream && !noStreamUsage) body = { ...body, stream_options:{ include_usage:true } };
   for (let attempt = 0; ; attempt++){
@@ -1087,6 +1089,12 @@ async function postChat(body, signal){
     if (res.status === 400 && body.stream_options && /stream_options|include_usage/i.test(String(err))){
       noStreamUsage = true; store.set(USAGE_OPT_KEY, true);
       const { stream_options, ...rest } = body;
+      body = rest;
+      continue;
+    }
+    if (res.status === 400 && body.response_format && /response_format|json_object/i.test(String(err))){
+      noJsonMode = true; store.set(JSON_MODE_KEY, true);
+      const { response_format, ...rest } = body;
       body = rest;
       continue;
     }
@@ -1162,8 +1170,10 @@ async function chatStream(messages, onDelta, signal){
   return full;
 }
 
-async function chatOnce(messages, maxTokens, temperature){
-  const res = await postChat({ model:cfg.model.trim(), messages, temperature:temperature ?? 0.3, max_tokens:maxTokens || 600 });
+// json：要求服务商用 JSON 模式输出（不支持的服务商会在 postChat 里自动去掉这个参数）
+async function chatOnce(messages, maxTokens, temperature, json){
+  const res = await postChat({ model:cfg.model.trim(), messages, temperature:temperature ?? 0.3, max_tokens:maxTokens || 600,
+    ...(json && !noJsonMode ? { response_format:{ type:'json_object' } } : {}) });
   const j = await res.json();
   lastUsage = j.usage || null;
   return stripThink(j.choices?.[0]?.message?.content || '');
@@ -1305,6 +1315,37 @@ function buildMessages(){
 function userText(m){ return m.die ? `${m.content}\n（本回合骰点：${m.die}）` : m.content; }
 
 /* ================= 解析 AI 输出 ================= */
+// 模型写的 JSON 常见几种毛病：包了代码块、中文引号和标点、注释、多余的逗号、键名没加引号。
+// 先原样解析，失败了再修这些毛病重试；还不行就把原来的错误抛出去
+function looseJSON(text){
+  const a = text.indexOf('{'), b = text.lastIndexOf('}');
+  if (a < 0 || b < a) throw new Error('没有找到 JSON');
+  const src = text.slice(a, b + 1);
+  try{ return JSON.parse(src); }catch(first){
+    try{ return JSON.parse(repairJSON(src)); }catch{ throw first; }
+  }
+}
+function repairJSON(src){
+  let out = '', inStr = false;
+  for (let i = 0; i < src.length; i++){
+    let c = src[i];
+    if (inStr){
+      if (c === '\\'){ out += c + (src[++i] || ''); continue; }
+      if (c === '"' || c === '”'){ out += '"'; inStr = false; continue; }
+      if (c === '\n'){ out += '\\n'; continue; }
+      out += c; continue;
+    }
+    if (c === '"' || c === '“' || c === '”'){ out += '"'; inStr = true; continue; }
+    if (c === '/' && src[i + 1] === '/'){ while (i < src.length && src[i] !== '\n') i++; continue; }
+    if (c === '/' && src[i + 1] === '*'){ i = src.indexOf('*/', i + 2); if (i < 0) break; i++; continue; }
+    c = { '，':',', '：':':', '｛':'{', '｝':'}', '［':'[', '］':']', '、':',' }[c] || c;
+    out += c;
+  }
+  return out
+    .replace(/,\s*([}\]])/g, '$1')                                // 多余的逗号
+    .replace(/([{,]\s*)([A-Za-z_][\w]*)\s*:/g, '$1"$2":');        // 键名没加引号
+}
+
 // 推理模型可能把思考过程写进正文：闭合的整段删掉，流式中还没闭合的先藏起来
 function stripThink(raw){
   return raw.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/<think>[\s\S]*$/, '').replace(/^\s+/, '');
@@ -1331,10 +1372,8 @@ function parseState(raw, prev){
   }
   if (!body) return { ...prev, choices:[], expGain:0, lvUp:0, check:null, shop:null };
   body = body.replace(/```(json)?/g,'').trim();
-  const a = body.indexOf('{'), b = body.lastIndexOf('}');
-  if (a < 0 || b < a) return { ...prev, choices:[], expGain:0, lvUp:0, check:null, shop:null };
   try{
-    const s = JSON.parse(body.slice(a, b + 1));
+    const s = looseJSON(body);
     const arr = v => Array.isArray(v) ? v.map(String).filter(Boolean) : [];
     const num = (v, d) => Number.isFinite(+v) ? Math.round(+v) : d;
     const next = {
@@ -2253,18 +2292,33 @@ function showOrigin(){
 $('origin').onchange = showOrigin;
 
 /* ================= 让说书人生成规则 ================= */
-const GEN_SYSTEM = `你是桌面角色扮演游戏的规则设计师。根据玩家给的世界设定，为一场单人文字 RPG 设计一套贴合这个世界的规则。只输出一个 JSON 对象，不要解释，不要代码块标记。格式：
-{"name":"剧本名，4～6 字","tag":"类型，2～4 字",
-"hp":"资源一的名字（掉光就倒下，如气血、生命、精力）","hp0":初始值整数,
-"mp":"资源二的名字（这个世界特有的消耗品，如内力、理智、掩护）","mp0":初始值整数,"mpUse":"资源二怎么消耗、怎么恢复、太低会怎样，一句话",
-"money":"货币名","money0":初始数量整数,
-"attrs":[["属性名，2 字","管什么，一句话"]，共 4 个，覆盖战斗、灵巧、智识、社交或这个世界最重要的四个方向],
-"titles":["由低到高的等级称号，10～12 个，体现这个世界的晋升路线"],
-"skills":[{"name":"起手技能","desc":"一句话效果"}，共 3 个],
-"pool":"这个世界常见的 12 个技能，用顿号隔开",
-"origins":[{"name":"出身","desc":"一句话","bonus":{"属性名":1,"属性名":1},"skill":{"name":"出身技能","desc":"一句话"}}，共 3 个，bonus 合计 2 点，属性名必须来自 attrs],
-"factions":[{"name":"势力","desc":"一句话","rep":初始声望 -30～30}，共 3 个],
-"npcs":[{"name":"人名","role":"与主角的关系","persona":"性格","secret":"隐藏的秘密或动机","favor0":初始好感，只能是 -50 -25 0 25 50 之一,"romance":是否可攻略 true/false,"likes":"喜欢什么、讨厌什么"}，共 4 个，有盟友、有对手、有中立、有神秘人，其中 1～2 个可攻略]}`;
+// 示例本身必须是合法 JSON：模型会照着示例的样子写，示例里夹中文说明，它就会写出坏 JSON
+const GEN_EXAMPLE = {
+  name:'齿轮之城', tag:'蒸汽朋克',
+  hp:'生命', hp0:18, mp:'蒸汽压', mp0:30, mpUse:'驱动机械臂会消耗蒸汽压，给锅炉加煤可以恢复，太低时装置会卡死',
+  money:'英镑', money0:12,
+  attrs:[{ name:'精密', desc:'修理、拆解、精细操作' }, { name:'机巧', desc:'发明、改装' }, { name:'胆识', desc:'冒险、对峙' }, { name:'社交', desc:'交涉、伪装' }],
+  titles:['学徒','匠人','熟练匠人','钟表师','发明家','皇家工程师','机械大师','齿轮贤者','蒸汽之主','时间的主人'],
+  skills:[{ name:'钟表修理', desc:'修好任何钟表' }, { name:'撬锁', desc:'打开机械锁' }, { name:'估价', desc:'看出零件值多少钱' }],
+  pool:'机械臂、飞艇驾驶、炸药、密码、化学、击剑、射击、伪装、催眠、电学、冶金、航海',
+  origins:[{ name:'贫民窟孤儿', desc:'在烟囱下长大', bonus:{ 胆识:1, 精密:1 }, skill:{ name:'钻烟囱', desc:'爬得进任何管道' } }],
+  factions:[{ name:'皇家科学院', desc:'掌握专利的老古董', rep:0 }],
+  npcs:[{ name:'艾达', role:'隔壁的女发明家', persona:'毒舌天才', secret:'她在给警察厅做线人', favor0:25, romance:true, likes:'喜欢新奇的零件，讨厌被小看' }],
+};
+const GEN_SYSTEM = `你是桌面角色扮演游戏的规则设计师。根据玩家给的世界设定，为一场单人文字 RPG 设计一套贴合这个世界的规则。
+
+要求：
+- name 是 4～6 字的剧本名，tag 是 2～4 字的类型。
+- hp 是资源一（掉光就倒下，如气血、生命、精力），mp 是这个世界特有的资源二（如内力、理智、掩护），mpUse 一句话说清它怎么消耗、怎么恢复、太低会怎样。hp0 / mp0 / money0 是初始值。
+- attrs 正好 4 个，名字 2 个字，覆盖这个世界最重要的四个方向。
+- titles 由低到高 10～12 个，体现这个世界的晋升路线。
+- skills 3 个起手技能；pool 是 12 个常见技能，用顿号隔开。
+- origins 3 个出身，bonus 合计 2 点，属性名必须来自 attrs。
+- factions 3 个势力，rep 是 -30 到 30 的整数。
+- npcs 4 个人物，有盟友、对手、中立、神秘人；favor0 只能是 -50、-25、0、25、50；其中 1～2 个 romance 为 true。
+
+只输出一个合法的 JSON 对象：键名和字符串都用英文双引号，用英文逗号和冒号，不要注释，不要多余的逗号，不要代码块标记，不要任何解释。下面是格式示例（内容要换成这个世界的，origins / factions / npcs 要写满个数）：
+${JSON.stringify(GEN_EXAMPLE)}`;
 $('btnGenRules').onclick = async () => {
   const world = $('world').value.trim();
   if (!world){ $('genHint').textContent = '先写一点世界设定。'; $('world').focus(); return; }
@@ -2274,11 +2328,18 @@ $('btnGenRules').onclick = async () => {
   try{
     const who = [$('pcName').value.trim() && '主角名字：' + $('pcName').value.trim(), $('pcRole').value.trim() && '主角身份：' + $('pcRole').value.trim()].filter(Boolean).join('\n');
     const genMsgs = [{ role:'system', content:GEN_SYSTEM }, { role:'user', content:'世界设定：\n' + world + (who ? '\n' + who : '') }];
-    const raw = await chatOnce(genMsgs, 2500, 0.8);
+    let raw = await chatOnce(genMsgs, 2500, 0.8, true);
     addUsage(genMsgs, raw, false);   // 还没开局，只记进累计
-    const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
-    if (a < 0 || b < a) throw new Error('模型没有返回 JSON');
-    const g = JSON.parse(raw.slice(a, b + 1));
+    let g;
+    try{ g = looseJSON(raw); }catch(err){
+      // 写坏了就把错误告诉它，让它重写一次
+      $('genHint').textContent = '格式没写对，正在让说书人重写一遍……';
+      const fixMsgs = [...genMsgs, { role:'assistant', content:raw },
+        { role:'user', content:`你上面的 JSON 不合法（${err.message}）。请重新输出完整、合法的 JSON 对象，只输出 JSON。` }];
+      raw = await chatOnce(fixMsgs, 2500, 0.3, true);
+      addUsage(fixMsgs, raw, false);
+      g = looseJSON(raw);
+    }
     loadRules(g);
     if (Array.isArray(g.npcs) && g.npcs.length) fillNpcEdit(g.npcs.slice(0, 6).map(n => ({ name:String(n.name || ''), role:String(n.role || ''), persona:String(n.persona || ''), secret:String(n.secret || ''),
       favor0:ATTITUDES.map(x => x[0]).includes(+n.favor0) ? +n.favor0 : 0, romance:!!n.romance, likes:String(n.likes || '') })));
