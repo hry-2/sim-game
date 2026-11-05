@@ -14,7 +14,7 @@
 | 点头 | 面对面猜词 · 翻转判定 | [`games/nod/`](games/nod/) | 两个人玩 · 十六个词包 4547 词 · [ADR-0004](docs/adr/0004-tilt-is-an-input-not-the-verdict.md) · [ADR-0006](docs/adr/0006-one-rule-for-every-pack.md) |
 | 聚宝盆 | 3D 推币机 · 街机物理 | [`games/coin-pusher/`](games/coin-pusher/) | Three.js 真 3D（联网加载）· 立体金币 · 连锁掉落 · 电子屏开奖 · 永久机台存档 |
 | 捕鱼达人 | 3D 捕鱼 · 街机射击 | [`games/fish-hunter/`](games/fish-hunter/) | Three.js · 炮倍 / 锁定 / 自动开炮 · 四条龙鱼 · 网口三级与网衣 · 潮汐与鱼王 · 和聚宝盆共用币袋 |
-| 说书人 | AI 文字冒险 | [`games/ai-story/`](games/ai-story/) | 大模型当主持人 · 自带 API Key（默认 Agnes 国内，OpenAI 兼容都能接）· 六个开局剧本 · d20 判定 · 前情提要自动压缩 |
+| 说书人 | AI 文字冒险 | [`games/ai-story/`](games/ai-story/) | 大模型当主持人 · 自带 API Key（默认 Agnes 国内，OpenAI 兼容都能接）· 十二个开局剧本 · 属性 / 技能 / 装备 / 任务 / 势力 · d20 检定 · 前情提要自动压缩 |
 
 ## 快速开始
 

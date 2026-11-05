@@ -50,7 +50,7 @@
 
   /* ---------- 通用 ---------- */
   .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
-  label.f{display:block;margin:0 0 12px}
+  .f{display:block;margin:0 0 12px}
   label.f > span{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
   input[type=text],input[type=password],input[type=number],textarea,select{
     width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;
@@ -81,15 +81,27 @@
   .intro{text-align:center;margin:18px 0 22px}
   .intro h2{margin:0;font:700 clamp(24px,5vw,34px)/1.3 var(--serif);letter-spacing:.06em}
   .intro p{margin:6px 0 0;color:var(--muted)}
-  .scen{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:16px}
+  /* 剧本：上面按题材分页，下面是紧凑的小卡；完整设定看下面的世界设定框 */
+  .scen-bar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .scen-tabs{display:flex;gap:4px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+  .scen-tabs::-webkit-scrollbar{display:none}
+  .scen-tabs button{
+    flex:none;background:none;border:1px solid transparent;border-radius:999px;padding:4px 12px;font-size:13px;color:var(--muted);
+  }
+  .scen-tabs button:hover{color:var(--ink)}
+  .scen-tabs button.on{border-color:var(--line);background:var(--panel);color:var(--ink)}
+  .scen-tabs i{font-style:normal;font-size:11px;color:var(--dim);margin-left:4px}
+  .scen-new{flex:none;background:none;border:1px dashed var(--dim);border-radius:999px;padding:4px 12px;font-size:13px;color:var(--muted)}
+  .scen-new:hover,.scen-new.sel{border-color:var(--brand);color:var(--ink)}
+  .scen{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:16px}
   .scen button{
-    text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+    position:relative;min-width:0;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px;
     transition:border-color .15s,background .15s;
   }
   .scen button:hover{border-color:var(--dim)}
   .scen button.sel{border-color:var(--brand);background:var(--panel-2)}
-  .scen b{display:block;font:600 16px var(--serif)}
-  .scen small{display:block;color:var(--muted);font-size:12px;line-height:1.55;margin-top:4px}
+  .scen b{display:block;font:600 15px var(--serif)}
+  .scen small{display:block;color:var(--muted);font-size:12px;line-height:1.5;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .slots{margin-top:16px}
   .slot{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
@@ -98,7 +110,8 @@
   .slot .t i{font-style:normal;color:var(--muted);margin-left:6px}
 
   /* ---------- 游戏中 ---------- */
-  .game{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:16px;align-items:start}
+  /* 正文一行三十来个字最好读，所以正文栏封顶 40rem，两栏一起居中 */
+  .game{display:grid;grid-template-columns:minmax(0,40rem) 240px;gap:28px;justify-content:center;align-items:start}
   .story{min-height:50vh;padding-bottom:12px}
   .turn{margin:0 0 20px}
   .turn.you{
@@ -111,17 +124,18 @@
   .turn.gm p{margin:0 0 .8em}
   .turn.gm b{color:var(--brand);font-weight:600}
   .turn.sys{font-size:13px;color:var(--muted);text-align:center}
-  .turn.err{font-size:13px;color:var(--hp);white-space:pre-wrap;border-left:2px solid var(--hp);padding-left:10px}
   .cursor::after{content:'▍';color:var(--brand);animation:blink 1s steps(1) infinite}
   @keyframes blink{50%{opacity:0}}
 
-  .choices{display:flex;flex-direction:column;gap:6px;margin:0 0 12px}
+  /* 选项紧跟在最新一段正文后面；生成中或下一回合开始就收掉 */
+  .choices{display:flex;flex-wrap:wrap;gap:8px;margin:-6px 0 18px}
+  .choices:empty{display:none}
   .choices button{
-    text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px;
-    font-size:14px;transition:border-color .15s;
+    background:none;border:1px solid var(--line);border-radius:999px;padding:5px 14px;
+    font-size:14px;line-height:1.5;text-align:left;transition:border-color .15s,background .15s;
   }
-  .choices button:hover{border-color:var(--brand)}
-  .choices button::before{content:'▸ ';color:var(--brand)}
+  .choices button:hover{border-color:var(--brand);background:rgba(224,168,90,.08)}
+  .choices .end{width:100%;font-size:13px;color:var(--muted);text-align:center}
 
   .composer{
     position:sticky;bottom:0;padding:10px 0 calc(10px + var(--safe-b));
@@ -129,27 +143,328 @@
   }
   .composer .box{display:flex;gap:8px;align-items:flex-end}
   .composer textarea{min-height:44px;max-height:160px;flex:1}
-  .composer .tools{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .composer .btn{min-width:64px;height:44px}
+  .composer .btn.stop{background:var(--panel-2);color:var(--ink);border:1px solid var(--line)}
+  .composer .tools{display:flex;gap:6px;margin-top:6px;align-items:center}
   .composer .tools .ghost{font-size:12px;padding:3px 9px}
 
-  .side{position:sticky;top:64px;display:flex;flex-direction:column;gap:12px}
+  /* 出错提示：贴在输入框上方，不进故事 */
+  .alert{
+    display:flex;gap:8px;align-items:flex-start;margin:0 0 8px;padding:8px 10px;font-size:13px;
+    border:1px solid rgba(217,88,76,.45);background:rgba(217,88,76,.10);color:#f0b4ad;border-radius:8px;
+  }
+  .alert .t{flex:1;white-space:pre-wrap;word-break:break-all;max-height:6.6em;overflow:auto}
+  .alert .ghost{font-size:12px;padding:2px 10px;color:var(--ink)}
+  .alert .x{background:none;border:0;color:var(--muted);font-size:16px;line-height:1;padding:2px 4px}
+  .alert.info{border-color:var(--line);background:var(--panel);color:var(--muted)}
+  .alert.good{border-color:rgba(224,168,90,.5);background:rgba(224,168,90,.12);color:var(--ink)}
+  .alert.info #btnRetry,.alert.good #btnRetry{display:none}
+
+  .usage{margin-left:auto;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:help}
+  .more{position:relative}
+  .more summary{list-style:none;cursor:pointer;user-select:none}
+  .more summary::-webkit-details-marker{display:none}
+  .more .menu{
+    position:absolute;left:0;bottom:calc(100% + 6px);z-index:6;min-width:130px;
+    display:flex;flex-direction:column;padding:4px;
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.4);
+  }
+  .more .menu button{background:none;border:0;border-radius:5px;padding:6px 10px;text-align:left;font-size:13px}
+  .more .menu button:hover{background:var(--panel-2)}
+  .more .menu button:disabled{opacity:.4;cursor:not-allowed}
+
+  .strip{display:none}
+
+  .side{position:sticky;top:64px;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 80px);overflow:auto;scrollbar-width:thin}
+  .pane{display:flex;flex-direction:column;gap:12px}
+  .pane:not(.on){display:none}
+  /* 侧栏分页：角色 / 任务 / 关系 / 行囊；有新动静的页签亮一个点 */
+  .stabs{
+    position:sticky;top:0;z-index:1;display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:3px;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  }
+  .stabs button{position:relative;background:none;border:0;border-radius:7px;padding:6px 0;font-size:13px;color:var(--muted)}
+  .stabs button:hover{color:var(--ink)}
+  .stabs button.on{background:var(--panel-2);color:var(--ink)}
+  .stabs .dot{display:none;position:absolute;top:5px;right:calc(50% - 22px);width:6px;height:6px;margin:0;border-radius:50%;background:var(--brand)}
+  .stabs button.new .dot{display:block}
+
+  /* 检定卡：插在说书人那段正文前面 */
+  .check{
+    margin:-6px 0 14px;padding:8px 12px;border-radius:8px;font-size:13px;
+    border:1px solid var(--line);background:var(--panel);
+  }
+  .check .ck-top{display:flex;align-items:center;gap:8px}
+  .check .what{flex:1;color:var(--muted)}
+  .check .res{margin-left:auto;font-weight:600;font-size:12px;padding:0 8px;border-radius:4px;line-height:20px}
+  .check .ck-math{margin-top:2px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .check .ck-math b{font-size:15px}
+  .check .vs{color:var(--muted);margin-left:4px}
+  .check.ok{border-color:rgba(127,196,138,.4)} .check.ok .res{background:rgba(127,196,138,.18);color:#a9dcb1}
+  .check.bad{border-color:rgba(217,88,76,.4)} .check.bad .res{background:rgba(217,88,76,.18);color:#f0b4ad}
+  .check.crit{border-color:rgba(224,168,90,.6);background:rgba(224,168,90,.08)} .check.crit .res{background:var(--brand);color:#1a1207}
+
+  /* 物品 */
+  .item{
+    font-size:12px;padding:2px 8px;border-radius:4px;cursor:pointer;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+  }
+  .item i{font-style:normal;color:var(--muted);margin-left:3px}
+  .item.t-consumable{border-color:rgba(127,196,138,.35)}
+  .item.t-gear{border-color:rgba(111,159,216,.4)}
+  .item.t-quest{border-color:rgba(224,168,90,.45)}
+  .item.sel{background:var(--brand);color:#1a1207;border-color:var(--brand)}
+  .item.sel i{color:#1a1207}
+  .idetail{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:13px}
+  .idetail .ih{display:flex;align-items:baseline;gap:6px}
+  .idetail .ih span{margin-left:auto;font-size:11px;color:var(--muted)}
+  .idetail p{margin:4px 0 8px;font-size:12px;color:var(--muted)}
+  .idetail .ghost{font-size:12px;padding:3px 10px}
+
+  /* 商店：出现在选项上面 */
+  .shop{width:100%;padding:10px 12px;border:1px solid rgba(224,168,90,.4);border-radius:10px;background:rgba(224,168,90,.05)}
+  .sh-h{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+  .sh-h b{font:600 15px var(--serif)}
+  .sh-h span{margin-left:auto;font-size:12px;color:var(--brand)}
+  .ware{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+  .ware b{font-weight:500}
+  .ware p{margin:0;font-size:12px;color:var(--muted)}
+  .ware .pr{color:var(--brand);font-variant-numeric:tabular-nums}
+  .ware .ghost{font-size:12px;padding:2px 12px}
+  .ware .ghost:disabled{opacity:.35;cursor:not-allowed}
+  .sh-tip{margin:6px 0 0;font-size:11px;color:var(--dim)}
+
+  /* 天赋 */
+  .tal{display:flex;align-items:baseline;gap:8px;padding:5px 0;font-size:13px}
+  .tal b{font-weight:600;color:var(--brand);flex:none}
+  .tal span{font-size:12px;color:var(--muted)}
+  #talentList .btn{width:100%;margin-top:8px}
+  .topt{
+    display:block;width:100%;text-align:left;margin-bottom:8px;padding:12px 14px;
+    background:var(--bg);border:1px solid var(--line);border-radius:10px;transition:border-color .15s;
+  }
+  .topt:hover{border-color:var(--brand)}
+  .topt b{display:block;font:600 16px var(--serif);color:var(--brand)}
+  .topt span{font-size:13px;color:var(--muted)}
+
+  /* 装备 */
+  .gear{display:grid;grid-template-columns:2.6em minmax(0,1fr);gap:2px 8px;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
+  .gear:first-child{border-top:0;padding-top:0}
+  .gear > span{color:var(--muted);font-size:12px;line-height:20px}
+  .gear b{font-weight:500}
+  .gear b.none{color:var(--dim);font-weight:400}
+  .gear .bn{margin-left:6px;font-size:11px;color:var(--ok)}
+  .gear .bn.neg{color:var(--hp)}
+  .gear p{grid-column:2;margin:0;font-size:12px;color:var(--muted);line-height:1.5}
+  .attr small{font-size:10px;color:var(--ok);margin-left:-3px}
+  .attr small.neg{color:var(--hp)}
+
+  /* 任务 */
+  .qsec{font-size:11px;letter-spacing:.12em;color:var(--muted);margin:0 0 6px}
+  .qsec + .quest,.quest + .qsec{margin-top:0}
+  .quest + .qsec{margin-top:12px}
+  .quest{padding:9px 10px;margin-bottom:6px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.015)}
+  .quest.main{border-left:3px solid var(--brand)}
+  .quest.cur{border-color:rgba(224,168,90,.45);background:rgba(224,168,90,.06)}
+  .quest .qt{display:flex;align-items:center;gap:6px;font-size:13px}
+  .quest .qt b{font-weight:600;flex:1;min-width:0}
+  .quest .tag2{font-size:10px;padding:0 5px;border-radius:3px;background:rgba(224,168,90,.18);color:var(--brand);flex:none}
+  .quest p{margin:3px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
+  .quest .nt{color:var(--ink);opacity:.75}
+  .quest .nt::before{content:'▸ ';color:var(--dim)}
+  .qdone{margin-top:8px;font-size:12px;color:var(--muted)}
+  .qdone summary{cursor:pointer;list-style:none;padding:2px 0}
+  .qdone summary::-webkit-details-marker{display:none}
+  .qdone summary::before{content:'▸ ';color:var(--dim)}
+  .qdone[open] summary::before{content:'▾ '}
+  .qdone div{padding:3px 0 3px 14px}
+  .qdone .ok{color:var(--ok)} .qdone .no{color:var(--hp)}
+
+  /* 势力 */
+  .rep{padding:7px 0;border-top:1px solid var(--line)}
+  .rep:first-child{border-top:0;padding-top:0}
+  .rep .rh{display:flex;align-items:center;gap:6px;font-size:13px}
+  .rep .rh b{font-weight:600;flex:1;min-width:0}
+  .rep .rh .tier{font-size:11px;line-height:18px;padding:0 6px;border-radius:3px}
+  .rep p{margin:2px 0 0;font-size:12px;color:var(--muted)}
   .side h3{margin:0 0 8px;font:600 12px var(--sans);color:var(--muted);letter-spacing:.1em}
   .bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--line)}
   .bar i{display:block;height:100%;background:var(--hp);transition:width .4s}
-  .kv{font-size:13px;margin:6px 0 0}
-  .kv span{color:var(--muted)}
+  .kv{display:flex;align-items:baseline;gap:8px;font-size:13px;margin:6px 0 0}
+  .kv span{color:var(--muted);flex:none;width:3em}
+  .kv b{font-weight:500;min-width:0}
+
+  /* ---------- 角色卡 ---------- */
+  .ch-top{display:flex;align-items:baseline;gap:8px}
+  .ch-top b{font:600 17px var(--serif);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ch-top .lv{margin-left:auto;font:600 13px var(--sans);color:var(--brand);flex:none}
+  .ch-title{font-size:12px;color:var(--muted);margin:0 0 10px}
+  .meter{display:grid;grid-template-columns:3em minmax(0,1fr) auto 2.6em;align-items:center;gap:8px;margin:6px 0 0;font-size:12px}
+  .meter span{color:var(--muted)}
+  .meter b{font-weight:500;font-variant-numeric:tabular-nums;text-align:right}
+  .meter .bar{height:6px}
+  .meter.xp i{background:var(--brand)}
+  .xp-next{margin:2px 0 4px calc(3em + 8px);font-size:11px;color:var(--dim)} .meter.mp i{background:#6f9fd8}
+  em.d{font-style:normal;font-size:11px;font-weight:600;white-space:nowrap}
+  em.d.up{color:var(--ok)} em.d.down{color:var(--hp)}
+  em.d:not(:empty){animation:pop .9s ease-out}
+  .side h3 .pts{float:right;font-weight:600;color:var(--brand);letter-spacing:0}
+  .attrs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .attr{
+    display:flex;align-items:center;gap:6px;padding:6px 8px;font-size:13px;
+    background:rgba(255,255,255,.015);border:1px solid var(--line);border-radius:6px;
+  }
+  .attr span{color:var(--muted);flex:1;min-width:0;cursor:help}
+  .attr b{font-weight:600;font-variant-numeric:tabular-nums}
+  .attr.up b{color:var(--ok)}
+  .attr button{
+    width:20px;height:20px;padding:0;border-radius:4px;line-height:1;font-size:14px;
+    background:var(--brand);color:#1a1207;border:0;
+  }
+  .skill{padding:7px 0;border-top:1px solid var(--line)}
+  .skill:first-child{border-top:0;padding-top:0}
+  .skill .sk{display:flex;align-items:center;gap:8px;font-size:13px}
+  .skill .sk b{font-weight:600;flex:1;min-width:0}
+  .skill .dots{letter-spacing:1px;color:var(--brand);font-size:10px}
+  .skill .dots i{font-style:normal;color:var(--line)}
+  .skill p{margin:2px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
+  .skill .new{font-size:10px;padding:0 5px;border-radius:3px;background:rgba(224,168,90,.18);color:var(--brand)}
+  /* 规则编辑器 */
+  .adv{margin:0 0 14px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+  .adv summary{cursor:pointer;padding:10px 12px;list-style:none;font-size:13px}
+  .adv summary::-webkit-details-marker{display:none}
+  .adv summary::before{content:'▸ ';color:var(--dim)}
+  .adv[open] summary::before{content:'▾ '}
+  .adv summary small{margin-left:8px;color:var(--dim);font-size:12px}
+  .adv-body{padding:4px 12px 12px;border-top:1px solid var(--line)}
+  .adv-body input,.adv-body textarea,.adv-body select{background:var(--panel)}
+  .three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .pair{display:grid;grid-template-columns:minmax(0,1fr) 5.5em;gap:6px}
+  .rattr{display:grid;grid-template-columns:7em minmax(0,1fr) auto;gap:6px;margin-bottom:6px}
+  .rattr .x{background:none;border:0;color:var(--muted);font-size:18px;line-height:1;padding:0 4px}
+  .rattr .x:hover{color:var(--hp)}
+  .rattr .x:disabled{opacity:.25;cursor:not-allowed}
+  .scen .del{position:absolute;top:6px;right:8px;color:var(--dim);font-size:16px;line-height:1;padding:2px 4px}
+  .scen .del:hover{color:var(--hp)}
+
+  /* 开局分配属性 */
+  .alloc{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px}
+  .alloc .attr{flex-direction:column;align-items:stretch;gap:4px;padding:8px;text-align:center}
+  .alloc .attr span{flex:none}
+  .alloc .ctl{display:flex;align-items:center;justify-content:space-between}
+  .alloc .ctl b{font-size:16px}
+  .alloc button:disabled{opacity:.25;cursor:not-allowed}
   .tags{display:flex;flex-wrap:wrap;gap:5px}
   .tags span{font-size:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:1px 7px}
   .tags .none{color:var(--dim);border:0;background:none;padding:0}
   .mem{font-size:12px;color:var(--muted);max-height:180px;overflow:auto;white-space:pre-wrap}
 
+  /* ---------- 人物 ---------- */
+  .lbl{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .lbl small{display:block;color:var(--dim);font-size:12px;margin-top:2px}
+  .npcrow{
+    display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) auto auto;gap:6px;
+    padding:10px;margin-bottom:8px;background:var(--bg);border:1px solid var(--line);border-radius:8px;
+  }
+  .npcrow input,.npcrow select{padding:6px 8px;font-size:13px;background:var(--panel)}
+  .npcrow .wide{grid-column:1/-1}
+  .rom-row{display:flex;align-items:center;gap:8px}
+  .rom-row label{flex:none;font-size:12px;color:#f0b3c9;display:flex;align-items:center;gap:4px;cursor:pointer}
+  .rom-row input[type=text]{flex:1}
+  .npcrow .x{background:none;border:0;color:var(--muted);font-size:18px;line-height:1;padding:0 4px}
+  .npcrow .x:hover{color:var(--hp)}
+  #npcNewRow .npcrow{grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) auto}
+
+  .side h3 .add{
+    float:right;background:none;border:1px solid var(--line);border-radius:4px;color:var(--muted);
+    font-size:12px;line-height:1;padding:2px 6px;margin-top:-2px;
+  }
+  .side h3 .add:hover{border-color:var(--brand);color:var(--ink)}
+  /* 按关系分组：盟友 / 中立 / 对立。组内一人一张卡：头像 | 名字 + 档位 / 身份 / 好感条 / 近况；点开看详情 */
+  .grp + .grp{margin-top:14px}
+  .grp h4{
+    display:flex;align-items:center;gap:8px;margin:0 0 8px;
+    font:500 11px var(--sans);letter-spacing:.12em;color:var(--muted);
+  }
+  .grp h4 i{font-style:normal;color:var(--dim);letter-spacing:0}
+  .grp h4::after{content:'';flex:1;height:1px;background:var(--line)}
+  .grp .ls{display:flex;flex-direction:column;gap:6px}
+  .npc{
+    display:grid;grid-template-columns:30px minmax(0,1fr);gap:0 10px;align-items:start;
+    padding:10px;border-radius:8px;cursor:pointer;
+    background:rgba(255,255,255,.015);border:1px solid var(--line);
+    transition:background .15s,border-color .15s;
+  }
+  .npc:hover{background:var(--panel-2)}
+  .npc:focus-visible{outline:none;border-color:var(--brand)}
+  .npc > :not(.av){grid-column:2}
+  .npc.cur{border-color:rgba(224,168,90,.45);background:rgba(224,168,90,.06)}
+  .av{
+    grid-row:1/span 5;width:30px;height:30px;border-radius:50%;
+    display:grid;place-items:center;font:600 14px var(--serif);color:#14110d;
+  }
+  .npc .nh{display:flex;align-items:center;gap:6px;min-width:0;font-size:14px;line-height:20px}
+  .npc .nh b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .npc .nh .sp{flex:1}
+  .npc .tier{font-size:11px;line-height:18px;padding:0 6px;border-radius:3px;white-space:nowrap;flex:none}
+  .npc .d{font-size:11px;font-weight:600;white-space:nowrap;flex:none;animation:pop .9s ease-out}
+  .npc .d.up{color:var(--ok)} .npc .d.down{color:var(--hp)}
+  @keyframes pop{0%{transform:translateY(4px);opacity:0}30%{transform:none;opacity:1}}
+  .npc .r{margin-top:1px;font-size:12px;color:var(--muted);line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* 好感条：中线是 0，往右绿往左红 */
+  .fv{position:relative;height:3px;margin:8px 0;background:var(--line);border-radius:2px}
+  .fv::after{content:'';position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--muted)}
+  .fv i{position:absolute;top:0;bottom:0;border-radius:2px;transition:left .4s,width .4s}
+  .npc .note{margin:0;font-size:12px;color:var(--ink);opacity:.75;line-height:1.5}
+  .npc .note::before{content:'「';color:var(--dim)} .npc .note::after{content:'」';color:var(--dim)}
+  .npc .bond{flex:none;font-size:11px;padding:0 6px;border-radius:3px;background:rgba(229,143,176,.18);color:#f0b3c9}
+  .npc .love{display:flex;align-items:center;gap:6px;margin:-2px 0 6px;font-size:11px}
+  .npc .love > span{color:#e58fb0}
+  .npc .love .lb{flex:1;height:3px;background:var(--line);border-radius:2px;overflow:hidden}
+  .npc .love .lb i{display:block;height:100%;background:#e58fb0;transition:width .4s}
+  .npc .love b{font-weight:500;color:#f0b3c9}
+  .npc .ract{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .npc .ract .ghost{font-size:12px;padding:3px 10px}
+  .npc .ract .hot{border-color:rgba(229,143,176,.6);color:#f0b3c9}
+  .npc .ract select{width:auto;padding:3px 6px;font-size:12px;background:var(--panel)}
+  .npc .ext{display:none;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:12px;color:var(--muted);line-height:1.7}
+  .npc .ext div span{color:var(--dim);margin-right:8px}
+  .npc.open .ext{display:block}
+  .npc.open .r{white-space:normal}
+  .t5{background:rgba(127,196,138,.22);color:#a9dcb1} .t4{background:rgba(127,196,138,.12);color:#9cc9a3}
+  .t3{background:var(--panel-2);color:var(--muted)}
+  .t2{background:rgba(217,88,76,.12);color:#e0a49d} .t1{background:rgba(217,88,76,.24);color:#f0b4ad}
+
   @media (max-width:760px){
     .game{grid-template-columns:1fr}
-    .side{position:static;order:-1;display:grid;grid-template-columns:1fr 1fr}
-    .side .card{padding:10px 12px}
-    .side .memcard{display:none}
     .two{grid-template-columns:1fr}
     .turn.gm{font-size:16px}
+    /* 状态收进顶栏下的一条，点开是一张浮层 */
+    .top{flex-wrap:wrap;row-gap:8px}
+    body.in-game .strip{
+      display:flex;flex-basis:100%;align-items:center;gap:12px;min-width:0;
+      background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:13px;
+    }
+    .strip b{color:var(--hp);font-weight:500;flex:none}
+    .strip span{color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .strip span:first-of-type{flex:1;color:var(--ink)}
+    .strip i{font-style:normal;color:var(--dim);transition:transform .15s}
+    .strip[aria-expanded="true"] i{transform:rotate(180deg)}
+    .side{
+      display:none;position:fixed;left:12px;right:12px;top:var(--sheet-top,100px);z-index:6;
+      max-height:65vh;overflow:auto;padding:12px;
+      background:var(--bg);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.55);
+    }
+    .side.open{display:flex}
+    .side .stabs{top:-12px}
+    .side .card{padding:10px 12px}
+    .npcrow{grid-template-columns:minmax(0,1fr) auto auto}
+    .alloc{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .three{grid-template-columns:1fr}
+    .scen{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .scen-bar{flex-wrap:wrap}
+    .scen-new{order:-1}
+    .npcrow .n-role{grid-column:1/-1;grid-row:2}
   }
 </style>
 <body>
@@ -160,6 +475,10 @@
   <span class="sp"></span>
   <button class="ghost hide" id="btnMenu">回目录</button>
   <button class="ghost" id="btnCfg"><span class="dot" id="cfgDot"></span>接口设置</button>
+  <!-- 手机：状态收成一条，点开看详情 -->
+  <button class="strip" id="strip" aria-expanded="false">
+    <b id="stripHp">♥ —</b><span id="stripLoc">—</span><span id="stripInv">物品 0</span><i>▾</i>
+  </button>
 </header>
 
 <!-- ============ 开局 ============ -->
@@ -169,17 +488,74 @@
     <p>AI 主持的文字冒险。选一个开局，或者自己写一个世界。</p>
   </div>
 
+  <div class="scen-bar">
+    <nav class="scen-tabs" id="scenTabs"></nav>
+    <button class="scen-new" id="btnCustom" type="button">＋ 自己写一个世界</button>
+  </div>
   <div class="scen" id="scenList"></div>
 
   <div class="card">
+    <label class="f"><span>世界设定（选了剧本会自动填，可以改）</span><textarea id="world" rows="4"></textarea></label>
+    <div class="row" style="margin:-4px 0 12px">
+      <button class="ghost" id="btnGenRules" type="button">✦ 让说书人按这个世界生成规则</button>
+      <span class="hint" id="genHint"></span>
+    </div>
+
+    <details class="adv" id="advBox">
+      <summary>规则设定<small>属性、资源、货币、称号、技能、出身、势力 —— 全部可以改</small></summary>
+      <div class="adv-body">
+        <div class="three">
+          <label class="f"><span>资源一（掉光就倒下）</span><div class="pair"><input type="text" id="rHp" maxlength="6"><input type="number" id="rHp0" min="1" max="999"></div></label>
+          <label class="f"><span>资源二</span><div class="pair"><input type="text" id="rMp" maxlength="6"><input type="number" id="rMp0" min="1" max="999"></div></label>
+          <label class="f"><span>货币</span><div class="pair"><input type="text" id="rMoney" maxlength="6"><input type="number" id="rMoney0" min="0" max="99999"></div></label>
+        </div>
+        <label class="f"><span>资源二怎么消耗、怎么恢复</span><input type="text" id="rMpUse" maxlength="80"></label>
+        <div class="f">
+          <span class="lbl">属性（3～6 项）</span>
+          <div id="rAttrs"></div>
+          <button class="ghost" id="btnAttrAdd" type="button">＋ 属性</button>
+        </div>
+        <label class="f"><span>等级称号（由低到高，用顿号或换行隔开）</span><textarea id="rTitles" rows="2"></textarea></label>
+        <label class="f"><span>起手技能（一行一个：技能名：效果）</span><textarea id="rSkills" rows="3"></textarea></label>
+        <label class="f"><span>常见技能池（给说书人参考，用顿号隔开）</span><input type="text" id="rPool" maxlength="200"></label>
+        <label class="f"><span>出身（一行一个：名字｜描述｜属性+1 属性+1｜技能名：效果）</span><textarea id="rOrigins" rows="3"></textarea></label>
+        <label class="f"><span>势力（一行一个：名字｜描述｜初始声望 -100～100）</span><textarea id="rFactions" rows="3"></textarea></label>
+        <div class="row">
+          <button class="ghost" id="btnRulesReset" type="button">恢复这个剧本的默认规则</button>
+          <span class="hint" id="rulesHint"></span>
+        </div>
+      </div>
+    </details>
+
     <div class="two">
       <label class="f"><span>你的名字</span><input type="text" id="pcName" placeholder="留空让说书人起名" maxlength="20"></label>
-      <label class="f"><span>身份 / 出身</span><input type="text" id="pcRole" placeholder="例：落第书生、退役雇佣兵" maxlength="40"></label>
+      <label class="f"><span>身份</span><input type="text" id="pcRole" placeholder="例：落第书生、退役雇佣兵" maxlength="40"></label>
     </div>
-    <label class="f"><span>世界设定（选了开局会自动填，可以改）</span><textarea id="world" rows="4"></textarea></label>
+    <label class="f"><span>背景故事（可选，说书人会围绕它埋伏笔）</span><textarea id="backstory" rows="2" maxlength="400" placeholder="例：十年前全家死于一场大火，你是唯一的幸存者，那晚你看见了一个戴银面具的人。"></textarea></label>
+    <label class="f"><span>出身</span><select id="origin"></select><small class="hint" id="originHint" style="display:block"></small></label>
+    <div class="f">
+      <span class="lbl">属性 <small id="attrHint"></small></span>
+      <div class="alloc" id="attrEdit"></div>
+    </div>
+
+    <div class="three">
+      <label class="f"><span>叙事风格</span><select id="style"></select></label>
+      <label class="f"><span>每段长度</span><select id="length"><option value="short">短（100～200 字）</option><option value="mid" selected>中（150～400 字）</option><option value="long">长（300～600 字）</option></select></label>
+      <label class="f"><span>行动选项</span><select id="nChoices"><option value="0">不给，全靠自己写</option><option value="2">2 个</option><option value="3" selected>3 个</option><option value="4">4 个</option><option value="5">5 个</option></select></label>
+    </div>
+    <label class="f hide" id="styleCustomBox"><span>自己描述风格</span><input type="text" id="styleCustom" maxlength="80" placeholder="例：像王家卫电影的旁白，慢、碎、有画面"></label>
     <label class="f"><span>额外要求（可选）</span><input type="text" id="extra" placeholder="例：节奏慢一点、多一些对话、不要太血腥" maxlength="200"></label>
+    <div class="f">
+      <span class="lbl">重要人物 <small>会反复登场、记得你做过的事，好感随互动变化。选剧本会带上预设人物，可以改、删或加自己认识的人。</small></span>
+      <div id="npcEdit"></div>
+      <button class="ghost" id="btnNpcAdd" type="button">＋ 添加人物</button>
+    </div>
     <div class="row">
       <button class="btn" id="btnStart">开始</button>
+      <button class="ghost" id="btnWorldSave" type="button">存为我的世界</button>
+      <button class="ghost" id="btnWorldExport" type="button">导出设定</button>
+      <button class="ghost" id="btnWorldImport" type="button">导入设定</button>
+      <input type="file" id="fileWorld" accept="application/json,.json" class="hide">
       <span class="hint" id="startHint"></span>
     </div>
   </div>
@@ -199,44 +575,115 @@
   <div class="game">
     <div>
       <div class="story" id="story"></div>
+      <div class="choices" id="choices"></div>
       <div class="composer">
-        <div class="choices" id="choices"></div>
+        <div class="alert hide" id="alert">
+          <span class="t" id="alertText"></span>
+          <button class="ghost" id="btnRetry">重试</button>
+          <button class="x" id="btnAlertX" aria-label="关闭">×</button>
+        </div>
         <div class="box">
-          <textarea id="input" rows="1" placeholder="你打算怎么做？（Enter 发送，Shift+Enter 换行）"></textarea>
+          <textarea id="input" rows="1" placeholder="你打算怎么做？" title="Enter 发送，Shift+Enter 换行"></textarea>
           <button class="btn" id="btnSend">行动</button>
         </div>
         <div class="tools">
-          <button class="ghost" id="btnStop" disabled>停止</button>
           <button class="ghost" id="btnReroll">重写这段</button>
           <button class="ghost" id="btnUndo">撤回一步</button>
-          <button class="ghost" id="btnSave">存档</button>
-          <button class="ghost" id="btnExport">导出</button>
+          <span class="usage" id="usage"></span>
+          <details class="more" id="more">
+            <summary class="ghost" aria-label="更多">⋯</summary>
+            <div class="menu">
+              <button id="btnSave">存档到槽位</button>
+              <button id="btnExport">导出为文件</button>
+            </div>
+          </details>
         </div>
       </div>
     </div>
 
     <aside class="side">
+      <nav class="stabs" id="stabs">
+        <button data-tab="char" class="on">角色</button><button data-tab="quest">任务<i class="dot"></i></button><button data-tab="rel">关系<i class="dot"></i></button><button data-tab="bag">行囊</button>
+      </nav>
+      <div class="pane on" data-pane="char">
       <div class="card">
-        <h3>状态</h3>
-        <div class="bar"><i id="hpBar" style="width:100%"></i></div>
-        <p class="kv"><span>体力</span> <b id="hpText">—</b></p>
-        <p class="kv"><span>地点</span> <b id="locText">—</b></p>
-        <p class="kv"><span>时间</span> <b id="timeText">—</b></p>
+        <div class="ch-top"><b id="chName">你</b><span class="lv" id="chLv">Lv1</span></div>
+        <div class="ch-title" id="chTitle"></div>
+        <div class="meter xp"><span>经验</span><div class="bar"><i id="xpBar"></i></div><b id="xpText"></b><em class="d" id="xpD"></em></div>
+        <div class="xp-next" id="xpNext"></div>
+        <div class="meter hp"><span id="hpName">体力</span><div class="bar"><i id="hpBar"></i></div><b id="hpText"></b><em class="d" id="hpD"></em></div>
+        <div class="meter mp"><span id="mpName">精力</span><div class="bar"><i id="mpBar"></i></div><b id="mpText"></b><em class="d" id="mpD"></em></div>
+        <p class="kv"><span id="moneyName">金钱</span><b id="moneyText">0</b><em class="d" id="moneyD"></em></p>
+        <p class="kv"><span>地点</span><b id="locText">—</b></p>
+        <p class="kv"><span>时间</span><b id="timeText">—</b></p>
         <div class="tags" id="statusTags" style="margin-top:8px"></div>
       </div>
       <div class="card">
+        <h3>属性<span class="pts" id="ptsText"></span></h3>
+        <div class="attrs" id="attrList"></div>
+      </div>
+      <div class="card">
+        <h3>装备</h3>
+        <div id="gearList"></div>
+      </div>
+      <div class="card">
+        <h3>天赋</h3>
+        <div id="talentList"></div>
+      </div>
+      <div class="card">
+        <h3>技能</h3>
+        <div id="skillList"></div>
+      </div>
+      </div>
+      <div class="pane" data-pane="quest">
+      <div class="card">
+        <div id="questList"></div>
+      </div>
+      </div>
+      <div class="pane" data-pane="rel">
+      <div class="card">
+        <h3>人物<button class="add" id="btnNpcNew" title="加入一个人物">＋</button></h3>
+        <div id="npcList"></div>
+      </div>
+      <div class="card">
+        <h3>势力声望</h3>
+        <div id="repList"></div>
+      </div>
+      </div>
+      <div class="pane" data-pane="bag">
+      <div class="card">
         <h3>随身物品</h3>
         <div class="tags" id="invTags"></div>
+        <div class="idetail hide" id="invDetail"></div>
       </div>
       <div class="card memcard">
         <h3>前情提要</h3>
         <div class="mem" id="memText">（剧情变长后，早先的内容会压缩到这里）</div>
+      </div>
       </div>
     </aside>
   </div>
 </main>
 
 <!-- ============ 接口设置 ============ -->
+<dialog id="dlgNpc">
+  <h2>加入人物</h2>
+  <p class="hint" style="margin:-6px 0 12px">说书人会在接下来一两段里让这个人自然登场，之后一直记得他。</p>
+  <div id="npcNewRow"></div>
+  <div class="msg err" id="npcMsg"></div>
+  <div class="row" style="margin-top:14px;justify-content:flex-end">
+    <button class="ghost" id="btnNpcCancel" type="button">取消</button>
+    <button class="btn" id="btnNpcOk" type="button">加入</button>
+  </div>
+</dialog>
+
+<dialog id="dlgTalent">
+  <h2>选择天赋</h2>
+  <p class="hint" style="margin:-6px 0 12px">三选一，选了就不能改。</p>
+  <div id="talentOpts"></div>
+  <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="ghost" id="btnTalentLater" type="button">稍后再选</button></div>
+</dialog>
+
 <dialog id="dlgCfg">
   <h2>接口设置</h2>
   <div class="presetrow" id="presetRow"></div>
@@ -258,6 +705,7 @@
     <label class="f"><span>温度（越高越放飞）</span><input type="number" id="cfgTemp" min="0" max="2" step="0.1"></label>
     <label class="f"><span>每段最多字数（max_tokens）</span><input type="number" id="cfgMax" min="200" max="8000" step="100"></label>
   </div>
+  <p class="hint" id="usageAll"></p>
   <p class="hint">Key 只存在这个浏览器的 localStorage 里，请求直接从浏览器发到上面的地址，不经过别的服务器。别在公用电脑上保存。</p>
   <div class="msg" id="cfgMsg"></div>
   <div class="row" style="margin-top:14px;justify-content:flex-end">
@@ -275,7 +723,7 @@
 const CFG_KEY = 'aistory.cfg.v1', SAVE_KEY = 'aistory.saves.v1', SLOT_N = 4;   // 槽 0 = 自动存档
 
 const PROVIDERS = [
-  { name:'Agnes 国内', base:'https://apihub.agnes-ai.cn/v1',  model:'agnes-3.0-flash' },
+  { name:'Agnes 国内', base:'https://api.agnes-ai.cn/v1',     model:'agnes-3.0-flash' },
   { name:'Agnes 国际', base:'https://apihub.agnes-ai.com/v1', model:'agnes-3.0-flash' },
   { name:'DeepSeek',   base:'https://api.deepseek.com/v1',    model:'deepseek-chat' },
   { name:'OpenRouter', base:'https://openrouter.ai/api/v1',   model:'' },
@@ -288,26 +736,296 @@ const store = {
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch{ return false; } },
 };
 let cfg = { ...DEFAULT_CFG, ...store.get(CFG_KEY, {}) };
+// 早先版本把国内地址写成了 apihub.agnes-ai.cn，存过设置的人顺手迁过来
+if (String(cfg.base).replace(/\/+$/,'') === 'https://apihub.agnes-ai.cn/v1') cfg.base = PROVIDERS[0].base;
 
 /* ================= 开局剧本 ================= */
+// romance：可攻略，有心动值；likes：喜欢什么、讨厌什么，送礼和约会时说书人会参考
+const npc = (name, role, persona, secret, favor0, rom) => ({ name, role, persona, secret, favor0, ...(rom ? { romance:true, likes:rom } : {}) });
 const SCENARIOS = [
   { id:'wuxia', name:'江湖夜雨', tag:'武侠',
-    world:'北宋末年，江湖暗流涌动。一本失传的剑谱残页重现于临安城，三大门派、朝廷鹰犬与一个神秘的地下钱庄都在找它。你是一个刚下山、身上只有几两碎银的年轻人，在一个雨夜走进了城外的悦来客栈。' },
+    world:'北宋末年，江湖暗流涌动。一本失传的剑谱残页重现于临安城，三大门派、朝廷鹰犬与一个神秘的地下钱庄都在找它。你是一个刚下山、身上只有几两碎银的年轻人，在一个雨夜走进了城外的悦来客栈。',
+    npcs:[
+      npc('柳三娘', '悦来客栈老板娘，消息灵通', '八面玲珑，嘴硬心软', '其实是地下钱庄在临安的暗桩', 0),
+      npc('沈砚', '同门师兄，与你一起下山', '正直刻板，护短', '奉师命暗中盯着你，怀疑剑谱和你的身世有关', 25, '喜欢剑术切磋、清茶；讨厌油嘴滑舌'),
+      npc('赵捕头', '六扇门捕头，奉命追查剑谱', '精明世故，公事公办', '他想私吞剑谱，换一个出身', 0),
+      npc('黑衣女子', '来历不明的黑衣女剑客', '冷傲，出手狠辣', '她是剑谱原主人的遗孤，来报仇的', 0, '喜欢梅花、烈酒、守信的人；讨厌被同情') ] },
   { id:'xianxia', name:'凡骨问道', tag:'修仙',
-    world:'修真界以灵根定资质。你是青云宗外门最底层的杂役弟子，灵根驳杂，三年未能筑基。某日清扫藏经阁后山时，你在一块裂开的石碑下发现了一枚会说话的古旧玉佩。' },
+    world:'修真界以灵根定资质。你是青云宗外门最底层的杂役弟子，灵根驳杂，三年未能筑基。某日清扫藏经阁后山时，你在一块裂开的石碑下发现了一枚会说话的古旧玉佩。',
+    npcs:[
+      npc('老鬼', '寄身玉佩的上古残魂', '毒舌，爱讨价还价，偶尔靠谱', '想夺舍你，但也有一桩放不下的旧怨', 0),
+      npc('林晚照', '内门天才师姐，偶尔照拂你', '清冷寡言，外冷内热', '她的灵根是被人换过的', 25, '喜欢古籍、灵草、安静的地方；讨厌趋炎附势'),
+      npc('赵执事', '外门执事，管着所有杂役', '势利眼，欺软怕硬', '一直克扣杂役的丹药拿去黑市卖', -25),
+      npc('血衣客', '潜入宗门的魔修', '阴冷，喜欢开价做交易', '他也在找那块石碑下的东西', 0) ] },
   { id:'cthulhu', name:'雾港来信', tag:'克苏鲁',
-    world:'1923 年，新英格兰海边小镇印斯茅斯附近。你收到失踪多年的叔叔寄来的一封信和一把铜钥匙，信里只有一句话：“不要在涨潮时打开它。”镇上的人看你的眼神很奇怪。理智值是有限的。' },
+    world:'1923 年，新英格兰海边小镇印斯茅斯附近。你收到失踪多年的叔叔寄来的一封信和一把铜钥匙，信里只有一句话：“不要在涨潮时打开它。”镇上的人看你的眼神很奇怪。',
+    npcs:[
+      npc('玛莎·吉尔曼', '镇上旅店的老板娘', '热情过头，总在打听你的来意', '她的家族和深海里的东西有血契', 0),
+      npc('阿米蒂奇教授', '叔叔生前的通信人，大学图书馆员', '博学、谨慎、有点神经质', '他知道那把钥匙能打开什么，也因此怕你', 25),
+      npc('扎多克·艾伦', '镇上的老酒鬼', '疯言疯语，一杯酒就能让他开口', '他说的疯话全是真的', 25),
+      npc('奥贝德神父', '镇上教堂的神父', '慈祥，说话温柔', '叔叔的失踪和他主持的仪式有关', 0) ] },
   { id:'cyber', name:'霓虹欠债人', tag:'赛博朋克',
-    world:'2087 年，新九龙。你的义眼是赊来的，债主是一家叫“白鹭金融”的公司，还剩 72 小时还款期限。今晚，一个陌生号码发来一份工作：从荒坂塔第 40 层偷出一枚数据芯片，报酬刚好够还债。' },
+    world:'2087 年，新九龙。你的义眼是赊来的，债主是一家叫“白鹭金融”的公司，还剩 72 小时还款期限。今晚，一个陌生号码发来一份工作：从荒坂塔第 40 层偷出一枚数据芯片，报酬刚好够还债。',
+    npcs:[
+      npc('渡鸦', '老搭档，黑客', '话少，只认钱和交情', '白鹭金融也在付钱给她', 25, '喜欢老式唱片、甜甜圈；讨厌被骗'),
+      npc('陈经理', '白鹭金融的催收经理', '礼貌得让人发冷', '他其实想借你的手黑掉荒坂，事成后再灭口', -25),
+      npc('维克托', '地下义体医生', '嘴硬心软，收费公道', '他知道你那只义眼真正的来历', 25, '喜欢拳击、旧书；讨厌加装太多义体的人'),
+      npc('雪鸮', '荒坂塔的安保主管', '冷静，从不失手', '她已经盯上你了', -25) ] },
   { id:'apoc', name:'最后的补给站', tag:'末日生存',
-    world:'病毒爆发后第 47 天。你独自躲在城郊一座废弃加油站的便利店里，食物只剩两天的量。收音机里断断续续地重复着一个坐标，说那里有军方的安全区。外面的东西，夜里会变多。' },
+    world:'病毒爆发后第 47 天。你独自躲在城郊一座废弃加油站的便利店里，食物只剩两天的量。收音机里断断续续地重复着一个坐标，说那里有军方的安全区。外面的东西，夜里会变多。',
+    npcs:[
+      npc('小雨', '躲在便利店储藏室的十岁女孩', '胆小、警惕，很会藏东西', '她被咬过一口，却一直没有发病', 0),
+      npc('老韩', '无线电那头的声音，自称退伍军人', '冷静，命令口吻', '安全区早就沦陷了，他在找能替他跑腿的人', 0),
+      npc('莉娜', '独来独往的女狙击手', '寡言，枪法极准', '她在找失散的弟弟，见过的人都可能是线索', 0, '喜欢子弹、口琴、守约；讨厌拖后腿'),
+      npc('疤脸', '附近掠夺者团伙的头目', '残忍，但讲规矩', '他手上有安全区的真实情报', -50) ] },
   { id:'detective', name:'雪夜山庄', tag:'本格推理',
-    world:'民国二十三年冬，大雪封山。你受邀来到富商沈家的山庄参加寿宴，当晚沈老爷被发现死在反锁的书房里。山庄里有九个人，电话线被切断了。你是唯一一个不姓沈、也不是仆人的客人。' },
-  { id:'custom', name:'自己写', tag:'自定义', world:'' },
+    world:'民国二十三年冬，大雪封山。你受邀来到富商沈家的山庄参加寿宴，当晚沈老爷被发现死在反锁的书房里。山庄里有九个人，电话线被切断了。你是唯一一个不姓沈、也不是仆人的客人。',
+    npcs:[
+      npc('沈太太', '死者的续弦，比他小三十岁', '端庄，说话滴水不漏', '案发当晚她去过书房，但不是去杀人', 0),
+      npc('周管家', '在沈家做了四十年的老管家', '忠心，寡言', '他知道书房有一条密道', 25),
+      npc('沈少爷', '死者的独子，纨绔子弟', '轻浮，欠了一屁股赌债', '他早就盼着父亲死', 0),
+      npc('林医生', '沈家的家庭医生', '温文尔雅', '他给沈老爷开的药有问题', 25) ] },
+  { id:'palace', name:'宫墙深深', tag:'宫廷权谋',
+    world:'大胤王朝，景和十二年。你是刚入宫的低阶秀女，位份只是个末等答应，被分到冷清的长春宫偏殿。皇帝年轻多疑，皇后无子，贵妃专宠，太后在佛堂里冷眼旁观。入宫第一夜，你在枕下摸到一张字条：“小心身边人。”',
+    npcs:[
+      npc('小桃', '你的贴身宫女', '机灵嘴甜', '她是贵妃安插在你身边的眼线', 25),
+      npc('沈贵妃', '宠冠六宫的贵妃', '明艳跋扈', '她无法生育，一直在物色替她生孩子的人', -25),
+      npc('萧珩', '大胤天子', '年轻多疑，喜怒不形于色', '他在借后宫的争斗清洗外戚', 0, '喜欢棋、直言、不争宠的人；讨厌被算计'),
+      npc('苏公公', '长春宫的管事太监', '油滑贪财', '他是太后的人', 0) ] },
+  { id:'spy', name:'孤岛暗码', tag:'民国谍战',
+    world:'1941 年，上海孤岛。你表面上是霞飞路一家照相馆的老板，真实身份是代号“夜莺”的地下情报员。上线三天前失联，今早照相馆来了一位要拍证件照的客人，说出了接头暗号的上半句——可下半句不对。',
+    npcs:[
+      npc('老 K', '失联的上线', '沉稳，话很少', '他已经叛变了', 25),
+      npc('白露', '百乐门的当红歌女', '风情万种，消息灵通', '她是另一条线上的同志', 0, '喜欢白玫瑰、老唱片；讨厌轻浮的男人'),
+      npc('影佐', '日本特高课课长', '彬彬有礼，爱好摄影', '他怀疑这家照相馆很久了', -25),
+      npc('阿四', '照相馆的学徒', '憨厚胆小', '他偷看过你的暗房', 25) ] },
+  { id:'fantasy', name:'龙裔余烬', tag:'西幻冒险',
+    world:'艾瑟兰大陆，巨龙在三百年前灭绝。你是边境小镇冒险者公会的新人，接下的第一份委托是去北边森林找一头走失的羊。可在森林深处，你找到的是一枚还在发热的龙蛋。',
+    npcs:[
+      npc('莉亚', '公会前台的接待员', '热心，爱八卦', '她以前是金牌冒险者，因为一次背叛退了下来', 25, '喜欢甜点、冒险故事；讨厌背信'),
+      npc('巴顿', '铁匠，你的邻居', '粗声粗气，刀子嘴豆腐心', '他偷偷在打一把屠龙剑', 25),
+      npc('灰袍法师', '路过小镇的神秘法师', '说话云里雾里', '他一直在追踪龙蛋的下落', 0),
+      npc('艾德里克爵士', '圣光教会的圣骑士', '正直，极度厌恶龙', '教会下令销毁一切龙裔', -25, '喜欢诗歌、骑士精神；讨厌谎言') ] },
+  { id:'scifi', name:'星海拓荒', tag:'星际殖民',
+    world:'2311 年，殖民船“远航者号”在冬眠中航行了 140 年，终于抵达开普勒-442b。你被提前唤醒——船载 AI 说，着陆舱出了故障，而另外九千名冬眠者里，有人比你更早醒来。',
+    npcs:[
+      npc('母亲', '殖民船的船载 AI', '温柔，永远冷静', '它隐瞒了航行途中的一次事故', 25),
+      npc('伊娃·陈', '比你早醒的船医', '警惕，枪不离手', '她醒来时发现了船长的尸体', 0, '喜欢地球的植物标本、咖啡；讨厌冒险蛮干'),
+      npc('卡尔', '刚从冬眠舱里醒来的工程师', '爱开玩笑，乐观得反常', '他是被人故意唤醒的', 25),
+      npc('小绿', '着陆后遇到的本地生物', '好奇，会模仿你的动作', '它的族群一直在观察殖民者', 0) ] },
+  { id:'school', name:'午夜校规', tag:'校园怪谈',
+    world:'明德高中流传着一份“午夜校规”：午夜十二点后不要照镜子，不要回应走廊里叫你名字的声音，不要去第四层——这栋楼只有三层。今晚你回教室拿作业，被锁在了学校里。',
+    npcs:[
+      npc('林小雨', '同班同学，也被锁在了学校里', '胆小，但很仗义', '她三年前就死了', 25, '喜欢栀子花、旧歌；讨厌被遗忘'),
+      npc('王老师', '值夜班的老教师', '严厉，总催你快回家', '他知道第四层的来历', 0),
+      npc('镜中人', '镜子里和你一模一样的人', '模仿你，偶尔慢半拍', '它想和你交换位置', -25),
+      npc('老张', '学校的老保安', '醉醺醺的，什么都不信', '他每晚巡逻都故意少走一层', 0) ] },
+  { id:'sanguo', name:'乱世枭雄', tag:'三国',
+    world:'中平元年，黄巾起事，天下大乱。你是涿郡一个落魄的小吏，手下只有三个乡勇和一匹瘦马。今早郡里贴出募兵榜文，而城外的黄巾军，据说明天就到。',
+    npcs:[
+      npc('刘备', '同乡的织席贩履之人', '仁厚，胸怀大志', '他正在招揽人马，也看中了你', 25),
+      npc('简雍', '你的同乡好友', '诙谐，善于辞令', '他欠了本地豪强一大笔钱', 25),
+      npc('程远志', '黄巾军渠帅', '粗豪，笃信太平道', '他抓了你的家人做人质', -50),
+      npc('邹靖', '幽州校尉', '务实，只看功劳', '他打算拿你当先锋去送死', 0) ] },
+  { id:'custom', name:'自己写', tag:'自定义', world:'', npcs:[] },
+];
+// 题材分组：卡片太多，按题材分页显示
+const SCEN_CATS = [
+  ['古风', ['wuxia','xianxia','palace','sanguo']],
+  ['奇幻科幻', ['fantasy','cyber','scifi']],
+  ['悬疑惊悚', ['cthulhu','detective','school']],
+  ['近现代', ['spy','apoc']],
 ];
 
+/* ================= 成长规则（每个世界观一套） ================= */
+// 修仙按境界走：练气九层，之后每个大境界分初期 / 中期 / 后期 / 圆满
+const XIANXIA_TITLES = ['凡人',
+  ...'一二三四五六七八九'.split('').map(n => `练气${n}层`),
+  ...['筑基','结丹','元婴'].flatMap(r => ['初期','中期','后期','圆满'].map(p => r + p)),
+  '化神','炼虚','合体','大乘','渡劫'];
+const sk = (name, desc) => ({ name, lv:1, desc });
+const origin = (name, desc, bonus, skill) => ({ name, desc, bonus, skill });
+const faction = (name, desc, rep) => ({ name, desc, rep });
+// hp / mp 是两条资源条的名字；attrs 是 [属性名, 管什么]；titles 按等级给称号；
+// skills 是起手技能，pool 是这个世界常见的技能（给说书人参考）；origins 是开局可选的出身；factions 是开局就有的势力
+const RULES = {
+  wuxia:{ hp:'气血', mp:'内力', money:'银两', hp0:30, mp0:10, money0:5,
+    mpUse:'施展内功招式、运功疗伤会消耗内力，打坐可以恢复',
+    attrs:[['根骨','体质与力量：硬拼、挨打、负重'],['身法','速度与灵巧：闪避、轻功、偷袭'],['内功','内力修为：内功招式、疗伤、逼毒'],['悟性','学武与识破：领悟招式、看穿诡计']],
+    titles:['初出茅庐','江湖新丁','江湖新秀','小有名气','三流好手','二流好手','一流高手','顶尖高手','名动一方','威震江湖','一代宗师','武林神话'],
+    skills:[sk('青城剑法', '师门入门剑法，攻守平衡'), sk('粗浅轻功', '翻墙越脊不在话下'), sk('江湖切口', '听得懂黑话，认得出门道')],
+    pool:'轻功、点穴、暗器、内功心法、拳掌、刀法、医术、易容、毒术、马术、听风辨器、酒量',
+    origins:[origin('名门弟子', '出身正派，根基扎实', { 根骨:1, 内功:1 }, sk('门派心法', '运功调息，内力恢复得快')),
+             origin('市井游侠', '在街头混大，眼尖手快', { 身法:1, 悟性:1 }, sk('妙手空空', '偷东西不留痕迹')),
+             origin('医家传人', '世代行医，略通药理', { 悟性:1, 内功:1 }, sk('望闻问切', '看得出伤势、病症和中毒'))],
+    factions:[faction('青城派', '你的师门', 30), faction('六扇门', '追查剑谱的官府鹰犬', 0), faction('聚源钱庄', '神秘的地下钱庄', 0)] },
+  xianxia:{ hp:'气血', mp:'灵力', money:'灵石', hp0:20, mp0:15, money0:3,
+    mpUse:'施法、御器、炼丹会消耗灵力，吐纳可以恢复',
+    attrs:[['体魄','肉身强度：抗打、负重、硬抗反噬'],['灵根','吸纳灵气的资质：修炼速度、法术威力'],['神识','感知与心神：探查、御物、抵抗幻术'],['悟性','参悟功法、阵法和丹方的速度']],
+    titles:XIANXIA_TITLES,
+    skills:[sk('吐纳术', '外门基础功法，缓慢恢复灵力'), sk('御风步', '身轻如燕，短距离疾行'), sk('辨药术', '认得出灵草的品级和毒性')],
+    pool:'御剑术、火球术、隐身术、炼丹、炼器、阵法、符箓、神识探查、驭兽、遁地术、疗伤诀、剑气',
+    origins:[origin('杂役出身', '吃过苦，肉身扎实', { 体魄:2 }, sk('劈柴担水', '力气大，能吃苦')),
+             origin('没落世家', '家里只剩一部残卷', { 悟性:1, 神识:1 }, sk('家传残卷', '一部残缺的上乘功法')),
+             origin('天生异瞳', '双眼看得见灵气流动', { 灵根:1, 神识:1 }, sk('灵瞳', '看穿灵气的流向和隐身术'))],
+    factions:[faction('青云宗', '你所在的宗门', 10), faction('血煞门', '魔道宗门', -20), faction('万宝楼', '修真界最大的商会', 0)] },
+  cthulhu:{ hp:'生命', mp:'理智', money:'美元', hp0:12, mp0:60, money0:40,
+    mpUse:'目睹不可名状之物、读禁书会掉理智，归零就是疯了；只有休养和远离真相才能慢慢恢复',
+    attrs:[['力量','搏斗、搬运、破门'],['敏捷','闪躲、潜行、逃跑'],['智识','调查、推理、读懂古籍'],['意志','抵抗恐惧与疯狂，守住理智']],
+    titles:['局外人','好奇者','见习调查员','调查员','资深调查员','秘闻收集者','禁忌学者','神秘学家','守密人','凝视深渊者'],
+    skills:[sk('图书馆使用', '在报纸和档案里翻出线索'), sk('急救', '包扎伤口，稳住伤者'), sk('心理学', '看出对方的隐瞒和恐惧')],
+    pool:'神秘学、克苏鲁神话、开锁、射击、潜行、说服、驾驶、考古、医学、拉丁文、侦查、催眠',
+    origins:[origin('记者', '跑过社会新闻，胆大嘴快', { 智识:1, 敏捷:1 }, sk('采访套话', '让人说出不该说的话')),
+             origin('退伍兵', '在法国打过仗', { 力量:1, 意志:1 }, sk('手枪射击', '用枪冷静、准')),
+             origin('大学助教', '研究古代语言', { 智识:2 }, sk('古文字', '读得懂拉丁文和古英语手稿'))],
+    factions:[faction('印斯茅斯镇民', '排外、古怪的本地人', -10), faction('大衮密教', '镇上真正的统治者', -30), faction('米斯卡塔尼克大学', '研究异常现象的学者们', 10)] },
+  cyber:{ hp:'生命', mp:'人性', money:'新元', hp0:20, mp0:50, money0:120,
+    mpUse:'每加装一件义体、每做一件冷血的事都会掉人性，太低会赛博精神病发作',
+    attrs:[['体能','近身格斗、耐力、负重'],['反应','枪械、驾驶、闪避'],['技术','骇入、改装、破解门禁'],['魅力','交涉、欺骗、混进人群']],
+    titles:['街头小子','跑腿仔','帮派打手','独行客','地下佣兵','老手','中间人的红人','王牌佣兵','都市传说','摩天楼猎手','新九龙传说','不朽传奇'],
+    skills:[sk('义眼扫描', '看穿目标的型号、弱点和武装'), sk('手枪射击', '用枪快且准'), sk('街头交涉', '讨价还价，打听消息')],
+    pool:'骇入、快速骇入、义体改装、近战刀、狙击、驾驶、潜行、爆破、伪装、医疗、无人机操控、网络潜行',
+    origins:[origin('街头孩子', '在九龙城寨长大', { 体能:1, 魅力:1 }, sk('地头蛇', '哪条巷子都有熟人')),
+             origin('公司弃子', '曾是荒坂的中层，被一脚踢开', { 技术:1, 魅力:1 }, sk('公司礼仪', '混进公司场合不露馅')),
+             origin('游牧民', '在荒原车队里长大', { 反应:2 }, sk('改装车手', '什么车都能开、能改'))],
+    factions:[faction('白鹭金融', '你的债主', -30), faction('荒坂公司', '统治新九龙的巨企', 0), faction('九龙街头帮', '城寨里的地头蛇', 10)] },
+  apoc:{ hp:'生命', mp:'饱食', money:'物资点', hp0:20, mp0:40, money0:5,
+    mpUse:'时间流逝和体力活会掉饱食，吃东西恢复；饱食太低会开始掉生命',
+    attrs:[['体能','搏斗、奔跑、负重'],['敏捷','潜行、闪躲、攀爬'],['求生','搜刮、制作、急救'],['意志','抗压、熬夜、面对抉择']],
+    titles:['幸存者','拾荒者','老练拾荒者','废墟游荡者','营地守卫','废土猎手','废土行者','营地首领','末日领主','末日传说'],
+    skills:[sk('翻找', '在废墟里找到有用的东西'), sk('急救', '处理伤口，止血'), sk('设陷阱', '用废料做简易陷阱')],
+    pool:'射击、近战、开锁、驾驶、无线电、种植、狩猎、制作武器、净水、伪装、谈判、潜行',
+    origins:[origin('护士', '疫情初期在医院值班', { 求生:2 }, sk('战地护理', '处理重伤、退烧、截肢')),
+             origin('快递员', '跑遍了这座城市', { 敏捷:1, 体能:1 }, sk('城市地图', '熟悉每条街和近路')),
+             origin('前保安', '商场保安，练过几手', { 体能:1, 意志:1 }, sk('警棍术', '近身制服对手'))],
+    factions:[faction('安全区军方', '无线电里的那个“安全区”', 0), faction('掠夺者', '抢一切能抢的团伙', -40), faction('北郊营地', '一群抱团的幸存者', 10)] },
+  detective:{ hp:'精力', mp:'镇定', money:'大洋', hp0:15, mp0:30, money0:20,
+    mpUse:'受惊吓、被人当面施压会掉镇定，太低就会慌乱出错',
+    attrs:[['观察','发现痕迹与破绽'],['推理','把线索串起来'],['口才','套话、施压、安抚'],['胆识','直面凶手与危险']],
+    titles:['好事者','旁观者','业余侦探','助理侦探','私家侦探','名声鹊起','神探','警界顾问','名侦探','传奇神探'],
+    skills:[sk('察言观色', '看出对方是否在撒谎'), sk('记忆宫殿', '过目不忘，事后能回想细节'), sk('开锁', '打开普通的锁')],
+    pool:'法医常识、化学、伪装、跟踪、速记、射击、拳术、心理学、密码学、鉴宝、方言、易容',
+    origins:[origin('报社记者', '跑过三年社会新闻', { 口才:1, 观察:1 }, sk('打听消息', '三教九流都能聊上')),
+             origin('留洋医生', '在英国学过医', { 推理:1, 观察:1 }, sk('验尸', '看得出死因和死亡时间')),
+             origin('退役巡警', '在租界当过巡捕', { 胆识:2 }, sk('擒拿', '空手制服对手'))],
+    factions:[faction('沈家', '山庄的主人一家', 0), faction('警察局', '雪停之后才会赶到的警察', 0), faction('青帮', '和沈家生意纠缠不清的帮会', -10)] },
+  palace:{ hp:'康健', mp:'心力', money:'银两', hp0:20, mp0:30, money0:50,
+    mpUse:'勾心斗角、强颜欢笑会消耗心力，太低就会失态、露出破绽',
+    attrs:[['容貌','仪态与美貌：引人注目、得宠'],['才情','诗书琴画：在宴会和考较中出彩'],['心机','谋划与识破：设局、看穿陷害'],['人缘','收买人心：让宫女太监为你所用']],
+    titles:['答应','常在','贵人','嫔','昭仪','妃','贵妃','皇贵妃','皇后','太后'],
+    skills:[sk('宫规礼仪', '言行挑不出错'), sk('女红', '刺绣缝补，做得出体面的礼物'), sk('察言观色', '看得出主子的喜怒')],
+    pool:'琴艺、书法、作诗、医术、调香、毒术、厨艺、舞蹈、收买、栽赃、密信、易容',
+    origins:[origin('书香门第', '父亲是翰林院编修', { 才情:2 }, sk('过目成诵', '读过的书都记得')),
+             origin('将门之女', '自小随父亲骑马射箭', { 心机:1, 人缘:1 }, sk('骑射', '能骑马，会射箭')),
+             origin('商贾之女', '家里是江南盐商', { 人缘:2 }, sk('理财', '银钱上精打细算，会送礼'))],
+    factions:[faction('皇后一党', '中宫与外戚', 0), faction('贵妃一党', '宠妃和她的母家', -10), faction('内务府', '掌管宫中用度的太监们', 0)] },
+  spy:{ hp:'生命', mp:'掩护', money:'法币', hp0:15, mp0:50, money0:60,
+    mpUse:'可疑的举动、被人盘问露馅会降低掩护，归零身份就暴露了；低调行事可以慢慢恢复',
+    attrs:[['身手','格斗、射击、逃脱'],['机敏','反应、跟踪与反跟踪'],['伪装','演戏、说谎、换装易容'],['情报','密码、记忆、分析']],
+    titles:['新手交通员','交通员','情报员','资深情报员','行动组长','站长副手','站长','王牌特工','传奇特工','无名英雄'],
+    skills:[sk('暗房冲印', '冲洗胶卷，做微缩胶片'), sk('摩斯电码', '收发电报'), sk('反跟踪', '甩掉身后的尾巴')],
+    pool:'开锁、密写、爆破、狙击、易容、毒药识别、日语、法语、驾驶、审讯、心理战、伪造证件',
+    origins:[origin('留日学生', '在东京读过书', { 情报:1, 伪装:1 }, sk('日语', '说得像本地人')),
+             origin('黄埔军官', '黄埔六期毕业', { 身手:2 }, sk('枪法', '快枪手')),
+             origin('交际花', '十里洋场的名媛', { 伪装:2 }, sk('社交', '在舞会和酒局里如鱼得水'))],
+    factions:[faction('组织', '你所属的地下情报网', 10), faction('特高课', '日本特务机关', -30), faction('七十六号', '汪伪特工总部', -20)] },
+  fantasy:{ hp:'生命', mp:'法力', money:'金币', hp0:24, mp0:12, money0:15,
+    mpUse:'施法、使用魔法物品会消耗法力，休息和冥想可以恢复',
+    attrs:[['力量','近战、搬运、破门'],['敏捷','射箭、潜行、闪避'],['智力','法术、知识、鉴定'],['魅力','交涉、表演、领导']],
+    titles:['公会新人','铜牌冒险者','铁牌冒险者','银牌冒险者','金牌冒险者','秘银冒险者','精金冒险者','屠龙者','传奇英雄','龙裔之王'],
+    skills:[sk('短剑术', '基础的短剑攻防'), sk('野外生存', '生火、扎营、辨方向'), sk('火花术', '一小团火，点火够用，打人不太够')],
+    pool:'火球术、治疗术、隐身术、传送、召唤、弓术、双持、盾击、开锁、驯兽、炼金、鉴定',
+    origins:[origin('精灵混血', '母亲是森林精灵', { 敏捷:1, 智力:1 }, sk('夜视', '黑暗里也看得清')),
+             origin('矮人工匠之后', '在熔炉边长大', { 力量:2 }, sk('锻造', '打造和修理武器盔甲')),
+             origin('流浪诗人', '走遍了半个大陆', { 魅力:2 }, sk('吟游', '用歌声打动人心，也打听消息'))],
+    factions:[faction('冒险者公会', '你所属的公会', 10), faction('圣光教会', '大陆最大的教会，痛恨龙', 0), faction('灰鸦盗贼团', '边境的盗贼组织', -10)] },
+  scifi:{ hp:'生命', mp:'氧气', money:'信用点', hp0:20, mp0:40, money0:30,
+    mpUse:'舱外活动和剧烈运动消耗氧气，回到舱内或找到补给可以恢复',
+    attrs:[['体能','负重、搏斗、耐受'],['操控','驾驶、射击、精细操作'],['工程','修理、骇入、制造'],['科学','分析、医学、外星生物学']],
+    titles:['冬眠者','船员','技术员','工程师','勘探员','殖民地骨干','殖民官','舰长','星区开拓者','新世界之父'],
+    skills:[sk('设备维修', '修好大部分船载设备'), sk('舱外作业', '穿着宇航服在外面干活'), sk('船载终端', '查询船上的数据库')],
+    pool:'外星语言学、基因编辑、无人机、能量武器、穿梭机驾驶、医疗、黑客、地质勘探、生态学、零重力格斗、谈判、反应堆维护',
+    origins:[origin('机械师', '负责过推进器维护', { 工程:2 }, sk('应急焊接', '什么都能先焊上')),
+             origin('军方护卫', '殖民船的安保人员', { 体能:1, 操控:1 }, sk('战术射击', '掩护、压制、精准点射')),
+             origin('生物学家', '殖民计划的首席生物学家', { 科学:2 }, sk('外星生物学', '判断陌生生物的习性和危险'))],
+    factions:[faction('母亲', '船载 AI 与它掌控的系统', 10), faction('先醒者', '比你早醒的那批人', -20), faction('殖民委员会', '还在冬眠中的领导层', 0)] },
+  school:{ hp:'生命', mp:'理智', money:'零花钱', hp0:12, mp0:40, money0:30,
+    mpUse:'看见怪异之物、违反校规会掉理智，太低会出现幻觉',
+    attrs:[['体力','奔跑、躲藏、撞门'],['胆量','直面怪物、忍住不叫'],['学识','解谜、读懂线索'],['人缘','说服同学，让人帮你']],
+    titles:['普通学生','好奇的人','怪谈爱好者','灵异社社员','夜游者','校规破译者','怪谈猎人','除灵人','学校守护者','传说中的学长'],
+    skills:[sk('手机照明', '电量有限的光源'), sk('抄近路', '熟悉学校每条近路'), sk('背书', '记得住一大段文字')],
+    pool:'护身符、画符、通灵、急救、开锁、躲藏、解谜、与鬼对话、跑酷、拍照取证、念经、仪式',
+    origins:[origin('学霸', '年级前三', { 学识:2 }, sk('过目不忘', '看过一眼就记得')),
+             origin('体育生', '田径队主力', { 体力:2 }, sk('冲刺', '短距离谁也追不上')),
+             origin('灵异社社长', '收集了一百个怪谈', { 胆量:1, 学识:1 }, sk('怪谈百科', '知道大部分怪谈的规矩'))],
+    factions:[faction('学生会', '管着学校的学生们', 0), faction('灵异社', '你认识的那几个怪人', 20), faction('校规', '学校里那个看不见的东西', -20)] },
+  sanguo:{ hp:'生命', mp:'士气', money:'钱粮', hp0:25, mp0:30, money0:20,
+    mpUse:'打了败仗、断粮、失信于人会掉士气，打胜仗、犒赏部下可以提振',
+    attrs:[['武力','单挑、冲阵'],['统率','带兵打仗、布阵'],['智谋','用计、识破计策'],['政治','治理、招揽人才、外交']],
+    titles:['白身','亭长','县尉','县令','校尉','太守','中郎将','将军','州牧','诸侯','霸主','天子'],
+    skills:[sk('骑术', '骑马作战'), sk('枪术', '长枪冲刺'), sk('识字', '读得懂公文和兵书')],
+    pool:'弓术、火攻、伏兵、离间、屯田、外交、相马、医术、筑城、水战、奇袭、鼓舞',
+    origins:[origin('汉室宗亲', '族谱上能攀到中山靖王', { 政治:1, 统率:1 }, sk('宗亲名望', '报出家世就有人买账')),
+             origin('游侠儿', '少年时杀过人、逃过命', { 武力:2 }, sk('击剑', '近身搏杀')),
+             origin('寒门书生', '读过几本兵书', { 智谋:2 }, sk('兵法', '懂得排兵布阵和用计'))],
+    factions:[faction('汉廷', '摇摇欲坠的朝廷', 10), faction('黄巾军', '席卷天下的太平道', -30), faction('涿郡豪强', '本地的大族', 0)] },
+  custom:{ hp:'生命', mp:'精力', money:'金币', hp0:20, mp0:20, money0:10,
+    mpUse:'施展特殊能力、高强度行动会消耗精力，休息可以恢复',
+    attrs:[['力量','搏斗、搬运'],['敏捷','闪避、潜行、射击'],['智力','知识、推理、法术'],['魅力','交涉、说服、领导']],
+    titles:['新手','见习冒险者','冒险者','熟练冒险者','老手','精英','勇士','英雄','大英雄','传说','传奇','神话'],
+    skills:[], pool:'',
+    origins:[origin('普通人', '没什么特别，但什么都会一点', { 智力:1, 魅力:1 }, sk('随机应变', '遇事不慌')),
+             origin('战士', '练过武', { 力量:2 }, sk('格斗', '近身搏斗')),
+             origin('学者', '读过很多书', { 智力:2 }, sk('博学', '知道很多冷知识'))],
+    factions:[] },
+};
+const ATTR_BASE = 3, ATTR_FREE = 4, ATTR_START_MAX = 8, ATTR_MAX = 20;
+const PTS_PER_LV = 2, SKILL_MAX_LV = 5, SKILL_MAX = 12;
+// 从 lv 升到 lv+1 要的经验：前期快（40、80、145……），后期慢（Lv10 要 900 出头）
+const expNeed = lv => Math.round(40 + 40 * Math.pow(lv - 1, 1.4));
+const lvTitle = (R, lv) => R.titles[Math.min(lv - 1, R.titles.length - 1)];
+// 存档只记世界观的 id，规则以代码里的为准；更早的存档存的是整份规则，照旧用
+function rules(){ return RULES[game.setup.rulesId] || game.setup.rules || RULES.custom; }
+function rpgStart(R, attrs){
+  return { lv:1, exp:0, pts:0, attrs:{ ...attrs }, skills:R.skills.map(k => ({ ...k })),
+           money:R.money0, hp:R.hp0, maxHp:R.hp0, mp:R.mp0, maxMp:R.mp0,
+           equip:{}, quests:[], reps:(R.factions || []).map(f => ({ name:f.name, rep:f.rep })) };
+}
+// 旧存档没有成长数据：按当前世界补一套默认值，体力沿用存档里的
+function fillRpg(st){
+  if (st.lv == null){
+    const R = rules(), hp = st.hp, maxHp = st.maxHp;
+    Object.assign(st, rpgStart(R, Object.fromEntries(R.attrs.map(([a]) => [a, ATTR_BASE + 1]))));
+    if (maxHp){ st.hp = hp; st.maxHp = maxHp; }
+  }
+  if (!st.equip) st.equip = {};
+  if (!st.talents) st.talents = [];
+  if (st.inventory && st.inventory.some(x => typeof x === 'string')) st.inventory = st.inventory.map(normItem);
+  if (!st.quests) st.quests = [];
+  if (!st.reps) st.reps = (rules().factions || []).map(f => ({ name:f.name, rep:f.rep }));
+  return st;
+}
+
+// 装备三格；属性的实际值 = 底子 + 身上装备的加成
+const SLOTS = [['weapon','武器'],['armor','护具'],['trinket','饰品']];
+const GEAR_BONUS_MAX = 3;
+function gearBonus(st, a){
+  return SLOTS.reduce((t, [k]) => t + ((st.equip[k] && st.equip[k].bonus && st.equip[k].bonus[a]) || 0), 0);
+}
+const effAttr = (st, a) => (st.attrs[a] ?? ATTR_BASE) + gearBonus(st, a);
+
 /* ================= 状态 ================= */
-const blankState = () => ({ hp:10, maxHp:10, location:'', time:'', inventory:[], status:[], choices:[], gameOver:false });
+const blankState = () => ({ hp:10, maxHp:10, location:'', time:'', inventory:[], status:[], npcs:[], choices:[], gameOver:false });
+
+// 好感 -100～100 分五档；tier 里的数字对应样式 .t1～.t5
+function favorTier(f){
+  if (f >= 60) return { label:'挚交', cls:'t5' };
+  if (f >= 20) return { label:'友好', cls:'t4' };
+  if (f > -20) return { label:'中立', cls:'t3' };
+  if (f > -60) return { label:'冷淡', cls:'t2' };
+  return { label:'敌对', cls:'t1' };
+}
+const ATTITUDES = [[50,'亲近'],[25,'友好'],[0,'中立'],[-25,'冷淡'],[-50,'敌对']];
 let game = null;         // { id, title, setup:{name,role,world,extra}, history:[{role,content,state?,die?}], memory, created }
 let busy = false, aborter = null;
 
@@ -343,25 +1061,85 @@ async function readErr(res){
   }catch{ return ''; }
 }
 
+// 发 /chat/completions。限流（429）、服务端错误（5xx）、网络抖动各自动重试一次；
+// 401/404 这类重试也没用的直接抛出去
+const RETRY_DELAY = 1500;
+// 流式请求默认带 stream_options 要用量；服务商不认这个参数（400 且报错里提到它）就去掉重发，并记住
+const USAGE_OPT_KEY = 'aistory.noStreamUsage';
+let noStreamUsage = store.get(USAGE_OPT_KEY, false);
+async function postChat(body, signal){
+  if (body.stream && !noStreamUsage) body = { ...body, stream_options:{ include_usage:true } };
+  for (let attempt = 0; ; attempt++){
+    let res;
+    try{
+      res = await fetch(apiBase() + '/chat/completions', { method:'POST', headers:headers(), signal, body:JSON.stringify(body) });
+    }catch(e){
+      if (e.name === 'AbortError' || attempt >= 1) throw e;
+      await new Promise(r => setTimeout(r, RETRY_DELAY));
+      continue;
+    }
+    if (res.ok) return res;
+    if ((res.status === 429 || res.status >= 500) && attempt < 1){
+      await new Promise(r => setTimeout(r, RETRY_DELAY));
+      continue;
+    }
+    const err = await readErr(res);
+    if (res.status === 400 && body.stream_options && /stream_options|include_usage/i.test(String(err))){
+      noStreamUsage = true; store.set(USAGE_OPT_KEY, true);
+      const { stream_options, ...rest } = body;
+      body = rest;
+      continue;
+    }
+    throw { status:res.status, body:err };
+  }
+}
+
+/* ================= 用量 ================= */
+// 优先用接口回报的 usage；没有就按字数估：中文大约一字一个 token，其他字符四个一个
+let lastUsage = null;
+const USAGE_KEY = 'aistory.usage.v1';
+function estTokens(text){
+  const cjk = (text.match(/[\u3000-\u9fff\uff00-\uffef]/g) || []).length;
+  return Math.ceil(cjk + (text.length - cjk) / 4);
+}
+// 记一次调用：本局（存进存档）和所有局累计（存在本机）各记一份；开局前的调用 toGame 传 false
+function addUsage(messages, output, toGame = true){
+  const u = lastUsage, est = !(u && (u.prompt_tokens || u.completion_tokens));
+  const inT = est ? estTokens(messages.map(m => m.content).join('')) : (u.prompt_tokens || 0);
+  const outT = est ? estTokens(output || '') : (u.completion_tokens || 0);
+  const cached = est ? 0 : (u.prompt_tokens_details && u.prompt_tokens_details.cached_tokens) || 0;
+  const add = o => { o.in = (o.in || 0) + inT; o.out = (o.out || 0) + outT; o.cached = (o.cached || 0) + cached; o.calls = (o.calls || 0) + 1; if (est) o.est = true; };
+  if (toGame && game){ game.usage = game.usage || {}; add(game.usage); game.usage.last = { in:inT, out:outT, est }; }
+  const all = store.get(USAGE_KEY, {}); add(all); store.set(USAGE_KEY, all);
+  renderUsage();
+}
+const fmtK = n => n >= 10000 ? (n / 10000).toFixed(n >= 100000 ? 0 : 1) + ' 万' : n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+function renderUsage(){
+  const u = game && game.usage, el = $('usage');
+  if (!el) return;
+  if (!u || !u.calls){ el.textContent = ''; el.title = ''; return; }
+  const l = u.last || {};
+  el.textContent = `${u.est ? '约 ' : ''}${fmtK(u.in + u.out)} tokens${l.in != null ? ` · 上回合 ${fmtK(l.in + l.out)}` : ''}`;
+  el.title = `本局：输入 ${u.in}，输出 ${u.out}${u.cached ? `（其中 ${u.cached} 命中缓存）` : ''}，共 ${u.calls} 次调用${u.est ? '\n接口没有回报用量的部分按字数估算' : ''}`;
+}
+
 // 流式对话：onDelta(全文) 每收到一段就回调一次，返回最终全文
 async function chatStream(messages, onDelta, signal){
-  const res = await fetch(apiBase() + '/chat/completions', {
-    method:'POST', headers:headers(), signal,
-    body:JSON.stringify({ model:cfg.model.trim(), messages, stream:true,
-      temperature:Number(cfg.temp) || 0.9, max_tokens:Number(cfg.max) || 1200 }),
-  });
-  if (!res.ok) throw { status:res.status, body:await readErr(res) };
+  const res = await postChat({ model:cfg.model.trim(), messages, stream:true,
+    temperature:Number(cfg.temp) || 0.9, max_tokens:Number(cfg.max) || 1200 }, signal);
 
   // 有的服务商忽略 stream 直接回整包 JSON
   const ct = res.headers.get('content-type') || '';
   if (ct.includes('application/json')){
     const j = await res.json();
     const t = j.choices?.[0]?.message?.content || '';
+    lastUsage = j.usage || null;
     onDelta(t); return t;
   }
 
   const reader = res.body.getReader(), dec = new TextDecoder();
   let buf = '', full = '';
+  lastUsage = null;
   for (;;){
     const { value, done } = await reader.read();
     if (done) break;
@@ -375,6 +1153,7 @@ async function chatStream(messages, onDelta, signal){
       try{
         const j = JSON.parse(data);
         if (j.error) throw { status:500, body:j.error.message || JSON.stringify(j.error) };
+        if (j.usage) lastUsage = j.usage;
         const d = j.choices?.[0]?.delta?.content ?? j.choices?.[0]?.message?.content ?? '';
         if (d){ full += d; onDelta(full); }
       }catch(err){ if (err && err.status) throw err; }
@@ -383,28 +1162,81 @@ async function chatStream(messages, onDelta, signal){
   return full;
 }
 
-async function chatOnce(messages, maxTokens){
-  const res = await fetch(apiBase() + '/chat/completions', {
-    method:'POST', headers:headers(),
-    body:JSON.stringify({ model:cfg.model.trim(), messages, temperature:0.3, max_tokens:maxTokens || 600 }),
-  });
-  if (!res.ok) throw { status:res.status, body:await readErr(res) };
+async function chatOnce(messages, maxTokens, temperature){
+  const res = await postChat({ model:cfg.model.trim(), messages, temperature:temperature ?? 0.3, max_tokens:maxTokens || 600 });
   const j = await res.json();
-  return j.choices?.[0]?.message?.content || '';
+  lastUsage = j.usage || null;
+  return stripThink(j.choices?.[0]?.message?.content || '');
 }
 
 /* ================= 提示词 ================= */
-const STATE_RULE = `【输出格式 —— 必须遵守】
-每次回复先写叙事正文，然后另起一行，输出一个状态块，格式严格如下（JSON 必须合法，不要加代码块标记）：
+function stateRule(){
+  const R = rules(), a0 = R.attrs[0][0];
+  return `【输出格式 —— 必须遵守】
+先写正文，再另起一行写状态块（合法 JSON，不加代码块标记）。没有变化的字段直接省略，choices 必须写：
 <state>
-{"hp":当前体力整数,"maxHp":体力上限整数,"location":"当前地点","time":"故事内的时间","inventory":["物品",...],"status":["状态",...],"choices":["行动选项1","行动选项2","行动选项3"],"gameOver":false}
+{"hp":${R.hp}当前值,"mp":${R.mp}当前值,"money":${R.money}当前值,"exp":本回合经验,"location":"地点","time":"时间","status":["临时状态"],"gain":[{"name":"物品","qty":1,"type":"consumable","desc":"效果"}],"lose":[{"name":"物品","qty":1}],"check":{"what":"做什么","attr":"属性","skill":"技能或空","dc":14,"result":"success"},"skills":[{"name":"技能","lv":1,"desc":"效果"}],"equip":{"weapon":{"name":"装备","bonus":{"${a0}":1},"desc":"效果"}},"quests":[{"title":"任务","type":"main","desc":"目标","status":"active","note":"进展"}],"reps":[{"name":"势力","rep":10}],"npcs":[{"name":"人名","favor":10,"love":20,"note":"近况"}],"choices":${nChoicesExample()},"gameOver":false}
 </state>
-- choices 给 3 个，彼此差异明显，每个不超过 20 字；玩家也可能不选而自由行动。
-- 体力归零或主角死亡/故事结局时 "gameOver":true，choices 给空数组，正文写出结局。
-- status 写临时状态（受伤、中毒、被追捕、理智动摇等），没有就给空数组。`;
+- hp / mp / money 写本回合结束时的值；上限、等级、物品清单由系统维护。
+- exp：平淡 0～5；克服困难、打赢一场、解开线索 10～30；重大转折 40～80。
+- gain / lose：获得和失去的物品（用掉、送出、卖掉都算 lose）。type：consumable 消耗品、gear 可装备、quest 剧情物品、misc 杂物。
+- check：本回合做了检定才写；result 是 success / fail / crit（骰出 20）/ fumble（骰出 1）。
+- shop：在商人跟前才写 {"name":"店名","items":[{"name":"商品","price":价格,"desc":"效果"}]}，4～6 件，用${R.money}标价；离开就省略。买：扣钱 + gain；卖：半价 + lose。
+- skills 只写新学或升级的（lv 1～${SKILL_MAX_LV}）。attrUp 只在奇遇、苦修时给，如 {"${a0}":1}。
+- equip 只写换上 / 卸下的格子（weapon / armor / trinket），卸下写 null。
+- quests 只写新接、有进展、结束的；title 不超过 12 字且不要改；type 是 main / side；status 是 active / done / failed。
+- reps 只写声望变了的势力。npcs 只写出场或变了的人：favor 好感，love 心动（仅 ♥），bond 关系（仅变化时），note 近况不超过 20 字，新人物加 role。
+${nChoicesRule()}
+- ${R.hp}归零或结局时 "gameOver":true、choices 为空，正文写出结局。`;
+}
 
+const gearText = g => { const b = Object.entries(g.bonus || {}).map(([a, v]) => `${a}${v > 0 ? '+' : ''}${v}`).join(' '); return b ? `（${b}）` : ''; };
+
+// 行动选项个数：0 表示不给选项，玩家完全自己写
+const nChoices = () => game.setup.nChoices ?? 3;
+function nChoicesRule(){
+  const n = nChoices();
+  return n ? `- choices 给 ${n} 个，彼此差异明显，每个不超过 20 字；玩家也可能不选而自由行动。` : '- choices 一律给空数组：这局不提供选项，玩家完全自由行动。正文结尾可以留一个悬念或提问。';
+}
+function nChoicesExample(){
+  const n = nChoices();
+  return n ? JSON.stringify(Array.from({ length:n }, (_, i) => `行动选项${i + 1}`)) : '[]';
+}
+
+// 角色卡：等级、资源、属性、技能，外加检定和成长规则
+// 规则说明：只跟世界观有关，整局不变
+function rulePrompt(){
+  const R = rules();
+  return `【规则】
+属性含义（1～${ATTR_MAX}，普通人 3～5）：${R.attrs.map(([a, d]) => `${a}（${d}）`).join('；')}
+- 有风险的行动做检定：骰点 + 最相关的属性 + 相关技能等级 + 天赋加成，对比难度：简单 10、普通 14、困难 18、极难 22。骰出 1 必出岔子，20 必定漂亮地成功。算出什么结果正文就写什么，并写进 check。
+- ${R.mp}：${R.mpUse}。${R.money}用于买卖、贿赂、住店、打点，花了要扣，赚了要加。
+- 技能靠拜师、读书、实战、奇遇获得，反复使用会升级。${R.pool ? `这个世界常见的技能：${R.pool}（也可以按剧情创造新的）。` : ''}
+- 装备可以加 1～${GEAR_BONUS_MAX} 点属性，不要凭空送神器。
+- 任务：开局后尽快给一条主线；随剧情发布支线，同时最多 3 条；完成时给足经验（支线 20～40，主线阶段 50～100）；主线完成后接着给下一段。
+- 势力声望 -100～100，决定他们是帮忙、收留、悬赏还是追杀。
+- 等级越高、属性越强，主角能做到的事越多，描写要让人感到成长；敌人和难题也随之变强。
+`;
+}
+// 当前状态：每回合都变，放在提示词最后
+function statePrompt(){
+  const R = rules(), st = curState();
+  const items = (st.inventory || []).map(i => `${i.name}${i.qty > 1 ? '×' + i.qty : ''}${i.desc ? '（' + i.desc + '）' : ''}`).join('、');
+  const act = st.quests.filter(q => q.status === 'active');
+  return `【当前状态】（最新数值，以此为准）
+Lv${st.lv}「${lvTitle(R, st.lv)}」 经验 ${st.exp}/${expNeed(st.lv)}｜${R.hp} ${st.hp}/${st.maxHp}｜${R.mp} ${st.mp}/${st.maxMp}｜${R.money} ${st.money}
+属性：${R.attrs.map(([a]) => `${a} ${effAttr(st, a)}`).join('，')}（已含装备）
+装备：${SLOTS.map(([k, l]) => `${l} ${st.equip[k] ? st.equip[k].name + gearText(st.equip[k]) : '无'}`).join('；')}
+技能：${st.skills.length ? st.skills.map(k => `${k.name}${k.lv}（${k.desc}）`).join('、') : '无'}${st.talents.length ? `\n天赋：${st.talents.map(id => { const t = talentDef(id, R); return `${t.name}（${t.desc}）`; }).join('、')}` : ''}
+物品：${items || '无'}
+地点：${st.location || '未定'}｜时间：${st.time || '未定'}${st.status.length ? '｜状态：' + st.status.join('、') : ''}
+任务：${act.length ? act.map(q => `[${q.type === 'main' ? '主线' : '支线'}] ${q.title}：${q.desc}${q.note ? '（' + q.note + '）' : ''}`).join('；') : '无（请尽快给出主线）'}${st.reps.length ? `\n声望：${st.reps.map(r => `${r.name} ${r.rep}`).join('，')}` : ''}
+`;
+}
+
+// 固定的部分放前面、每回合变的放最后：支持前缀缓存的服务商能复用前半段，输入更便宜
 function systemPrompt(){
-  const s = game.setup;
+  const s = game.setup, R = rules(), npcs = curState().npcs || [];
   return `你是一位经验丰富的文字冒险游戏主持人（说书人），用简体中文主持一场单人互动小说。
 
 【世界】
@@ -412,30 +1244,74 @@ ${s.world || '由你决定一个有趣的世界。'}
 
 【主角】
 名字：${s.name || '由你起一个合适的名字'}
-身份：${s.role || '由你根据世界决定'}
+身份：${s.role || '由你根据世界决定'}${s.origin ? `\n出身：${s.origin}` : ''}${s.backstory ? `\n背景故事：${s.backstory}（围绕它埋伏笔，让过去的人和事找上门）` : ''}
 
 【主持原则】
-- 第二人称“你”叙述，每段 150～400 字，画面感强，有对话时用引号。
-- 只描写玩家行动的结果和世界的反应，绝不替玩家做决定、说话或行动。
-- 世界有自己的逻辑：鲁莽行为有代价，NPC 有自己的动机和记忆，前面埋的伏笔要回收。
-- 玩家每次行动会附一个 d20 骰点（1～20）。只有行动有风险或不确定时才参考它：1～5 失败且有麻烦，6～10 勉强或有代价，11～15 成功，16～20 漂亮地成功。没有风险的行动忽略骰点，也不要在正文里提到骰子。
-- 物品和体力要前后一致，用掉的东西从 inventory 移除。
-${s.extra ? '- 玩家额外要求：' + s.extra + '\n' : ''}
-${game.memory ? '【前情提要（较早的剧情已压缩）】\n' + game.memory + '\n' : ''}
-${STATE_RULE}`;
+- 第二人称“你”叙述，每段 ${LENGTHS[s.length] || LENGTHS.mid} 字，画面感强，对话用引号。${s.style ? `\n- 文风：${s.style}。` : ''}
+- 只写玩家行动的结果和世界的反应，绝不替玩家做决定、说话或行动。
+- 世界有自己的逻辑：鲁莽有代价，NPC 有动机和记忆，伏笔要回收。
+- 玩家每次行动附一个 d20 骰点，只有行动有风险时才检定；正文里不要提骰子和数值。
+- 物品、${R.hp}、${R.money}前后一致，物品效果要真的生效。${s.extra ? `\n- 玩家额外要求：${s.extra}` : ''}
+
+${rulePrompt()}${npcs.length ? NPC_RULE : ''}${npcs.some(n => n.romance) ? LOVE_RULE : ''}
+${stateRule()}
+
+${statePrompt()}${npcs.length ? `【人物现状】\n${npcList()}\n` : ''}${game.memory ? `【前情提要】\n${game.memory}\n` : ''}`;
 }
 
-// 只把最近的对话发出去；更早的已经压进 memory
+// 人物表：玩家写的设定（性格、秘密）+ 当前好感和近况，每回合重新拼一次
+// 恋爱：心动值 0～100，和好感（信任 / 交情）分开算。bond 是确认过的关系（恋人、伴侣），由说书人在告白成功后写
+const LOVE_STAGES = [[80, '倾心'], [60, '暧昧'], [40, '心动'], [20, '在意'], [0, '陌生']];
+const loveStage = n => n.bond || LOVE_STAGES.find(([v]) => (n.love || 0) >= v)[1];
+const CONFESS_AT = 60;
+
+const LOVE_RULE = `
+【恋爱】标 ♥ 的人可以发展感情。心动 0～100 和好感分开算：好感是交情，心动是喜欢你的程度。
+- 投其所好、关键时刻挺身而出、真诚细腻的对话会涨（一般 +2～8，打动人的瞬间 +10～15）；冒犯、欺骗、冷落、和别人暧昧会掉；没有互动不涨。
+- 20+ 记得你说过的小事；40+ 心照不宣、关心你的安危；60+ 主动约你、吃醋、等你开口；80+ 愿意为你冒险。
+- 告白：心动 ≥ ${CONFESS_AT} 且好感 ≥ 20 才答应，答应后 bond 写 "恋人"；不够就委婉拒绝。分手时 bond 写 ""。
+- 恋人有专属剧情（约会、误会、考验）；同时和几人暧昧迟早被发现。送礼按喜好加减心动。
+- 含蓄浪漫，点到为止，不写露骨内容。新出现可发展感情的人加 "romance":true。
+`;
+
+const NPC_RULE = `
+【重要人物】他们贯穿全剧，不是背景板：
+- 会主动出现、推动事件（找上门、求助、递消息、设局、背叛），每隔几段至少让一位登场或产生影响；主角不在场时他们的事也在推进。
+- 记得主角做过的事。好感 -100～100，单次一般不超过 ±15；高了帮忙、吐露秘密、带出支线，低了疏远、阻挠、为敌。
+- 隐藏动机不要说破，随剧情一点点透露。剧情里新出现、值得长期登场的人也加进 npcs。
+`;
+// 人物的设定和现状，每回合变化的部分
+function npcList(){
+  const list = curState().npcs || [], defs = game.setup.npcs || [];
+  return list.map(n => {
+    const d = defs.find(x => x.name === n.name) || {};
+    const parts = [n.name, n.role || d.role || '身份未明'];
+    if (d.persona) parts.push('性格：' + d.persona);
+    if (d.secret) parts.push('隐藏动机：' + d.secret);
+    parts.push(`好感 ${n.favor}`);
+    if (n.romance) parts.push(`♥ 心动 ${n.love || 0}${n.bond ? '（' + n.bond + '）' : ''}${d.likes ? '，喜好：' + d.likes : ''}`);
+    if (n.note) parts.push('近况：' + n.note);
+    if (!n.met) parts.push(d.debut ? '未登场，玩家刚加入，请在一两段内让其出场' : '未登场');
+    return '- ' + parts.join('｜');
+  }).join('\n');
+}
+
+// 只把最近的对话发出去，更早的已经压进 memory；
+// 历史里只发正文：当前状态已经在系统提示词末尾给了一份，旧状态块只会白占 token
 function buildMessages(){
   return [{ role:'system', content:systemPrompt() },
-          ...game.history.map(m => ({ role:m.role, content:m.role === 'user' ? userText(m) : m.content }))];
+          ...game.history.map(m => ({ role:m.role, content:m.role === 'user' ? userText(m) : visibleText(m.content) }))];
 }
 function userText(m){ return m.die ? `${m.content}\n（本回合骰点：${m.die}）` : m.content; }
 
 /* ================= 解析 AI 输出 ================= */
+// 推理模型可能把思考过程写进正文：闭合的整段删掉，流式中还没闭合的先藏起来
+function stripThink(raw){
+  return raw.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/<think>[\s\S]*$/, '').replace(/^\s+/, '');
+}
 // 正文 = <state> 之前的部分；流式时把半截的 "<sta" 也藏起来
 function visibleText(raw){
-  let t = raw;
+  let t = stripThink(raw);
   const i = t.indexOf('<state');
   if (i >= 0) t = t.slice(0, i);
   else {
@@ -445,6 +1321,7 @@ function visibleText(raw){
   return t.replace(/```\s*$/,'').trim();
 }
 function parseState(raw, prev){
+  raw = stripThink(raw);
   let body = null;
   const m = raw.match(/<state>([\s\S]*?)(<\/state>|$)/);
   if (m) body = m[1];
@@ -452,27 +1329,251 @@ function parseState(raw, prev){
     const j = raw.lastIndexOf('{"hp"');
     if (j >= 0) body = raw.slice(j);
   }
-  if (!body) return { ...prev, choices:[] };
+  if (!body) return { ...prev, choices:[], expGain:0, lvUp:0, check:null, shop:null };
   body = body.replace(/```(json)?/g,'').trim();
   const a = body.indexOf('{'), b = body.lastIndexOf('}');
-  if (a < 0 || b < a) return { ...prev, choices:[] };
+  if (a < 0 || b < a) return { ...prev, choices:[], expGain:0, lvUp:0, check:null, shop:null };
   try{
     const s = JSON.parse(body.slice(a, b + 1));
     const arr = v => Array.isArray(v) ? v.map(String).filter(Boolean) : [];
     const num = (v, d) => Number.isFinite(+v) ? Math.round(+v) : d;
-    const maxHp = Math.max(1, num(s.maxHp, prev.maxHp));
-    return {
-      hp:Math.max(0, Math.min(maxHp, num(s.hp, prev.hp))), maxHp,
+    const next = {
+      ...prev, attrs:{ ...prev.attrs },
+      hp:Math.max(0, Math.min(prev.maxHp, num(s.hp, prev.hp))),
+      mp:Math.max(0, Math.min(prev.maxMp, num(s.mp, prev.mp))),
+      money:Math.max(0, num(s.money, prev.money)),
       location:String(s.location ?? prev.location), time:String(s.time ?? prev.time),
-      inventory:arr(s.inventory), status:arr(s.status), choices:arr(s.choices).slice(0, 5),
-      gameOver:!!s.gameOver,
+      inventory:applyItems(prev.inventory, s), status:Array.isArray(s.status) ? arr(s.status) : prev.status || [],
+      skills:mergeSkills(prev.skills, s.skills),
+      check:parseCheck(s.check, prev), shop:parseShop(s.shop),
+      npcs:mergeNpcs(prev.npcs || [], s.npcs),
+      equip:mergeEquip(prev.equip, s.equip, prev.attrs), quests:mergeQuests(prev.quests, s.quests),
+      reps:mergeReps(prev.reps, s.reps),
+      choices:arr(s.choices).slice(0, 5), gameOver:!!s.gameOver,
     };
-  }catch{ return { ...prev, choices:[] }; }
+    // 特殊事件加属性：单次最多 ±2
+    if (s.attrUp && typeof s.attrUp === 'object'){
+      for (const [k, v] of Object.entries(s.attrUp)){
+        if (k in next.attrs && Number.isFinite(+v)) next.attrs[k] = Math.max(1, Math.min(ATTR_MAX, next.attrs[k] + Math.max(-2, Math.min(2, Math.round(+v)))));
+      }
+    }
+    gainExp(next, Math.max(0, Math.min(200, num(s.exp, 0))));
+    return next;
+  }catch{ return { ...prev, choices:[], expGain:0, lvUp:0, check:null, shop:null }; }
+}
+
+// 物品：模型只报 gain / lose，清单由页面维护；它要是还给了完整的 inventory，就以那份为准
+function applyItems(prev, s){
+  if (Array.isArray(s.inventory)) return normInv(s.inventory, prev);
+  const inv = (prev || []).map(normItem);
+  for (const g of Array.isArray(s.gain) ? s.gain : []){
+    const it = normItem(g);
+    if (!it.name) continue;
+    const have = inv.find(x => x.name === it.name);
+    if (have){ have.qty = Math.min(999, have.qty + it.qty); if (it.desc) have.desc = it.desc; if (it.type !== 'misc') have.type = it.type; }
+    else if (inv.length < 30) inv.push(it);
+  }
+  for (const l of Array.isArray(s.lose) ? s.lose : []){
+    const name = typeof l === 'string' ? l : l && l.name, have = inv.find(x => x.name === name);
+    if (!have) continue;
+    have.qty -= typeof l === 'object' && +l.qty > 0 ? Math.round(+l.qty) : 1;
+  }
+  return inv.filter(x => x.qty > 0);
+}
+
+// 物品：旧格式是一串名字，这里统一成对象，并沿用上回合的说明
+const INV_TYPES = ['consumable','gear','quest','misc'];
+function normInv(list, prev){
+  if (!Array.isArray(list)) return (prev || []).map(normItem);
+  const old = (prev || []).map(normItem);
+  return list.map(x => {
+    const it = normItem(x), was = old.find(o => o.name === it.name);
+    if (was){ if (!it.desc) it.desc = was.desc; if (it.type === 'misc' && was.type !== 'misc') it.type = was.type; }
+    return it;
+  }).filter(it => it.name && it.qty > 0).slice(0, 30);
+}
+function normItem(x){
+  if (typeof x === 'string') return { name:x.trim().slice(0, 16), qty:1, type:'misc', desc:'' };
+  return { name:String(x && x.name || '').trim().slice(0, 16),
+           qty:Math.max(0, Math.min(999, Math.round(+x.qty) || 1)),
+           type:INV_TYPES.includes(x.type) ? x.type : 'misc', desc:String(x.desc || '').slice(0, 30) };
+}
+
+// 检定：模型报用了哪项属性、哪个技能、多难、结果；总点数由页面按同一公式算出来给玩家看
+function parseCheck(c, st){
+  if (!c || typeof c !== 'object' || !c.attr) return null;
+  const result = ['success','fail','crit','fumble'].includes(c.result) ? c.result : 'success';
+  const dc = Math.max(1, Math.min(40, Math.round(+c.dc) || 14));
+  return { what:String(c.what || '').slice(0, 20), attr:String(c.attr).slice(0, 8), skill:String(c.skill || '').slice(0, 16), dc, result };
+}
+function checkTerms(chk, st){
+  const skill = st.skills.find(k => k.name === chk.skill);
+  return { attr:effAttr(st, chk.attr), skill:skill ? skill.lv : 0, talent:talentCheckBonus(st, chk.attr) };
+}
+
+function parseShop(sh){
+  if (!sh || typeof sh !== 'object' || !Array.isArray(sh.items)) return null;
+  const items = sh.items.map(i => ({ name:String(i && i.name || '').slice(0, 16), price:Math.max(0, Math.round(+i.price) || 0), desc:String(i.desc || '').slice(0, 30) }))
+    .filter(i => i.name).slice(0, 8);
+  return items.length ? { name:String(sh.name || '商店').slice(0, 16), items } : null;
+}
+
+/* ---------- 天赋：每 5 级三选一 ---------- */
+const TALENT_EVERY = 5;
+// 属性精通按当前世界的属性名生成，其余几条通用
+function talentDef(id, R){
+  if (id.startsWith('master:')){
+    const a = id.slice(7);
+    return { name:`${a}精通`, desc:`涉及${a}的检定 +2` };
+  }
+  return {
+    veteran:{ name:'老练', desc:'所有检定 +1' },
+    tough:{ name:'坚韧', desc:`${R.hp}上限 +25%` },
+    deep:{ name:'底蕴', desc:`${R.mp}上限 +25%` },
+    scholar:{ name:'博闻', desc:'获得的经验 +20%' },
+    lucky:{ name:'福星', desc:'骰出 1 时自动重骰一次' },
+  }[id];
+}
+function talentPool(R){ return [...R.attrs.map(([a]) => 'master:' + a), 'veteran', 'tough', 'deep', 'scholar', 'lucky']; }
+function pickTalents(st, R){
+  const left = talentPool(R).filter(id => !st.talents.includes(id));
+  for (let i = left.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [left[i], left[j]] = [left[j], left[i]]; }
+  return left.slice(0, 3);
+}
+const hasTalent = (st, id) => (st.talents || []).includes(id);
+function talentCheckBonus(st, attr){ return (hasTalent(st, 'master:' + attr) ? 2 : 0) + (hasTalent(st, 'veteran') ? 1 : 0); }
+function takeTalent(st, id){
+  const R = rules();
+  st.talents.push(id);
+  st.talentPick = null;
+  if (id === 'tough'){ const add = Math.round(st.maxHp * .25); st.maxHp += add; st.hp += add; }
+  if (id === 'deep'){ const add = Math.round(st.maxMp * .25); st.maxMp += add; st.mp += add; }
+}
+
+// 经验满了就升级：加属性点、提上限、回满两条资源。lvUp / expGain 只记这一回合发生了什么
+function gainExp(st, gain){
+  const R = rules();
+  if (hasTalent(st, 'scholar')) gain = Math.round(gain * 1.2);
+  st.expGain = gain; st.lvUp = 0;
+  st.exp += gain;
+  while (st.exp >= expNeed(st.lv)){
+    st.exp -= expNeed(st.lv);
+    st.lv++; st.lvUp++;
+    st.pts += PTS_PER_LV;
+    st.maxHp += Math.max(1, Math.round(R.hp0 * .2));
+    st.maxMp += Math.max(1, Math.round(R.mp0 * .1));
+    st.hp = st.maxHp; st.mp = st.maxMp;
+    if (st.lv % TALENT_EVERY === 0 && !st.talentPick) st.talentPick = pickTalents(st, R);
+  }
+}
+
+// 装备：模型只报换了的格子；给 null 表示卸下
+function mergeEquip(prev, upd, attrs){
+  const eq = { ...(prev || {}) };
+  if (!upd || typeof upd !== 'object') return eq;
+  for (const [k] of SLOTS){
+    if (!(k in upd)) continue;
+    const u = upd[k];
+    if (!u || !u.name){ delete eq[k]; continue; }
+    const bonus = {};
+    for (const [a, v] of Object.entries(u.bonus || {})){
+      if (a in attrs && Number.isFinite(+v) && +v) bonus[a] = Math.max(-GEAR_BONUS_MAX, Math.min(GEAR_BONUS_MAX, Math.round(+v)));
+    }
+    eq[k] = { name:String(u.name).slice(0, 16), desc:String(u.desc || '').slice(0, 30), bonus };
+  }
+  return eq;
+}
+
+// 任务按标题合并；cur 记这回合是新接的（new）还是有进展 / 结束了（up）
+const QUEST_MAX = 20;
+function mergeQuests(prev, upd){
+  const list = (prev || []).map(q => ({ ...q, cur:false }));
+  if (!Array.isArray(upd)) return list;
+  for (const u of upd){
+    const title = u && String(u.title || '').trim().slice(0, 20);
+    if (!title) continue;
+    const status = ['active','done','failed'].includes(u.status) ? u.status : 'active';
+    let q = list.find(x => x.title === title);
+    if (!q){
+      if (list.length >= QUEST_MAX) list.splice(list.findIndex(x => x.status !== 'active'), 1);
+      list.push({ title, type:u.type === 'main' ? 'main' : 'side', desc:String(u.desc || '').slice(0, 60), status, note:String(u.note || '').slice(0, 40), cur:'new' });
+      continue;
+    }
+    if (u.desc) q.desc = String(u.desc).slice(0, 60);
+    if (u.note) q.note = String(u.note).slice(0, 40);
+    if (status !== q.status || u.note) q.cur = 'up';
+    q.status = status;
+  }
+  return list;
+}
+
+// 势力声望：和人物好感一个尺度，模型只报有变化的
+const REP_MAX = 8;
+function mergeReps(prev, upd){
+  const list = (prev || []).map(r => ({ ...r, cur:false }));
+  if (!Array.isArray(upd)) return list;
+  for (const u of upd){
+    const name = u && String(u.name || '').trim().slice(0, 12);
+    if (!name || !Number.isFinite(+u.rep)) continue;
+    let r = list.find(x => x.name === name);
+    if (!r){ if (list.length >= REP_MAX) continue; r = { name, rep:0 }; list.push(r); }
+    r.rep = Math.max(-100, Math.min(100, Math.round(+u.rep)));
+    r.cur = true;
+  }
+  return list;
+}
+
+// 模型只报新学会或升级的技能，合进完整列表
+function mergeSkills(prev, upd){
+  const list = (prev || []).map(k => ({ ...k, cur:false }));
+  if (!Array.isArray(upd)) return list;
+  for (const u of upd){
+    const name = u && String(u.name || '').trim().slice(0, 16);
+    if (!name) continue;
+    const lv = Math.max(1, Math.min(SKILL_MAX_LV, Math.round(+u.lv) || 1));
+    let k = list.find(x => x.name === name);
+    if (!k){
+      if (list.length >= SKILL_MAX) continue;
+      list.push({ name, lv, desc:String(u.desc || '').slice(0, 30), cur:'new' });
+      continue;
+    }
+    if (lv > k.lv){ k.lv = lv; k.cur = 'up'; }
+    if (u.desc && !k.desc) k.desc = String(u.desc).slice(0, 30);
+  }
+  return list;
+}
+
+// 模型只报有变化的人物，这里合进完整名单；没提到的保持原样
+const NPC_MAX = 16;
+function mergeNpcs(prev, upd){
+  const list = prev.map(n => ({ ...n, cur:false }));   // cur = 本回合出场或有变化
+  if (!Array.isArray(upd)) return list;
+  for (const u of upd){
+    const name = u && String(u.name || '').trim();
+    if (!name) continue;
+    let n = list.find(x => x.name === name);
+    if (!n){
+      if (list.length >= NPC_MAX) continue;
+      n = { name, role:'', favor:0, note:'' };
+      list.push(n);
+    }
+    if (u.role && !n.role) n.role = String(u.role).slice(0, 24);   // 玩家写的身份不让模型改短
+    if (u.favor != null && Number.isFinite(+u.favor)) n.favor = Math.max(-100, Math.min(100, Math.round(+u.favor)));
+    if (u.note) n.note = String(u.note).slice(0, 40);
+    if (u.romance === true && !n.romance){ n.romance = true; n.love = n.love || 0; n.bond = n.bond || ''; }
+    if (n.romance){
+      if (u.love != null && Number.isFinite(+u.love)) n.love = Math.max(0, Math.min(100, Math.round(+u.love)));
+      if (typeof u.bond === 'string') n.bond = u.bond.trim().slice(0, 6);
+    }
+    n.met = true; n.cur = true;
+  }
+  return list;
 }
 
 function curState(){
-  for (let i = game.history.length - 1; i >= 0; i--) if (game.history[i].state) return game.history[i].state;
-  return game.baseState || blankState();
+  for (let i = game.history.length - 1; i >= 0; i--) if (game.history[i].state) return fillRpg(game.history[i].state);
+  if (!game.baseState) game.baseState = blankState();
+  return fillRpg(game.baseState);
 }
 
 /* ================= 渲染 ================= */
@@ -481,35 +1582,62 @@ function fmt(text){
     .map(p => '<p>' + p.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>') + '</p>').join('');
 }
 
+// 检定卡：🎲 骰点 + 属性 + 技能 + 天赋 = 总点数 对比难度，再给结果。st 是检定发生前的状态
+const CHECK_RESULT = { success:['成功','ok'], fail:['失败','bad'], crit:['大成功','crit'], fumble:['大失败','bad'] };
+function checkCard(chk, die, st){
+  if (!chk || !die) return '';
+  const t = checkTerms(chk, st), total = die + t.attr + t.skill + t.talent, [label, cls] = CHECK_RESULT[chk.result];
+  const parts = [`<b class="dv">🎲 ${die}</b>`, `${esc(chk.attr)} ${t.attr}`];
+  if (t.skill) parts.push(`${esc(chk.skill)} ${t.skill}`);
+  if (t.talent) parts.push(`天赋 ${t.talent}`);
+  return `<div class="check ${cls}">
+    <div class="ck-top">${chk.what ? `<span class="what">${esc(chk.what)}</span>` : ''}<span class="res">${label}</span></div>
+    <div class="ck-math">${parts.join(' + ')} = <b>${total}</b> <span class="vs">对比难度 ${chk.dc}</span></div>
+  </div>`;
+}
+
 function renderStory(){
   const el = $('story'); el.innerHTML = '';
   if (game.memory) el.insertAdjacentHTML('beforeend', `<div class="turn sys">—— 更早的剧情已收进「前情提要」——</div>`);
-  game.history.forEach((m, i) => {
+  let die = 0, st = fillRpg(game.baseState || (game.baseState = blankState()));
+  game.history.forEach(m => {
     if (m.role === 'user'){
+      die = m.die || 0;
       if (m.hidden) return;
-      el.insertAdjacentHTML('beforeend', `<div class="turn you">${esc(m.content)}${m.die ? `<span class="die">🎲${m.die}</span>` : ''}</div>`);
+      el.insertAdjacentHTML('beforeend', `<div class="turn you">${esc(m.content)}${m.die ? `<span class="die">🎲${m.reroll ? '1→' : ''}${m.die}</span>` : ''}</div>`);
     } else {
+      if (m.state && m.state.check) el.insertAdjacentHTML('beforeend', checkCard(m.state.check, die, st));
       el.insertAdjacentHTML('beforeend', `<div class="turn gm">${fmt(visibleText(m.content))}</div>`);
+      if (m.state) st = fillRpg(m.state);
     }
   });
 }
 
 function renderSide(){
-  const s = curState();
-  $('hpBar').style.width = (100 * s.hp / s.maxHp) + '%';
-  $('hpText').textContent = `${s.hp} / ${s.maxHp}`;
+  const s = curState(), R = rules(), before = prevState();
+  renderChar(s, R, before);
   $('locText').textContent = s.location || '—';
   $('timeText').textContent = s.time || '—';
   const tags = (arr, none) => arr.length ? arr.map(t => `<span>${esc(t)}</span>`).join('') : `<span class="none">${none}</span>`;
   $('statusTags').innerHTML = tags(s.status, '无异常');
-  $('invTags').innerHTML = tags(s.inventory, '空空如也');
+  renderInv(s);
+  renderNpcs(s);
+  renderGear(s); renderQuests(s); renderReps(s); renderTalents(s);
+  markTabs(s);
   $('memText').textContent = game.memory || '（剧情变长后，早先的内容会压缩到这里）';
+  $('stripHp').textContent = `Lv${s.lv}${s.pts || s.talentPick ? '⬆' : ''} ♥ ${s.hp}/${s.maxHp}`;
+  $('stripLoc').textContent = s.location || '—';
+  $('stripInv').textContent = `物品 ${s.inventory.reduce((t, i) => t + (i.qty || 1), 0)} · 人物 ${(s.npcs || []).filter(n => n.met).length}`;
 
   const ch = $('choices');
   ch.innerHTML = '';
+  // 最后一条是玩家行动（还没回、或者回失败了）时，上一轮的选项已经过期
+  const last = game.history[game.history.length - 1];
+  if (busy || (last && last.role === 'user')) return;
   if (s.gameOver){
-    ch.innerHTML = `<div class="turn sys">—— 故事结束 —— 可以「撤回一步」换个选择，或回目录开新局。</div>`;
-  } else if (!busy) {
+    ch.innerHTML = `<div class="end">—— 故事结束 —— 可以「撤回一步」换个选择，或回目录开新局。</div>`;
+  } else {
+    ch.insertAdjacentHTML('beforeend', renderShop(s));
     s.choices.forEach(c => {
       const b = document.createElement('button');
       b.textContent = c; b.onclick = () => act(c);
@@ -518,19 +1646,304 @@ function renderSide(){
   }
 }
 
+// 角色卡、属性、技能。before 是上一回合的状态，用来标出这回合的变化
+function renderChar(s, R, before){
+  const delta = (id, d) => { const e = $(id); e.textContent = d ? (d > 0 ? '+' : '') + d : ''; e.className = 'd ' + (d > 0 ? 'up' : 'down'); };
+  $('chName').textContent = game.setup.name || '你';
+  $('chLv').textContent = 'Lv' + s.lv;
+  $('chTitle').textContent = lvTitle(R, s.lv) + (game.setup.role ? ' · ' + game.setup.role : '');
+  const nextT = lvTitle(R, s.lv + 1);
+  $('xpNext').textContent = nextT !== lvTitle(R, s.lv) ? `下一级：${nextT}` : '已是最高称号';
+  $('xpBar').style.width = (100 * s.exp / expNeed(s.lv)) + '%';
+  $('xpText').textContent = `${s.exp}/${expNeed(s.lv)}`;
+  delta('xpD', s.expGain || 0);
+  $('hpName').textContent = R.hp; $('mpName').textContent = R.mp; $('moneyName').textContent = R.money;
+  $('hpBar').style.width = (100 * s.hp / s.maxHp) + '%';
+  $('hpText').textContent = `${s.hp}/${s.maxHp}`;
+  $('mpBar').style.width = (100 * s.mp / s.maxMp) + '%';
+  $('mpText').textContent = `${s.mp}/${s.maxMp}`;
+  $('moneyText').textContent = s.money;
+  // 升级回满的那一回合不标资源变化，免得出现一个吓人的大数字
+  const b = before && before.lv != null && !s.lvUp ? before : null;
+  delta('hpD', b ? s.hp - b.hp : 0);
+  delta('mpD', b ? s.mp - b.mp : 0);
+  delta('moneyD', before && before.money != null ? s.money - before.money : 0);
+
+  $('ptsText').textContent = s.pts ? `可分配 ${s.pts} 点` : '';
+  $('attrList').innerHTML = R.attrs.map(([a, d]) => {
+    const v = s.attrs[a] ?? ATTR_BASE, g = gearBonus(s, a), up = before && before.attrs && v > (before.attrs[a] ?? v);
+    return `<div class="attr${up ? ' up' : ''}"><span title="${esc(d)}">${esc(a)}</span><b>${v + g}</b>${g ? `<small class="${g < 0 ? 'neg' : ''}" title="装备加成">${g > 0 ? '+' : ''}${g}</small>` : ''}${s.pts && v < ATTR_MAX ? `<button data-attr="${esc(a)}" title="加一点">+</button>` : ''}</div>`;
+  }).join('');
+  $('skillList').innerHTML = s.skills.length ? s.skills.map(k => `<div class="skill">
+      <div class="sk"><b>${esc(k.name)}</b>${k.cur ? `<span class="new">${k.cur === 'up' ? '升级' : '新'}</span>` : ''}<span class="dots">${'●'.repeat(k.lv)}<i>${'●'.repeat(SKILL_MAX_LV - k.lv)}</i></span></div>
+      ${k.desc ? `<p>${esc(k.desc)}</p>` : ''}</div>`).join('')
+    : '<span class="tags"><span class="none">还没有技能</span></span>';
+}
+function renderGear(s){
+  $('gearList').innerHTML = SLOTS.map(([k, l]) => {
+    const g = s.equip[k];
+    if (!g) return `<div class="gear"><span>${l}</span><b class="none">空</b></div>`;
+    const bn = Object.entries(g.bonus || {}).map(([a, v]) => `<span class="bn${v < 0 ? ' neg' : ''}">${esc(a)}${v > 0 ? '+' : ''}${v}</span>`).join('');
+    return `<div class="gear"><span>${l}</span><div><b>${esc(g.name)}</b>${bn}</div>${g.desc ? `<p>${esc(g.desc)}</p>` : ''}</div>`;
+  }).join('');
+}
+
+function renderQuests(s){
+  const q = s.quests, act = t => q.filter(x => x.status === 'active' && x.type === t), ended = q.filter(x => x.status !== 'active');
+  const card = x => `<div class="quest ${x.type}${x.cur ? ' cur' : ''}">
+      <div class="qt"><b>${esc(x.title)}</b>${x.cur ? `<span class="tag2">${x.cur === 'new' ? '新任务' : '有进展'}</span>` : ''}</div>
+      ${x.desc ? `<p>${esc(x.desc)}</p>` : ''}${x.note ? `<p class="nt">${esc(x.note)}</p>` : ''}</div>`;
+  const main = act('main'), side = act('side');
+  let html = '';
+  if (main.length) html += '<div class="qsec">主线</div>' + main.map(card).join('');
+  if (side.length) html += '<div class="qsec">支线</div>' + side.map(card).join('');
+  if (!html) html = '<span class="tags"><span class="none">暂时没有任务，说书人会随剧情发布</span></span>';
+  if (ended.length){
+    const wasOpen = document.querySelector('#questList .qdone')?.open;
+    html += `<details class="qdone"${wasOpen ? ' open' : ''}><summary>已结束 · ${ended.length}</summary>${ended.slice().reverse().map(x =>
+      `<div><span class="${x.status === 'done' ? 'ok">✓' : 'no">✗'}</span> ${esc(x.title)}</div>`).join('')}</details>`;
+  }
+  $('questList').innerHTML = html;
+}
+
+const REP_TIERS = { t5:'崇敬', t4:'友善', t3:'中立', t2:'敌视', t1:'仇恨' };
+function renderReps(s){
+  const before = prevState();
+  if (!s.reps.length){ $('repList').innerHTML = '<span class="tags"><span class="none">还没和任何势力打过交道</span></span>'; return; }
+  $('repList').innerHTML = s.reps.map(r => {
+    const t = favorTier(r.rep), old = before && (before.reps || []).find(x => x.name === r.name);
+    const d = old ? r.rep - old.rep : 0, def = (rules().factions || []).find(f => f.name === r.name);
+    const left = r.rep >= 0 ? 50 : 50 + r.rep / 2, width = Math.abs(r.rep) / 2;
+    return `<div class="rep"><div class="rh"><b>${esc(r.name)}</b>${d ? `<em class="d ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d}</em>` : ''}<span class="tier ${t.cls}">${REP_TIERS[t.cls]}</span></div>
+      <div class="fv" title="声望 ${r.rep}"><i style="left:${left}%;width:${width}%;background:${r.rep >= 0 ? 'var(--ok)' : 'var(--hp)'}"></i></div>
+      ${def ? `<p>${esc(def.desc)}</p>` : ''}</div>`;
+  }).join('');
+}
+
+// 页签：这回合任务或关系有变化，而玩家没在看那一页，就在页签上亮个点
+let sideTab = 'char';
+function markTabs(s){
+  const flag = { quest:s.quests.some(q => q.cur), rel:(s.npcs || []).some(n => n.cur) || s.reps.some(r => r.cur) };
+  document.querySelectorAll('#stabs button').forEach(b => {
+    b.classList.toggle('on', b.dataset.tab === sideTab);
+    b.classList.toggle('new', !!flag[b.dataset.tab] && b.dataset.tab !== sideTab && !seenTabs.has(b.dataset.tab + game.history.length));
+  });
+  document.querySelectorAll('.side .pane').forEach(p => p.classList.toggle('on', p.dataset.pane === sideTab));
+}
+const seenTabs = new Set();
+$('stabs').addEventListener('click', e => {
+  const b = e.target.closest('button[data-tab]');
+  if (!b) return;
+  sideTab = b.dataset.tab;
+  seenTabs.add(sideTab + game.history.length);
+  markTabs(curState());
+});
+
+// 物品：点一下看说明，可以使用 / 装备 / 卖出 / 丢弃。这些都作为玩家的行动发出去，由说书人结算
+const INV_LABEL = { consumable:'消耗品', gear:'装备', quest:'剧情物品', misc:'杂物' };
+let invSel = null;
+function renderInv(s){
+  const inv = s.inventory || [];
+  if (!inv.some(i => i.name === invSel)) invSel = null;
+  $('invTags').innerHTML = inv.length ? inv.map(i =>
+    `<button class="item t-${i.type}${i.name === invSel ? ' sel' : ''}" data-item="${esc(i.name)}">${esc(i.name)}${i.qty > 1 ? `<i>×${i.qty}</i>` : ''}</button>`).join('')
+    : '<span class="none">空空如也</span>';
+  const it = inv.find(i => i.name === invSel), box = $('invDetail');
+  if (!it){ box.innerHTML = ''; box.classList.add('hide'); return; }
+  const acts = [];
+  if (it.type === 'consumable') acts.push(['use', '使用']);
+  if (it.type === 'gear') acts.push(['equip', '装备']);
+  if (it.type === 'misc') acts.push(['use', '使用']);
+  if (s.shop && it.type !== 'quest') acts.push(['sell', '卖出']);
+  if (it.type !== 'quest') acts.push(['drop', '丢弃']);
+  box.classList.remove('hide');
+  box.innerHTML = `<div class="ih"><b>${esc(it.name)}</b>${it.qty > 1 ? ` ×${it.qty}` : ''}<span>${INV_LABEL[it.type]}</span></div>
+    ${it.desc ? `<p>${esc(it.desc)}</p>` : ''}
+    <div class="row">${acts.map(([k, l]) => `<button class="ghost" data-act="${k}">${l}</button>`).join('')}</div>`;
+}
+$('invTags').addEventListener('click', e => {
+  const b = e.target.closest('.item');
+  if (!b) return;
+  invSel = invSel === b.dataset.item ? null : b.dataset.item;
+  renderInv(curState());
+});
+$('invDetail').addEventListener('click', e => {
+  const b = e.target.closest('button[data-act]');
+  if (!b || !invSel || busy) return;
+  const st = curState(), name = invSel;
+  const text = { use:`使用${name}`, equip:`装备上${name}`, drop:`丢掉${name}`, sell:`把${name}卖给${st.shop ? st.shop.name : '商人'}` }[b.dataset.act];
+  invSel = null; toggleSheet(false);
+  act(text);
+});
+
+// 商店：说书人报了货架才出现，买东西也是发一句行动
+function renderShop(s){
+  const sh = s.shop, R = rules();
+  if (!sh) return '';
+  return `<div class="shop"><div class="sh-h"><b>${esc(sh.name)}</b><span>${R.money} ${s.money}</span></div>
+    ${sh.items.map(i => `<div class="ware"><div><b>${esc(i.name)}</b>${i.desc ? `<p>${esc(i.desc)}</p>` : ''}</div>
+      <span class="pr">${i.price}</span><button class="ghost" data-buy="${esc(i.name)}" data-price="${i.price}"${i.price > s.money ? ' disabled title="钱不够"' : ''}>买</button></div>`).join('')}
+    <p class="sh-tip">卖东西：在「行囊」里点物品，选「卖出」。</p></div>`;
+}
+$('choices').addEventListener('click', e => {
+  const b = e.target.closest('button[data-buy]');
+  if (!b || b.disabled) return;
+  act(`买下${b.dataset.buy}（${b.dataset.price}${rules().money}）`);
+});
+
+// 天赋：升到 5 的倍数级时给三个选项；可以先关掉，回头在「角色」页里再选
+function renderTalents(s){
+  const R = rules();
+  $('talentList').innerHTML = (s.talents.length ? s.talents.map(id => { const t = talentDef(id, R); return `<div class="tal"><b>${t.name}</b><span>${t.desc}</span></div>`; }).join('')
+    : `<span class="tags"><span class="none">Lv${TALENT_EVERY} 解锁第一个天赋</span></span>`)
+    + (s.talentPick ? '<button class="btn" id="btnTalentPick" type="button">选择天赋</button>' : '');
+}
+function openTalent(){
+  const st = curState(), R = rules();
+  if (!st.talentPick) return;
+  $('talentOpts').innerHTML = st.talentPick.map(id => { const t = talentDef(id, R);
+    return `<button class="topt" data-tal="${id}"><b>${t.name}</b><span>${t.desc}</span></button>`; }).join('');
+  toggleSheet(false);
+  $('dlgTalent').showModal();
+}
+$('talentList').addEventListener('click', e => { if (e.target.id === 'btnTalentPick') openTalent(); });
+$('talentOpts').addEventListener('click', e => {
+  const b = e.target.closest('[data-tal]');
+  if (!b) return;
+  const st = curState();
+  if (!st.talentPick || !st.talentPick.includes(b.dataset.tal)) return;
+  takeTalent(st, b.dataset.tal);
+  $('dlgTalent').close();
+  renderSide(); autosave();
+  sysNote(`获得天赋「${talentDef(b.dataset.tal, rules()).name}」。`);
+});
+$('btnTalentLater').onclick = () => $('dlgTalent').close();
+
+// 升级给的点数自己分配：直接改当前状态，下一回合起写进提示词
+$('attrList').addEventListener('click', e => {
+  const a = e.target.dataset && e.target.dataset.attr;
+  const st = curState();
+  if (!a || !st.pts || busy) return;
+  st.attrs[a] = Math.min(ATTR_MAX, (st.attrs[a] ?? ATTR_BASE) + 1);
+  st.pts--;
+  renderSide(); autosave();
+});
+
+// 上一回合的状态，用来标出好感这回合涨了还是跌了
+function prevState(){
+  let seen = 0;
+  for (let i = game.history.length - 1; i >= 0; i--){
+    if (game.history[i].state && ++seen === 2) return game.history[i].state;
+  }
+  return seen === 1 ? game.baseState : null;
+}
+// 头像底色按名字算，同一个人每次都是同一个颜色
+function avatarColor(name){
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.codePointAt(0)) % 360;
+  return `hsl(${h} 42% 68%)`;
+}
+const npcOpen = new Set();   // 点开了详情的人，只在这次打开页面里记着
+function npcCard(n, before, s){
+  const t = favorTier(n.favor);
+  const def = (game.setup.npcs || []).find(x => x.name === n.name) || {};
+  const old = before && (before.npcs || []).find(x => x.name === n.name);
+  const d = old ? n.favor - old.favor : 0;
+  const left = n.favor >= 0 ? 50 : 50 + n.favor / 2, width = Math.abs(n.favor) / 2;
+  const ext = [
+    def.persona && `<div><span>性格</span>${esc(def.persona)}</div>`,
+    `<div><span>好感</span>${n.favor} / 100</div>`,
+    n.romance && `<div><span>心动</span>${n.love || 0} / 100</div>`,
+    n.romance && def.likes && `<div><span>喜好</span>${esc(def.likes)}</div>`,
+    def.secret && `<div><span>秘密</span>藏着点什么，说书人会慢慢揭开</div>`,
+  ].filter(Boolean).join('') + (n.romance && n.met && s ? romanceActions(n, s) : '');
+  const ld = old && n.romance ? (n.love || 0) - (old.love || 0) : 0;
+  return `<div class="npc${n.cur ? ' cur' : ''}${npcOpen.has(n.name) ? ' open' : ''}" role="button" tabindex="0" data-name="${esc(n.name)}"
+      title="${n.cur ? '本回合出场' : ''}">
+    <span class="av" style="background:${avatarColor(n.name)}">${esc([...n.name][0])}</span>
+    <div class="nh"><b>${esc(n.name)}</b>${n.bond ? `<span class="bond">💞 ${esc(n.bond)}</span>` : ''}<span class="sp"></span>
+      ${d ? `<span class="d ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d}</span>` : ''}
+      <span class="tier ${t.cls}">${t.label}</span></div>
+    ${n.role ? `<div class="r">${esc(n.role)}</div>` : ''}
+    ${n.met ? `<div class="fv" title="好感 ${n.favor}"><i style="left:${left}%;width:${width}%;background:${n.favor >= 0 ? 'var(--ok)' : 'var(--hp)'}"></i></div>` : ''}
+    ${n.romance && n.met ? `<div class="love"><span>♥</span><div class="lb"><i style="width:${n.love || 0}%"></i></div><b>${loveStage(n)}</b>${ld ? `<em class="d ${ld > 0 ? 'up' : 'down'}">${ld > 0 ? '+' : ''}${ld}</em>` : ''}</div>` : ''}
+    ${n.met && n.note ? `<p class="note">${esc(n.note)}</p>` : ''}
+    <div class="ext">${ext}</div>
+  </div>`;
+}
+// 只显示登场过的人（没登场的照样写进提示词，等说书人安排出场），按好感分三组
+const NPC_GROUPS = [
+  { label:'盟友', test:f => f >= 20,  sort:(a, b) => b.favor - a.favor },
+  { label:'中立', test:f => f > -20 && f < 20, sort:(a, b) => b.favor - a.favor },
+  { label:'对立', test:f => f <= -20, sort:(a, b) => a.favor - b.favor },
+];
+function renderNpcs(s){
+  const met = (s.npcs || []).filter(n => n.met), before = prevState();
+  if (!met.length){ $('npcList').innerHTML = '<span class="tags"><span class="none">还没遇到重要人物</span></span>'; return; }
+  // 确认了关系的人单独一组排最前，其余按好感分
+  const grp = (label, ls) => ls.length ? `<div class="grp"><h4>${label}<i>${ls.length}</i></h4><div class="ls">${ls.map(n => npcCard(n, before, s)).join('')}</div></div>` : '';
+  const lovers = met.filter(n => n.bond), rest = met.filter(n => !n.bond);
+  $('npcList').innerHTML = grp('💞 恋人', lovers) + NPC_GROUPS.map(g => grp(g.label, rest.filter(n => g.test(n.favor)).sort(g.sort))).join('');
+}
+
+// 可攻略的人展开后有三个动作：约会、送礼、告白。都作为玩家的行动发给说书人
+function romanceActions(n, s){
+  const gifts = (s.inventory || []).filter(i => i.type !== 'quest');
+  return `<div class="ract">
+    <button class="ghost" data-rom="date" data-to="${esc(n.name)}">约${n.bond ? '会' : '出来'}</button>
+    <select class="gift" data-to="${esc(n.name)}"><option value="">送礼…</option>${gifts.map(i => `<option>${esc(i.name)}</option>`).join('')}</select>
+    ${!n.bond && (n.love || 0) >= CONFESS_AT ? `<button class="ghost hot" data-rom="confess" data-to="${esc(n.name)}">告白</button>` : ''}
+  </div>`;
+}
+function romanceAct(kind, name, item){
+  const t = { date:`约${name}单独出去走走`, confess:`鼓起勇气向${name}表白心意`, gift:`把${item}送给${name}` }[kind];
+  if (!t || busy) return;
+  toggleSheet(false);
+  act(t);
+}
+$('npcList').addEventListener('click', e => {
+  const r = e.target.closest('[data-rom]');
+  if (r){ romanceAct(r.dataset.rom, r.dataset.to); return; }
+  if (e.target.closest('.gift')) return;
+  const el = e.target.closest('.npc');
+  if (!el) return;
+  const name = el.dataset.name;
+  npcOpen.has(name) ? npcOpen.delete(name) : npcOpen.add(name);
+  el.classList.toggle('open');
+});
+$('npcList').addEventListener('change', e => {
+  if (e.target.classList.contains('gift') && e.target.value) romanceAct('gift', e.target.dataset.to, e.target.value);
+});
+$('npcList').addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('npc')){ e.preventDefault(); e.target.click(); }
+});
+
 function setBusy(v){
   busy = v;
-  $('btnSend').disabled = v; $('btnStop').disabled = !v;
+  // 生成中，「行动」按钮原地变成「停止」
+  $('btnSend').textContent = v ? '停止' : '行动';
+  $('btnSend').classList.toggle('stop', v);
   $('btnReroll').disabled = v; $('btnUndo').disabled = v;
   $('btnSave').disabled = v;
   renderSide();
 }
+
+let alertTimer = 0;
+function showAlert(text, kind){
+  clearTimeout(alertTimer);
+  $('alertText').textContent = text;
+  $('alert').className = 'alert' + (kind ? ' ' + kind : '');
+  if (kind === 'info') alertTimer = setTimeout(hideAlert, 3000);
+  if (kind === 'good') alertTimer = setTimeout(hideAlert, 8000);
+}
+function hideAlert(){ clearTimeout(alertTimer); $('alert').classList.add('hide'); }
 
 function scrollEnd(){ window.scrollTo({ top:document.body.scrollHeight, behavior:'smooth' }); }
 
 /* ================= 回合 ================= */
 async function runTurn(){
   if (!cfgReady()){ openCfg('先填好接口地址、Key 和模型。'); return; }
+  hideAlert();
   const el = document.createElement('div');
   el.className = 'turn gm cursor';
   $('story').appendChild(el);
@@ -538,15 +1951,40 @@ async function runTurn(){
   setBusy(true);
   aborter = new AbortController();
   let raw = '';
+  const msgs = buildMessages();
   try{
-    raw = await chatStream(buildMessages(), full => {
+    raw = await chatStream(msgs, full => {
       raw = full;
       el.innerHTML = fmt(visibleText(full));
       if (window.innerHeight + window.scrollY > document.body.scrollHeight - 160) window.scrollTo(0, document.body.scrollHeight);
     }, aborter.signal);
+    addUsage(msgs, raw);
+    raw = stripThink(raw);
     if (!raw.trim()) throw { status:0, body:'', message:'模型返回了空内容' };
-    const state = parseState(raw, curState());
+    const before = curState(), state = parseState(raw, before);
+    const lastUser = game.history[game.history.length - 1];
+    if (state.check) el.insertAdjacentHTML('beforebegin', checkCard(state.check, lastUser && lastUser.die, before));
     game.history.push({ role:'assistant', content:raw, state });
+    if (state.talentPick && !before.talentPick) setTimeout(openTalent, 400);
+    const news = [];
+    if (state.lvUp){
+      const R = rules();
+      news.push(`升级！Lv${state.lv}「${lvTitle(R, state.lv)}」。${R.hp}和${R.mp}回满，获得 ${state.lvUp * PTS_PER_LV} 点属性点，到「角色」页的属性里分配。`);
+    }
+    for (const q of state.quests.filter(x => x.cur)){
+      if (q.status === 'done') news.push(`任务完成：${q.title}`);
+      else if (q.status === 'failed') news.push(`任务失败：${q.title}`);
+      else if (q.cur === 'new') news.push(`${q.type === 'main' ? '主线' : '支线'}任务：${q.title}`);
+    }
+    if (state.talentPick && !before.talentPick) news.push(`Lv${state.lv} 解锁了一个天赋，三选一。`);
+    for (const n of state.npcs.filter(x => x.romance && x.cur)){
+      const was = before.npcs.find(x => x.name === n.name);
+      if (!was) continue;
+      if (n.bond && n.bond !== was.bond) news.push(`💞 你和${n.name}成为了「${n.bond}」。`);
+      else if (!n.bond && was.bond) news.push(`💔 你和${n.name}的关系结束了。`);
+      else if (loveStage(n) !== loveStage(was) && (n.love || 0) > (was.love || 0)) news.push(`💗 ${n.name}对你的感觉变成了「${loveStage(n)}」。`);
+    }
+    if (news.length) showAlert(news.join('\n'), 'good');
     el.classList.remove('cursor');
     el.innerHTML = fmt(visibleText(raw));
     setDot(true);
@@ -554,21 +1992,14 @@ async function runTurn(){
   }catch(e){
     el.remove();
     // 停止时如果已经写了一半，保留这半段
-    if (e && e.name === 'AbortError' && raw.trim()){
+    if (e && e.name === 'AbortError' && stripThink(raw).trim()){
+      raw = stripThink(raw);
       game.history.push({ role:'assistant', content:raw, state:parseState(raw, curState()) });
       renderStory();
     } else {
-      // 失败：把刚才那条玩家输入退回输入框，方便重发
-      const last = game.history[game.history.length - 1];
-      if (last && last.role === 'user'){
-        game.history.pop();
-        if (!last.hidden) $('input').value = last.content;
-        renderStory();
-      }
-      const box = document.createElement('div');
-      box.className = 'turn err';
-      box.textContent = explainError(e, e && e.status, e && e.body);
-      $('story').appendChild(box);
+      // 失败：玩家那条行动留在故事里，提示贴在输入框上方，点「重试」原样再发；
+      // 想改说法就直接输入新的行动，会替换掉这条
+      showAlert(explainError(e, e && e.status, e && e.body));
       if (!(e && e.name === 'AbortError')) setDot(false);
     }
   }finally{
@@ -582,15 +2013,18 @@ async function runTurn(){
 function act(text){
   text = text.trim();
   if (!text || busy || curState().gameOver) return;
-  const die = 1 + Math.floor(Math.random() * 20);
-  game.history.push({ role:'user', content:text, die });
+  let die = 1 + Math.floor(Math.random() * 20), reroll = 0;
+  if (die === 1 && hasTalent(curState(), 'lucky')){ reroll = 1; die = 1 + Math.floor(Math.random() * 20); }
+  const last = game.history[game.history.length - 1];
+  if (last && last.role === 'user' && !last.hidden) game.history.pop();   // 上一条没回成，换成这条
+  game.history.push({ role:'user', content:text, die, reroll });
   $('input').value = '';
   renderStory();
   runTurn();
 }
 
 // 历史太长时，把较早的部分压成摘要。失败就算了，下回合再试
-const KEEP = 12, LIMIT = 24;
+const KEEP = 10, LIMIT = 20;   // 超过 20 条消息就把前面的压成摘要，只留最近 10 条原文
 let compressing = false;
 async function compressIfLong(){
   if (compressing || game.history.length <= LIMIT) return;
@@ -601,10 +2035,12 @@ async function compressIfLong(){
   const transcript = old.map(m => (m.role === 'user' ? '玩家：' + m.content : '说书人：' + visibleText(m.content))).join('\n');
   $('memText').textContent = '（正在整理前情提要……）';
   try{
-    const sum = await chatOnce([
+    const sumMsgs = [
       { role:'system', content:'你是剧情记录员。把文字冒险的剧情压缩成要点摘要，保留：主要事件经过、出场人物及其与主角的关系、未解的伏笔和承诺、主角获得或失去的重要物品与能力。用简体中文，条目式，不超过 400 字。只输出摘要。' },
       { role:'user', content:(game.memory ? '【已有摘要】\n' + game.memory + '\n\n' : '') + '【新增剧情】\n' + transcript },
-    ], 800);
+    ];
+    const sum = await chatOnce(sumMsgs, 800);
+    addUsage(sumMsgs, sum);
     if (sum.trim() && game.history.length >= cut){
       game.memory = sum.trim();
       // 截掉的那段里最后的状态留作底，免得侧栏归零
@@ -619,32 +2055,377 @@ async function compressIfLong(){
   renderSide();
 }
 
+/* ================= 人物编辑 ================= */
+function npcRow(d = {}, removable = true){
+  const el = document.createElement('div');
+  el.className = 'npcrow';
+  const fav = d.favor0 ?? 0;
+  el.innerHTML = `
+    <input type="text" class="n-name" placeholder="名字" maxlength="12">
+    <input type="text" class="n-role" placeholder="身份 / 和你的关系" maxlength="24">
+    <select class="n-att" title="初始态度">${ATTITUDES.map(([v, l]) => `<option value="${v}"${v === fav ? ' selected' : ''}>${l}</option>`).join('')}</select>
+    ${removable ? '<button class="x" type="button" title="删除">×</button>' : ''}
+    <input type="text" class="n-persona wide" placeholder="性格 / 说话方式（可选）" maxlength="60">
+    <input type="text" class="n-secret wide" placeholder="秘密 / 隐藏动机（可选，说书人会慢慢揭开）" maxlength="80">
+    <div class="rom-row wide"><label><input type="checkbox" class="n-romance"> ♥ 可攻略</label><input type="text" class="n-likes" placeholder="喜好：喜欢什么、讨厌什么" maxlength="60"></div>`;
+  el.querySelector('.n-name').value = d.name || '';
+  el.querySelector('.n-role').value = d.role || '';
+  el.querySelector('.n-persona').value = d.persona || '';
+  el.querySelector('.n-secret').value = d.secret || '';
+  el.querySelector('.n-romance').checked = !!d.romance;
+  el.querySelector('.n-likes').value = d.likes || '';
+  if (removable) el.querySelector('.x').onclick = () => el.remove();
+  return el;
+}
+function readNpcRow(el){
+  const v = c => el.querySelector(c).value.trim();
+  const name = v('.n-name');
+  return name ? { name, role:v('.n-role'), persona:v('.n-persona'), secret:v('.n-secret'), favor0:+el.querySelector('.n-att').value,
+                  romance:el.querySelector('.n-romance').checked, likes:v('.n-likes') } : null;
+}
+const NPC_START_MAX = 6;
+function fillNpcEdit(list){
+  $('npcEdit').innerHTML = '';
+  list.forEach(d => $('npcEdit').appendChild(npcRow(d)));
+}
+$('btnNpcAdd').onclick = () => {
+  if ($('npcEdit').children.length >= NPC_START_MAX){ $('startHint').textContent = `开局最多 ${NPC_START_MAX} 个人物，其余可以在游戏里再加。`; return; }
+  const row = npcRow();
+  $('npcEdit').appendChild(row);
+  row.querySelector('.n-name').focus();
+};
+
+// 游戏中加人：写进设定，同时放进当前状态（未登场），下回合起说书人就知道
+$('btnNpcNew').onclick = () => {
+  $('npcNewRow').innerHTML = ''; $('npcNewRow').appendChild(npcRow({}, false));
+  $('npcMsg').textContent = '';
+  toggleSheet(false);
+  $('dlgNpc').showModal();
+};
+$('btnNpcCancel').onclick = () => $('dlgNpc').close();
+$('btnNpcOk').onclick = () => {
+  const d = readNpcRow($('npcNewRow').firstElementChild);
+  if (!d){ $('npcMsg').textContent = '至少写个名字。'; return; }
+  const st = curState();
+  st.npcs = st.npcs || [];
+  if (st.npcs.some(n => n.name === d.name)){ $('npcMsg').textContent = '已经有叫这个名字的人物了。'; return; }
+  if (st.npcs.length >= NPC_MAX){ $('npcMsg').textContent = `人物最多 ${NPC_MAX} 个。`; return; }
+  game.setup.npcs = [...(game.setup.npcs || []), { ...d, debut:true }];
+  st.npcs.push({ name:d.name, role:d.role, favor:d.favor0, note:'', met:false, ...(d.romance ? { romance:true, love:0, bond:'' } : {}) });
+  $('dlgNpc').close();
+  renderSide(); autosave();
+  sysNote(`已加入「${d.name}」，说书人会在接下来一两段里安排这个人登场。`);
+};
+
+/* ================= 开局规则：当前剧本规则的一份可编辑副本 ================= */
+// 选剧本时从预设复制一份到 draft；规则编辑器、属性分配、出身都读写这一份，开局时整份存进存档
+let draft = null;
+const clone = o => JSON.parse(JSON.stringify(o));
+const scenRules = sc => sc.rules || RULES[sc.id] || RULES.custom;
+
+// 不管规则来自预设、编辑器还是模型生成，都整理成同一个形状，缺的用通用默认补上
+function normRules(o){
+  const D = RULES.custom, str = (v, d, n) => String(v ?? '').trim().slice(0, n) || d;
+  const int = (v, d, lo, hi) => Number.isFinite(+v) ? Math.max(lo, Math.min(hi, Math.round(+v))) : d;
+  o = o || {};
+  let attrs = (Array.isArray(o.attrs) ? o.attrs : []).map(a => Array.isArray(a) ? a : [a && a.name, a && a.desc])
+    .map(([n, d]) => [str(n, '', 6), str(d, '', 40)]).filter(([n]) => n);
+  attrs = attrs.filter(([n], i) => attrs.findIndex(x => x[0] === n) === i).slice(0, 6);
+  if (attrs.length < 3) attrs = clone(D.attrs);
+  const names = attrs.map(a => a[0]);
+  const skill = k => k && k.name ? { name:str(k.name, '', 16), lv:1, desc:str(k.desc, '', 30) } : null;
+  const titles = (Array.isArray(o.titles) ? o.titles : []).map(t => str(t, '', 10)).filter(Boolean).slice(0, 40);
+  return {
+    hp:str(o.hp, D.hp, 6), mp:str(o.mp, D.mp, 6), money:str(o.money, D.money, 6),
+    hp0:int(o.hp0, D.hp0, 1, 999), mp0:int(o.mp0, D.mp0, 1, 999), money0:int(o.money0, D.money0, 0, 99999),
+    mpUse:str(o.mpUse, D.mpUse, 80), attrs,
+    titles:titles.length ? titles : clone(D.titles),
+    skills:(Array.isArray(o.skills) ? o.skills : []).map(skill).filter(Boolean).slice(0, 6),
+    pool:str(Array.isArray(o.pool) ? o.pool.join('、') : o.pool, '', 200),
+    origins:(Array.isArray(o.origins) ? o.origins : []).map(x => x && x.name ? {
+      name:str(x.name, '', 10), desc:str(x.desc, '', 30),
+      bonus:Object.fromEntries(Object.entries(x.bonus || {}).filter(([a, v]) => names.includes(a) && +v).map(([a, v]) => [a, int(v, 1, -3, 3)])),
+      skill:skill(x.skill) || { name:'随机应变', lv:1, desc:'遇事不慌' },
+    } : null).filter(Boolean).slice(0, 6),
+    factions:(Array.isArray(o.factions) ? o.factions : []).map(f => f && f.name ? { name:str(f.name, '', 12), desc:str(f.desc, '', 30), rep:int(f.rep, 0, -100, 100) } : null).filter(Boolean).slice(0, 8),
+  };
+}
+
+// ---- 编辑器 <-> draft ----
+const lines = v => v.split('\n').map(x => x.trim()).filter(Boolean);
+const cut = (x, re) => x.split(re).map(y => y.trim());
+function fillRulesForm(R){
+  $('rHp').value = R.hp; $('rHp0').value = R.hp0; $('rMp').value = R.mp; $('rMp0').value = R.mp0;
+  $('rMoney').value = R.money; $('rMoney0').value = R.money0; $('rMpUse').value = R.mpUse;
+  $('rAttrs').innerHTML = '';
+  R.attrs.forEach(([n, d]) => addAttrRow(n, d));
+  $('rTitles').value = R.titles.join('、');
+  $('rSkills').value = R.skills.map(k => `${k.name}：${k.desc}`).join('\n');
+  $('rPool').value = R.pool || '';
+  $('rOrigins').value = R.origins.map(o => `${o.name}｜${o.desc}｜${Object.entries(o.bonus).map(([a, v]) => `${a}${v > 0 ? '+' : ''}${v}`).join(' ')}｜${o.skill.name}：${o.skill.desc}`).join('\n');
+  $('rFactions').value = R.factions.map(f => `${f.name}｜${f.desc}｜${f.rep}`).join('\n');
+}
+function addAttrRow(n = '', d = ''){
+  const row = document.createElement('div');
+  row.className = 'rattr';
+  row.innerHTML = `<input type="text" class="an" maxlength="6" placeholder="属性名"><input type="text" class="ad" maxlength="40" placeholder="管什么"><button class="x" type="button" title="删除">×</button>`;
+  row.querySelector('.an').value = n; row.querySelector('.ad').value = d;
+  $('rAttrs').appendChild(row);
+}
+function readRulesForm(){
+  const attrs = [...$('rAttrs').children].map(r => [r.querySelector('.an').value, r.querySelector('.ad').value]);
+  const names = attrs.map(a => a[0].trim());
+  return normRules({
+    hp:$('rHp').value, hp0:$('rHp0').value, mp:$('rMp').value, mp0:$('rMp0').value,
+    money:$('rMoney').value, money0:$('rMoney0').value, mpUse:$('rMpUse').value, attrs,
+    titles:cut($('rTitles').value, /[\n、,，]/),
+    skills:lines($('rSkills').value).map(x => { const [name, ...d] = cut(x, /[:：]/); return { name, desc:d.join('：') }; }),
+    pool:$('rPool').value,
+    origins:lines($('rOrigins').value).map(x => {
+      const [name, desc, bonus = '', sk = ''] = cut(x, /[|｜]/);
+      const b = {};
+      for (const m of bonus.matchAll(/([^\s+\-，,]+)\s*([+-]\s*\d+)/g)) if (names.includes(m[1])) b[m[1]] = +m[2].replace(/\s/g, '');
+      const [sn, ...sd] = cut(sk, /[:：]/);
+      return { name, desc, bonus:b, skill:sn ? { name:sn, desc:sd.join('：') } : null };
+    }),
+    factions:lines($('rFactions').value).map(x => { const [name, desc, rep] = cut(x, /[|｜]/); return { name, desc, rep }; }),
+  });
+}
+// 编辑器有改动：重算 draft，属性分配按名字保留已分的点
+function onRulesInput(){
+  draft = readRulesForm();
+  const keep = startAttrs;
+  startAttrs = Object.fromEntries(draft.attrs.map(([a]) => [a, keep[a] ?? ATTR_BASE]));
+  if (Object.values(startAttrs).reduce((t, v) => t + v - ATTR_BASE, 0) > ATTR_FREE) startAttrs = Object.fromEntries(draft.attrs.map(([a]) => [a, ATTR_BASE]));
+  const oi = $('origin').value;
+  renderOrigins();
+  if (oi < draft.origins.length) $('origin').value = oi;
+  showOrigin();
+  [...$('rAttrs').querySelectorAll('.x')].forEach(b => b.disabled = $('rAttrs').children.length <= 3);
+  $('btnAttrAdd').disabled = $('rAttrs').children.length >= 6;
+  $('rulesHint').textContent = rulesChanged() ? '已改动，开局时用你改过的规则' : '';
+}
+const rulesChanged = () => JSON.stringify(draft) !== JSON.stringify(normRules(scenRules(selScen)));
+$('advBox').addEventListener('input', onRulesInput);
+$('rAttrs').addEventListener('click', e => {
+  if (!e.target.classList.contains('x') || $('rAttrs').children.length <= 3) return;
+  e.target.parentElement.remove(); onRulesInput();
+});
+$('btnAttrAdd').onclick = () => { if ($('rAttrs').children.length < 6){ addAttrRow(); $('rAttrs').lastElementChild.querySelector('.an').focus(); } };
+$('btnRulesReset').onclick = () => loadRules(scenRules(selScen));
+function loadRules(R){
+  draft = normRules(R);
+  fillRulesForm(draft);
+  startAttrs = Object.fromEntries(draft.attrs.map(([a]) => [a, ATTR_BASE]));
+  onRulesInput();
+}
+
+/* ================= 开局属性分配 ================= */
+let startAttrs = {};
+function renderAttrEdit(){
+  const R = draft;
+  const left = ATTR_FREE - Object.values(startAttrs).reduce((t, v) => t + v - ATTR_BASE, 0);
+  $('attrHint').textContent = `每项基础 ${ATTR_BASE}，还能分配 ${left} 点（单项最高 ${ATTR_START_MAX}）· ${R.hp} ${R.hp0} · ${R.mp} ${R.mp0} · ${R.money} ${R.money0}`;
+  $('attrEdit').innerHTML = R.attrs.map(([a, d]) => `<div class="attr">
+      <span title="${esc(d)}">${esc(a)}</span>
+      <div class="ctl"><button type="button" data-a="${esc(a)}" data-d="-1"${startAttrs[a] <= ATTR_BASE ? ' disabled' : ''}>−</button><b>${startAttrs[a] + (((curOrigin() || {}).bonus || {})[a] || 0)}</b><button type="button" data-a="${esc(a)}" data-d="1"${!left || startAttrs[a] >= ATTR_START_MAX ? ' disabled' : ''}>+</button></div>
+    </div>`).join('');
+}
+$('attrEdit').addEventListener('click', e => {
+  const b = e.target.closest('button[data-a]');
+  if (!b || b.disabled) return;
+  startAttrs[b.dataset.a] += +b.dataset.d;
+  renderAttrEdit();
+});
+
+// 出身：给属性加成和一个出身技能。加成算在分配之外，可以超过开局上限
+function renderOrigins(){
+  const os = draft.origins;
+  $('origin').innerHTML = os.length ? os.map((o, i) => `<option value="${i}">${esc(o.name)}</option>`).join('') : '<option value="">（这个世界没有设定出身）</option>';
+  showOrigin();
+}
+function curOrigin(){ return draft && draft.origins[+$('origin').value || 0]; }
+function showOrigin(){
+  const o = curOrigin();
+  $('originHint').textContent = o ? `${o.desc}。${Object.entries(o.bonus).map(([a, v]) => `${a}${v > 0 ? '+' : ''}${v}`).join('，') || '无属性加成'}；技能「${o.skill.name}」：${o.skill.desc}` : '';
+  renderAttrEdit();
+}
+$('origin').onchange = showOrigin;
+
+/* ================= 让说书人生成规则 ================= */
+const GEN_SYSTEM = `你是桌面角色扮演游戏的规则设计师。根据玩家给的世界设定，为一场单人文字 RPG 设计一套贴合这个世界的规则。只输出一个 JSON 对象，不要解释，不要代码块标记。格式：
+{"name":"剧本名，4～6 字","tag":"类型，2～4 字",
+"hp":"资源一的名字（掉光就倒下，如气血、生命、精力）","hp0":初始值整数,
+"mp":"资源二的名字（这个世界特有的消耗品，如内力、理智、掩护）","mp0":初始值整数,"mpUse":"资源二怎么消耗、怎么恢复、太低会怎样，一句话",
+"money":"货币名","money0":初始数量整数,
+"attrs":[["属性名，2 字","管什么，一句话"]，共 4 个，覆盖战斗、灵巧、智识、社交或这个世界最重要的四个方向],
+"titles":["由低到高的等级称号，10～12 个，体现这个世界的晋升路线"],
+"skills":[{"name":"起手技能","desc":"一句话效果"}，共 3 个],
+"pool":"这个世界常见的 12 个技能，用顿号隔开",
+"origins":[{"name":"出身","desc":"一句话","bonus":{"属性名":1,"属性名":1},"skill":{"name":"出身技能","desc":"一句话"}}，共 3 个，bonus 合计 2 点，属性名必须来自 attrs],
+"factions":[{"name":"势力","desc":"一句话","rep":初始声望 -30～30}，共 3 个],
+"npcs":[{"name":"人名","role":"与主角的关系","persona":"性格","secret":"隐藏的秘密或动机","favor0":初始好感，只能是 -50 -25 0 25 50 之一,"romance":是否可攻略 true/false,"likes":"喜欢什么、讨厌什么"}，共 4 个，有盟友、有对手、有中立、有神秘人，其中 1～2 个可攻略]}`;
+$('btnGenRules').onclick = async () => {
+  const world = $('world').value.trim();
+  if (!world){ $('genHint').textContent = '先写一点世界设定。'; $('world').focus(); return; }
+  if (!cfgReady()){ openCfg('生成规则也要调用接口，先填好地址、Key 和模型。'); return; }
+  const btn = $('btnGenRules');
+  btn.disabled = true; $('genHint').textContent = '正在设计规则，大概要十几秒……';
+  try{
+    const who = [$('pcName').value.trim() && '主角名字：' + $('pcName').value.trim(), $('pcRole').value.trim() && '主角身份：' + $('pcRole').value.trim()].filter(Boolean).join('\n');
+    const genMsgs = [{ role:'system', content:GEN_SYSTEM }, { role:'user', content:'世界设定：\n' + world + (who ? '\n' + who : '') }];
+    const raw = await chatOnce(genMsgs, 2500, 0.8);
+    addUsage(genMsgs, raw, false);   // 还没开局，只记进累计
+    const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
+    if (a < 0 || b < a) throw new Error('模型没有返回 JSON');
+    const g = JSON.parse(raw.slice(a, b + 1));
+    loadRules(g);
+    if (Array.isArray(g.npcs) && g.npcs.length) fillNpcEdit(g.npcs.slice(0, 6).map(n => ({ name:String(n.name || ''), role:String(n.role || ''), persona:String(n.persona || ''), secret:String(n.secret || ''),
+      favor0:ATTITUDES.map(x => x[0]).includes(+n.favor0) ? +n.favor0 : 0, romance:!!n.romance, likes:String(n.likes || '') })));
+    if (g.name) genName = String(g.name).slice(0, 8);
+    $('advBox').open = true;
+    $('genHint').textContent = `生成好了${g.name ? '：「' + genName + '」' : ''}。下面的规则和人物都可以再改。`;
+  }catch(e){
+    $('genHint').textContent = e && e.status != null ? explainError(e, e.status, e.body) : '生成失败：' + (e && e.message || e) + '。可以再点一次。';
+  }
+  btn.disabled = false;
+};
+let genName = '';
+
+/* ================= 我的世界：自己的整套设定存成模板 ================= */
+const WORLD_KEY = 'aistory.worlds.v1';
+const myWorlds = () => { const w = store.get(WORLD_KEY, []); return Array.isArray(w) ? w : []; };
+function worldSnapshot(name){
+  const npcs = [...$('npcEdit').children].map(readNpcRow).filter(Boolean);
+  return { kind:'aistory-world', v:1, id:'my_' + Date.now().toString(36), name, tag:'我的世界',
+           world:$('world').value.trim(), npcs, rules:clone(draft), style:$('style').value, styleCustom:$('styleCustom').value.trim() };
+}
+$('btnWorldSave').onclick = () => {
+  const def = genName || (selScen.id.startsWith('my_') ? selScen.name : selScen.id === 'custom' ? $('world').value.trim().slice(0, 6) : selScen.name + '（改）');
+  const name = (prompt('给这个世界起个名字', def) || '').trim().slice(0, 12);
+  if (!name) return;
+  const w = worldSnapshot(name), list = myWorlds().filter(x => x.name !== name);
+  list.unshift(w);
+  if (!store.set(WORLD_KEY, list.slice(0, 30))){ $('startHint').textContent = '保存失败：浏览器存储不可用。可以用「导出设定」存成文件。'; return; }
+  selScen = w; scenCat = '我的世界'; renderScenarios();
+  $('startHint').textContent = `已存为「${name}」，在上面「我的世界」里。`;
+};
+$('btnWorldExport').onclick = () => {
+  const w = worldSnapshot(genName || selScen.name);
+  const blob = new Blob([JSON.stringify(w, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = `说书人设定-${w.name}.json`;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$('btnWorldImport').onclick = () => $('fileWorld').click();
+$('fileWorld').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try{
+    const w = JSON.parse(await f.text());
+    if (!w || w.kind !== 'aistory-world' || !w.rules) throw 0;
+    w.id = 'my_' + Date.now().toString(36);
+    w.rules = normRules(w.rules); w.npcs = Array.isArray(w.npcs) ? w.npcs : [];
+    const list = myWorlds().filter(x => x.name !== w.name);
+    list.unshift(w); store.set(WORLD_KEY, list.slice(0, 30));
+    pickScenario(w);
+    $('startHint').textContent = `已导入「${w.name}」。`;
+  }catch{ $('startHint').textContent = '这不是说书人的设定文件。'; }
+};
+
+/* ================= 叙事风格 ================= */
+const STYLES = [
+  ['', '默认'],
+  ['短句、留白、冷峻，对白锋利，像古龙小说', '古龙式'],
+  ['叙事从容，有章回小说的味道，人物鲜明，像金庸小说', '金庸式'],
+  ['轻松明快，内心吐槽多，像日式轻小说', '轻小说'],
+  ['冷硬派侦探小说的腔调：简洁、愤世嫉俗、比喻犀利', '冷硬派'],
+  ['压抑克制的恐怖，靠细节和未知制造不安，不直接写怪物全貌', '恐怖压抑'],
+  ['诙谐幽默，善用反差和夸张，但剧情照样认真推进', '幽默'],
+  ['custom', '自己描述…'],
+];
+$('style').innerHTML = STYLES.map(([v, l], i) => `<option value="${i}">${l}</option>`).join('');
+$('style').onchange = () => $('styleCustomBox').classList.toggle('hide', STYLES[+$('style').value][0] !== 'custom');
+function styleText(){
+  const v = STYLES[+$('style').value][0];
+  return v === 'custom' ? $('styleCustom').value.trim() : v;
+}
+const LENGTHS = { short:'100～200', mid:'150～400', long:'300～600' };
+
 /* ================= 开局 / 存档 ================= */
 let selScen = SCENARIOS[0];
+function pickScenario(s){
+  selScen = s; $('world').value = s.world;
+  if (catOf(s)) scenCat = catOf(s);
+  renderScenarios();
+  loadRules(scenRules(s));
+  if (s.id !== 'custom') fillNpcEdit(s.npcs || []);   // 自己写的世界保留已经填好的人物
+  if (s.style != null){ $('style').value = s.style; $('styleCustom').value = s.styleCustom || ''; $('style').onchange(); }
+  genName = '';
+  $('genHint').textContent = '';
+  if (!s.world) $('world').focus();
+}
+let scenCat = null;   // 当前题材页；null 表示跟着选中的剧本走
+const catOf = sc => sc.id.startsWith('my_') ? '我的世界' : (SCEN_CATS.find(([, ids]) => ids.includes(sc.id)) || [])[0];
 function renderScenarios(){
+  const mine = myWorlds();
+  const cats = [...(mine.length ? [['我的世界', mine]] : []), ...SCEN_CATS.map(([n, ids]) => [n, ids.map(id => SCENARIOS.find(x => x.id === id))])];
+  const cur = scenCat && cats.some(c => c[0] === scenCat) ? scenCat : (catOf(selScen) || cats[0][0]);
+  $('scenTabs').innerHTML = cats.map(([n, list]) => `<button type="button" data-cat="${n}" class="${n === cur ? 'on' : ''}">${n}<i>${list.length}</i></button>`).join('');
+  $('btnCustom').classList.toggle('sel', selScen.id === 'custom');
   $('scenList').innerHTML = '';
-  SCENARIOS.forEach(s => {
+  (cats.find(c => c[0] === cur) || cats[0])[1].forEach(s => {
     const b = document.createElement('button');
-    b.className = s === selScen ? 'sel' : '';
-    b.innerHTML = `<b>${esc(s.name)}</b><small>${esc(s.tag)}${s.world ? ' · ' + esc(s.world.slice(0, 44)) + '…' : ' · 在下面写你自己的世界'}</small>`;
-    b.onclick = () => {
-      selScen = s; $('world').value = s.world; renderScenarios();
-      if (!s.world) $('world').focus();
+    const own = s.id.startsWith('my_');
+    b.className = s.id === selScen.id ? 'sel' : '';
+    b.title = s.world || '';
+    b.innerHTML = `<b>${esc(s.name)}</b><small>${esc(s.tag)}${s.world ? ' · ' + esc(s.world) : ''}</small>${own ? '<span class="del" title="删除这个世界">×</span>' : ''}`;
+    b.onclick = e => {
+      if (e.target.classList.contains('del')){
+        if (!confirm(`删除「${s.name}」？`)) return;
+        store.set(WORLD_KEY, myWorlds().filter(x => x.id !== s.id));
+        if (!myWorlds().length) scenCat = null;
+        if (selScen.id === s.id) pickScenario(SCENARIOS[0]); else renderScenarios();
+        return;
+      }
+      pickScenario(s);
     };
     $('scenList').appendChild(b);
   });
 }
+$('scenTabs').addEventListener('click', e => {
+  const b = e.target.closest('button[data-cat]');
+  if (b){ scenCat = b.dataset.cat; renderScenarios(); }
+});
+$('btnCustom').onclick = () => pickScenario(SCENARIOS.find(x => x.id === 'custom'));
 
 function startGame(){
   const world = $('world').value.trim();
   if (!world && selScen.id === 'custom'){ $('startHint').textContent = '自定义开局需要写一点世界设定。'; return; }
   if (!cfgReady()){ openCfg('先填好接口地址、Key 和模型，再开始。'); return; }
+  draft = readRulesForm();
+  const o = curOrigin(), start = rpgStart(draft, startAttrs);
+  if (o){
+    for (const [a, v] of Object.entries(o.bonus)) start.attrs[a] = (start.attrs[a] ?? ATTR_BASE) + v;
+    start.skills.push({ ...o.skill });
+  }
+  const npcs = [];
+  for (const row of $('npcEdit').children){
+    const d = readNpcRow(row);
+    if (d && !npcs.some(n => n.name === d.name)) npcs.push(d);
+  }
+  // 预设剧本没改过规则：只记 id，以后调整预设能跟着生效；改过的、自己的世界：整份规则存进存档
+  const preset = RULES[selScen.id] && !selScen.rules && !rulesChanged();
   game = {
     id:Date.now().toString(36),
-    title:selScen.id === 'custom' ? (world.slice(0, 12) || '自定义') : selScen.name,
-    setup:{ name:$('pcName').value.trim(), role:$('pcRole').value.trim(), world, extra:$('extra').value.trim() },
+    title:genName || (selScen.id === 'custom' ? (world.slice(0, 12) || '自定义') : selScen.name),
+    setup:{ name:$('pcName').value.trim(), role:$('pcRole').value.trim(), world, extra:$('extra').value.trim(), npcs,
+            backstory:$('backstory').value.trim(), style:styleText(), length:$('length').value, nChoices:+$('nChoices').value,
+            ...(preset ? { rulesId:selScen.id } : { rules:clone(draft) }), origin:o ? `${o.name}（${o.desc}）` : '' },
     history:[{ role:'user', hidden:true, content:'【开局】请描写开场：交代主角此刻的处境、身边的环境和一个迫在眉睫的钩子，然后停下来等玩家行动。' }],
     memory:'', created:Date.now(),
+    baseState:{ ...blankState(), ...start,
+                npcs:npcs.map(n => ({ name:n.name, role:n.role, favor:n.favor0, note:'', met:false, ...(n.romance ? { romance:true, love:0, bond:'' } : {}) })) },
   };
   showGame();
   runTurn();
@@ -652,10 +2433,12 @@ function startGame(){
 
 function showGame(){
   $('scrStart').classList.add('hide'); $('scrGame').classList.remove('hide'); $('btnMenu').classList.remove('hide');
-  renderStory(); renderSide(); scrollEnd();
+  document.body.classList.add('in-game');
+  hideAlert(); renderStory(); renderSide(); renderUsage(); scrollEnd();
 }
 function showStart(){
   $('scrGame').classList.add('hide'); $('scrStart').classList.remove('hide'); $('btnMenu').classList.add('hide');
+  document.body.classList.remove('in-game'); toggleSheet(false);
   renderSlots(); window.scrollTo(0, 0);
 }
 
@@ -697,11 +2480,7 @@ function saveToSlot(){
   sysNote(writeSlot(n) ? `已存到槽 ${n}。` : '存档失败：浏览器存储不可用或已满。');
 }
 
-function sysNote(t){
-  const d = document.createElement('div'); d.className = 'turn sys'; d.textContent = t;
-  $('story').appendChild(d); scrollEnd();
-  setTimeout(() => d.remove(), 3000);
-}
+function sysNote(t){ showAlert(t, 'info'); }
 
 function exportGame(){
   const blob = new Blob([JSON.stringify(snapshot(), null, 2)], { type:'application/json' });
@@ -725,6 +2504,8 @@ function readCfgForm(){
 function cfgMsg(t, cls){ const m = $('cfgMsg'); m.textContent = t || ''; m.className = 'msg ' + (cls || ''); }
 function openCfg(note){
   fillCfgForm(cfg); cfgMsg(note || '', note ? 'err' : '');
+  const all = store.get(USAGE_KEY, {});
+  $('usageAll').textContent = all.calls ? `这台设备累计用了 ${all.est ? '约 ' : ''}${fmtK((all.in || 0) + (all.out || 0))} tokens（输入 ${fmtK(all.in || 0)}，输出 ${fmtK(all.out || 0)}，${all.calls} 次调用）。` : '';
   $('dlgCfg').showModal();
 }
 function fillModels(list){
@@ -780,14 +2561,28 @@ $('btnCfg').onclick = () => openCfg();
 /* ================= 绑定 ================= */
 $('btnStart').onclick = startGame;
 $('btnMenu').onclick = () => { if (busy && aborter) aborter.abort(); showStart(); };
-$('btnSend').onclick = () => act($('input').value);
+$('btnSend').onclick = () => busy ? (aborter && aborter.abort()) : act($('input').value);
 $('input').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); act($('input').value); }
 });
 $('input').addEventListener('input', e => {
   const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(160, t.scrollHeight) + 'px';
 });
-$('btnStop').onclick = () => aborter && aborter.abort();
+$('btnRetry').onclick = () => { if (!busy) runTurn(); };
+$('btnAlertX').onclick = hideAlert;
+
+// 手机状态条：点开 / 收起详情浮层，点浮层外面也收起
+function toggleSheet(open){
+  $('strip').setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) document.documentElement.style.setProperty('--sheet-top', ($('strip').getBoundingClientRect().bottom + 8) + 'px');
+  document.querySelector('.side').classList.toggle('open', open);
+}
+$('strip').onclick = e => { e.stopPropagation(); toggleSheet($('strip').getAttribute('aria-expanded') !== 'true'); };
+document.addEventListener('click', e => {
+  // 用事件路径判断：侧栏里的列表点了会重绘，等冒泡到这里时被点的节点已经不在页面上了
+  if (!e.composedPath().some(n => n.classList && n.classList.contains('side'))) toggleSheet(false);
+  if (!e.target.closest('#more')) $('more').open = false;
+});
 $('btnReroll').onclick = () => {
   if (busy) return;
   const last = game.history[game.history.length - 1];
@@ -806,8 +2601,8 @@ $('btnUndo').onclick = () => {
   game.history = h.slice(0, i);
   renderStory(); renderSide(); autosave();
 };
-$('btnSave').onclick = saveToSlot;
-$('btnExport').onclick = exportGame;
+$('btnSave').onclick = () => { $('more').open = false; saveToSlot(); };
+$('btnExport').onclick = () => { $('more').open = false; exportGame(); };
 $('btnImport').onclick = () => $('fileImport').click();
 $('fileImport').onchange = async e => {
   const f = e.target.files[0]; e.target.value = '';
@@ -823,7 +2618,7 @@ $('fileImport').onchange = async e => {
 /* ================= 启动 ================= */
 fillModels([]);
 renderScenarios();
-$('world').value = selScen.world;
+pickScenario(selScen);
 renderSlots();
 if (!cfg.key) setTimeout(() => openCfg('第一次使用：填上你的 API Key（默认已选 Agnes 国内）。'), 300);
 })();
