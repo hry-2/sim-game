@@ -275,13 +275,13 @@
 const CFG_KEY = 'aistory.cfg.v1', SAVE_KEY = 'aistory.saves.v1', SLOT_N = 4;   // 槽 0 = 自动存档
 
 const PROVIDERS = [
-  { name:'Agnes 国内', base:'https://apihub.agnes-ai.cn/v1',  model:'agnes-2.5-pro-alpha' },
-  { name:'Agnes 国际', base:'https://apihub.agnes-ai.com/v1', model:'agnes-2.5-pro-alpha' },
+  { name:'Agnes 国内', base:'https://apihub.agnes-ai.cn/v1',  model:'agnes-3.0-flash' },
+  { name:'Agnes 国际', base:'https://apihub.agnes-ai.com/v1', model:'agnes-3.0-flash' },
   { name:'DeepSeek',   base:'https://api.deepseek.com/v1',    model:'deepseek-chat' },
   { name:'OpenRouter', base:'https://openrouter.ai/api/v1',   model:'' },
 ];
 const DEFAULT_CFG = { base:PROVIDERS[0].base, key:'', model:PROVIDERS[0].model, temp:0.9, max:1200 };
-const KNOWN_MODELS = ['agnes-2.5-pro-alpha','agnes-2.0-flash'];
+const KNOWN_MODELS = ['agnes-3.0-flash','agnes-3.0-qwen','agnes-2.5-pro-alpha','agnes-2.0-flash'];
 
 const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch{ return d; } },

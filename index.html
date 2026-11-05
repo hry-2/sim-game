@@ -146,32 +146,11 @@
     display:block;font-family:var(--pix);font-size:10px;font-weight:400;
     letter-spacing:.18em;color:var(--dim);margin-top:6px;
   }
-  .body p{margin:0;color:var(--muted);font-size:14px}
+  .body p{margin:0;color:var(--muted);font-size:14px;line-height:1.6}
   .tag{
     margin-left:8px;padding:1px 6px;font-style:normal;font-size:9px;
     color:var(--muted);border:1px solid var(--line);
   }
-  .spec{
-    margin-top:auto;display:flex;gap:12px;padding:8px 0;
-    border-top:1px solid var(--line);border-bottom:1px solid var(--line);
-    font-size:13px;
-  }
-  .spec .k{
-    flex:0 0 4.5em;color:var(--dim);font-size:11px;letter-spacing:.1em;
-    padding-top:2px;
-  }
-  .spec .v{color:var(--ink)}
-  .spec kbd{
-    font-family:var(--pix);font-size:10px;
-    background:#0a0e0c;border:1px solid var(--line);
-    padding:2px 5px;margin-right:4px;color:var(--ink);
-  }
-  .go{
-    margin-top:4px;font-family:var(--disp);font-weight:600;font-size:13px;
-    letter-spacing:.08em;color:var(--accent);display:flex;align-items:center;gap:8px;
-  }
-  .go::after{content:"▸";transition:transform .16s}
-  .cart:hover .go::after{transform:translateX(4px)}
 
   footer{
     margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
@@ -179,9 +158,19 @@
     font-size:12px;color:var(--dim);
   }
   footer code{font-family:var(--pix);font-size:10px;color:var(--muted)}
+  /* 手机：一行两张，卡带只留缩略图、类型、名字和一句话 */
+  @media (max-width:600px){
+    .rack{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .body{padding:10px 10px 12px;gap:5px}
+    .body .kicker{font-size:9px;letter-spacing:.1em}
+    .body h3{font-size:16px}
+    .body h3 .sub{font-size:8px;letter-spacing:.12em;margin-top:3px}
+    .body p{font-size:12px;line-height:1.5}
+    .tag{margin-left:4px;padding:0 4px}
+    .cart:hover,.cart:focus-visible{transform:none}
+  }
   @media (prefers-reduced-motion:reduce){
     .cart{transition:none}
-    .go::after{transition:none}
   }
 </style>
 </head>
@@ -216,9 +205,7 @@
       <div class="body">
         <div class="kicker">推币机 · 3D 物理</div>
         <h3>聚宝盆<span class="sub">COIN PUSHER</span></h3>
-        <p>推板一直在推，挑币堆最满的地方投，一枚下去挤动一整排。前沿掉的币归你，侧槽的币回到推板上；攒能量开磁铁、挡板、长推，召币塔砸进池子。</p>
-        <div class="spec"><span class="k">操作</span><span class="v"><kbd>空格</kbd> 投币 · <kbd>←</kbd><kbd>→</kbd> 落点 · 手机全触控</span></div>
-        <div class="go">进入</div>
+        <p>推板往前拱，挑币堆最满处投币，前沿掉的币归你。</p>
       </div>
     </a>
 
@@ -227,9 +214,7 @@
       <div class="body">
         <div class="kicker">捕鱼 · 3D 射击</div>
         <h3>捕鱼达人<span class="sub">FISH HUNTER</span></h3>
-        <p>点屏幕撒网，打够血量整条鱼翻成币。炮倍只放大输赢，赌的是命中率。鱼王、龙鱼、特殊鱼、鱼阵，还有和机器人比分的擂台赛。</p>
-        <div class="spec"><span class="k">操作</span><span class="v">点屏开炮 · <kbd>L</kbd> 锁定 · <kbd>A</kbd> 自动 · 手机全触控</span></div>
-        <div class="go">进入</div>
+        <p>点屏撒网，打够血量整条鱼翻成币，鱼王和龙鱼值大钱。</p>
       </div>
     </a>
 
@@ -243,9 +228,7 @@
       <div class="body">
         <div class="kicker">猜词 · 手机举额头</div>
         <h3>点 头<span class="sub">NOD</span></h3>
-        <p>一个人把手机举到额头，屏幕朝外，另一个人看词描述。猜中往下翻，跳过往上翻。十六个词包，4547 个词。</p>
-        <div class="spec"><span class="k">操作</span><span class="v">手机下翻 = 猜中 · 上翻 = 跳过 · 桌面 <kbd>↓</kbd><kbd>↑</kbd></span></div>
-        <div class="go">进入</div>
+        <p>手机举额头，队友描述你来猜，下翻猜中、上翻跳过。</p>
       </div>
     </a>
 
@@ -259,9 +242,7 @@
       <div class="body">
         <div class="kicker">俯视射击 · Roguelite</div>
         <h3>霓虹废钢线<span class="sub">NEON SCRAPLINE</span></h3>
-        <p>在下城区回收线上打穿三十波机兵。十七把武器分远程、近战、炼金三路，23 条改装词条，十一种敌人加三种 BOSS。打下的零件拿回据点摆摊卖，还能养拾荒犬、账房猫、信鸦；护航无人机跟着你打。</p>
-        <div class="spec"><span class="k">操作</span><span class="v"><kbd>WASD</kbd> 移动 · <kbd>鼠标</kbd> 瞄准开火 · <kbd>空格</kbd> 冲刺 · 手机双摇杆</span></div>
-        <div class="go">进入</div>
+        <p>打穿三十波机兵，十七把武器加改装词条，零件拿回据点卖。</p>
       </div>
     </a>
 
@@ -270,9 +251,7 @@
       <div class="body">
         <div class="kicker">潜入 · 分支剧情<em class="tag">原型</em></div>
         <h3>夜 港<span class="sub">NIGHT HARBOR</span></h3>
-        <p>义体欠款还剩 90 天宽限期。守卫有视锥和警觉三态，同一间屋硬冲、潜行、绕背处决都走得通；你做过的事，第二天街坊会说起。</p>
-        <div class="spec"><span class="k">操作</span><span class="v"><kbd>WASD</kbd> 移动 · <kbd>CTRL</kbd> 蹲伏 · <kbd>E</kbd> 处决 / 交互</span></div>
-        <div class="go">进入</div>
+        <p>义体欠款还剩 90 天，硬冲、潜行、绕背处决都走得通。</p>
       </div>
     </a>
 
@@ -286,9 +265,7 @@
       <div class="body">
         <div class="kicker">生活模拟 · 效用 AI</div>
         <h3>市 井<span class="sub">SIM-GAME</span></h3>
-        <p>你操控小满，另外三个人自己过日子：饿了做饭，闷了找人聊天。点任意一个 NPC，能看到它此刻在想做什么。</p>
-        <div class="spec"><span class="k">操作</span><span class="v"><kbd>WASD</kbd> 移动 · <kbd>E</kbd> 交互 · <kbd>T</kbd> 托管给 AI</span></div>
-        <div class="go">进入</div>
+        <p>你操控小满，另外三个人自己过日子，点 NPC 看它在想什么。</p>
       </div>
     </a>
 
@@ -297,9 +274,7 @@
       <div class="body">
         <div class="kicker">疫后生存 · 日志<em class="tag">在做</em></div>
         <h3>静 街<span class="sub">QUIET STREET</span></h3>
-        <p>全镇三百二十只僵尸跟着噪音迁移，不刷新。死了镇子还在，上一个你会穿着全套装备站起来。死亡屏不给分数，给的是死因。</p>
-        <div class="spec"><span class="k">操作</span><span class="v"><kbd>WASD</kbd> 走 · <kbd>SHIFT</kbd> 跑 · <kbd>E</kbd> 互动 · <kbd>J</kbd> 日志</span></div>
-        <div class="go">进入</div>
+        <p>三百二十只僵尸跟着噪音迁移，死了镇子还在。</p>
       </div>
     </a>
 
@@ -313,9 +288,7 @@
       <div class="body">
         <div class="kicker">文字冒险 · 大模型主持</div>
         <h3>说书人<span class="sub">STORYTELLER</span></h3>
-        <p>大模型当主持人，你说做什么，它讲接下来发生什么。六个开局剧本，也能自己写世界；有风险的行动掷 d20 判定，体力和背包记在侧栏，剧情长了自动压成前情提要。</p>
-        <div class="spec"><span class="k">接口</span><span class="v">页面里填自己的 Key · 默认 Agnes 国内 · OpenAI 兼容都能接</span></div>
-        <div class="go">进入</div>
+        <p>大模型当主持人，你说做什么，它讲接下来发生什么。</p>
       </div>
     </a>
 
