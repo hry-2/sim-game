@@ -625,6 +625,22 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     pointer-events:auto;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
   }
   #shopBox.show{display:grid}
+  /* 选路跟商店同一套外观：都是波间、都是「拿一样走」 */
+  #routeBox{
+    position:absolute;inset:0;display:none;align-content:start;justify-items:center;
+    background:linear-gradient(rgba(4,6,12,.88),rgba(4,6,12,.96));
+    padding:calc(52px + env(safe-area-inset-top,0px)) 16px 20px;
+    pointer-events:auto;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  }
+  #routeBox.show{display:grid}
+  #routeBox .head{font-family:var(--disp);font-size:12px;color:var(--amber);
+    text-shadow:0 0 14px rgba(255,179,71,.55);margin-bottom:4px}
+  #routeBox .hint{font-size:10px;letter-spacing:.14em;color:#54648a;margin-bottom:14px}
+  #routeBox .hint b{color:var(--amber);font-weight:600;font-size:12px}
+  #routeItems{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:360px}
+  .sitem.risky{border-color:#6a2238}
+  .sitem.risky .sn{color:#ff8ecb}
+  .sitem.risky:hover,.sitem.risky:focus-visible{border-color:var(--mag)}
   #shopBox .head{font-family:var(--disp);font-size:12px;color:var(--amber);
     text-shadow:0 0 14px rgba(255,179,71,.55);margin-bottom:4px}
   #shopBox .hint{font-size:10px;letter-spacing:.14em;color:#54648a;margin-bottom:14px}
@@ -741,6 +757,10 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   .card.rare{border-color:#4b2e63}
   .card.rare .icon{color:var(--mag)}
   .card.rare:hover{border-color:var(--mag);box-shadow:0 0 24px rgba(255,46,166,.25)}
+  /* 进化卡：金边、常亮 —— 它是「叠满一条」的回报，得一眼跟普通牌分开 */
+  .card.evo{border-color:var(--amber);box-shadow:0 0 18px rgba(255,179,71,.28)}
+  .card.evo .icon,.card.evo h3{color:var(--amber)}
+  .card.evo:hover{border-color:#ffd9a0;box-shadow:0 0 28px rgba(255,179,71,.45)}
 
   @media (prefers-reduced-motion:reduce){
     .card{transition:none}
@@ -800,6 +820,7 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     <p class="sub" id="titleBest"></p>
     <div id="prof"></div>
     <div class="startbar">
+      <button class="btn" id="contBtn" hidden></button>
       <button class="btn" id="startBtn">接 入 神 经 索</button>
       <div class="subbtns"><button class="chip" id="howBtn">怎 么 玩</button><button class="chip" id="hqBtn">据 点</button></div>
     </div>
@@ -857,6 +878,12 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     <div class="hint2b">没花完的会存进档案，在标题页花 150 买成永久的起手武器</div>
     <div id="shopItems"></div>
     <div class="sbtns"><button class="chip" id="shopGo">下 一 波</button></div>
+  </div>
+
+  <div id="routeBox">
+    <div class="head">选 一 条 路</div>
+    <div class="hint">接下来 <b>5</b> 波 · <span id="routeHint">按 1 / 2 选</span></div>
+    <div id="routeItems"></div>
   </div>
 
   <div id="pauseBox">
@@ -946,7 +973,10 @@ const b2x = b2.getContext('2d');
    那"每日局大家一样"就不成立了。 */
 function mkRng(seed) {
   let s = (seed >>> 0) || 1;
-  return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  const r = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  // 中途存档要连随机流走到哪一起存 —— 不然续上的那一局刷的是另一批怪、发的是另一批牌
+  Object.defineProperty(r, 's', { get: () => s, set: v => { s = (v >>> 0) || 1; } });
+  return r;
 }
 const RNG = { fx: mkRng(1), wave: mkRng(2), card: mkRng(3) };
 function seedRun(seed) {
@@ -2494,7 +2524,11 @@ addEventListener('keydown', e => {
   }
   // 数字键直连武器。带满六把的时候 Q 键要按五下才换到想要的那把，
   // 在一屏八十只怪的时候这五下就是五次挨打。
-  if (G.state === 'play' && G.phase !== 'shop' && /^Digit[1-6]$/.test(e.code)) {
+  if (G.phase === 'route' && G.state === 'play') {         // 选路：1 / 2
+    const ri = ['Digit1', 'Digit2'].indexOf(e.code);
+    if (ri >= 0) { pickRoute(ri); return; }
+  }
+  if (G.state === 'play' && G.phase !== 'shop' && G.phase !== 'route' && /^Digit[1-6]$/.test(e.code)) {
     const id = P && P.owned[+e.code.slice(5) - 1];
     if (id && id !== P.wep) { equip(id); Sfx.swap(); banner(WEAPONS[id].n, WEAPONS[id].d); }
   }
@@ -2645,6 +2679,9 @@ function pollPad() {
     for (const [btn, i] of [[0, 0], [1, 1], [2, 2], [3, 3]]) if (tap(btn) && sl[i]) shopBuy(sl[i].id);
     if (tap(9)) closeShop();
   }
+  if (G.phase === 'route' && G.state === 'play') {         // 选路：A / B
+    if (tap(0)) pickRoute(0); else if (tap(1)) pickRoute(1);
+  }
   if (G.state === 'levelup') {                          // 升级页：A/B/X 选三张，Y 重摇
     for (const [btn, i] of [[0, 0], [1, 1], [2, 2]]) if (tap(btn) && G.offer[i]) takeUpgrade(G.offer[i]);
     if (tap(3)) doReroll();
@@ -2663,7 +2700,7 @@ const G = {
   mines: [], discs: [], zones: [],
   wepDmg: {}, deathBy: null, bossKills: 0, coreKills: 0, tankKills: 0, buffs: {}, mod: null, eliteKills: 0,
   overheat: 0, won: false, seen: {}, seenAff: {}, tipQ: [], tipT: 0, unlockedDanger: null, waveMax: 0, rerolls: 0,
-  pityDone: 0, pet: null, escorts: [], lvQ: 0,
+  pityDone: 0, pet: null, escorts: [], lvQ: 0, reacts: {}, route: null, routes: null,
   scrap: 0, scrapGot: 0, bought: 0, loot: {},
   hookCd: 0,
   offer: [], stacks: {},
@@ -2827,9 +2864,42 @@ const UPGRADES = [
     f:p=>{ p.dashCd*=.5; p.maxhp-=20; p.hp=Math.min(p.hp,p.maxhp); } }
 ];
 
+/* 武器进化：一把枪 + 跟它对路的那条词条叠满 → 这把枪自己带上一种属性。
+   进化不加数值，改的是这把枪【会撞出什么反应】—— 霜脉冲配上熔金就是碎裂，
+   龙息配上电弧就是爆燃，雷暴链自己就能撞出超载。所以它跟属性反应是一套东西。
+   不进 UPGRADES 表：那张表是「N 条改装词条」，首页、说明、验收都按它数。
+   条件够了，下一次升级必出这张牌（顶掉第三张）—— 叠满一条词条之后还得靠运气才见得到，那就不叫奖励了。 */
+const EVOS = [
+  // col：进化后子弹的颜色。霜的青色跟脉冲步枪原本的子弹一模一样，不换的话进化了也看不出来
+  { id: 'e_pulse', wep: 'pulse', need: 'pierce', elem: 'frost', col: '214,246,255', n: '进 化 · 霜 脉 冲', ic: '*>',
+    d: '脉冲步枪的子弹自带【霜】：命中叠一层，三层冻住' },
+  { id: 'e_shot',  wep: 'shot',  need: 'count',  elem: 'molten', n: '进 化 · 龙 息', ic: '**',
+    d: '霰弹的每一颗弹丸自带【熔】：命中点燃三秒' },
+  { id: 'e_arc',   wep: 'arc',   need: 'aura', n: '进 化 · 雷 暴 链', ic: '~~',
+    d: '电弧多跳三下，每一跳把旁边的人拽过来 —— 自己就能撞出【超载】' },
+];
+const evoOn = id => !!(P && P.evo && P.evo[id]);
+function evoReady() {
+  if (!P) return [];
+  return EVOS.filter(e => P.owned.indexOf(e.wep) >= 0 && !evoOn(e.wep)
+    && (G.stacks[e.need] || 0) >= (UPGRADES.find(u => u.id === e.need) || { max: 99 }).max);
+}
+function evoCard(e) {
+  const need = UPGRADES.find(u => u.id === e.need);
+  return { id: e.id, n: e.n, ic: e.ic, max: 1, rare: 1, evo: 1,
+    d: e.d + '（' + WEAPONS[e.wep].n + ' + ' + need.n + ' 叠满）',
+    f: p => {
+      p.evo = Object.assign({}, p.evo, { [e.wep]: 1 });
+      equip(p.wep);
+      banner(e.n, WEAPONS[e.wep].n + ' 进化了');
+    } };
+}
+// 子弹类武器进化后自带的属性（雷暴链不走子弹，在 fireArc 里单独处理）
+const evoElem = id => { const e = evoOn(id) && EVOS.find(x => x.wep === id); return (e && e.elem) || ''; };
+const evoCol = id => { const e = evoOn(id) && EVOS.find(x => x.wep === id); return e && (e.col || (e.elem && ELEM[e.elem].col)); };
 function rollOffer() {
   // 没解锁的卡不进池 —— 池子随着档案一点点变大，这才是「下一局会不一样」
-  const open = MODE === 'daily';                  // 每日局全部词条开放，大家一样
+  const open = fixedRun();                        // 每日局 / 每周挑战全部词条开放，大家一样
   // from：有些词条要到一定波次才进池。
   // 加牌有个副作用 —— 每加一张，任何一张【特定】的牌就更难抽到。
   // 实测：词条从 18 条加到 22 条之后，开局抽不到伤害，5 局里 2 局第 5 波就死。
@@ -2842,12 +2912,16 @@ function rollOffer() {
     // 玩家抽到「霰弹枪」、以为是新枪、拿了，`f` 只是 equip 一把他早就有的枪，
     // 什么都没变，白白浪费一次三选一。玩家问「又捡了霰弹枪有什么增益」，
     // 答案是零，这张牌不该出现在那里。
-    && !(u.wep && P && P.owned.indexOf(u.wep) >= 0));
+    && !(u.wep && P && P.owned.indexOf(u.wep) >= 0)
+    && !(u.wep && MODE === 'weekly' && weekRule().id === 'melee' && slotOf(u.wep) === 'range'));
   const out = [];
   while (out.length < 3 && pool.length) {
     const i = (RNG.card() * pool.length) | 0;
     out.push(pool.splice(i, 1)[0]);
   }
+  // 放在摇完之后：摇牌的次数不变，每日局的牌序不会因为谁先进化而分叉
+  const ev = evoReady()[0];
+  if (ev) { if (out.length >= 3) out[2] = evoCard(ev); else out.push(evoCard(ev)); }
   return out;
 }
 function takeUpgrade(u) {
@@ -2862,7 +2936,7 @@ function takeUpgrade(u) {
 // 但自动回收会一口气进账十几颗，跨两级的话第二级就白升了（takeUpgrade 直接回 play）。
 // 记个账，选完一张接着弹下一张。
 function gainXp(n) {
-  P.xp += n;
+  P.xp += n * rMul('xp') * wMul('xp');
   while (P.xp >= P.need) { P.xp -= P.need; P.lv++; P.need = xpNeed(P.lv); G.lvQ++; }
   pumpLevel();
 }
@@ -2901,6 +2975,13 @@ function buildHTML() {
   h += `<div class="brow"><span class="blbl">底座</span>${item('', CHASSIS[PROF.chassis] ? CHASSIS[PROF.chassis].n : '标准型', '')}`
     + `<span class="blbl">已装载</span>${item('', taken.length + ' 种 · ' + picks + ' 层', '')}`
     + `<span class="blbl">等级</span>${item('', 'LV ' + P.lv, '')}</div>`;
+  const evs = EVOS.filter(e => evoOn(e.wep));
+  if (evs.length) h += '<div class="brow"><span class="blbl">进化</span>'
+    + evs.map(e => item(e.ic, e.n.replace(/ /g, '').replace('进化·', ''), '', 'full')).join('') + '</div>';
+  // 这一局撞出过的反应。没撞出过就不占一行 —— 它是构筑的结果，不是待办
+  const rx = REACT.filter(r => (G.reacts || {})[r.id] > 0);
+  if (rx.length) h += '<div class="brow"><span class="blbl">反应</span>'
+    + rx.map(r => item('', r.n.replace(/ /g, ''), '×' + G.reacts[r.id], '')).join('') + '</div>';
   return h;
 }
 // 这一波还剩几只 = 还没刷出来的（预算）+ 场上活着的。
@@ -2913,6 +2994,12 @@ function waveLeft() {
 function syncWave() {
   const bar = el('waveBar'), txt = el('waveLeft');
   if (!bar || !txt) return;
+  if (G.phase === 'evac' && G.evac) {                 // 撤离：条是进度，数字是还剩几秒
+    bar.style.setProperty('--w', (clamp(G.evac.t / G.evac.need, 0, 1) * 100).toFixed(1) + '%');
+    bar.classList.toggle('clear', !!G.evac.on);
+    txt.textContent = Math.ceil(Math.max(0, G.evac.need - G.evac.t)) + 's';
+    return;
+  }
   const left = waveLeft();
   G.waveMax = G.phase === 'wave' ? Math.max(G.waveMax || 0, left) : (G.waveMax || 0);
   const frac = G.waveMax > 0 ? clamp(left / G.waveMax, 0, 1) : 0;
@@ -2953,7 +3040,7 @@ function renderOffer() {
   box.innerHTML = '';
   G.offer.forEach((u, i) => {
     const e = document.createElement('button');
-    e.className = 'card' + (u.rare ? ' rare' : '');
+    e.className = 'card' + (u.rare ? ' rare' : '') + (u.evo ? ' evo' : '');
     const st = G.stacks[u.id] || 0;
     e.innerHTML =
       '<div class="k">MOD 0' + (i + 1) + '</div>' +
@@ -3057,7 +3144,7 @@ function showLevelup() {
   }
   G.state = 'levelup';
   // 义体车间：指定的保底词条，第一次升级必定出现
-  if (!G.pityDone && MODE !== 'daily' && (PROF.pity || []).length) {
+  if (!G.pityDone && !fixedRun() && (PROF.pity || []).length) {
     G.pityDone = 1;
     const want = (PROF.pity || []).slice(0, hqLv('train'));
     for (const id of want) {
@@ -3151,7 +3238,7 @@ function spawn(type) {
   // 线性 1+0.17w 到第 30 波只有 6.1 倍，而玩家 28 层词条打出 14 倍火力 ——
   // 两边形状不一样，怎么调都会交叉然后永远拉开。改成二次：
   // 第 5 波跟原来一样（1.87 对 1.85，开局手感不动），第 30 波 14.5 倍，追上玩家。
-  const hpS  = (1 + w * .12 + w * w * .011) * dgMul(DG().hp, w);
+  const hpS  = (1 + w * .12 + w * w * .011) * dgMul(DG().hp, w) * rMul('hp');
   const spdS = Math.min(1.5, 1 + w * .022);
   // 在视野外一圈生成，保证马上能打起来
   let x, y, tries = 0;
@@ -3169,6 +3256,7 @@ function spawn(type) {
     dashT: 0, spin: 0, p2: 0, sum: 0, guarded: 0, fz: -1, links: null, elite: 0
   };
   if (G.mod && G.mod.spd) m0.spd *= G.mod.spd;
+  m0.spd *= wMul('spd');                                // 每周「急行军」
   if (!MOB[type].boss && RNG.wave() < eliteChance()) makeElite(m0);
   if (m0.aff && !G.seenAff[m0.aff]) {
     G.seenAff[m0.aff] = 1;
@@ -3280,7 +3368,31 @@ function setOpt(k, v) {
    种子取当天日期，所以全世界今天是同一局：同一批怪、同一批三选一。
    而且【固定配置】—— 标准底座、脉冲步枪、全部词条开放。
    如果让档案生效，解锁多的人天然占便宜，"在同一条起跑线上比"就不成立了。 */
-let MODE = PROF.mode === 'daily' ? 'daily' : 'free';
+let MODE = PROF.mode === 'daily' || PROF.mode === 'weekly' ? PROF.mode : 'free';
+// 每日局和每周挑战都是「大家同一局」：固定配置、词条全开、标准档、据点不生效。
+// 原来这些地方写的都是 MODE === 'daily'，加了每周之后统一走这一个判断。
+const fixedRun = () => MODE === 'daily' || MODE === 'weekly';
+
+/* ---- 每周挑战 ----
+   每日局解决「大家比同一局」，但每天都是同一套规则。每周挑战多给一条规则，
+   规则改的是【打法】不是数值大小 —— 只准近战、拆掉冲刺、玻璃义体、敌人急行军 ——
+   逼你用平时不会用的方式打一整局。四条按周轮换，种子取这一周。 */
+const WEEK_RULES = [
+  { id: 'melee',  n: '只 准 近 战', d: '开局拿振动刀，远程枪不进卡池',
+    f: p => { p.owned = []; gainWep('blade'); } },
+  { id: 'nodash', n: '没 有 冲 刺', d: '相位冲刺拆掉了 —— 只能靠走位',
+    f: p => { p.dashCd = 1e9; p.dashCdT = 1e9; } },   // 不用 Infinity：存档是 JSON，Infinity 会变成 null
+  { id: 'glass',  n: '玻 璃 义 体', d: '生命上限只有四成，伤害 ×1.6',
+    f: p => { p.maxhp = Math.round(p.maxhp * .4); p.hp = p.maxhp; p.mul.dmg *= 1.6; equip(p.wep); } },
+  { id: 'rush',   n: '急 行 军',   d: '敌人快两成五，经验多三成', spd: 1.25, xp: 1.3 },
+];
+// 从 1970-01-01（周四）往后数的周号，+3 让一周从周一开始
+function weekNum(d) {
+  d = d || new Date();
+  return Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5 + 3) / 7);
+}
+const weekRule = w => WEEK_RULES[((w == null ? weekNum() : w) % WEEK_RULES.length + WEEK_RULES.length) % WEEK_RULES.length];
+const wMul = k => (MODE === 'weekly' && weekRule()[k]) || 1;
 let RUN_SEED = 0;
 const DAILY_KEY = 'ns.daily';
 function loadDaily() {
@@ -3289,10 +3401,44 @@ function loadDaily() {
 }
 function saveDaily(r) { try { localStorage.setItem(DAILY_KEY, JSON.stringify(r)); return true; } catch (e) { return false; } }
 let DAILY = loadDaily();
+const WEEKLY_KEY = 'ns.weekly';
+function loadWeekly() {
+  try { const d = JSON.parse(localStorage.getItem(WEEKLY_KEY)); return (d && d.week === weekNum()) ? d : null; }
+  catch (e) { return null; }
+}
+function saveWeekly(r) { try { localStorage.setItem(WEEKLY_KEY, JSON.stringify(r)); return true; } catch (e) { return false; } }
+let WEEKLY = loadWeekly();
+
+/* 中途存档。一局 30 波要半个多小时，手机上切出去一次就等于放弃。
+   每一波开打前存一份：那一刻场上是空的、商店关了、牌也选完了，
+   要记的只剩「人身上带着什么」和「三条随机流走到哪」。
+   续上的时候从那一波的开头接着打 —— 打到一半关掉，这一波重来。 */
+const RUN_KEY = 'ns.run';
+const RUN_G = ['score', 'kills', 'wave', 'wepDmg', 'bossKills', 'coreKills', 'tankKills', 'eliteKills',
+  'seen', 'seenAff', 'rerolls', 'pityDone', 'scrap', 'scrapGot', 'bought', 'loot', 'stacks', 'escorts', 'reacts', 'route'];
+function saveRun() {
+  if (!P || G.state !== 'play') return false;
+  const g = {}; for (const k of RUN_G) g[k] = G[k];
+  const p = {}; for (const k in P) if (k.indexOf('__') !== 0) p[k] = P[k];   // __ 开头的是一帧之内的临时标记
+  const r = { v: 1, mode: MODE, day: MODE === 'daily' ? dayKey() : null, week: MODE === 'weekly' ? weekNum() : null, dg: dangerIdx(),
+    seed: RUN_SEED, arena: ARENA_I, rng: [RNG.fx.s, RNG.wave.s, RNG.card.s], G: g, P: p, at: Date.now() };
+  try { localStorage.setItem(RUN_KEY, JSON.stringify(r)); return true; } catch (e) { return false; }
+}
+function loadRun() {
+  try {
+    const r = JSON.parse(localStorage.getItem(RUN_KEY));
+    if (!r || r.v !== 1 || !r.P || !r.G) return null;
+    if (r.mode === 'daily' && r.day !== dayKey()) return null;   // 昨天的每日局续不了 —— 今天是另一个种子
+    if (r.mode === 'weekly' && r.week !== weekNum()) return null; // 上周的挑战同理
+    return r;
+  } catch (e) { return null; }
+}
+function clearRun() { try { localStorage.removeItem(RUN_KEY); } catch (e) {} }
+
 function setMode(m) {
-  MODE = m === 'daily' ? 'daily' : 'free';
+  MODE = m === 'daily' || m === 'weekly' ? m : 'free';
   PROF.mode = MODE; saveProf();
-  DAILY = loadDaily(); syncProf(); syncBest();
+  DAILY = loadDaily(); WEEKLY = loadWeekly(); syncProf(); syncBest();
 }
 // 读档时也补一次：条件早就满足了却还没发的（比如新版本加了里程碑），
 // 现在就发给他，否则档案会显示「打满 5 局」而他已经打了 11 局。
@@ -3698,13 +3844,16 @@ function syncProf() {
   if (!box) return;
   const chip = (label, on, lock, act, tip) =>
     `<button class="chip${on ? ' on' : ''}${lock ? ' lock' : ''}" data-act="${act}" title="${tip || ''}">${label}</button>`;
-  const daily = MODE === 'daily';
+  const daily = fixedRun();                              // 每日和每周的固定配置写法一样
+  const fixWord = MODE === 'weekly' ? '每周挑战固定' : '每日局固定';
   let h = `<div class="prow"><span class="plbl">模式</span>`
     + chip('自由', !daily, false, 'mode:free', '用你自己的档案打')
-    + chip('每日 ' + dayKey().slice(5), daily, false, 'mode:daily', '全世界今天同一局：固定配置、词条全开')
+    + chip('每日 ' + dayKey().slice(5), MODE === 'daily', false, 'mode:daily', '全世界今天同一局：固定配置、词条全开')
+    + chip('每周 · ' + weekRule().n.replace(/ /g, ''), MODE === 'weekly', false, 'mode:weekly',
+      '这一周同一局，外加一条规则：' + weekRule().d)
     + `</div>`;
   h += '<div class="prow"><span class="plbl">危险</span>';
-  if (daily) h += '<span class="plbl">标准档（每日局固定，不然成绩没法比）</span>';
+  if (daily) h += '<span class="plbl">标准档（' + fixWord + '，不然成绩没法比）</span>';
   else DANGER.forEach((g, i) => {
     h += chip(g.n, dangerIdx() === i, i > dangerMax(), 'dg:' + i,
       i > dangerMax() ? '打穿上一档才解锁' : g.d);
@@ -3715,7 +3864,8 @@ function syncProf() {
     + `<span class="plbl">累计拆解</span><b>${PROF.kills}</b>`
     + (PROF.wins ? `<span class="plbl">撤离</span><b>${PROF.wins}</b>` : '') + `</div>`;
   h += '<div class="prow"><span class="plbl">起手</span>';
-  if (daily) h += '<span class="plbl">脉冲步枪 · 标准型 · 词条全开（每日局固定）</span>';
+  if (daily) h += '<span class="plbl">' + (MODE === 'weekly' && weekRule().id === 'melee' ? '振动刀' : '脉冲步枪')
+    + ' · 标准型 · 词条全开（' + fixWord + '）</span>';
   else for (const id of WEP_ORDER) {
     const unlocked = id === 'pulse' || PROF.unlocked['w_' + id];
     const bought = id === 'pulse' || PROF.bought[id];
@@ -3985,6 +4135,110 @@ function grabBuff(id) {
    而不是把血条继续拉长。 */
 const LAST_WAVE = 30;
 
+/* ---- 撤离战 ----
+   原来打完第 30 波直接结算 —— 半个多小时的一局，结尾就是一行字。
+   现在货梯真的来了：它停在场地中间（避开熔渣和冷凝罐），你得站上去守住，
+   站在上面才走进度，敌人从四面不停地涌，没有预算、清不完。
+   走开不倒退，只是停 —— 被逼下来躲一下是正常打法，不该罚成从头再来。
+   最后 10 秒场上上限拉满，结尾得是整局最挤的时候。 */
+const EVAC_NEED = 40, EVAC_R = 30;
+const EVAC_BAG = ['grunt', 'grunt', 'rusher', 'rusher', 'drone', 'shieldbot', 'tank', 'bomber', 'splitter', 'hauler'];
+function evacSpot() {
+  const cx = ARENA.w / 2, cy = ARENA.h / 2;
+  // 从中心往外一圈圈找，第一处不压着熔渣、不在冷凝罐爆炸圈里的
+  for (let rr = 0; rr <= 240; rr += 40) {
+    for (let k = 0; k < (rr ? 8 : 1); k++) {
+      const a = k / 8 * TAU, x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+      const bad = HAZ.some(h => !h.gone && ((h.k === 'slag' && len(h.x - x, h.y - y) < h.r + EVAC_R + 6)
+        || (h.k === 'tank' && len(h.x - x, h.y - y) < h.blast + EVAC_R)));
+      if (!bad) return { x, y };
+    }
+  }
+  return { x: cx, y: cy };
+}
+function startEvac() {
+  const s = evacSpot();
+  G.phase = 'evac'; G.mod = null;
+  G.evac = { x: s.x, y: s.y, r: EVAC_R, t: 0, need: EVAC_NEED, on: 0 };
+  G.spawnT = 1.2;
+  banner('货 梯 到 了', '站上去守住 ' + EVAC_NEED + ' 秒');
+  Sfx.wave();
+  syncHud();
+}
+/* ---- 选路 ----
+   原来三张场地按顺序轮转，打赢 BOSS 就被送去下一张 —— 往哪走从来不是你的决定。
+   现在打完每个 BOSS 摆两条路：去哪张场地，接下来五波怎么打。
+   一条平路，一条险路。险路在敌人身上加一样东西，在你身上翻一样东西 ——
+   选的是「我现在缺什么、扛不扛得住」，不是「哪个更强」。
+   两条路用刷怪流摇，所以每日局大家摆出来的一样，续上存档摆出来的也一样。 */
+const ROUTES = {
+  calm:  { n: '平 路',         risk: '',               gain: '接下来五波照常' },
+  elite: { n: '险 路 · 精 锐', risk: '精英出现率翻倍',   gain: '捡到的废钢翻倍', elite: 2, scrap: 2 },
+  dense: { n: '险 路 · 人 潮', risk: '场上同时多三成敌人', gain: '经验 ×1.4',      mass: 1.3, xp: 1.4 },
+  armor: { n: '险 路 · 重 甲', risk: '敌人血量 +25%',    gain: '捡到的零件翻倍', hp: 1.25, parts: 2 },
+};
+const RISKY = ['elite', 'dense', 'armor'];
+const ROUTE_LEN = 5;
+// 撤离战不吃路线 —— 那一段是整局的结尾，不该被第 25 波的选择改掉
+function routeNow() {
+  return G.route && G.phase !== 'evac' && G.wave > G.route.from && G.wave <= G.route.from + ROUTE_LEN
+    ? ROUTES[G.route.id] : null;
+}
+const rMul = k => { const r = routeNow(); return (r && r[k]) || 1; };
+function rollRoutes() {
+  // 另外两张场地，一张配平路、一张配险路 —— 场地和打法一起选
+  const a = (ARENA_I + 1) % ARENAS.length, b = (ARENA_I + 2) % ARENAS.length;
+  const flip = RNG.wave() < .5;
+  const risk = RISKY[(RNG.wave() * RISKY.length) | 0];
+  return [{ id: 'calm', arena: flip ? b : a }, { id: risk, arena: flip ? a : b }];
+}
+function needRoute() {
+  return G.wave >= 5 && G.wave % 5 === 0 && G.wave < LAST_WAVE && !(G.route && G.route.from === G.wave);
+}
+function openRoute() {
+  G.phase = 'route';
+  G.routes = rollRoutes();
+  syncRoute();
+  const h = el('routeHint');                            // 手机上没有 1 / 2 键
+  if (h) h.textContent = TC.on ? '点一条' : PAD.on ? '按 A / B 选' : '按 1 / 2 选';
+  const b = el('routeBox'); if (b) b.classList.add('show');
+}
+function pickRoute(i) {
+  const c = G.routes && G.routes[i];
+  if (G.phase !== 'route' || !c) return false;
+  G.route = { id: c.id, arena: c.arena, from: G.wave };
+  G.routes = null;
+  const b = el('routeBox'); if (b) b.classList.remove('show');
+  G.phase = 'break'; G.waveT = .5;
+  Sfx.swap();
+  return true;
+}
+function syncRoute() {
+  const box = el('routeItems');
+  if (!box || !G.routes) return;
+  box.innerHTML = G.routes.map((c, i) => {
+    const R = ROUTES[c.id], A = ARENAS[c.arena];
+    return `<button class="sitem${c.id === 'calm' ? '' : ' risky'}" data-route="${i}">`
+      + `<span class="sn">${i + 1} · ${R.n}</span>`
+      + `<span class="sd">场地：${A.n}（${A.w}×${A.h}）</span>`
+      + (R.risk ? `<span class="sd">敌人：${R.risk}</span>` : '')
+      + `<span class="sc">${R.risk ? '你：' : ''}${R.gain}</span></button>`;
+  }).join('');
+}
+function updateEvac(dt) {
+  const e = G.evac;
+  e.on = len(P.x - e.x, P.y - e.y) < e.r ? 1 : 0;
+  if (e.on) e.t += dt;
+  const last = e.need - e.t < 10;
+  G.spawnT -= dt;
+  if (G.spawnT <= 0) {
+    // 只有上限、没有预算。顶到上限时同样不摇随机数
+    if (G.mobs.length >= targetMass(LAST_WAVE) * (last ? 1 : .7)) G.spawnT = .1;
+    else { spawn(pickw(EVAC_BAG)); G.spawnT = spawnGap(LAST_WAVE) * rndw(.7, 1.3); }
+  }
+  if (e.t >= e.need) winRun();
+}
+
 /* ---- 危险等级 ----
    局有终点之后，「打穿之后玩什么」就成了真问题。答案不是把 30 波拉长，
    而是把同一条 30 波曲线整体上抬一档，打穿一档解锁下一档。
@@ -4001,7 +4255,7 @@ const DANGER = [
   { n: '归 零', d: '每波都有修饰，BOSS 波也有',   hp: 2.0,  mass: 1.4,  elite: 1.5, sc: 2.2, modTier: 2, modsOnBoss: 1 },
 ];
 // 每日局钉在标准档，其余看档案里选的
-function dangerIdx() { return MODE === 'daily' ? 0 : clamp(PROF.danger | 0, 0, DANGER.length - 1); }
+function dangerIdx() { return fixedRun() ? 0 : clamp(PROF.danger | 0, 0, DANGER.length - 1); }
 function DG() { return DANGER[dangerIdx()]; }
 function dangerMax() { return clamp(PROF.dangerMax | 0, 0, DANGER.length - 1); }
 // 档位的血量和密度倍率在前八波渐进上来。一上来就 ×1.25 血 ×1.1 密度的话，
@@ -4022,7 +4276,7 @@ function eliteChance() {
   if (G.wave < 6) return 0;
   const g = DG();
   const cap = [0, .20, .30, .42][tier(G.wave)] * g.elite;
-  return Math.min(Math.min(.62, cap), (G.wave - 5) * .03 * g.elite);
+  return Math.min(rMul('elite') > 1 ? .8 : .62, Math.min(.62, cap) * rMul('elite'), (G.wave - 5) * .03 * g.elite * rMul('elite'));
 }
 /* 精英词缀。
    之前精英只是 ×2.6 血 ×1.12 速 ×3 经验 —— 一圈金环底下，所有精英完全一样，
@@ -4123,8 +4377,8 @@ function sweepDrops() {
   for (const d of G.drops) {
     if (d.gone) continue;
     if (d.kind === 'hp') { P.hp = Math.min(P.maxhp, P.hp + 18); got.hp++; }
-    else if (d.kind === 'part') { G.loot[d.pk] = (G.loot[d.pk] || 0) + 1; got.parts.push(d.pk); }
-    else if (d.kind === 'coin') { const v = d.v || 1; G.scrap += v; G.scrapGot += v; got.scrap += v; }
+    else if (d.kind === 'part') { G.loot[d.pk] = (G.loot[d.pk] || 0) + rMul('parts'); got.parts.push(d.pk); }
+    else if (d.kind === 'coin') { const v = (d.v || 1) * rMul('scrap'); G.scrap += v; G.scrapGot += v; got.scrap += v; }
     else if (BUFFS[d.kind]) { grabBuff(d.kind); got.buffs++; }
     else got.xp++;
   }
@@ -4148,7 +4402,9 @@ function sweepNote(got) {
 
 /* ================= 波次 ================= */
 function nextWave() {
-  if (G.wave >= LAST_WAVE) return winRun();            // 打完第 30 波就是撤离
+  if (G.wave >= 1) saveRun();                          // 摇修饰之前存 —— 续上之后摇出来的还是同一个
+  if (G.wave >= LAST_WAVE) return startEvac();         // 打完第 30 波，货梯来了
+  if (needRoute()) return openRoute();                 // 打完 BOSS 先选路，选完再进下一波
   G.wave++;
   G.mod = rollMod(G.wave);
   if (TIERS[tier(G.wave)] && tier(G.wave) !== tier(G.wave - 1)) {
@@ -4160,11 +4416,14 @@ function nextWave() {
   // 单独再弹一条会被场地那条盖掉（banner 是直接覆盖，不排队）。
   if (G.wave > 1 && G.wave % 5 === 1) {
     const note = sweepNote(sweepDrops());
-    setArena(ARENA_I + 1, false);          // 这里不弹：nextWave 末尾的波次横幅会直接把它盖掉
+    const viaRoute = G.route && G.route.from === G.wave - 1;
+    setArena(viaRoute ? G.route.arena : ARENA_I + 1, false);   // 这里不弹：nextWave 末尾的波次横幅会直接把它盖掉
     // 走提示队列。banner() 是覆盖式的，而 tipQ 会等上一条播完再出下一条 ——
     // 顺带修好了「场地横幅从来没人见过」：它一直在换场地那一波被波次横幅盖掉。
     G.tipQ.push({ n: '场 地 · ' + ARENA.a.n, d: ARENA.w + ' × ' + ARENA.h });
     if (note) G.tipQ.push({ n: '自 动 回 收', d: note });
+    const R = viaRoute && ROUTES[G.route.id];
+    if (R && R.risk) G.tipQ.push({ n: R.n, d: R.risk + ' · ' + R.gain + ' · 五波' });
   }
   G.phase = 'wave';
   G.waveT = 18 + Math.min(10, G.wave);
@@ -4230,7 +4489,7 @@ const SHOP = [
   // 弹药库 Lv1 解锁的第五格
   { id: 'kit',  n: '整 备', cost: 140, d: '清空场上的雷，冲刺立刻就绪', hq: ['depot', 1],
     can: () => true,
-    act: () => { G.mines.length = 0; if (P) P.dashCdT = 0; Sfx.buff(); } },
+    act: () => { G.mines.length = 0; if (P && P.dashCd < 1e8) P.dashCdT = 0; Sfx.buff(); } },   // 「没有冲刺」那一周别给它充上
   { id: 'gun',  n: '军 械 调 拨', cost: 300, d: '一把已解锁的枪，这一局带着',
     can: () => shopGuns().length > 0,
     act: () => {
@@ -4243,7 +4502,7 @@ const SHOP = [
 ];
 // 已解锁（或每日局全开）、但这一局还没带在身上的枪
 function shopGuns() {
-  const open = MODE === 'daily';
+  const open = fixedRun();
   return WEP_ORDER.filter(id => id !== 'pulse'
     && (open || PROF.unlocked['w_' + id])
     && P.owned.indexOf(id) < 0);
@@ -4272,7 +4531,7 @@ function syncTC() {
   tc.classList.toggle('play', G.state === 'play');         // 暂停时也留着，否则点不回来
   tc.classList.toggle('paused', !!G.paused);
   // 升级页和商店自带出口按钮，这时候整套触屏控件收起来（含右上角那两个圆键）
-  tc.classList.toggle('modal', G.state === 'levelup' || G.phase === 'shop');
+  tc.classList.toggle('modal', G.state === 'levelup' || G.phase === 'shop' || G.phase === 'route');
 }
 function openShop() {
   G.phase = 'shop';
@@ -4304,11 +4563,22 @@ function syncShop() {
 }
 
 const HOOK_GAP = 2.2;                                  // 两次钩索之间保证有这么久的空档
-function targetMass(w) { return Math.round(Math.min(84, 4 + w * .6 + w * w * .08) * dgMul(DG().mass, w)); }
+function targetMass(w) { return Math.round(Math.min(84, 4 + w * .6 + w * w * .08) * dgMul(DG().mass, w) * rMul('mass')); }
 // 补怪速率直接写成【每秒几只】，而不是写成间隔 —— 写间隔的时候 1/间隔 是非线性的，
 // 结果「够快」只在最后几波才到，第 12 波还只有 3.2 只/秒。
 // 这条必须快过玩家的击杀速度（满词条约 17~33 只/秒），否则场上的密度是由刷怪管道
 // 决定的，而不是由设计决定的。快没有风险 —— targetMass 才是真正的安全阀。
+// 世界坐标是否在当前画面里（往里收 inset 像素）
+const onView = (x, y, inset) => x > G.cam.x + inset && x < G.cam.x + VW - inset
+  && y > G.cam.y + inset && y < G.cam.y + VH - inset;
+// 钉枪手想站多远：220，但不超过「沿它那个方向到屏幕边」再往里收 34px（站位带子 ±20，外沿也在画面里），最近 70
+function sniperStand(m, dx, dy, d) {
+  const ux = -dx / d, uy = -dy / d;                    // 从玩家指向它
+  const px = P.x - G.cam.x, py = P.y - G.cam.y;
+  const tx = ux > .01 ? (VW - px) / ux : ux < -.01 ? -px / ux : 1e9;
+  const ty = uy > .01 ? (VH - py) / uy : uy < -.01 ? -py / uy : 1e9;
+  return clamp(Math.min(tx, ty) - 34, 70, MOB.sniper.standoff);
+}
 function spawnRate(w) { return Math.min(42, 1.2 + w * 1.5); }
 function spawnGap(w) { return 1 / spawnRate(w); }
 function waveSpawn(dt) {
@@ -4385,7 +4655,7 @@ function equip(id) {
   // 而不是被倍率放大成数值。每日局不吃改装 —— 大家的枪得一样。
   P.railSplit = 0; P.nadeProx = 0; P.bladeKick = 0; P.beamWide = 0; P.mineRemote = 0; P.discTwin = 0;
   P.selfPush = 0;
-  if (MODE !== 'daily' && WMOD[id] && modOwned(id) && modOn(id)) WMOD[id].f(P);
+  if (!fixedRun() && WMOD[id] && modOwned(id) && modOn(id)) WMOD[id].f(P);
   P.fireT = Math.min(P.fireT, .25);
   syncHud();
 }
@@ -4440,7 +4710,9 @@ function fire() {
       x: P.x + Math.cos(a) * 8, y: P.y + Math.sin(a) * 8,
       vx: Math.cos(a) * P.bspd * rnd(.92, 1.08), vy: Math.sin(a) * P.bspd * rnd(.92, 1.08),
       life: P.range, dmg: P.dmg * (crit ? 3 : 1), crit,
-      pierce: P.pierce, hits: [], px: 0, py: 0, bounce: P.bounce, col: P.wcol, wep: P.wep
+      pierce: P.pierce, hits: [], px: 0, py: 0, bounce: P.bounce, wep: P.wep,
+      elem: evoElem(P.wep) || undefined,                // 进化过的枪，子弹出膛就带着属性
+      col: evoCol(P.wep) || P.wcol
     });
   }
   muzzle(a0, P.kind === 'bullet' && P.count > 3 ? 7 : 3);
@@ -4625,6 +4897,9 @@ function updateZones(dt) {
         m.x -= dx / d * Math.min(s2, d - 4);
         m.y -= dy / d * Math.min(s2, d - 4);
       }
+      // 站在区域里就算身上带着这块地的属性 —— 反应要认它
+      if (z.pull) { m.gravT = GRAV_HOLD; react(m, 'grav'); }
+      if (z.elem === 'molten') { m.moltT = .3; if (hit) react(m, 'molten'); }
       if (z.harvest) m.harvest = .6;                    // 嬗变：在雾里死的掉双倍（留 0.6 秒余味）
     }
   }
@@ -4765,7 +5040,8 @@ function fireArc() {
   const hit = [];
   let sx = P.x, sy = P.y;
   const pts = [[P.x, P.y]];
-  for (let k = 0; k <= P.chain; k++) {
+  const storm = evoOn('arc');                           // 雷暴链：多跳三下，每跳把旁边的拽过来
+  for (let k = 0; k <= P.chain + (storm ? 3 : 0); k++) {
     let best = null, bd = P.reach;
     for (const m of G.mobs) {
       if (m.dead || hit.indexOf(m) >= 0) continue;
@@ -4776,6 +5052,17 @@ function fireArc() {
     hit.push(best); pts.push([best.x, best.y]);
     hurtMob(best, P.dmg * (RNG.fx() < P.crit ? 3 : 1), 0, 0, sx, sy);
     G.wepDmg.arc = (G.wepDmg.arc || 0) + P.dmg;
+    if (storm && !best.dead) {
+      // 拽一下：40px 内的往它身上靠 8px，它自己挂上【引】—— 紧接着的那一跳雷就撞成超载
+      for (const o of G.mobs) {
+        if (o.dead || o === best) continue;
+        const dx = best.x - o.x, dy = best.y - o.y, d = len(dx, dy);
+        if (d > 40 || d < 1) continue;
+        const k2 = Math.min(8, d - best.r - o.r) / d;
+        if (k2 > 0) { o.x += dx * k2; o.y += dy * k2; }
+      }
+      best.gravT = GRAV_HOLD;
+    }
     voltJump(best, P.dmg * .3);                        // 电弧链也归到【雷】这条规则下
     burstFx(best.x, best.y, 5, '#a8ff7c', 110);
     sx = best.x; sy = best.y;
@@ -4913,6 +5200,8 @@ function explode(x, y, r, dmg) {
 /* 雷：伤害向旁边再跳一次。把电弧链和静电场收进同一条规则 ——
    它们原来各做各的，玩家看不出是一类东西。人越挤越疼，正好跟引力核连成一套。 */
 function voltJump(from, dmg) {
+  // 三个调用处（电弧链、静电场）都是刚用雷打过 from，所以 from 也算挨了雷
+  if (from && !from.dead) { from.voltT = VOLT_HOLD; react(from, 'volt'); }
   let best = null, bd = 70;
   for (const m of G.mobs) {
     if (m.dead || m === from) continue;
@@ -4922,6 +5211,7 @@ function voltJump(from, dmg) {
   if (!best) return;
   hurtMob(best, dmg, 0, 0, from.x, from.y);
   G.beams.push({ x1: from.x, y1: from.y, x2: best.x, y2: best.y, t: .09, col: ELEM.volt.col, thin: 1 });
+  if (!best.dead) { best.voltT = VOLT_HOLD; react(best, 'volt'); }
 }
 
 /* 霜：叠层，叠满冻住。这是全游戏第一个硬控 ——
@@ -4938,6 +5228,74 @@ function addFrost(m, n) {
     m.chg = 0; m.wind = 0; m.dashT = 0;                // 打断蓄力 / 冲锋 —— 硬控的意义在这
     burstFx(m.x, m.y, 8, '#9fe8ff', 120);
   }
+  react(m, 'frost');
+}
+
+/* 属性反应：两种属性落在同一个敌人身上，撞出第三样东西。
+   五种属性原来各管各的 —— 拿了熔又拿了霜，只是两条互不相干的效果。
+   反应让「这一局凑哪两种」成为一个构筑决定，而且不加新武器、不加新数值词条。
+   只做三条，每条一个看得懂的后果：
+     碎裂：一下大伤害，打单个硬的
+     爆燃：就地炸开、把火传出去，打一小堆
+     超载：被引力拽成一团的一起挨电，打一大堆
+   嬗不参与 —— 它管的是掉落，掺进伤害里就不是它了。
+   每个敌人反应过一次要歇 0.8 秒，不然灼烧每 0.4 秒一跳、霜每一击都叠，一秒能撞好几次。 */
+const VOLT_HOLD = .6, GRAV_HOLD = .4, REACT_CD = .8;
+const HAS = {
+  molten: m => m.burn > 0 || m.moltT > 0,               // 身上烧着，或者正站在熔金里
+  frost:  m => m.frost > 0 || m.frozen > 0,
+  volt:   m => m.voltT > 0,                             // 雷和引没有常驻状态，挨一下记一小会儿
+  grav:   m => m.gravT > 0,
+};
+const REACT = [
+  { id: 'shatter',  a: 'molten', b: 'frost', n: '碎 裂', d: '熔 + 霜：冰火一撞，一下大伤害，冰也碎了',
+    col: '#dff6ff', f: m => {
+      m.burn = 0; m.moltT = 0; m.frost = 0; m.frozen = 0;
+      burstFx(m.x, m.y, 14, '#dff6ff', 200);
+      G.parts.push({ x: m.x, y: m.y, vx: 0, vy: 0, life: .22, max: .22, s: m.r + 14, c: '#9fe8ff', ring: true });
+      hurtMob(m, 12 + P.dmg * 1.5, 0, 0);
+    } },
+  { id: 'blast',    a: 'molten', b: 'volt',  n: '爆 燃', d: '熔 + 雷：就地炸开，把火传给旁边的',
+    col: '#ff9d3d', f: m => {
+      m.burn = 0; m.moltT = 0; m.voltT = 0;
+      const R = 30, dmg = 8 + P.dmg * .8;
+      burstFx(m.x, m.y, 16, '#ff9d3d', 200);
+      G.parts.push({ x: m.x, y: m.y, vx: 0, vy: 0, life: .26, max: .26, s: R, c: '#ffd9a0', ring: true });
+      G.shake = Math.max(G.shake, 3);
+      for (const o of G.mobs.slice()) {
+        if (o.dead || len(o.x - m.x, o.y - m.y) > R + o.r) continue;
+        // 火传出去，但被点着的要等一会儿才能自己再爆 —— 不然同一道电弧接着跳到它身上，
+        // 一瞬间整堆连环爆，打的是同一下
+        if (o !== m) { o.burn = Math.max(o.burn || 0, 2); o.reactCd = Math.max(o.reactCd || 0, .4); }
+        hurtMob(o, dmg, 0, 0);                            // 爆炸没有方向，铁闸也挡不住
+      }
+    } },
+  { id: 'overload', a: 'volt',   b: 'grav',  n: '超 载', d: '雷 + 引：被拽成一团的，一起挨电',
+    col: '#7cff4f', f: m => {
+      m.voltT = 0;
+      const R = 56, dmg = 6 + P.dmg * .6;
+      G.parts.push({ x: m.x, y: m.y, vx: 0, vy: 0, life: .2, max: .2, s: R, c: '#a8ff7c', ring: true });
+      for (const o of G.mobs.slice()) {
+        if (o.dead || len(o.x - m.x, o.y - m.y) > R + o.r) continue;
+        if (o !== m) G.beams.push({ x1: m.x, y1: m.y, x2: o.x, y2: o.y, t: .12, col: ELEM.volt.col, thin: 1 });
+        hurtMob(o, dmg, 0, 0, m.x, m.y);
+      }
+    } },
+];
+// el：刚刚落到它身上的那一种。另一种得【已经在它身上】才撞得出来。
+function react(m, el) {
+  if (!m || m.dead || m.reactCd > 0 || !P) return null;
+  for (const r of REACT) {
+    const other = r.a === el ? r.b : r.b === el ? r.a : null;
+    if (!other || !HAS[other](m)) continue;
+    m.reactCd = REACT_CD;                               // 先上冷却再结算 —— 结算里的伤害会再叠霜、再进这里
+    G.reacts[r.id] = (G.reacts[r.id] || 0) + 1;
+    if (G.reacts[r.id] === 1) G.tipQ.push({ n: r.n, d: r.d });   // 这一局第一次撞出来，告诉你刚才发生了什么
+    r.f(m);
+    Sfx.hit();
+    return r.id;
+  }
+  return null;
 }
 function hurtMob(m, dmg, kx, ky, sx, sy) {
   if (P && P.charged) dmg *= 1 + 2 * P.charge;         // 蓄能：停火后的第一发
@@ -5237,7 +5595,7 @@ function update(dt) {
     // 而不是直接放它过关。
     if (!G.overheat && G.budget <= 0 && G.waveT < -12 && G.mobs.length) {
       G.overheat = 1;
-      banner('护 盾 过 热', '场上剩下的护盾全部失效');
+      banner('护 盾 过 热', '场上剩下的护盾和自愈全部失效');
     }
     if (G.waveT <= 0 && G.budget <= 0 && G.mobs.length === 0) {
       G.overheat = 0;
@@ -5246,6 +5604,11 @@ function update(dt) {
       if (G.wave < LAST_WAVE && shopWorth()) openShop();
       else { G.phase = 'break'; G.waveT = 3.2; }
     }
+  } else if (G.phase === 'evac') {
+    updateEvac(dt);
+  } else if (G.phase === 'route') {
+    /* 选路跟商店一样不走计时。落到下面的 else 里的话，每一帧都会再进一次 nextWave，
+       把两条路重摇一遍 —— 按钮在手指底下不停地换，随机流也被白白摇掉。 */
   } else if (G.phase === 'shop') {
     /* 商店开着的时候不走计时 —— 等玩家自己按「下一波」。
        不给倒计时是刻意的：手机上四个条目加价钱，读完就得好几秒。 */
@@ -5272,7 +5635,9 @@ function update(dt) {
     m.guarded = Math.max(0, (m.guarded || 0) - dt);   // 中继的护盾每帧衰减，中继一死马上失效
     if (m.markT > 0) m.markT -= dt;
     // 精英词缀里需要每帧跑的两个
-    if (m.aff === 'regen' && m.hp < m.max) m.hp = Math.min(m.max, m.hp + m.max * .035 * dt);
+    // 过热之后自愈也停 —— 别的词缀（护盾、殉爆、呼叫、中继）早就跟着过热失效了，
+    // 唯独漏了它：探针撞见过一屏十只自愈精英，回血比机器人打得快，加时 386 秒没收掉
+    if (m.aff === 'regen' && m.hp < m.max && !G.overheat) m.hp = Math.min(m.max, m.hp + m.max * .035 * dt);
     if (m.aff === 'call') {
       m.affT -= dt;
       if (m.affT <= 0) {
@@ -5335,8 +5700,12 @@ function update(dt) {
       m.ang += angDiff(Math.atan2(dy, dx), m.ang) * Math.min(1, dt * 4);
       // 注意：这个循环里 d 是【距离】，不是怪物档案 —— 第一版写了 d.standoff，
       // 结果是 undefined，钉枪手既不退也不蓄力，完全是块木头。
-      const so = MOB.sniper.standoff;
-      const push = d < so - 40 ? -1 : d > so + 40 ? 1 : 0;   // 太近就退，太远才前进
+      // 站位要在【屏幕里】。画面只有 320×180，竖着只看得见上下各 90px，
+      // 而它原来站在 220px 外 —— 探针量过：八成九的蓄力是在屏幕外起手的，
+      // 玩家看见的只是一条从屏幕边上扎进来的线，开枪的那个人从来没见过。
+      // 所以沿它所在的方向算一下「离屏幕边还有多远」，站在那里面；横向还是远的。
+      const so = sniperStand(m, dx, dy, d);
+      const push = d < so - 20 ? -1 : d > so + 20 ? 1 : 0;   // 太近就退，太远才前进（这条带子的外沿也得在屏幕里）
       m.vx = dx / d * m.spd * push * sl; m.vy = dy / d * m.spd * push * sl;
       m.cd -= dt;
       if (m.wind > 0) {
@@ -5345,7 +5714,7 @@ function update(dt) {
           eshoot(m, m.cAng, 300, m.dmg);
           m.cd = rnd(2.2, 3.4);
         }
-      } else if (m.cd <= 0 && d < so * 1.6) {
+      } else if (m.cd <= 0 && d < MOB.sniper.standoff * 1.6 && onView(m.x, m.y, 8)) {   // 看不见它就不许起手
         m.cAng = Math.atan2(dy, dx); m.wind = .9; Sfx.fuse();
       }
     } else if (m.type === 'hauler') {
@@ -5559,7 +5928,9 @@ function update(dt) {
         hurtMob(m, b.dmg, b.vx * dt * .5, b.vy * dt * .5, b.x - b.vx * .05, b.y - b.vy * .05);
         // 附了属性的子弹把属性一起打进去
         if (b.elem === 'trans') m.harvest = .6;        // 嬗：打死的也算在金雾里死
-        if (b.elem === 'molten') m.burn = Math.max(m.burn || 0, 3);   // 熔：点燃三秒
+        if (b.elem === 'molten') { m.burn = Math.max(m.burn || 0, 3); react(m, 'molten'); }   // 熔：点燃三秒
+        if (b.elem === 'grav') { m.gravT = GRAV_HOLD; react(m, 'grav'); }
+        if (b.elem === 'frost') addFrost(m, 1);          // 霜脉冲：子弹自己叠霜（addFrost 里会认反应）
         G.wepDmg[b.wep || 'pulse'] = (G.wepDmg[b.wep || 'pulse'] || 0) + b.dmg;
         burstFx(b.x, b.y, b.crit ? 8 : 4, b.crit ? '#ffe066' : 'rgb(' + (b.col || '69,240,255') + ')', 120);
         Sfx.hit();
@@ -5626,6 +5997,12 @@ function update(dt) {
   infuse(dt);                                          // 子弹穿过自己的区域 → 被附上属性
   // 嬗变的余味：出了金雾还留 0.6 秒，不然「刚走出去就死」不算数很别扭
   for (const m of G.mobs) if (m.harvest > 0) m.harvest -= dt;
+  for (const m of G.mobs) {                            // 属性反应用的几个短计时
+    if (m.voltT > 0) m.voltT -= dt;
+    if (m.gravT > 0) m.gravT -= dt;
+    if (m.moltT > 0) m.moltT -= dt;
+    if (m.reactCd > 0) m.reactCd -= dt;
+  }
   // 灼烧：熔属性的子弹点着的，三秒里每 0.4 秒掉一次
   for (const m of G.mobs) {
     if (m.dead || !(m.burn > 0)) continue;
@@ -5719,13 +6096,13 @@ function update(dt) {
       d.gone = true;
       if (d.kind === 'hp') { P.hp = Math.min(P.maxhp, P.hp + 18); }
       else if (d.kind === 'part') {
-        G.loot[d.pk] = (G.loot[d.pk] || 0) + 1;
+        G.loot[d.pk] = (G.loot[d.pk] || 0) + rMul('parts');
         Sfx.buff();
         banner(PART[d.pk].n, '收进货箱');
         firstTime('bag');            // 第一件零件：告诉他货箱在哪，别只在聊天里说
       }
       else if (d.kind === 'coin') {
-        G.scrap += d.v || 1; G.scrapGot += d.v || 1; Sfx.xp();
+        G.scrap += (d.v || 1) * rMul('scrap'); G.scrapGot += (d.v || 1) * rMul('scrap'); Sfx.xp();
         if (P.salvage) P.hp = Math.min(P.maxhp, P.hp + P.salvage);   // 回收协议：钱换血
       }
       else if (BUFFS[d.kind]) { grabBuff(d.kind); firstTime('buff'); }
@@ -6001,6 +6378,38 @@ function render() {
     orb(x, y, 7, 'rgba(' + o.col + ',.5)');
     ctx.fillStyle = 'rgb(' + o.col + ')';
     ctx.fillRect((x | 0) - 2, (y | 0) - 2, 4, 4);
+  }
+
+  // 货梯：地上的东西，画在敌人之前。站上去变绿，外圈是进度
+  if (G.phase === 'evac' && G.evac) {
+    const e = G.evac, x = e.x - G.cam.x, y = e.y - G.cam.y;
+    const pulse = .5 + .5 * Math.sin(G.t * 4);
+    const col = e.on ? '124,255,79' : '255,224,102';
+    orb(x, y, e.r * 1.4, 'rgba(' + col + ',' + (.10 + .08 * pulse).toFixed(3) + ')');
+    ctx.fillStyle = 'rgba(' + col + ',.10)';
+    ctx.beginPath(); ctx.arc(x, y, e.r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = 'rgba(' + col + ',' + (.6 + .4 * pulse).toFixed(2) + ')'; ctx.lineWidth = 2;   // 一屏怪里也得一眼找到它
+    ctx.beginPath(); ctx.arc(x, y, e.r, 0, TAU); ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(' + col + ',.35)';               // 格栅：读起来是一块平台，不是一个圈
+    for (let i = -2; i <= 2; i++) {
+      const o = i * e.r / 3, h = Math.sqrt(Math.max(0, e.r * e.r - o * o));
+      ctx.beginPath(); ctx.moveTo(x + o, y - h); ctx.lineTo(x + o, y + h); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x, y, e.r + 4, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(e.t / e.need, 0, 1)); ctx.stroke();
+    ctx.lineWidth = 1;
+    // 不在屏幕里就在边上画个箭头指过去
+    if (x < 0 || y < 0 || x > VW || y > VH) {
+      const px = clamp(x, 10, VW - 10), py = clamp(y, 10, VH - 10);
+      const a = Math.atan2(y - py, x - px);
+      ctx.fillStyle = 'rgb(' + col + ')';
+      ctx.beginPath();
+      ctx.moveTo(px + Math.cos(a) * 6, py + Math.sin(a) * 6);
+      ctx.lineTo(px + Math.cos(a + 2.5) * 5, py + Math.sin(a + 2.5) * 5);
+      ctx.lineTo(px + Math.cos(a - 2.5) * 5, py + Math.sin(a - 2.5) * 5);
+      ctx.fill();
+    }
   }
 
   // 场地互动物。画在敌人之前，所以是「地上的东西」而不是飘在头顶。
@@ -6493,7 +6902,7 @@ function syncHud() {
   el('scoreTxt').textContent = G.score;
   const st = el('scrapTxt');
   if (st) st.textContent = G.scrap;
-  el('waveTag').textContent = 'WAVE ' + String(Math.max(1, G.wave)).padStart(2, '0');
+  el('waveTag').textContent = G.phase === 'evac' ? 'EVAC' : 'WAVE ' + String(Math.max(1, G.wave)).padStart(2, '0');
   const wt = el('wepTxt');
   // Q▸ 是给键盘看的提示。触屏有专门的换枪圆键，写 Q 只会让人去找 Q 在哪
   if (wt) wt.textContent = WEAPONS[P.wep].n + (!isTouch && P.owned.length > 1 ? '  Q▸' : '');
@@ -6552,14 +6961,23 @@ function banner(main, sub) {
 // seedOverride：给指定种子就用它。两个用处 ——
 // 一是 ?seed=123 能把一局原样复现（roguelite 里「这把种子太离谱了」值得能分享），
 // 二是离线探针只有把种子钉死才能比较改动前后的难度。
-function start(seedOverride) {
+// rs：loadRun() 读出来的存档，给了就是「继续」—— 照常开一局，再把存下来的那些盖上去。
+function start(seedOverride, rs) {
   Sfx.init();
+  if (rs) {                                             // 存档是哪个模式、哪一档打的，就接着用哪个
+    MODE = rs.mode === 'daily' || rs.mode === 'weekly' ? rs.mode : 'free';
+    PROF.mode = MODE;
+    if (!fixedRun()) PROF.danger = rs.dg | 0;
+    saveProf(); DAILY = loadDaily(); WEEKLY = loadWeekly();
+  } else clearRun();                                    // 开新的一局，旧存档作废
   // 种子必须在生成场景之前定下来，场景装饰也走刷怪流
   const urlSeed = (() => {
     const q = new URLSearchParams(location.search || '').get('seed');
     return q && /^\d+$/.test(q) ? (Number(q) >>> 0) : null;
   })();
-  RUN_SEED = MODE === 'daily' ? strSeed('ns-' + dayKey())
+  RUN_SEED = rs ? rs.seed >>> 0
+    : MODE === 'daily' ? strSeed('ns-' + dayKey())
+    : MODE === 'weekly' ? strSeed('ns-w' + weekNum())
     : seedOverride != null ? (seedOverride >>> 0)
     : urlSeed != null ? urlSeed
     : ((Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0);
@@ -6568,6 +6986,7 @@ function start(seedOverride) {
   P = newPlayer();
   setPaused(false);                                      // 重开时把暂停层收掉
   { const sb = el('shopBox'); if (sb) sb.classList.remove('show'); }
+  { const rb = el('routeBox'); if (rb) rb.classList.remove('show'); }
   Object.assign(G, {
     state: 'play', paused: false, t: 0, shake: 0, hitFlash: 0,
     score: 0, kills: 0, wave: 0, waveT: .8, phase: 'break',
@@ -6577,15 +6996,20 @@ function start(seedOverride) {
     wepDmg: {}, deathBy: null, bossKills: 0, coreKills: 0, tankKills: 0,
     buffs: {}, mod: null, eliteKills: 0, overheat: 0, won: false, seen: {}, tipQ: [], tipT: 0,
     unlockedDanger: null, waveMax: 0, rerolls: REROLLS, hookCd: 0, seenAff: {}, pityDone: 0,
-    pet: null, escorts: [],
+    pet: null, escorts: [], reacts: {}, route: null, routes: null,
     scrap: 0, scrapGot: 0, bought: 0, loot: {}
   });
   // 宠物要放在 Object.assign 之后 —— 放前面会被那一行重置回 null（踩过一次）。
   // 跟在身后落后一点，看着像被牵着走。
   G.pet = activePet() ? { id: activePet(), x: P.x - 24, y: P.y + 5, ph: 0, flip: 0, ta: 0 } : null;
-  if (MODE === 'daily') {                               // 每日局：固定配置
+  if (fixedRun()) {                                     // 每日局 / 每周挑战：固定配置
     applySkin(dailySkin());                             // 涂装是外观，可以跟着当天换
     P.hp = P.maxhp; equip('pulse');
+    if (MODE === 'weekly') {
+      const R = weekRule();
+      if (R.f) R.f(P);
+      G.tipQ.push({ n: '本 周 · ' + R.n, d: R.d });
+    }
   } else {
     applySkin(PROF.skin);
     (CHASSIS[PROF.chassis] || CHASSIS.std).f(P);         // 底座
@@ -6593,6 +7017,15 @@ function start(seedOverride) {
     // 起手武器要走 gainWep —— equip 只管换手，不管「拿到」。
     // 买成起手的那把会顶掉同槽的默认枪（目前只有远程槽有默认枪）。
     gainWep(PROF.wep && (PROF.wep === 'pulse' || PROF.bought[PROF.wep]) ? PROF.wep : 'pulse');
+  }
+  if (rs) {
+    // 换场地会重新生成装饰，而装饰也走刷怪流 —— 所以先换场地，最后才把随机流拨回存档那一格
+    setArena(rs.arena | 0, false);
+    Object.assign(G, rs.G);
+    Object.assign(P, rs.P, { vx: 0, vy: 0, dashT: 0, inv: 1.2 });   // 刚续上给一秒多无敌，别一落地就挨打
+    RNG.fx.s = rs.rng[0]; RNG.wave.s = rs.rng[1]; RNG.card.s = rs.rng[2];
+    G.phase = 'break'; G.waveT = 2;
+    banner('续 上 了', '第 ' + (G.wave + 1) + ' 波马上开始');
   }
   G.cam.x = camAt(P.x - VW / 2, ARENA.w, VW);
   G.cam.y = camAt(P.y - VH / 2, ARENA.h, VH);
@@ -6615,7 +7048,7 @@ function backToTitle() {
   el('title').classList.add('show');
   document.body.classList.add('menu');
   syncTC();
-  syncProf(); syncBest();
+  syncProf(); syncBest(); syncCont();
 }
 // 打完第 30 波 → 撤离。结算走同一条路，只是标题和小字不一样，
 // 不然记录、废钢、里程碑三套逻辑要各写两份。
@@ -6623,7 +7056,7 @@ function winRun() {
   PROF.wins = (PROF.wins || 0) + 1;
   // 打穿一档就解锁下一档 —— 这是「通关之后玩什么」的答案
   const cur = dangerIdx();
-  if (MODE !== 'daily' && cur >= dangerMax() && cur + 1 < DANGER.length) {
+  if (!fixedRun() && cur >= dangerMax() && cur + 1 < DANGER.length) {
     PROF.dangerMax = cur + 1;
     G.unlockedDanger = DANGER[cur + 1].n;
   }
@@ -6635,6 +7068,7 @@ function pickDanger(i) {
   PROF.danger = i; saveProf(); syncProf(); syncBest();
 }
 function gameOver(won) {
+  clearRun();                                          // 死了、撤离了、放弃了，都没有「继续」可言
   G.state = 'over';
   G.won = !!won;
   el('overTitle').textContent = won ? '撤 离 成 功' : '连 接 中 断';
@@ -6645,7 +7079,7 @@ function gameOver(won) {
   const by = G.deathBy === 'self' ? '自己的榴弹'
     : G.deathBy === 'giveup' ? null : (MOB[G.deathBy] || {}).nm;
   el('overSub').textContent = (won
-    ? '三十波打穿了，货梯在等着'
+    ? '三十波打穿，货梯守住了'
     : G.deathBy === 'giveup'
       ? '在第 ' + G.wave + ' 波主动断开了连接'
       : '义体在第 ' + G.wave + ' 波被' + (by || '拆解队') + '拆解')
@@ -6660,7 +7094,18 @@ function gameOver(won) {
   // 会被标准档的 30 波比下去 —— 那危险等级就白做了。
   const beats = (a, b) => !b || (a.dg | 0) > (b.dg | 0)
     || ((a.dg | 0) === (b.dg | 0) && (a.wave > b.wave || (a.wave === b.wave && a.score > b.score)));
-  if (MODE === 'daily') {
+  if (MODE === 'weekly') {                               // 每周挑战：跟这周自己比，跟每日局一个路子
+    const rec = Object.assign({ week: weekNum(), rule: weekRule().id }, cur);
+    if (beats(cur, WEEKLY)) {
+      el('overBest').textContent = WEEKLY
+        ? '本周新纪录 · 上一次是第 ' + WEEKLY.wave + ' 波'
+        : '本周第一局 · ' + weekRule().n.replace(/ /g, '');
+      WEEKLY = rec; saveWeekly(WEEKLY);
+    } else {
+      el('overBest').textContent = '本周最好：第 ' + WEEKLY.wave + ' 波 ' + WEEKLY.score + ' 分 —— 差 '
+        + Math.max(1, WEEKLY.wave - cur.wave) + ' 波';
+    }
+  } else if (MODE === 'daily') {
     const rec = Object.assign({ day: dayKey() }, cur);
     if (beats(cur, DAILY)) {
       el('overBest').textContent = DAILY
@@ -6706,7 +7151,7 @@ function gameOver(won) {
 // 这是「多知道一点」，不是「变强一点」—— 知道第 13 波是铁壁，你会提前留着榴弹。
 function intelText() {
   const lv = hqLv('intel'), crow = activePet() === 'crow';
-  if ((!lv && !crow) || MODE === 'daily') return '';
+  if ((!lv && !crow) || fixedRun()) return '';
   const upto = lv >= 2 ? LAST_WAVE : Math.min(LAST_WAVE, (lv ? 10 : 0) + (crow ? (lv ? 8 : 6) : 0));
   const save = [RNG.wave.s, RNG.card.s];                // 别把摇修饰的随机流搅乱
   const out = [];
@@ -6739,7 +7184,7 @@ function howToHTML() {
 
   return sec('这 是 个 什 么 游 戏',
     `<p>俯视角打枪。你站在一条废钢回收线上，一波一波清掉冲上来的机器人，`
-    + `<b>打穿 ${LAST_WAVE} 波就算赢</b>，坐货梯撤离。</p>`
+    + `<b>打穿 ${LAST_WAVE} 波、再站上货梯守住 ${EVAC_NEED} 秒就算赢</b>。站在货梯上才走进度，下来不倒退。</p>`
     + '<p>每一局都不一样：升级的时候给你三张牌随机挑，挑到什么就得用什么打法。'
     + '死了这一局就结束，但捡到的东西带得走。</p>'
     + `<p>敌人 ${mobs} 种，一多半<b>不能对着莽</b>：铁闸要绕到侧后打、`
@@ -6766,7 +7211,7 @@ function howToHTML() {
     + `<li>每 5 波来一只 BOSS，一共 ${bosses} 种轮着来。每只掉到一半血会换个打法</li>`
     + '<li>攒够经验就升级，弹出三张牌，选一张</li>'
     + '<li>喘息时间里能开一次<b>回收站</b>，用废钢买东西 —— 买的只在这一局有效</li>'
-    + `<li>撑到第 ${LAST_WAVE} 波，撤离成功</li>`
+    + `<li>撑过第 ${LAST_WAVE} 波，守住货梯 ${EVAC_NEED} 秒，撤离成功</li>`
     + '</ol>')
 
   + sec('地 上 会 掉 什 么',
@@ -6810,6 +7255,11 @@ function howToHTML() {
     + '<p><b>五种属性</b>。前三种是炼金给的，后两种来自你本来就有的东西 ——'
     + '它们其实一直是一类效果，只是原来没人告诉你：</p>'
     + dl(Object.keys(ELEM).map(k => [ELEM[k].n, ELEM[k].d]))
+    + '<p><b>两种属性落在同一个敌人身上会起反应</b>。凑哪两种，是这一局的构筑：</p>'
+    + dl(REACT.map(r => [r.n.replace(/ /g, ''), r.d]))
+    + '<p><b>武器进化</b>：一把枪配上跟它对路的那条词条叠满，下一次升级必出它的进化 —— 进化让这把枪自己带上属性：</p>'
+    + dl(EVOS.map(e => [e.n.replace(/ /g, '').replace('进化·', ''),
+      WEAPONS[e.wep].n + ' + ' + UPGRADES.find(u => u.id === e.need).n + ' 叠满：' + e.d]))
     + '<p><b>霜</b>是唯一能<b>打断起手动作</b>的东西：刀锋犬的冲刺、拆解臂的蓄力撞，'
     + '起手之后别的都拦不住，冻住能。叠满三层就冻一秒 —— 冻着的时候再打不会续冻。</p>'
     + '<p><b>三把近战</b>各解一个近战自己的难题 —— 敌人里有停在 92px 的无人机、'
@@ -6845,7 +7295,9 @@ function howToHTML() {
     `<p><b>危险等级</b>四档。打穿一档解锁下一档，越高的档敌人越硬、刷得越快，`
     + '分数也更高。每一档单独存一条记录，不会互相盖掉。</p>'
     + `<p><b>每日局</b>：种子取当天日期，<b>全世界今天打的是同一局</b>。`
-    + '配置固定、所有牌全开、危险等级锁在标准档 —— 这样成绩才比得起来。</p>')
+    + '配置固定、所有牌全开、危险等级锁在标准档 —— 这样成绩才比得起来。</p>'
+    + `<p><b>每周挑战</b>：跟每日局一样是大家同一局，种子取这一周，外加一条改打法的规则，四条按周轮换：`
+    + WEEK_RULES.map(r => r.n.replace(/ /g, '') + '（' + r.d + '）').join('、') + `。这周是<b>${weekRule().n.replace(/ /g, '')}</b>。</p>`)
 
   + sec('卡 住 了 看 哪 里',
     dl([
@@ -7191,7 +7643,11 @@ function showHQ(on) {
 function syncBest() {
   const t = el('titleBest');
   if (!t) return;
-  if (MODE === 'daily') {
+  if (MODE === 'weekly') {
+    const R = weekRule();
+    t.textContent = '每周挑战 · ' + R.n.replace(/ /g, '') + '：' + R.d
+      + (WEEKLY ? ' · 本周最好：第 ' + WEEKLY.wave + ' 波 ' + WEEKLY.score + ' 分' : ' · 本周还没打');
+  } else if (MODE === 'daily') {
     t.textContent = '每日局 ' + dayKey() + (DAILY ? ' · 今日最好：第 ' + DAILY.wave + ' 波 ' + DAILY.score + ' 分' : ' · 今天还没打');
   } else {
     // 每个打过的档位都列一行 —— 四条记录各自可以挑战
@@ -7202,6 +7658,17 @@ function syncBest() {
     t.textContent = (lines.length ? '最好：' + lines.join('　|　') : '')
       + (PROF.wins ? (lines.length ? '　|　' : '') + '已撤离 ' + PROF.wins + ' 次' : '');
   }
+}
+// 有存档就把「继续」摆在最上面，写清楚接的是第几波、哪一档
+function syncCont() {
+  const b = el('contBtn'), s = el('startBtn');
+  if (!b || !s) return;
+  const r = loadRun();
+  newArm = false;
+  b.hidden = !r;
+  if (r) b.textContent = '继 续 · 第 ' + (r.G.wave + 1) + ' 波 · '
+    + (r.mode === 'daily' ? '每日局' : r.mode === 'weekly' ? '每周挑战' : DANGER[r.dg | 0].n.replace(/ /g, ''));
+  s.textContent = r ? '新 开 一 局' : '接 入 神 经 索';
 }
 syncBest();
 syncProf();
@@ -7279,6 +7746,10 @@ el('tabBuild').onclick = () => showTab('build');
 el('tabBag').onclick = () => showTab('bag');
 el('tabDex').onclick = () => showTab('dex');
 el('shopGo').onclick = closeShop;
+el('routeItems').onclick = e => {
+  const b = e.target.closest && e.target.closest('[data-route]');
+  if (b) pickRoute(+b.dataset.route);
+};
 el('shopItems').onclick = e => {
   const b = e.target.closest && e.target.closest('[data-shop]');
   if (b) shopBuy(b.dataset.shop);
@@ -7286,7 +7757,16 @@ el('shopItems').onclick = e => {
 el('resumeBtn').onclick = () => setPaused(false);
 el('giveupBtn').onclick = armGiveup;
 el('rerollBtn').onclick = doReroll;
-el('startBtn').onclick = start;
+// 原来是 onclick = start —— 点击事件被当成 seedOverride 传进去，`事件 >>> 0` 是 0，
+// 于是从标题页点开始的每一局都是同一个种子：同一批怪、同一批三选一。
+// 有存档时「新开一局」要按两次：第一次只提醒会把存档作废。
+let newArm = false;
+el('startBtn').onclick = () => {
+  if (loadRun() && !newArm) { newArm = true; el('startBtn').textContent = '再 按 一 次 · 存 档 作 废'; return; }
+  newArm = false; start();
+};
+el('contBtn').onclick = () => { const r = loadRun(); if (r) start(null, r); else syncCont(); };
+syncCont();                                            // 放在 newArm 声明之后，早了会撞上暂时性死区
 el('retryBtn').onclick = () => start();
 // 结算屏原来只有「重新接入」—— 一按就直接开下一局，回不去标题页。
 // 于是换模式、换危险档、换起手武器、进据点这些全都够不着，
@@ -7371,14 +7851,14 @@ fit();
 // 验收钩子。整个游戏包在 IIFE 里，没有它就没法用脚本摆敌人位置、验精灵和武器手感，
 // 而这些正是肉眼最难看准的东西。市井那边也是把全局摊开给 tools/verify-*.js 用的，
 // 这里保持一致。只读内部状态，不影响玩法。
-window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
+window.NS = { G, get P() { return P; }, start, saveRun, loadRun, clearRun, syncCont, RUN_KEY, spawn, equip, cycleWep, fire,
   update, render, WEAPONS, WEP_ORDER, SPR, MOB, UPGRADES, frame, TC, nearestMob,
   gameOver, runReport, topWeapon, topUpgrades, loadBest, saveBest, SAVE_KEY, bestOf, get BEST() { return BEST; },
   PROF, PROF_DEF, PROF_KEY, MILES, CHASSIS, WEP_COST, checkMiles, nextMile, bankRun, buyWep, pickWep, pickChassis,
   loadProf, saveProf, rollOffer, syncProf, setMode, seedRun, strSeed, dayKey, RNG, mkRng,
   OPT, setOpt, REDUCE, PAD, pollPad, updateBuffs, BUFF_EL,
   fit, cv, REF_W, REF_H, camAt, get VW() { return VW; }, get VH() { return VH; },
-  loadDaily, saveDaily, DAILY_KEY, get MODE() { return MODE; }, get RUN_SEED() { return RUN_SEED; },
+  loadDaily, saveDaily, DAILY_KEY, loadWeekly, WEEKLY_KEY, WEEK_RULES, weekNum, weekRule, wMul, fixedRun, get WEEKLY() { return WEEKLY; }, get MODE() { return MODE; }, get RUN_SEED() { return RUN_SEED; },
   ARENAS, ARENA, setArena, nextWave, genScenery, HAZ, LAST_WAVE, tier, TIERS, winRun, targetMass, spawnGap, spawnRate, xpNeed, HOOK_GAP,
   DANGER, dangerIdx, DG, dangerMax, pickDanger, dgRamp, dgMul, get ARENA_I() { return ARENA_I; },
   hurtMob, hurtPlayer, blowUp, killMob, waveSpawn, isBoss, TIPS, BOSS_AT, bossOf, waveLeft, syncWave,
@@ -7393,7 +7873,7 @@ window.NS = { G, get P() { return P; }, start, spawn, equip, cycleWep, fire,
   syncHQ, showHQ, syncPity, togglePity, syncPet, syncStore, renderStoreLog, chainText, chainSteps, shopList, shopCost, intelText,
   showTab, bagHTML, syncTags,
   HOWTO, firstTime, howToHTML, showHow, ELEM, milesHTML, mileCat, mileProg, showMiles,
-  FROST_MAX, FROST_HOLD, addFrost, voltJump,
+  FROST_MAX, FROST_HOLD, addFrost, voltJump, onView, sniperStand, EVOS, evoReady, evoCard, evoOn, evoElem, fireArc, eliteChance, ROUTES, rollRoutes, openRoute, pickRoute, routeNow, rMul, needRoute, EVAC_NEED, EVAC_R, startEvac, evacSpot, REACT, HAS, react, REACT_CD,
   gainWep, slotOf, inSlot, SLOTS,
   sweepDrops, sweepNote, gainXp,
   WRIG,

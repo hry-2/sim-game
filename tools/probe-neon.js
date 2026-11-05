@@ -48,7 +48,8 @@ function play(seed, maxWave, dg, hq) {
   // 实测抓到过一次：phase=break、场上空、waveT 还是正的，
   // 那其实是这一波【刚打完】的瞬间，根本没卡。
   let stall = 0, prevW = 1, prevK = 0;
-  while (G.state !== 'over' && G.wave <= maxWave && t < 60 * 40) {
+  // 时间上限 45 分钟：加了撤离战之后整局多一分钟左右，40 分钟会把守到 39 秒的局截成「还活着」
+  while (G.state !== 'over' && G.wave <= maxWave && t < 60 * 45) {
     // 商店：一个笨买家。优先级是「回血 → 新枪 → 重摇 → 增益」，
     // 并且刻意留一半废钢不花 —— 全花光的话就量不出「留到下一局」这条路了。
     if (G.phase === 'shop') {
@@ -57,6 +58,13 @@ function play(seed, maxWave, dg, hq) {
         while (G.scrap - (NS.SHOP.find(x => x.id === id) || {}).cost >= keep && NS.shopBuy(id)) { /* 能买就买 */ }
       }
       NS.closeShop();
+      continue;
+    }
+    // 选路：默认走平路，这样跟加选路之前的曲线还能比；
+    // NS_ROUTE=risk 时一律走险路，量的是「险路扛不扛得住」。
+    if (G.phase === 'route') {
+      const want = process.env.NS_ROUTE === 'risk' ? (r => r.id !== 'calm') : (r => r.id === 'calm');
+      NS.pickRoute(Math.max(0, G.routes.findIndex(want)));
       continue;
     }
     if (G.state === 'levelup') {
@@ -162,6 +170,13 @@ function play(seed, maxWave, dg, hq) {
     // 已经决定要贴上去了，就别让位置启发式把这个决定撤销。
     const cx = NS.ARENA.w / 2 - P.x, cy = NS.ARENA.h / 2 - P.y, cd = len(cx, cy) || 1;
     if (!chasing && cd > Math.min(NS.ARENA.w, NS.ARENA.h) * .3) { mx += cx / cd * .8; my += cy / cd * .8; }
+    // 撤离战：货梯才是目标。不在上面就直奔过去；在上面就只在圈里小幅躲闪，
+    // 不然「边打边退」会一直把它带下货梯，进度永远不走。
+    if (G.phase === 'evac' && G.evac) {
+      const e = G.evac, ex = e.x - P.x, ey = e.y - P.y, ed = len(ex, ey) || 1;
+      if (ed > e.r * .6) { mx = ex / ed; my = ey / ed; }
+      else { mx *= .3; my *= .3; }
+    }
     const ml = len(mx, my); if (ml > 1) { mx /= ml; my /= ml; }
     // 打提前量。原来瞄的是目标【当前】位置，而子弹飞 100px 要 0.37 秒，
     // 期间怪走了 9px —— 而怪的半径只有 5px，于是一直擦过去。

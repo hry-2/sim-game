@@ -12,6 +12,15 @@ const { html, js, run, pad, padOff, realTimeout, byId, key, ctx } = require('./n
 
 let fail = 0;
 const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) fail++; };
+// 打完 BOSS 之后先选路。这些老断言测的是「下一张场地」这件事本身，
+// 所以替它选那条通往轮转顺序里下一张的路，再进下一波。
+const nextW = () => {
+  NS.nextWave();
+  if (NS.G.phase === 'route') {
+    const i = NS.G.routes.findIndex(r => r.arena === (NS.ARENA_I + 1) % NS.ARENAS.length);
+    NS.pickRoute(i); NS.nextWave();
+  }
+};
 
 // ---- 1) 整段脚本真的能跑到底 ----
 console.log('脚本初始化');
@@ -490,13 +499,13 @@ ok(new Set(NS.ARENAS.map(a => a.grid)).size === NS.ARENAS.length, '每张的网�
 NS.start();
 ok(NS.ARENA_I === 0 && NS.ARENA.w === NS.ARENAS[0].w, '开局是第一张');
 // 打掉 BOSS 之后（第 6/11/16 波）换场地
-NS.G.wave = 5; NS.nextWave();
+NS.G.wave = 5; nextW();
 ok(NS.G.wave === 6 && NS.ARENA_I === 1, `第 6 波换到第二张（${NS.ARENA.a.n}）`);
 ok(NS.ARENA.w === NS.ARENAS[1].w && NS.ARENA.h === NS.ARENAS[1].h, '场地尺寸真的换了');
 ok(NS.P.x === NS.ARENAS[1].w / 2, '人被放到新场地中间，不会卡在墙外');
-NS.G.wave = 10; NS.nextWave();
+NS.G.wave = 10; nextW();
 ok(NS.ARENA_I === 2, `第 11 波换到第三张（${NS.ARENA.a.n}）`);
-NS.G.wave = 15; NS.nextWave();
+NS.G.wave = 15; nextW();
 ok(NS.ARENA_I === 0, '第 16 波转回第一张（循环）');
 NS.G.wave = 6; const i0 = NS.ARENA_I; NS.nextWave();
 ok(NS.ARENA_I === i0, '不是每一波都换 —— 只在 BOSS 之后换');
@@ -819,6 +828,7 @@ ok(/seedOverride/.test(html) && /get\('seed'\)/.test(html), '?seed= 也能指定
 NS.setMode('free'); NS.start(11);
 const XG = NS.G, XP = NS.P;
 NS.UPGRADES.forEach(u => { XG.stacks[u.id] = u.max; });
+XP.evo = { pulse: 1, shot: 1, arc: 1 };                // 进化也拿完了，才是真的「全满」
 ok(NS.rollOffer().length === 0, '全满之后牌池确实是空的');
 XP.hp = 10; const xs = XG.score;
 NS.showLevelup();
@@ -1035,8 +1045,8 @@ console.log('曲线与终点');
   const WG = NS.G;
   NS.PROF.wins = 0;
   WG.wave = NS.LAST_WAVE; WG.phase = 'break'; WG.waveT = 0; WG.mobs.length = 0;
-  NS.nextWave();
-  ok(WG.state === 'over' && WG.won === true, '打完第 30 波是撤离成功，不是继续第 31 波');
+  NS.nextWave(); NS.G.evac.t = NS.G.evac.need; NS.update(1 / 60);   // 撤离战直接算守满
+  ok(WG.state === 'over' && WG.won === true, '打完第 30 波、守住货梯是撤离成功，不是继续第 31 波');
   ok(WG.wave === NS.LAST_WAVE, `结算上写的是第 ${WG.wave} 波，没被加到 31`);
   ok(NS.PROF.wins === 1, '通关次数记进档案');
   ok(byId('overTitle').textContent.replace(/ /g, '') === '撤离成功', `结算标题是「${byId('overTitle').textContent}」`);
@@ -1254,12 +1264,12 @@ console.log('危险等级');
   Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf();
   NS.start(5);
   NS.G.wave = NS.LAST_WAVE; NS.G.phase = 'break'; NS.G.waveT = 0; NS.G.mobs.length = 0;
-  NS.nextWave();
+  NS.nextWave(); NS.G.evac.t = NS.G.evac.need; NS.update(1 / 60);   // 撤离战直接算守满
   ok(NS.PROF.dangerMax === 1, '打穿标准档解锁高危');
   ok(byId('overSub').textContent.indexOf('解锁') >= 0, `结算上说了解锁：「${byId('overSub').textContent}」`);
   NS.pickDanger(1); NS.start(5);
   NS.G.wave = NS.LAST_WAVE; NS.G.phase = 'break'; NS.G.waveT = 0; NS.G.mobs.length = 0;
-  NS.nextWave();
+  NS.nextWave(); NS.G.evac.t = NS.G.evac.need; NS.update(1 / 60);   // 撤离战直接算守满
   ok(NS.PROF.dangerMax === 2, '再打穿高危解锁熔毁 —— 一档一档来，不能跳');
   // 记录要带档位，否则高危打 20 波会被标准档的 30 波比下去
   ok(/\(a\.dg \| 0\) > \(b\.dg \| 0\)/.test(html), '记录按「危险档 → 波次 → 分数」比');
@@ -1426,6 +1436,7 @@ console.log('重摇');
   NS.start(23); const EG = NS.G;
   EG.state = 'play'; NS.showLevelup();
   NS.UPGRADES.forEach(u => { EG.stacks[u.id] = u.max; });
+  NS.P.evo = { pulse: 1, shot: 1, arc: 1 };            // 进化也拿完了
   const r0 = EG.rerolls;
   ok(NS.doReroll() === false && EG.rerolls === r0, '牌池空的时候摇不动，也不白扣一次');
   // 新局重置
@@ -1636,13 +1647,18 @@ console.log('新杂兵');
   for (let i = 0; i < 90; i++) NS.update(D);
   ok(sn.x - NP.x > 85, `离得太近会往后退（80 → ${Math.round(sn.x - NP.x)}px）`);
   sn.x = NP.x + 220; sn.y = NP.y; sn.cd = 0; sn.wind = 0;
-  let sawWind = false, shots = 0;
+  // 场上的传送带会把它一直往外送 —— 现在它看不见就不起手，所以这一段把地形撤掉
+  const hazKeep = NS.HAZ.splice(0);
+  let sawWind = false, shots = 0, offView = 0;
   for (let i = 0; i < 60 * 6; i++) {
     const e0 = NG.ebullets.length;
     NS.update(D);
     if (sn.wind > 0) sawWind = true;
+    if (sn.wind > .88 && !NS.onView(sn.x, sn.y, 0)) offView++;
     shots += Math.max(0, NG.ebullets.length - e0);
   }
+  NS.HAZ.push(...hazKeep);
+  ok(offView === 0, '蓄力只在屏幕里起手 —— 开枪的人看得见（原来八成九在屏幕外）');
   ok(sawWind, '开火前有蓄力段 —— 那就是预警');
   ok(shots > 0, `真的打出来了（${shots} 发）`);
   ok(/m\.wind > 0 && m\.type === 'sniper'/.test(html), '蓄力时画出预警线，不然就是从屏幕外莫名挨一发');
@@ -1909,7 +1925,7 @@ console.log('废钢与商店');
   NS.update(D);
   ok(S4.phase !== 'shop', '最后一波打完直接撤离，不再弹商店');
   // 商店开着时数字键归商店用，不去换枪
-  ok(/G\.phase !== 'shop' && \/\^Digit\[1-6\]/.test(html), '商店开着时数字键不去换枪');
+  ok(/G\.phase !== 'shop' && G\.phase !== 'route' && \/\^Digit\[1-6\]/.test(html), '商店、选路开着时数字键不去换枪');
 
   // 五、买的东西只在这一局有效 —— 玩家问过这个，所以既要真是这样，也要写在界面上
   for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
@@ -2422,7 +2438,7 @@ console.log('据点与生产链');
   NS.setMode('daily'); NS.start(140); NS.G.state = 'play'; NS.showLevelup();
   const dailyHasPity = NS.G.offer.some(u => u.id === 'dmg');
   NS.setMode('free');
-  ok(/MODE !== 'daily' && \(PROF\.pity/.test(html), '每日局不吃保底 —— 大家的牌池得一样');
+  ok(/!fixedRun\(\) && \(PROF\.pity/.test(html), '每日局 / 每周挑战不吃保底 —— 大家的牌池得一样');
 }
 
 // ---- 44) 战利品与货摊 ----
@@ -2705,18 +2721,17 @@ console.log('首页文案');
     if (i < 0) return CN.indexOf(t);
     return (i === 0 ? 1 : CN.indexOf(t[0])) * 10 + (i === t.length - 1 ? 0 : CN.indexOf(t[i + 1]));
   };
+  // 首页卡片后来精简成一句话，不再把每个数字都写上 —— 所以只管「写了的必须是真的」，
+  // 没写的不算错。
   const num = (re, real, what) => {
     const m = seg.match(re);
-    ok(!!m && val(m[1]) === real, `首页说${what} ${m ? m[1] : '没写'}，实际 ${real}`);
+    ok(!m || val(m[1]) === real, `首页说${what} ${m ? m[1] : '没写'}，实际 ${real}`);
   };
   const N = k => Object.keys(NS.MOB).filter(x => !NS.MOB[x].boss).length;
   num(/([零一二三四五六七八九十\d]+)\s*把武器/, NS.UPGRADES.filter(u => u.id.indexOf('w_') === 0).length + 1, '武器');
   num(/(\d+) 条改装词条/, NS.UPGRADES.filter(u => u.id.indexOf('w_') !== 0).length, '改装词条');
   num(/([零一二三四五六七八九十\d]+)波机兵/, NS.LAST_WAVE, '一局打多少波');
-  ok(/十一种敌人/.test(seg) && N() === 11, `首页说十一种敌人，实际 ${N()} 种（不算 BOSS）`);
-  // 这一版新加的东西在首页上有没有交代
-  ok(/拾荒犬|账房猫|信鸦/.test(seg), '宠物写进首页了');
-  ok(/护航无人机/.test(seg), '护航无人机写进首页了');
+  num(/([零一二三四五六七八九十\d]+)种敌人/, N(), '敌人种类（不算 BOSS）');
 
   // 游戏自己那份 README 更容易掉队 —— 它一度还写着「六把武器」「五种敌人」，
   // 那时候实际已经是九把和十一种了。
@@ -3012,7 +3027,7 @@ console.log('玩法说明');
     const m = txt.match(re);
     ok(!!m && +m[1] === real, `说明里${what}写的是 ${m ? m[1] : '没写'}，实际 ${real}`);
   };
-  n(/打穿 (\d+) 波就算赢/, NS.LAST_WAVE, '一局多少波');
+  n(/打穿 (\d+) 波/, NS.LAST_WAVE, '一局多少波');
   n(/一共 (\d+) 张牌/, NS.UPGRADES.filter(u => !/^w_/.test(u.id)).length, '词条张数');
   n(/一共 (\d+) 把/, NS.WEP_ORDER.length, '武器把数');
   n(/敌人 (\d+) 种/, Object.keys(NS.MOB).filter(k => !NS.MOB[k].boss).length, '敌人种数');
@@ -3278,7 +3293,7 @@ console.log('换场地前自动回收');
   G3.drops.push({ x: P3.x + 300, y: P3.y, vx: 0, vy: 0, t: 0, kind: 'coin', v: 25 });
   G3.drops.push({ x: P3.x + 300, y: P3.y, vx: 0, vy: 0, t: 0, kind: 'part', pk: 'core' });
   const a0 = NS.ARENA_I;
-  NS.nextWave();
+  nextW();
   ok(NS.ARENA_I !== a0, '第 6 波确实换了场地');
   ok(G3.scrap === 25 && G3.loot.core === 1, '换之前收走了，没跟着 drops 一起被清掉');
 
@@ -3896,6 +3911,455 @@ console.log('解锁清单');
   // 五、老规矩：每条里程碑发的都得是新内容或新难度，不是数值加成
   ok(NS.MILES.every(m => /卡池|词条|底座|涂装|危险等级|宠物/.test(m.n)),
     '清单里每一条发的都是新东西或新难度 —— 没有一条是数值加成');
+}
+
+// ---- 中途存档 ----
+// 一局 30 波要半个多小时，手机上切出去就等于放弃。每波开打前存一份，续上之后
+// 必须是【同一局】：人身上的东西一样，而且接下来摇出的修饰、发出的牌也一样 ——
+// 随机流没存的话，续上的是一局长得像的另一局。
+console.log('中途存档');
+{
+  NS.setMode('free');
+  NS.clearRun();
+  NS.start(4242);
+  // 先真的打几秒，让 P 和 G 上挂满运行时的东西，再看存不存得下来
+  for (let i = 0; i < 600 && NS.G.state === 'play'; i++) NS.update(1 / 60);
+  NS.G.state = 'play';
+  NS.gainWep('shot');
+  Object.assign(NS.G, { wave: 5, score: 1234, kills: 77, scrap: 41 });
+  NS.G.stacks.u_rof = 2;
+  NS.P.hp = 50; NS.P.lv = 7;
+  const arena0 = NS.ARENA_I;
+  nextW();                                             // 5 → 选路 → 6：存档发生在这里，然后换场地、摇修饰
+  const saved = NS.loadRun();
+  ok(!!saved && saved.G.wave === 5, `每波开打前存一份（存的是第 ${saved && saved.G.wave} 波打完）`);
+  const modA = NS.G.mod && NS.G.mod.id, arenaA = NS.ARENA_I;
+  const offerA = NS.rollOffer().map(u => u.id).join(',');
+  const waveSA = NS.RNG.wave.s;
+
+  NS.start(null, saved);
+  ok(NS.G.wave === 5 && NS.G.score === 1234 && NS.G.kills === 77 && NS.G.scrap === 41,
+    '续上之后波次、分数、击杀、局内废钢都还在');
+  ok(NS.P.hp === 50 && NS.P.lv === 7 && NS.P.owned.indexOf('shot') > -1 && NS.G.stacks.u_rof === 2,
+    '续上之后血量、等级、拿到的枪、词条层数都还在');
+  ok(NS.ARENA_I === arena0, '续上之后还在存档时那张场地');
+  ok(NS.G.phase === 'break' && NS.G.state === 'play', '续上之后是波间休息，马上开下一波');
+  nextW();
+  ok(NS.G.wave === 6 && NS.ARENA_I === arenaA, '下一波照常换场地');
+  ok((NS.G.mod && NS.G.mod.id) === modA, `摇出的修饰跟没断过一样（${modA || '无'}）`);
+  ok(NS.rollOffer().map(u => u.id).join(',') === offerA, '发的三张牌跟没断过一样 —— 随机流也存了');
+  ok(NS.RNG.wave.s === waveSA, '刷怪流走到同一格');
+
+  // 打完就没有「继续」
+  NS.gameOver(false);
+  ok(NS.loadRun() === null, '死了 / 撤离 / 放弃之后存档清掉');
+  // 开新的一局，旧存档作废
+  NS.start(4242); NS.G.wave = 3; NS.saveRun();
+  ok(NS.loadRun() !== null, '（前提）存上了');
+  NS.start();
+  ok(NS.loadRun() === null, '开新的一局，旧存档作废');
+  // 昨天的每日局续不了
+  NS.start(4242); NS.G.wave = 3; NS.saveRun();
+  const ls = JSON.parse(localStorage.getItem(NS.RUN_KEY));
+  ls.mode = 'daily'; ls.day = '2000-01-01';
+  localStorage.setItem(NS.RUN_KEY, JSON.stringify(ls));
+  ok(NS.loadRun() === null, '昨天的每日局存档不给续 —— 今天是另一个种子');
+
+  // 标题页：有存档才有「继续」，「新开一局」要按两次
+  NS.start(4242); NS.G.wave = 8; NS.saveRun();
+  NS.syncCont();
+  ok(!byId('contBtn').hidden && /第 9 波/.test(byId('contBtn').textContent),
+    `有存档时标题页有「继续」，写着接第几波（${byId('contBtn').textContent}）`);
+  byId('startBtn').onclick();
+  ok(NS.loadRun() !== null && /再 按 一 次/.test(byId('startBtn').textContent),
+    '有存档时「新开一局」第一下只提醒，不作废');
+  byId('startBtn').onclick();
+  // （按钮挂的是最后一次 run() 那份构建，所以这里只看存档，不看 NS.G）
+  ok(NS.loadRun() === null, '第二下才开新局，存档作废');
+  NS.syncCont();
+  ok(byId('contBtn').hidden, '没有存档时不显示「继续」');
+
+  // 原来 onclick = start 会把点击事件当种子传进去，每一局都是种子 0
+  ok(!/onclick = start;/.test(html), '开始按钮不把点击事件当成种子传给 start');
+  NS.clearRun();
+}
+
+// ---- 属性反应 ----
+// 两种属性落在同一个敌人身上撞出第三样东西。查三件事：
+// 撞得出来（不管先来后到）、一种属性自己撞不出来、撞一次要歇一下。
+console.log('属性反应');
+{
+  NS.start(77);
+  NS.G.mobs.length = 0;
+  const mob = (type, dx, dy) => {
+    NS.spawn(type || 'tank');
+    const m = NS.G.mobs[NS.G.mobs.length - 1];
+    m.x = NS.P.x + 80 + (dx || 0); m.y = NS.P.y + (dy || 0);
+    m.hp = m.max = 1000;
+    return m;
+  };
+  const clear = () => { NS.G.mobs.length = 0; NS.G.reacts = {}; NS.P.slow = 0; };
+
+  // 一种属性自己撞不出东西
+  clear();
+  let m = mob();
+  NS.addFrost(m, 1);
+  ok(!NS.G.reacts.shatter && m.frost === 1, '只有霜：叠一层，不起反应');
+  m.burn = 0; m.harvest = 1;
+  ok(NS.react(m, 'frost') === null, '嬗不参与反应 —— 它管掉落');
+
+  // 碎裂：先烧后冻
+  clear(); m = mob();
+  m.burn = 3;
+  NS.addFrost(m, 1);
+  ok(NS.G.reacts.shatter === 1, '熔 + 霜 → 碎裂（先烧着，再挨霜）');
+  ok(m.burn === 0 && m.frost === 0 && m.hp < 1000 - 12, `碎裂清掉两种属性并打一下大的（掉了 ${(1000 - m.hp).toFixed(1)}）`);
+  // 冷却：马上再来一次不算
+  m.burn = 3; NS.addFrost(m, 1);
+  ok(NS.G.reacts.shatter === 1, `同一个敌人撞完要歇 ${NS.REACT_CD} 秒`);
+  m.reactCd = 0; m.frost = 0; m.burn = 3; NS.addFrost(m, 1);
+  ok(NS.G.reacts.shatter === 2, '歇够了能再撞');
+  // 反过来：先冻后烧，也一样
+  clear(); m = mob();
+  m.frost = 2; m.burn = 3;
+  ok(NS.react(m, 'molten') === 'shatter', '先冻后烧也是碎裂 —— 不分先来后到');
+  // 冷凝弹头这条路：只要它烧着，任何一击都在叠霜
+  clear(); m = mob();
+  NS.P.slow = 1; m.burn = 3;
+  NS.hurtMob(m, 1, 0, 0);
+  ok(NS.G.reacts.shatter === 1, '带着冷凝弹头打烧着的敌人 → 碎裂');
+
+  // 爆燃：烧着的挨雷，旁边的被点着
+  clear(); m = mob(); const nb = mob('tank', 12, 0); const far = mob('tank', 200, 0);
+  m.burn = 3;
+  const hp0 = NS.P.hp;
+  NS.voltJump(m, 5);
+  ok(NS.G.reacts.blast === 1, '熔 + 雷 → 爆燃');
+  ok(nb.burn > 0 && nb.hp < 1000 && !(far.burn > 0), '爆燃把火传给旁边的，远处的不受影响');
+  ok(NS.P.hp === hp0, '爆燃不炸自己 —— 它不是榴弹');
+  ok(nb.reactCd > 0, '被点着的要歇一会儿 —— 同一道电弧跳过去不会当场连环爆');
+
+  // 超载：被引力拽着的挨雷，一圈都挨电
+  clear(); m = mob(); const a = mob('tank', 20, 10), b = mob('tank', -15, 20), c = mob('tank', 300, 0);
+  m.gravT = .4;
+  NS.voltJump(m, 5);
+  ok(NS.G.reacts.overload === 1, '雷 + 引 → 超载');
+  ok(a.hp < 1000 && b.hp < 1000 && c.hp === 1000, '超载打一圈，圈外的不挨');
+
+  // 引力核的区域本身就算「带着引」
+  clear(); m = mob();
+  NS.G.zones.length = 0;
+  NS.G.zones.push({ x: m.x, y: m.y, r: 30, dmg: 0, life: 3, max: 3, pull: 40, tick: 1, elem: 'grav' });
+  m.voltT = .5;
+  NS.update(1 / 60);
+  ok(NS.G.reacts.overload === 1, '站在引力核里挨过雷 → 超载');
+  NS.G.zones.length = 0;
+
+  // 短计时会走完
+  clear(); m = mob('tank', 400, 0);
+  m.voltT = .6; m.gravT = .4; m.reactCd = .8;
+  for (let i = 0; i < 60; i++) NS.update(1 / 60);
+  ok(!(m.voltT > 0) && !(m.gravT > 0) && !(m.reactCd > 0), '雷、引的标记和反应冷却都会自己走完');
+
+  // 看得见：说明里有、暂停的构筑页里有
+  ok(NS.REACT.every(r => NS.howToHTML().indexOf(r.n.replace(/ /g, '')) > -1), '「怎么玩」里列了三条反应');
+  NS.G.reacts = { shatter: 3 };
+  ok(/反应/.test(NS.buildHTML()) && /碎裂/.test(NS.buildHTML()), '暂停的构筑页列出这一局撞出过的反应');
+  NS.G.reacts = {};
+  ok(!/反应<\/span>/.test(NS.buildHTML()), '一次没撞出过就不占那一行');
+  NS.G.mobs.length = 0;
+}
+
+// ---- 撤离战 ----
+// 打完第 30 波不直接结算：货梯来了，得站上去守住。查的是规则本身 ——
+// 站上去才走、下来不倒退、敌人一直来、守满才赢，以及货梯不压在熔渣上。
+console.log('撤离战');
+{
+  NS.setMode('free'); NS.start(31);
+  const E = NS.G;
+  E.wave = NS.LAST_WAVE; E.phase = 'break'; E.waveT = 0; E.mobs.length = 0;
+  NS.nextWave();
+  ok(E.phase === 'evac' && E.state === 'play' && E.wave === NS.LAST_WAVE,
+    '打完第 30 波不结算，进撤离战');
+  ok(NS.loadRun() && NS.loadRun().G.wave === NS.LAST_WAVE, '进撤离战前存了一份 —— 断了能从货梯这一段接着来');
+  const e = E.evac;
+  ok(e && e.need === NS.EVAC_NEED && e.t === 0, `货梯要守 ${NS.EVAC_NEED} 秒`);
+  // 站在外面不走
+  NS.P.x = e.x + e.r + 40; NS.P.y = e.y; NS.P.inv = 99;
+  for (let i = 0; i < 120; i++) NS.update(1 / 60);
+  ok(e.t === 0 && !e.on, '不在货梯上，进度不动');
+  ok(E.mobs.length > 0, `敌人一直在来（2 秒刷了 ${E.mobs.length} 只）`);
+  // 站上去走
+  for (let i = 0; i < 120; i++) { NS.P.x = e.x; NS.P.y = e.y; NS.update(1 / 60); }
+  const t1 = e.t;
+  ok(t1 > 1.8 && e.on, `站上去才走进度（2 秒走了 ${t1.toFixed(2)}）`);
+  // 下来不倒退
+  for (let i = 0; i < 60; i++) { NS.P.x = e.x + e.r + 40; NS.P.y = e.y; NS.update(1 / 60); }
+  ok(Math.abs(e.t - t1) < 1e-9, '下来只是停，不倒退');
+  // 屏幕上读得到：标签换成 EVAC，数字是还剩几秒
+  ok(byId('waveTag').textContent === 'EVAC' && /s$/.test(byId('waveLeft').textContent),
+    `HUD 换成撤离：${byId('waveTag').textContent} · 剩 ${byId('waveLeft').textContent}`);
+  // 守满就赢
+  NS.PROF.wins = 0;
+  e.t = e.need - .01;
+  for (let i = 0; i < 5 && E.state === 'play'; i++) { NS.P.x = e.x; NS.P.y = e.y; NS.update(1 / 60); }
+  ok(E.state === 'over' && E.won === true && NS.PROF.wins === 1, '守满就是撤离成功');
+  // 货梯不压在熔渣上
+  NS.start(31);
+  const cx = NS.ARENA.w / 2, cy = NS.ARENA.h / 2;
+  NS.HAZ.push({ k: 'slag', x: cx, y: cy, r: 50, dps: 26, ph: 0 });
+  const sp = NS.evacSpot();
+  ok(Math.hypot(sp.x - cx, sp.y - cy) >= 50 + NS.EVAC_R, '中间是熔渣的话，货梯挪开');
+  NS.HAZ.pop();
+  NS.clearRun();
+}
+
+// ---- 选路 ----
+// 打完 BOSS 摆两条路：一条平路、一条险路，各通往另外两张场地中的一张。
+// 查：摆得出来、同一种子摆得一样、险路的「加一样、翻一样」真的生效、五波后失效。
+console.log('选路');
+{
+  const toRoute = seed => {
+    NS.setMode('free'); NS.start(seed);
+    NS.G.wave = 5; NS.G.phase = 'break'; NS.G.waveT = 0; NS.G.mobs.length = 0;
+    NS.nextWave();
+  };
+  toRoute(55);
+  const R = NS.G.routes;
+  ok(NS.G.phase === 'route' && NS.G.wave === 5 && byId('routeBox').classList.contains('show'),
+    '打完第 5 波的 BOSS，先停下来选路');
+  ok(R.length === 2 && R.filter(r => r.id === 'calm').length === 1 && R.some(r => r.id !== 'calm'),
+    `一条平路、一条险路（${R.map(r => r.id).join(' / ')}）`);
+  ok(R[0].arena !== R[1].arena && R.every(r => r.arena !== NS.ARENA_I), '两条路通往另外两张场地，各不相同');
+  ok(/险 路/.test(byId('routeItems').innerHTML) && /场地：/.test(byId('routeItems').innerHTML), '面板写清了去哪、加了什么、翻了什么');
+  const sig = JSON.stringify(R);
+  toRoute(55);
+  ok(JSON.stringify(NS.G.routes) === sig, '同一个种子摆出同样的两条路 —— 每日局大家一样');
+  // 选路开着的时候不走计时、不刷怪
+  for (let i = 0; i < 120; i++) NS.update(1 / 60);
+  ok(NS.G.phase === 'route' && NS.G.mobs.length === 0, '选路开着就等你，不催、不刷怪');
+  ok(JSON.stringify(NS.G.routes) === sig, '开着的两秒里两条路没被重摇 —— 按钮不会在手指底下换掉');
+
+  // 选险路：去的就是那张场地，五波里生效，第六波起失效
+  const pickRisk = id => {
+    const g = NS.G;
+    g.routes = [{ id: 'calm', arena: (NS.ARENA_I + 1) % 3 }, { id, arena: (NS.ARENA_I + 2) % 3 }];
+    const want = g.routes[1].arena;
+    NS.pickRoute(1);
+    ok(g.phase === 'break' && !byId('routeBox').classList.contains('show'), `选了就收起来（${id}）`);
+    NS.nextWave();
+    return want;
+  };
+  const want = pickRisk('elite');
+  ok(NS.G.wave === 6 && NS.ARENA_I === want, '去的就是选的那张场地');
+  ok(NS.routeNow() === NS.ROUTES.elite, '第 6 波起险路生效');
+  NS.G.wave = 8;
+  const eOn = NS.eliteChance ? NS.eliteChance() : null;
+  ok(NS.rMul('elite') === 2 && NS.rMul('scrap') === 2, '精锐路：精英翻倍，废钢翻倍');
+  NS.G.drops.length = 0; NS.G.scrap = 0;
+  NS.G.drops.push({ x: NS.P.x + 300, y: NS.P.y, vx: 0, vy: 0, t: 0, kind: 'coin', v: 10 });
+  NS.sweepDrops();
+  ok(NS.G.scrap === 20, `捡到的废钢真的翻倍（10 → ${NS.G.scrap}）`);
+  NS.G.wave = 10;
+  ok(!!NS.routeNow(), '第 10 波还在（五波：6~10）');
+  NS.G.wave = 11;
+  ok(NS.routeNow() === null && NS.rMul('elite') === 1, '第 11 波起失效');
+
+  toRoute(56); pickRisk('armor');
+  const hpOn = (NS.spawn('grunt'), NS.G.mobs[NS.G.mobs.length - 1].max);
+  NS.G.route = null;
+  const hpOff = (NS.spawn('grunt'), NS.G.mobs[NS.G.mobs.length - 1].max);
+  ok(Math.abs(hpOn / hpOff - 1.25) < 1e-6, `重甲路：敌人血 ×1.25（${hpOff.toFixed(1)} → ${hpOn.toFixed(1)}）`);
+
+  toRoute(57); pickRisk('dense');
+  const mOn = NS.targetMass(7), xp0 = NS.P.xp; NS.gainXp(1);
+  const xpGot = NS.P.xp - xp0 + (NS.P.lv - 1 > 0 && NS.P.xp < xp0 ? 99 : 0);
+  NS.G.route = null;
+  ok(mOn > NS.targetMass(7), `人潮路：场上上限更高（${NS.targetMass(7)} → ${mOn}）`);
+  ok(Math.abs(xpGot - 1.4) < 1e-6, `人潮路：经验 ×1.4（一颗给 ${xpGot.toFixed(2)}）`);
+
+  // 存档带着路线
+  toRoute(58); pickRisk('elite'); NS.G.wave = 7; NS.G.phase = 'break'; NS.G.waveT = 0;
+  NS.nextWave();                                       // 7 → 8，存的是第 7 波打完
+  NS.start(null, NS.loadRun());
+  ok(NS.G.route && NS.G.route.id === 'elite' && NS.rMul('elite') === 2, '续上存档，路线还在');
+
+  // 第 30 波打完是撤离，不选路；撤离战不吃路线
+  toRoute(59); pickRisk('dense');
+  NS.G.wave = NS.LAST_WAVE; NS.G.route.from = 25; NS.G.phase = 'break'; NS.G.waveT = 0; NS.G.mobs.length = 0;
+  NS.nextWave();
+  ok(NS.G.phase === 'evac', '第 30 波打完直接撤离，不选路');
+  ok(NS.routeNow() === null, '撤离战不吃第 25 波选的路');
+  NS.clearRun();
+}
+
+// ---- 每周挑战 ----
+// 跟每日局同一套「大家同一局」，外加一条按周轮换的规则。
+// 规则跟日期走，所以这里把时钟钉到指定的那一周去量每一条。
+console.log('每周挑战');
+{
+  const RealDate = Date;
+  const atWeek = w => {                                // 第 w 周的周一中午
+    const ms = (7 * w - 3) * 864e5 + 432e5;
+    global.Date = class extends RealDate {
+      constructor(...a) { if (a.length) super(...a); else super(ms); }
+      static now() { return ms; }
+    };
+  };
+  const realWeek = () => { global.Date = RealDate; };
+  // 周号：周一到周日同一周
+  const d = (y, m, dd) => new RealDate(y, m - 1, dd, 12);
+  ok(NS.weekNum(d(2026, 11, 2)) === NS.weekNum(d(2026, 11, 8)), '周一到周日是同一周');
+  ok(NS.weekNum(d(2026, 11, 1)) === NS.weekNum(d(2026, 11, 2)) - 1, '周日和下周一不是同一周');
+  const rules = [0, 1, 2, 3].map(i => NS.weekRule(3000 + i).id);
+  ok(new Set(rules).size === NS.WEEK_RULES.length, `连着四周四条规则各轮一次（${rules.join(' → ')}）`);
+
+  const startWeek = id => {
+    const w = [0, 1, 2, 3].map(i => 3000 + i).find(x => NS.weekRule(x).id === id);
+    atWeek(w);
+    NS.setMode('weekly'); NS.start();
+    return w;
+  };
+  // 固定配置：种子跟周走、标准档、词条全开
+  const w0 = startWeek('glass');
+  ok(NS.MODE === 'weekly' && NS.fixedRun() && NS.dangerIdx() === 0, '每周挑战是固定配置、标准档');
+  ok(NS.RUN_SEED === NS.strSeed('ns-w' + w0), '种子取这一周');
+  const seedA = NS.RUN_SEED; NS.start();
+  ok(NS.RUN_SEED === seedA, '这一周里每一局都是同一个种子');
+  // 玻璃义体
+  ok(NS.P.maxhp === Math.round(100 * .4) && Math.abs(NS.P.dmg - NS.WEAPONS.pulse.dmg * 1.6) < 1e-6,
+    `玻璃义体：上限 ${NS.P.maxhp}，伤害 ${NS.P.dmg.toFixed(1)}`);
+  ok(NS.G.tipQ.some(t => /玻 璃 义 体/.test(t.n)), '开局提示这周的规则');
+  // 只准近战
+  startWeek('melee');
+  ok(NS.P.owned.join() === 'blade' && NS.P.wep === 'blade', '只准近战：开局手里只有振动刀');
+  let rangedOffered = 0;
+  for (let i = 0; i < 200; i++) for (const u of NS.rollOffer()) if (u.wep && NS.slotOf(u.wep) === 'range') rangedOffered++;
+  ok(rangedOffered === 0, '远程枪不进卡池（摇 200 次）');
+  // 没有冲刺
+  startWeek('nodash');
+  for (let i = 0; i < 300; i++) { NS.update(1 / 60); NS.TC.dash = 1; }
+  ok(NS.P.dashCdT > 1e8 && !(NS.P.dashT > 0), '没有冲刺：按了也冲不出去');
+  const kit = NS.SHOP.find(x => x.id === 'kit');
+  if (kit) { kit.act(); ok(NS.P.dashCdT > 1e8, '商店的「整备」不会把冲刺充上'); }
+  NS.TC.dash = 0;
+  // 急行军
+  startWeek('rush');
+  NS.spawn('grunt'); const fast = NS.G.mobs[NS.G.mobs.length - 1].spd;
+  NS.setMode('free'); NS.start(1); NS.G.wave = 0;
+  NS.spawn('grunt'); const slow = NS.G.mobs[NS.G.mobs.length - 1].spd;
+  ok(Math.abs(fast / slow - 1.25) < 1e-6, `急行军：敌人快 25%（${slow.toFixed(1)} → ${fast.toFixed(1)}）`);
+  startWeek('rush');
+  const xp0 = NS.P.xp; NS.gainXp(1);
+  ok(Math.abs(NS.P.xp - xp0 - 1.3) < 1e-6, '急行军：经验多三成');
+
+  // 记录：跟这周自己比，不碰自由局和每日局的记录
+  startWeek('rush');
+  localStorage.removeItem(NS.WEEKLY_KEY);
+  const best0 = JSON.stringify(NS.BEST), daily0 = localStorage.getItem(NS.DAILY_KEY);
+  NS.G.wave = 9; NS.G.score = 900; NS.gameOver(false);
+  ok(NS.WEEKLY && NS.WEEKLY.wave === 9 && NS.WEEKLY.rule === 'rush', '每周挑战的成绩单独记');
+  ok(/本周第一局/.test(byId('overBest').textContent), `结算写的是本周（${byId('overBest').textContent}）`);
+  ok(JSON.stringify(NS.BEST) === best0 && localStorage.getItem(NS.DAILY_KEY) === daily0, '不碰自由局和每日局的记录');
+  // 存档：这周的能续，上周的不能
+  startWeek('rush'); NS.G.wave = 4; NS.saveRun();
+  ok(NS.loadRun() && NS.loadRun().mode === 'weekly', '这一周的挑战能续');
+  const wNow = NS.weekNum(); atWeek(wNow + 1);
+  ok(NS.loadRun() === null, '到了下一周，上周的挑战存档不给续');
+  atWeek(wNow); NS.start(null, NS.loadRun());
+  ok(NS.MODE === 'weekly' && NS.G.wave === 4, '续上的还是每周挑战');
+  // 标题页
+  NS.syncProf();
+  ok(/mode:weekly/.test(byId('prof').innerHTML), '标题页的模式里有「每周」');
+  NS.clearRun();
+  NS.setMode('free');
+  realWeek();
+}
+
+// ---- 武器进化 ----
+// 一把枪 + 对路的词条叠满 → 下一次升级必出进化；进化让这把枪自带属性，接到属性反应上。
+console.log('武器进化');
+{
+  NS.setMode('free'); NS.start(808);
+  const G = NS.G;
+  G.mobs.length = 0;
+  ok(NS.EVOS.every(e => !NS.UPGRADES.some(u => u.id === e.id)), '进化不进词条表 —— 「N 条改装词条」的数不变');
+  // 没叠满：不出
+  G.stacks.pierce = 2;
+  let seen = false;
+  for (let i = 0; i < 50; i++) if (NS.rollOffer().some(u => u.id === 'e_pulse')) seen = true;
+  ok(!seen, '穿甲钨芯没叠满，霜脉冲不出');
+  // 叠满：每次都出，而且不改变摇牌的次数
+  G.stacks.pierce = 3;
+  NS.seedRun(5); const a = NS.rollOffer(); const sA = NS.RNG.card.s;
+  G.stacks.pierce = 2;
+  NS.seedRun(5); const b = NS.rollOffer(); const sB = NS.RNG.card.s;
+  G.stacks.pierce = 3;
+  ok(a.length === 3 && a[2].id === 'e_pulse' && b.every(u => !u.evo), '叠满之后进化必出（放在第三张），没叠满的那次没有');
+  ok(sA === sB, '进化不多摇牌 —— 每日局的牌序不会因此分叉');
+  ok(/进 化/.test(a[2].n) && /脉冲步枪/.test(a[2].d) && /穿甲钨芯/.test(a[2].d), `牌上写清了是谁 + 谁换来的（${a[2].d}）`);
+  // 拿了就不再出
+  G.state = 'levelup'; NS.takeUpgrade(a[2]);
+  ok(NS.evoOn('pulse') && !NS.rollOffer().some(u => u.evo), '拿了就进化，之后不再出');
+  // 霜脉冲：子弹出膛带霜，打中就叠
+  G.bullets.length = 0; NS.P.slow = 0;
+  NS.spawn('tank'); const m = G.mobs[G.mobs.length - 1];
+  m.hp = m.max = 9999; m.x = NS.P.x + 40; m.y = NS.P.y; m.spd = 0;
+  NS.P.ang = 0; NS.fire();
+  ok(G.bullets.length > 0 && G.bullets.every(x => x.elem === 'frost'), '霜脉冲的子弹出膛就带着霜');
+  for (let i = 0; i < 30; i++) NS.update(1 / 60);
+  ok(m.frost > 0 || m.frozen > 0, '打中就叠霜 —— 不用冷凝弹头');
+  ok(/进化/.test(NS.buildHTML()) && /霜脉冲/.test(NS.buildHTML()), '暂停的构筑页列出进化了的枪');
+
+  // 龙息：霰弹的弹丸带熔
+  NS.start(809); NS.G.mobs.length = 0;
+  NS.gainWep('shot'); NS.G.stacks.count = 3;
+  const card = NS.rollOffer().find(u => u.id === 'e_shot');
+  ok(!!card, '霰弹枪 + 双联发射叠满 → 龙息');
+  NS.G.state = 'levelup'; NS.takeUpgrade(card);
+  NS.equip('shot'); NS.G.bullets.length = 0; NS.fire();
+  ok(NS.G.bullets.length >= 7 && NS.G.bullets.every(x => x.elem === 'molten'), '龙息的每一颗弹丸都带熔');
+  NS.equip('pulse'); NS.G.bullets.length = 0; NS.fire();
+  ok(NS.G.bullets.every(x => !x.elem), '没进化的那把枪照旧，不沾光');
+
+  // 雷暴链：自己就能撞出超载
+  NS.start(810); NS.G.mobs.length = 0; NS.G.reacts = {};
+  NS.gainWep('arc'); NS.G.stacks.aura = 3;
+  const sc = NS.rollOffer().find(u => u.id === 'e_arc');
+  NS.G.state = 'levelup'; NS.takeUpgrade(sc);
+  const clump = [];
+  for (let i = 0; i < 6; i++) {
+    NS.spawn('tank'); const o = NS.G.mobs[NS.G.mobs.length - 1];
+    o.hp = o.max = 9999; o.x = NS.P.x + 30 + i * 9; o.y = NS.P.y + (i % 2) * 8; o.spd = 0; clump.push(o);
+  }
+  NS.equip('arc'); NS.fireArc();
+  ok((NS.G.reacts.overload || 0) >= 1, `雷暴链不靠引力核也撞出了超载（${NS.G.reacts.overload || 0} 次）`);
+  // 存档带着进化
+  NS.G.wave = 3; NS.saveRun();
+  NS.start(null, NS.loadRun());
+  ok(NS.evoOn('arc'), '续上存档，进化还在');
+  NS.clearRun();
+  ok(NS.EVOS.every(e => NS.howToHTML().indexOf(e.n.replace(/ /g, '').replace('进化·', '')) > -1), '「怎么玩」里列了三种进化');
+}
+
+// ---- 过热也停自愈 ----
+// 探针撞见过：一屏十只自愈精英（铁壁波 + 精英），回血比打得快，加时 386 秒收不掉。
+// 过热原本只关护盾、殉爆、呼叫、中继，漏了自愈。
+console.log('过热停自愈');
+{
+  NS.setMode('free'); NS.start(91);
+  const G = NS.G; G.mobs.length = 0;
+  NS.spawn('shieldbot'); const m = G.mobs[G.mobs.length - 1];
+  m.aff = 'regen'; m.x = NS.P.x + 400; m.y = NS.P.y; m.spd = 0;
+  m.hp = m.max * .5;
+  G.overheat = 0; G.phase = 'wave'; G.waveT = 99; G.budget = 1;
+  for (let i = 0; i < 60; i++) NS.update(1 / 60);
+  const healed = m.hp - m.max * .5;
+  ok(healed > 0, `平时自愈照常回血（1 秒回了 ${healed.toFixed(1)}）`);
+  m.hp = m.max * .5; G.overheat = 1;
+  for (let i = 0; i < 60; i++) NS.update(1 / 60);
+  ok(m.hp <= m.max * .5 + 1e-9, '过热之后自愈停了 —— 僵局能收掉');
+  G.overheat = 0; G.mobs.length = 0;
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');
