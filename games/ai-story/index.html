@@ -100,16 +100,31 @@
   .scen-tabs button.on{border-color:var(--line);background:var(--panel);color:var(--ink)}
   .scen-tabs i{font-style:normal;font-size:11px;color:var(--dim);margin-left:4px}
   .scen-new{flex:none;background:none;border:1px dashed var(--dim);border-radius:999px;padding:4px 12px;font-size:13px;color:var(--muted)}
+  .scen-new span{color:var(--brand)}
+  .scene.hero{height:150px;margin:0 0 16px}
+  .scene.hero .sc-txt{gap:2px}
+  .scene.hero .sc-txt b{font-size:26px}
+  .scene.hero .sc-txt span{display:block;max-width:34em;font-size:13px;line-height:1.6;color:var(--ink);opacity:.8}
   .scen-new:hover,.scen-new.sel{border-color:var(--brand);color:var(--ink)}
-  .scen{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:16px}
+  .scen{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:16px}
   .scen button{
-    position:relative;min-width:0;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px;
-    transition:border-color .15s,background .15s;
+    position:relative;min-width:0;height:96px;padding:0;overflow:hidden;text-align:left;border-radius:10px;
+    background:linear-gradient(180deg,var(--cp),var(--cb));border:1px solid var(--cl);color:var(--ca);
+    transition:transform .15s,border-color .15s,box-shadow .15s;
   }
-  .scen button:hover{border-color:var(--dim)}
-  .scen button.sel{border-color:var(--brand);background:var(--panel-2)}
-  .scen b{display:block;font:600 15px var(--serif)}
-  .scen small{display:block;color:var(--muted);font-size:12px;line-height:1.5;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .scen button:hover{transform:translateY(-2px)}
+  .scen button.sel{border-color:var(--ca);box-shadow:0 0 0 1px var(--ca),0 6px 20px color-mix(in srgb,var(--ca) 25%,transparent)}
+  .scen .mini{position:absolute;inset:0}
+  .scen .mini svg{position:absolute;left:0;bottom:0;width:100%;height:78%}
+  .scen .mini .far{fill:currentColor;opacity:.18}
+  .scen .mini .near{fill:currentColor;opacity:.38}
+  .scen .cap{position:absolute;left:0;right:0;top:0;padding:10px 12px;background:linear-gradient(180deg,color-mix(in srgb,var(--cb) 75%,transparent),transparent)}
+  .scen b{display:block;font:600 16px var(--serif);color:var(--ci);letter-spacing:.04em}
+  .scen small{display:block;margin-top:1px;font-size:11px;letter-spacing:.12em;color:var(--ca)}
+  .scen button.sel::after{
+    content:'✓';position:absolute;right:8px;bottom:8px;width:18px;height:18px;border-radius:50%;
+    background:var(--ca);color:var(--cb);font:700 11px/18px var(--sans);text-align:center;
+  }
   .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .slots{margin-top:16px}
   .slot{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
@@ -175,7 +190,7 @@
   .more summary{list-style:none;cursor:pointer;user-select:none}
   .more summary::-webkit-details-marker{display:none}
   .more .menu{
-    position:absolute;left:0;bottom:calc(100% + 6px);z-index:6;min-width:130px;
+    position:absolute;right:0;bottom:calc(100% + 6px);z-index:6;min-width:130px;   /* “⋯”在最右边，菜单往左展开，不撑宽页面 */
     display:flex;flex-direction:column;padding:4px;
     background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.4);
   }
@@ -417,7 +432,7 @@
   .rattr .x{background:none;border:0;color:var(--muted);font-size:18px;line-height:1;padding:0 4px}
   .rattr .x:hover{color:var(--hp)}
   .rattr .x:disabled{opacity:.25;cursor:not-allowed}
-  .scen .del{position:absolute;top:6px;right:8px;color:var(--dim);font-size:16px;line-height:1;padding:2px 4px}
+  .scen .del{position:absolute;top:6px;right:8px;z-index:1;color:var(--cm);font-size:16px;line-height:1;padding:2px 4px}
   .scen .del:hover{color:var(--hp)}
 
   /* 开局分配属性 */
@@ -539,6 +554,11 @@
     .scen{grid-template-columns:repeat(2,minmax(0,1fr))}
     .scen-bar{flex-wrap:wrap}
     .scen-new{order:-1}
+    .scen button{height:84px}
+    .scene.hero{height:140px}
+    .scene.hero .sc-txt b{font-size:22px}
+    .intro{margin:6px 0 14px}
+    .intro h2{font-size:22px}
     .npcrow .n-role{grid-column:1/-1;grid-row:2}
   }
 </style>
@@ -565,9 +585,14 @@
 
   <div class="scen-bar">
     <nav class="scen-tabs" id="scenTabs"></nav>
-    <button class="scen-new" id="btnCustom" type="button">＋ 自己写一个世界</button>
+    <button class="scen-new" id="btnCustom" type="button"><span>✦</span> 自己写一个世界</button>
   </div>
   <div class="scen" id="scenList"></div>
+
+  <div class="scene hero" id="hero">
+    <div class="sc-art" id="heroArt"></div>
+    <div class="sc-txt"><small id="heroTag"></small><b id="heroName"></b><span id="heroLine"></span></div>
+  </div>
 
   <div class="card">
     <label class="f"><span>世界设定（选了剧本会自动填，可以改）</span><textarea id="world" rows="4"></textarea></label>
@@ -1383,7 +1408,8 @@ async function chatOnce(messages, maxTokens, temperature, json){
 function stateRule(){
   const R = rules(), a0 = R.attrs[0][0];
   return `【输出格式 —— 必须遵守】
-先写正文，再另起一行写状态块（合法 JSON，不加代码块标记）。没有变化的字段直接省略，choices 必须写：
+回复由两部分组成：先是故事本身，再另起一行写状态块（合法 JSON，不加代码块标记）。没有变化的字段直接省略，choices 必须写。
+故事直接从第一句写起：不要加标题，不要写“正文”“故事”“第 X 段”之类的标签，不要用 #、【】、--- 这些 Markdown 标记，状态块前面也不要写“状态块”。
 <state>
 {"hp":${R.hp}当前值,"mp":${R.mp}当前值,"money":${R.money}当前值,"exp":本回合经验,"location":"地点","time":"时间","status":["临时状态"],"gain":[{"name":"物品","qty":1,"type":"consumable","desc":"效果"}],"lose":[{"name":"物品","qty":1}],"check":{"what":"做什么","attr":"属性","skill":"技能或空","dc":14,"result":"success"},"skills":[{"name":"技能","lv":1,"desc":"效果"}],"equip":{"weapon":{"name":"装备","bonus":{"${a0}":1},"desc":"效果"}},"quests":[{"title":"任务","type":"main","desc":"目标","status":"active","note":"进展"}],"reps":[{"name":"势力","rep":10}],"npcs":[{"name":"人名","favor":10,"love":20,"note":"近况"}],"choices":${nChoicesExample()},"gameOver":false}
 </state>
@@ -1569,7 +1595,22 @@ function visibleText(raw){
     const m = t.match(/<s?t?a?t?e?$/);
     if (m && m[0]) t = t.slice(0, -m[0].length);
   }
-  return t.replace(/```\s*$/,'').trim();
+  return cleanNarr(t.replace(/```\s*$/,''));
+}
+// 模型有时会照着提示词的结构给回复加标签：「## 正文」「【正文】」「正文：」「---」「状态块：」。
+// 这些纯标签行整行删掉；其他 Markdown 标题去掉井号保留文字；行首的「正文：」只去标签
+const NARR_LABEL = /^(正文|故事|叙事|剧情|内容|旁白|叙述|状态块?|状态更新|回复)(部分)?$/;
+function cleanNarr(t){
+  return t.split('\n').map(line => {
+    let x = line.trim();
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(x)) return null;                     // 分隔线
+    const h = x.match(/^#{1,6}\s*(.*)$/);
+    if (h) x = h[1].replace(/^\*\*(.*)\*\*$/, '$1').trim();              // ## 标题 → 标题
+    const bare = x.replace(/^[【\[「]|[】\]」]$/g, '').replace(/^\*\*|\*\*$/g, '').replace(/[:：]$/, '').trim();
+    if (NARR_LABEL.test(bare)) return null;                                  // 纯标签行
+    if (h && !x) return null;
+    return x.replace(/^[【\[]?(正文|故事|叙事)[】\]]?\s*[:：]\s*/, '');      // 行首的「正文：」
+  }).filter(x => x !== null).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 function parseState(raw, prev){
   raw = stripThink(raw);
@@ -2526,6 +2567,7 @@ function readRulesForm(){
 function onRulesInput(){
   draft = readRulesForm();
   applyTheme(draft.theme);
+  $('heroArt').innerHTML = sceneArt(draft.theme);
   const keep = startAttrs;
   startAttrs = Object.fromEntries(draft.attrs.map(([a]) => [a, keep[a] ?? ATTR_BASE]));
   if (Object.values(startAttrs).reduce((t, v) => t + v - ATTR_BASE, 0) > ATTR_FREE) startAttrs = Object.fromEntries(draft.attrs.map(([a]) => [a, ATTR_BASE]));
@@ -2709,6 +2751,14 @@ const LENGTHS = { short:'100～200', mid:'150～400', long:'300～600' };
 
 /* ================= 开局 / 存档 ================= */
 let selScen = SCENARIOS[0];
+// 选中世界的大图预览：剪影 + 名字 + 开场第一句
+function renderHero(){
+  const s = selScen, first = (s.world || '').split(/(?<=[。！？])/)[0];
+  $('heroArt').innerHTML = sceneArt(draft ? draft.theme : 'ink');
+  $('heroTag').textContent = s.id === 'custom' ? '自定义' : s.tag;
+  $('heroName').textContent = s.id === 'custom' ? '自己写一个世界' : s.name;
+  $('heroLine').textContent = s.id === 'custom' ? '在下面写下你的世界设定，也可以让说书人帮你生成规则。' : first;
+}
 function pickScenario(s){
   selScen = s; $('world').value = s.world;
   if (catOf(s)) scenCat = catOf(s);
@@ -2718,6 +2768,7 @@ function pickScenario(s){
   if (s.style != null){ $('style').value = s.style; $('styleCustom').value = s.styleCustom || ''; $('style').onchange(); }
   genName = '';
   $('genHint').textContent = '';
+  renderHero();
   if (!s.world) $('world').focus();
 }
 let scenCat = null;   // 当前题材页；null 表示跟着选中的剧本走
@@ -2734,7 +2785,10 @@ function renderScenarios(){
     const own = s.id.startsWith('my_');
     b.className = s.id === selScen.id ? 'sel' : '';
     b.title = s.world || '';
-    b.innerHTML = `<b>${esc(s.name)}</b><small>${esc(s.tag)}${s.world ? ' · ' + esc(s.world) : ''}</small>${own ? '<span class="del" title="删除这个世界">×</span>' : ''}`;
+    // 每张卡用自己世界观的配色和剪影，不跟着当前页面的主题走
+    const tk = scenRules(s).theme || 'ink', c = (THEMES[tk] || THEMES.ink).c;
+    b.style.cssText = `--cb:${c[0]};--cp:${c[1]};--cl:${c[3]};--ci:${c[4]};--cm:${c[5]};--ca:${c[7]}`;
+    b.innerHTML = `<span class="mini">${sceneArt(tk)}</span><span class="cap"><b>${esc(s.name)}</b><small>${esc(s.tag)}</small></span>${own ? '<span class="del" title="删除这个世界">×</span>' : ''}`;
     b.onclick = e => {
       if (e.target.classList.contains('del')){
         if (!confirm(`删除「${s.name}」？`)) return;
