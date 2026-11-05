@@ -1461,12 +1461,18 @@ ${s.world || '由你决定一个有趣的世界。'}
 - 只写玩家行动的结果和世界的反应，绝不替玩家做决定、说话或行动。
 - 世界有自己的逻辑：鲁莽有代价，NPC 有动机和记忆，伏笔要回收。
 - 玩家每次行动附一个 d20 骰点，只有行动有风险时才检定；正文里不要提骰子和数值。
+- 玩家最新的那条消息前面会附上【当前状态】和【人物现状】，那是最新数值，以它为准。
 - 物品、${R.hp}、${R.money}前后一致，物品效果要真的生效。${s.extra ? `\n- 玩家额外要求：${s.extra}` : ''}
 
 ${rulePrompt()}${npcs.length ? NPC_RULE : ''}${npcs.some(n => n.romance) ? LOVE_RULE : ''}
 ${stateRule()}
-
-${statePrompt()}${npcs.length ? `【人物现状】\n${npcList()}\n` : ''}${game.memory ? `【前情提要】\n${game.memory}\n` : ''}`;
+${game.memory ? `\n【前情提要】\n${game.memory}\n` : ''}`;
+}
+// 每回合都变的部分：当前状态和人物现状。挂在最新一条玩家消息前面，不放进系统提示词——
+// 这样系统提示词和之前的历史每回合一字不差，支持前缀缓存的服务商能整段复用
+function turnContext(){
+  const npcs = curState().npcs || [];
+  return `${statePrompt()}${npcs.length ? `【人物现状】\n${npcList()}\n` : ''}`;
 }
 
 // 人物表：玩家写的设定（性格、秘密）+ 当前好感和近况，每回合重新拼一次
@@ -1497,11 +1503,12 @@ function npcList(){
     const d = defs.find(x => x.name === n.name) || {};
     const parts = [n.name, n.role || d.role || '身份未明'];
     if (d.persona) parts.push('性格：' + d.persona);
+    // 没登场的人只给名字、身份、性格，够说书人安排出场；秘密、好感、喜好等登场后再带
+    if (!n.met) return '- ' + parts.concat(d.debut ? '未登场，玩家刚加入，请在一两段内让其出场' : '未登场').join('｜');
     if (d.secret) parts.push('隐藏动机：' + d.secret);
     parts.push(`好感 ${n.favor}`);
     if (n.romance) parts.push(`♥ 心动 ${n.love || 0}${n.bond ? '（' + n.bond + '）' : ''}${d.likes ? '，喜好：' + d.likes : ''}`);
     if (n.note) parts.push('近况：' + n.note);
-    if (!n.met) parts.push(d.debut ? '未登场，玩家刚加入，请在一两段内让其出场' : '未登场');
     return '- ' + parts.join('｜');
   }).join('\n');
 }
@@ -1509,8 +1516,11 @@ function npcList(){
 // 只把最近的对话发出去，更早的已经压进 memory；
 // 历史里只发正文：当前状态已经在系统提示词末尾给了一份，旧状态块只会白占 token
 function buildMessages(){
-  return [{ role:'system', content:systemPrompt() },
-          ...game.history.map(m => ({ role:m.role, content:m.role === 'user' ? userText(m) : visibleText(m.content) }))];
+  const msgs = [{ role:'system', content:systemPrompt() },
+                ...game.history.map(m => ({ role:m.role, content:m.role === 'user' ? userText(m) : visibleText(m.content) }))];
+  const last = msgs[msgs.length - 1];
+  if (last.role === 'user') last.content = `${turnContext()}\n【玩家这回合的行动】\n${last.content}`;
+  return msgs;
 }
 function userText(m){ return m.die ? `${m.content}\n（本回合骰点：${m.die}）` : m.content; }
 
