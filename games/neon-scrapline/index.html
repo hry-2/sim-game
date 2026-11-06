@@ -191,6 +191,16 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   #wepSlots .ws i{position:absolute;left:0;bottom:0;height:2px;width:100%;background:rgb(var(--c));
     transform-origin:left;transform:scaleX(var(--r,1))}
   #wepSlots .ws.empty{border:1px dashed #22314f;background:none;color:transparent}
+  /* 品阶：右上角一个罗马数字，边框越高阶越亮 */
+  #wepSlots .ws b{position:absolute;right:-3px;top:-6px;font-size:8px;font-weight:700;color:#fff;
+    text-shadow:0 0 6px rgb(var(--c))}
+  #wepSlots .ws.t2{border-color:rgba(var(--c),.85)}
+  #wepSlots .ws.t3,#wepSlots .ws.t4{border-color:rgb(var(--c));box-shadow:0 0 8px rgba(var(--c),.6)}
+  /* 能合成的那一格：呼吸着亮，接指针。字体、边框照旧，只是会动 —— 不点它也不碍事 */
+  #wepSlots .ws.can{pointer-events:auto;cursor:pointer;font:inherit;font-size:9px;line-height:1;
+    animation:wsCan .8s ease-in-out infinite alternate}
+  @keyframes wsCan{from{background:rgba(var(--c),.09)}to{background:rgba(var(--c),.45);box-shadow:0 0 10px rgba(var(--c),.8)}}
+  body.touch #wepSlots .ws.can{min-height:24px}
   /* 窄屏（竖着拿手机）两块要并排挤在 390 宽里 */
   @media (max-width:430px){
     .bar.hp{width:96px} .bar.xp{width:70px}
@@ -675,6 +685,29 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   .sitem.lock{border-color:#241d10;cursor:not-allowed}
   .sitem.lock .sn{color:#5c513c} .sitem.lock .sd{color:#453d2f} .sitem.lock .sc{color:#6b5426}
   #shopBox .sbtns{margin-top:16px}
+  /* 货架：每波四格，道具和武器混着摆；右上角一颗「锁」，锁住的下一波还在 */
+  #shopBox .shsec{font-size:10px;letter-spacing:.3em;color:#7f93b3;margin:4px 0 8px;width:100%;max-width:360px;
+    display:flex;align-items:center;gap:8px}
+  #shopBox .shsec::after{content:"";flex:1;height:1px;background:#1b2a46}
+  #shopBox .shsec span{letter-spacing:.1em;color:#4c5d80}
+  #shelfItems{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:360px;margin-bottom:8px}
+  .sbox{position:relative}
+  .sbox .sitem{width:170px;min-height:84px}
+  .sbox .sitem.wep{border-color:#2b5a6a}
+  .sbox .sitem.wep .sn{color:#9ff6ff}
+  .sbox .sitem.sold{opacity:.25;cursor:default}
+  .sbox .stag{font-size:9px;letter-spacing:.14em;color:#7c6a48}
+  .sbox .sitem.wep .stag{color:#4fa6b8}
+  .sbox .slock{position:absolute;right:4px;top:4px;font:inherit;font-size:9px;padding:2px 6px;cursor:pointer;
+    color:#7f93b3;background:rgba(8,12,22,.8);border:1px solid #2a3a5a}
+  .sbox .slock.on{color:#04060c;background:var(--amber);border-color:var(--amber)}
+  #shopBox .srow{margin:0 0 12px}
+  body.touch .sbox{width:100%;max-width:340px}
+  /* 手机上整个商店比一屏高，「下一波」吸在底上 —— 不用滚到最下面才能走 */
+  body.touch #shopBox .sbtns{position:sticky;bottom:0;width:100%;display:flex;justify-content:center;
+    padding:10px 0 calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(rgba(4,6,12,0),#04060c 30%)}
+  body.touch .sbox .sitem{width:100%}
+  body.touch .sbox .slock{padding:8px 12px;font-size:10px}
   #shopBox .chip{font:inherit;font-size:10px;letter-spacing:.12em;color:#cfe8ff;
     background:rgba(12,22,38,.8);border:1px solid #2c4260;padding:10px 24px;cursor:pointer}
   #shopBox .chip:hover{border-color:var(--cyan)}
@@ -713,6 +746,15 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   #pauseBox.tab-bag .build,#pauseBox.tab-dex .build{display:none}
   #pauseBox.tab-bag .bag{display:block}
   #pauseBox.tab-dex .dex{display:block}
+  #pauseBox .stat{display:none;max-width:420px;width:100%;font-family:var(--mono,monospace);font-size:10px}
+  #pauseBox.tab-stat .stat{display:block}
+  #pauseBox.tab-stat .build{display:none}
+  #pauseBox .stat .sgrid{display:grid;grid-template-columns:1fr 1fr;column-gap:16px}
+  #pauseBox .stat .srow2{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid #16223c}
+  #pauseBox .stat .srow2 span{color:#7f93b3}
+  #pauseBox .stat .srow2 b{color:#eaf6ff;font-weight:600;text-align:right}
+  #pauseBox .stat .sn2{color:#5d7392;font-weight:400}
+  #pauseBox .stat .shd{margin:12px 0 4px;color:#7f93b3;letter-spacing:.3em}
   .bhint{color:#5d7392;line-height:1.6;margin-bottom:9px;text-align:center}
   .bhint b{color:var(--amber);font-weight:600}
   /* 全部挂在 .bag 底下：.brow 这个名字构筑面板（.build .brow）已经在用了，
@@ -818,11 +860,11 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     <div class="keys kb">
       <div><b>WASD</b> 移动</div><div><b>枪</b> 全自动 · 只管走位</div>
       <div><b>空格</b> 相位冲刺</div><div><b>P</b> 暂停 · <b>M</b> 静音</div>
-      <div><b>武器栏</b> 最多 6 把一起打</div><div><b>手柄</b> 左摇杆走 · B 冲刺</div>
+      <div><b>武器栏</b> 最多 6 把 · <b>C</b> 合成</div><div><b>手柄</b> 左摇杆走 · B 冲刺 · Y 合成</div>
     </div>
     <div class="keys tc">
       <div><b>左半屏</b> 拖动移动</div><div><b>枪</b> 全自动</div>
-      <div><b>冲刺</b> 右下圆键</div><div><b>武器栏</b> 最多 6 把</div>
+      <div><b>冲刺</b> 右下圆键</div><div><b>合成</b> 点亮着的武器格</div>
     </div>
     <p class="sub" id="titleBest"></p>
     <div id="prof"></div>
@@ -883,6 +925,10 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     <div class="head">废 钢 回 收 站</div>
     <div class="hint">手上 <b id="shopScrap">0</b> 废钢 · 买的东西<b class="warn">只在这一局有效</b></div>
     <div class="hint2b">没花完的会存进档案，在标题页花 150 买成永久的起手武器</div>
+    <div class="shsec">货 架 <span id="shelfHint">· 按 1-4 买</span></div>
+    <div id="shelfItems"></div>
+    <div class="srow"><button class="chip" id="shelfRoll">刷 新</button></div>
+    <div class="shsec">服 务</div>
     <div id="shopItems"></div>
     <div class="sbtns"><button class="chip" id="shopGo">下 一 波</button></div>
   </div>
@@ -900,10 +946,12 @@ img{max-width:100%}[hidden]{display:none!important}</style>
       <button class="chip on" id="tabBuild">构 筑</button>
       <button class="chip" id="tabBag">货 箱</button>
       <button class="chip" id="tabDex">图 鉴</button>
+      <button class="chip" id="tabStat">属 性</button>
     </div>
     <div class="build" id="buildPause"></div>
     <div class="bag" id="bagPause"></div>
     <div class="dex" id="dexPause"></div>
+    <div class="stat" id="statPause"></div>
     <div class="pbtns">
       <button class="chip" id="resumeBtn">继 续</button>
       <button class="chip" id="quitBtn">存 档 退 出</button>
@@ -2524,12 +2572,16 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyP' && G.state === 'play') setPaused(!G.paused);
   if (e.code === 'KeyM') { Sfx.musicOn = !Sfx.musicOn; if (Sfx.musicGain) Sfx.musicGain.gain.value = Sfx.musicOn ? .5 : 0; }
   if (e.code === 'KeyR' && G.state === 'over') start();
-  if (G.phase === 'shop' && G.state === 'play') {          // 商店：1-4 买，空格进下一波
+  if (G.phase === 'shop' && G.state === 'play') {          // 商店：1-4 货架，5-9 服务，R 刷新，空格进下一波
     if (e.code === 'Space') closeShop();
+    const hi = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
+    if (hi >= 0) shelfBuy(hi);
     const sl = shopList();
-    const si = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].indexOf(e.code);
+    const si = ['Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'].indexOf(e.code);
     if (si >= 0 && sl[si]) shopBuy(sl[si].id);
+    if (e.code === 'KeyR') shelfRoll();
   }
+  if (e.code === 'KeyC' && G.state === 'play' && !G.paused) mergeAny();   // 合成
   if (G.phase === 'route' && G.state === 'play') {         // 选路：1 / 2
     const ri = ['Digit1', 'Digit2'].indexOf(e.code);
     if (ri >= 0) { pickRoute(ri); return; }
@@ -2674,11 +2726,13 @@ function pollPad() {
   PAD.fire = btn(7) || btn(5) || btn(0) ? 1 : 0;        // 右扳机 / 右肩 / A 都能开火
   if (tap(1) || tap(10)) PAD.dash = 1;                  // B / 左摇杆键 冲刺
   if (tap(9) && G.state === 'play') setPaused(!G.paused);   // 暂停时 state 仍是 play，同一个键切回来
-  if (G.phase === 'shop' && G.state === 'play') {          // 商店：A/B/X/Y 买四样，START 进下一波
-    const sl = shopList();
-    for (const [btn, i] of [[0, 0], [1, 1], [2, 2], [3, 3]]) if (tap(btn) && sl[i]) shopBuy(sl[i].id);
+  if (G.phase === 'shop' && G.state === 'play') {          // 商店：A/B/X/Y 买货架四格，LB 刷新，RB 修复，START 进下一波
+    for (const [btn, i] of [[0, 0], [1, 1], [2, 2], [3, 3]]) if (tap(btn)) shelfBuy(i);
+    if (tap(4)) shelfRoll();
+    if (tap(5)) shopBuy('fix');
     if (tap(9)) closeShop();
   }
+  if (tap(3) && G.state === 'play' && !G.paused && G.phase !== 'shop') mergeAny();   // Y：合成（选牌时 Y 是重摇，那时 state 是 levelup）
   if (G.phase === 'route' && G.state === 'play') {         // 选路：A / B
     if (tap(0)) pickRoute(0); else if (tap(1)) pickRoute(1);
   }
@@ -2700,7 +2754,7 @@ const G = {
   mines: [], discs: [], zones: [],
   wepDmg: {}, deathBy: null, bossKills: 0, coreKills: 0, tankKills: 0, buffs: {}, mod: null, eliteKills: 0,
   overheat: 0, won: false, seen: {}, seenAff: {}, tipQ: [], tipT: 0, unlockedDanger: null, waveMax: 0, rerolls: 0,
-  pityDone: 0, pet: null, escorts: [], lvQ: 0, reacts: {}, route: null, routes: null,
+  pityDone: 0, pet: null, escorts: [], lvQ: 0, reacts: {}, route: null, routes: null, nums: [], items: {}, shelf: null, shelfRolls: 0,
   scrap: 0, scrapGot: 0, bought: 0, loot: {},
   hookCd: 0,
   offer: [], stacks: {},
@@ -2722,7 +2776,7 @@ function newPlayer() {
     lv: 1, xp: 0, need: xpNeed(1), auraT: 0, walk: 0,
     wep: 'pulse', owned: ['pulse'], kind: 'bullet', wcol: '69,240,255',
     // 武器栏里每一把各自的：冷却 / 多久没开火（蓄能枪机用） / 正在瞄的方向（画枪用）
-    wcd: [0], widle: [0], wang: [0], face: 1, aimD: 0, blockAng: 0,
+    wcd: [0], widle: [0], wang: [0], wtier: [1], face: 1, aimD: 0, blockAng: 0,
     // 词条作用在倍率上，不直接改武器本身 —— 否则换枪就把强化清掉了
     mul: { rate: 1, dmg: 1, count: 0, spread: 0, bspd: 1, range: 1, pierce: 0 }
   }, BASE);
@@ -2954,7 +3008,7 @@ function buildHTML() {
     (ic ? `<span class="ic">${ic}</span>` : '') + `<span>${name}</span>` +
     (st ? `<span class="st">${st}</span>` : '') + '</span>';
   let h = '<div class="brow"><span class="blbl">武器</span>';
-  h += P.owned.map(id => item(WEAPONS[id].ic, WEAPONS[id].n, '', '')).join('')
+  h += P.owned.map((id, i) => item(WEAPONS[id].ic, WEAPONS[id].n + (tierOf(i) > 1 ? ' ' + TIER_TXT[tierOf(i) - 1] : ''), '', '')).join('')
     + item('', P.owned.length + ' / ' + MAX_WEPS, '', '');
   h += '</div>';
   // 词条按层数排，一眼看出这一局专精在哪
@@ -2977,6 +3031,9 @@ function buildHTML() {
   h += `<div class="brow"><span class="blbl">底座</span>${item('', CHASSIS[PROF.chassis] ? CHASSIS[PROF.chassis].n : '标准型', '')}`
     + `<span class="blbl">已装载</span>${item('', taken.length + ' 种 · ' + picks + ' 层', '')}`
     + `<span class="blbl">等级</span>${item('', 'LV ' + P.lv, '')}</div>`;
+  const its = ITEM_IDS.filter(id => (G.items || {})[id] > 0);
+  if (its.length) h += '<div class="brow"><span class="blbl">道具</span>'
+    + its.map(id => item('', ITEMS[id].n.replace(/ /g, ''), '×' + G.items[id], '')).join('') + '</div>';
   const evs = EVOS.filter(e => evoOn(e.wep));
   if (evs.length) h += '<div class="brow"><span class="blbl">进化</span>'
     + evs.map(e => item(e.ic, e.n.replace(/ /g, '').replace('进化·', ''), '', 'full')).join('') + '</div>';
@@ -3136,14 +3193,52 @@ function dexHTML() {
 function showTab(name) {
   const b = el('pauseBox');
   if (!b) return;
-  ['build', 'bag', 'dex'].forEach(k => b.classList.toggle('tab-' + k, k === name));
+  ['build', 'bag', 'dex', 'stat'].forEach(k => b.classList.toggle('tab-' + k, k === name));
   if (name === 'dex') { const e = el('dexPause'); if (e) e.innerHTML = dexHTML(); }
+  if (name === 'stat') { const e = el('statPause'); if (e) e.innerHTML = statHTML(); }
   if (name === 'bag') { const e = el('bagPause'); if (e) e.innerHTML = bagHTML(); }
-  [['tabBuild', 'build'], ['tabBag', 'bag'], ['tabDex', 'dex']].forEach(([id, k]) => {
+  [['tabBuild', 'build'], ['tabBag', 'bag'], ['tabDex', 'dex'], ['tabStat', 'stat']].forEach(([id, k]) => {
     const t = el(id); if (t) t.classList.toggle('on', k === name);
   });
 }
 function showDex(on) { showTab(on ? 'dex' : 'build'); }   // 老名字还有人在调
+/* 属性页：原来数值全藏在倍率里，暂停页只列「拿了哪些词条」，回答不了「我现在伤害多少、射得多快」。
+   这一页把真数摆出来：人身上的、每一把枪的（已经乘上品阶和套装），还有三类套装到了哪一档。 */
+function statHTML() {
+  if (!P) return '';
+  const pct = v => (v >= 1 ? '+' : '') + Math.round((v - 1) * 100) + '%';
+  const row = (k, v) => `<div class="srow2"><span>${k}</span><b>${v}</b></div>`;
+  let h = '<div class="sgrid">'
+    + row('生命', Math.ceil(P.hp) + ' / ' + Math.round(P.maxhp))
+    + row('移速', Math.round(P.speed))
+    + row('伤害倍率', pct(P.mul.dmg))
+    + row('射速倍率', pct(P.mul.rate))
+    + row('暴击率', Math.round(P.crit * 100) + '%')
+    + row('免伤概率', Math.round(P.shield * 100) + '%')
+    + row('击杀回血', P.lifesteal || 0)
+    + row('拾取范围', Math.round(P.pickR))
+    + row('冲刺冷却', P.dashCd > 1e8 ? '—' : (P.dashCd * (SETS.melee.dash[setLv('melee')] || 1)).toFixed(2) + 's')
+    + (P.aura ? row('身周放电', P.aura) : '')
+    + '</div>';
+  h += '<div class="shd">武 器</div>';
+  const keep = P.wep;
+  h += P.owned.map((id, i) => {
+    loadWep(id);
+    const sl = slotOf(id), dmg = P.dmg * WTIER_MUL[tierOf(i) - 1] * SETS[sl].dmg[setLv(sl)];
+    return row(WEAPONS[id].n + (tierOf(i) > 1 ? ' ' + TIER_TXT[tierOf(i) - 1] : ''),
+      Math.round(dmg) + ' 伤害 · 每秒 ' + P.fireRate.toFixed(1) + ' 次' + ((P.count || 1) > 1 && P.kind === 'bullet' ? ' × ' + P.count + ' 发' : ''));
+  }).join('');
+  loadWep(keep); P.dmg *= WTIER_MUL[tierOf(0) - 1];
+  h += '<div class="shd">套 装</div>';
+  h += ['range', 'melee', 'magic'].map(sl => {
+    const S = SETS[sl], n = setCount(sl), lv = setLv(sl);
+    const next = [2, 4, 6].find(k => k > n);
+    const extra = !lv ? '' : S.dash ? ' · 冲刺冷却 ' + pct(S.dash[lv]) : S.zone ? ' · 区域持续 ' + pct(S.zone[lv]) : '';
+    return row(S.n + ' ×' + n, (lv ? '伤害 ' + pct(S.dmg[lv]) : '还没成套') + extra
+      + (next ? ` <span class="sn2">再 ${next - n} 把到下一档</span>` : ''));
+  }).join('');
+  return h;
+}
 // 局内货箱。零件在局内既不能花也不能扔，所以它不配占 HUD ——
 // 但「今天缺货的那种我捡到没有」是个真问题，得有地方能查。
 function bagHTML() {
@@ -3293,7 +3388,7 @@ function spawn(type) {
     r: d.r, hp: d.hp * hpS, max: d.hp * hpS, spd: d.spd * spdS,
     // 伤害随波次涨（第 30 波 ×1.75）。武器栏全自动、六把一起打之后火力翻了几倍 ——
     // 拿血量去追只会让每一波变长（探针里好几局拖到 45 分钟还没打完），让挨打更疼才是把压力找回来
-    dmg: d.dmg * (1 + w * .025), xp: d.xp, flash: 0, slowT: 0, cd: rndw(.6, 2), phase: rndw(0, TAU),
+    dmg: d.dmg * (1 + w * .025) * dgMulLate(DG().dmg || 1, w), xp: d.xp, flash: 0, slowT: 0, cd: rndw(.6, 2), phase: rndw(0, TAU),
     dashT: 0, spin: 0, p2: 0, sum: 0, guarded: 0, fz: -1, links: null, elite: 0
   };
   if (G.mod && G.mod.spd) m0.spd *= G.mod.spd;
@@ -3397,6 +3492,7 @@ const OPT = {
   shake: PROF.optShake != null ? PROF.optShake : (REDUCE ? 0 : 1),
   bloom: PROF.optBloom != null ? PROF.optBloom : (REDUCE ? 0 : 1),
   vol:   PROF.optVol   != null ? PROF.optVol   : 1,
+  nums:  PROF.optNums  != null ? PROF.optNums  : 1,     // 伤害数字：嫌乱可以关
 };
 function setOpt(k, v) {
   OPT[k] = v;
@@ -3456,7 +3552,7 @@ let WEEKLY = loadWeekly();
    续上的时候从那一波的开头接着打 —— 打到一半关掉，这一波重来。 */
 const RUN_KEY = 'ns.run';
 const RUN_G = ['score', 'kills', 'wave', 'wepDmg', 'bossKills', 'coreKills', 'tankKills', 'eliteKills',
-  'seen', 'seenAff', 'rerolls', 'pityDone', 'scrap', 'scrapGot', 'bought', 'loot', 'stacks', 'escorts', 'reacts', 'route',
+  'seen', 'seenAff', 'rerolls', 'pityDone', 'scrap', 'scrapGot', 'bought', 'loot', 'stacks', 'escorts', 'reacts', 'route', 'items', 'shelf',
   'drops'];                                            // 地上没捡的也存：换场地时会被扫进来，少了它续上之后升级发的牌就不一样了
 function saveRun() {
   if (!P || G.state !== 'play') return false;
@@ -3965,6 +4061,9 @@ function syncProf() {
   h += '<span class="plbl">音量</span>';
   for (const [v, n] of [[0, '静音'], [.5, '低'], [1, '标准']])
     h += chip(n, OPT.vol === v, false, 'opt:vol:' + v, '');
+  h += '<span class="plbl">伤害数字</span>';
+  for (const [v, n] of [[0, '关'], [1, '开']])
+    h += chip(n, OPT.nums === v, false, 'opt:nums:' + v, '打中了打了多少');
   h += '</div></div>';
   if (REDUCE) h += '<div class="prow next">系统里开了「减少动态效果」，震屏和辉光已默认关闭</div>';
   const nm = nextMile();
@@ -4132,12 +4231,15 @@ function drawPlayer(x, y) {
   const drawGun = i => {
     const id = P.owned[i], spot = gunSpot(i, n);
     const gunSpr = SPR[GUN_OF[id] || 'gun_pulse'][0];
+    const tier = tierOf(i);
     const a = P.wang && P.wang[i] != null ? P.wang[i] : (left ? Math.PI : 0);
     const flip = Math.cos(a) < 0;
     ctx.save();
     ctx.translate((x + spot.x) | 0, (y + spot.y) | 0);
+    if (tier > 1) orb(0, 0, 4 + tier * 2, 'rgba(' + WEAPONS[id].col + ',' + (.12 + tier * .08).toFixed(2) + ')');   // 高阶的枪发光
     ctx.rotate(a);
     if (flip) ctx.scale(1, -1);
+    if (tier > 1) ctx.scale(1 + .12 * (tier - 1), 1 + .12 * (tier - 1));                          // 也大一号
     if (i === 0) {
       // 双联发射：每一层多一根枪管；枪上的贴花也挂在第一把上
       const extra = Math.min(2, stacks.count || 0);
@@ -4321,10 +4423,15 @@ function updateEvac(dt) {
 // 一级角色身上 —— 那正是当初加 from 门槛修掉的坑，我又犯了一次。
 // 结构性变化要改【概率和组合】，不能改【内容什么时候解锁】。
 const DANGER = [
-  { n: '标 准', d: '基准难度',                   hp: 1,    mass: 1,    elite: 1,   sc: 1,   modTier: 0 },
-  { n: '高 危', d: '波次修饰出现得更频繁',        hp: 1.25, mass: 1.1,  elite: 1,   sc: 1.3, modTier: 1 },
-  { n: '熔 毁', d: '修饰更频，精英再多三成',      hp: 1.6,  mass: 1.25, elite: 1.3, sc: 1.7, modTier: 1 },
-  { n: '归 零', d: '每波都有修饰，BOSS 波也有',   hp: 2.0,  mass: 1.4,  elite: 1.5, sc: 2.2, modTier: 2, modsOnBoss: 1 },
+  // dmg：敌人伤害倍率，第 6 波起渐进、第 20 波满（dgMulLate）。武器栏全自动之后加的 ——
+  // 全解锁档案带满六把，原来高危、熔毁都还能撤离四局；拿血量去追只会让波次变长，伤害才是压力。
+  // 加了货架（道具 + 武器）之后又拉了一次。探针（全解锁档案，10 局）：
+  //   标准 5/5 ｜ 高危 5/10（平均 28 波）｜ 熔毁 4/10（22 波）｜ 归零 2/10（17 波）
+  // 新档案标准档不受影响（dmg 1）：平均 22.6 波，5 局撤离 2
+  { n: '标 准', d: '基准难度',                   hp: 1,    mass: 1,    elite: 1,   sc: 1,   modTier: 0, dmg: 1 },
+  { n: '高 危', d: '波次修饰更频繁，后半段挨打更疼',        hp: 1.25, mass: 1.1,  elite: 1,   sc: 1.3, modTier: 1, dmg: 1.6 },
+  { n: '熔 毁', d: '修饰更频，精英多三成，后半段更疼',      hp: 1.6,  mass: 1.25, elite: 1.3, sc: 1.7, modTier: 1, dmg: 2.25 },
+  { n: '归 零', d: '每波都有修饰（BOSS 波也有），挨打最疼',   hp: 2.0,  mass: 1.4,  elite: 1.5, sc: 2.2, modTier: 2, modsOnBoss: 1, dmg: 2.3 },
 ];
 // 每日局钉在标准档，其余看档案里选的
 function dangerIdx() { return fixedRun() ? 0 : clamp(PROF.danger | 0, 0, DANGER.length - 1); }
@@ -4335,6 +4442,10 @@ function dangerMax() { return clamp(PROF.dangerMax | 0, 0, DANGER.length - 1); }
 // 跟难度高低是两件事。危险等级该体现在后半段，那才是真正考技术的地方。
 const dgRamp = w => clamp((w - 1) / 7, 0, 1);
 const dgMul = (v, w) => 1 + (v - 1) * dgRamp(w);
+// 伤害那一项上得更晚：第 6 波起、第 20 波满。武器栏全自动之后，老档案的强在中后段（六格填满、合成），
+// 用前八波就拉满的曲线去压，探针里死的全是第 5 / 10 波的 BOSS —— 那时候构筑还没成形，
+// 量的是开局运气，不是这一档考不考技术。
+const dgMulLate = (v, w) => 1 + (v - 1) * clamp((w - 5) / 15, 0, 1);
 function tier(w) { return w >= 21 ? 3 : w >= 11 ? 2 : 1; }
 const TIERS = {
   2: { n: '第 二 层 · 深 井', d: '精英变多，波次修饰变频' },
@@ -4443,18 +4554,21 @@ function rollMod(w) {
    setArena 会 G.drops.length = 0 —— 不扫这一遍的话，BOSS 掉的 25 废钢、
    必掉的核心碎片（全场最值钱的零件）就这么凭空没了，而且一声不响。
    BOSS 一死场上一片狼藉，指望玩家在补给间隙里一颗不漏地捡完是不现实的。 */
-function sweepDrops() {
+// keepBuffs：波末自动回收时增益留在地上 —— 在波间休息时吃掉，计时就白白走完了
+function sweepDrops(keepBuffs) {
   if (!P || !G.drops.length) return null;
   const got = { xp: 0, scrap: 0, hp: 0, parts: [], buffs: 0 };
+  const keep = [];
   for (const d of G.drops) {
     if (d.gone) continue;
+    if (keepBuffs && BUFFS[d.kind]) { keep.push(d); continue; }
     if (d.kind === 'hp') { P.hp = Math.min(P.maxhp, P.hp + 18); got.hp++; }
     else if (d.kind === 'part') { G.loot[d.pk] = (G.loot[d.pk] || 0) + rMul('parts'); got.parts.push(d.pk); }
     else if (d.kind === 'coin') { const v = (d.v || 1) * rMul('scrap'); G.scrap += v; G.scrapGot += v; got.scrap += v; }
     else if (BUFFS[d.kind]) { grabBuff(d.kind); got.buffs++; }
     else got.xp++;
   }
-  G.drops.length = 0;
+  G.drops = keep;
   if (got.xp) gainXp(got.xp);                          // 可能一口气跨两级，gainXp 记着账
   syncHud();
   return got;
@@ -4571,6 +4685,95 @@ const SHOP = [
       banner(WEAPONS[id].n, WEAPONS[id].d + ' · 武器栏 ' + P.owned.length + '/' + MAX_WEPS);
     } },
 ];
+/* ---- 货架（土豆兄弟式） ----
+   原来的商店只卖消耗品（上面那张 SHOP 表，现在叫「服务」），变强全靠升级三选一。
+   土豆兄弟最核心的那个决定 ——「这波打完买什么、留多少钱」—— 这里一直没有。
+   货架每波摆四格：被动道具和武器混着。道具这一局一直生效、能叠，大多带代价（换一样丢一样）；
+   武器直接进武器栏，同名的也能买，凑一对去合成。刷新要花废钢、越刷越贵；锁住的格子下一波还在。
+   这些只在这一局有效，不进档案 —— 元进度那条「不给永久数值」的规矩不受影响。 */
+const ITEMS = {
+  fin:    { n: '散 热 鳍',   d: '射速 +10%',                 cost: 55, f: p => { p.mul.rate *= 1.1; } },
+  core:   { n: '钨 芯 弹',   d: '伤害 +10%',                 cost: 55, f: p => { p.mul.dmg *= 1.1; } },
+  over:   { n: '超 频 芯 片', d: '射速 +22%，伤害 −8%',       cost: 70, f: p => { p.mul.rate *= 1.22; p.mul.dmg *= .92; } },
+  heavy:  { n: '重 型 弹 头', d: '伤害 +22%，射速 −8%',       cost: 70, f: p => { p.mul.dmg *= 1.22; p.mul.rate *= .92; } },
+  frame:  { n: '轻 量 骨 架', d: '移速 +10%，生命上限 −10',   cost: 50, f: p => { p.speed *= 1.1; p.maxhp -= 10; p.hp = Math.min(p.hp, p.maxhp); } },
+  plate:  { n: '装 甲 板',   d: '生命上限 +25，移速 −5%',     cost: 55, f: p => { p.maxhp += 25; p.hp += 25; p.speed *= .95; } },
+  gel:    { n: '纳 米 凝 胶', d: '生命上限 +12，立刻回满',     cost: 60, f: p => { p.maxhp += 12; p.hp = p.maxhp; } },
+  coil:   { n: '吸 附 线 圈', d: '拾取范围 +35%',             cost: 35, f: p => { p.pickR *= 1.35; } },
+  leech:  { n: '血 肉 引 擎', d: '击杀回 2 血',               cost: 75, f: p => { p.lifesteal += 2; } },
+  scope:  { n: '瞄 准 模 组', d: '暴击率 +5%',                cost: 70, f: p => { p.crit += .05; } },
+  gamble: { n: '赌 徒 芯 片', d: '暴击率 +12%，生命上限 −15', cost: 70, f: p => { p.crit += .12; p.maxhp -= 15; p.hp = Math.min(p.hp, p.maxhp); } },
+  armor:  { n: '反 应 装 甲', d: '5% 概率完全免伤',           cost: 85, f: p => { p.shield = Math.min(.6, p.shield + .05); } },
+  barrel: { n: '长 枪 管',   d: '射程 +15%，弹速 +10%',       cost: 45, f: p => { p.mul.range *= 1.15; p.mul.bspd *= 1.1; } },
+  cap:    { n: '冲 刺 电 容', d: '冲刺冷却 −15%',             cost: 50, f: p => { if (p.dashCd < 1e8) p.dashCd *= .85; } },
+  spark:  { n: '静 电 线 圈', d: '身周放电 +3',               cost: 80, f: p => { p.aura += 3; } },
+  claw:   { n: '回 收 夹 爪', d: '捡到废钢回 2 血',           cost: 45, f: p => { p.salvage += 2; } },
+};
+const ITEM_IDS = Object.keys(ITEMS);
+const SHELF_N = 4, SHELF_WEP = 110, SHELF_ROLL = 18;
+// 每样道具一局最多买 3 份，已有几份就贵几成。不封顶的话倍率是乘起来的（十个散热鳍 = 射速 ×2.6），
+// 而危险档越高精英越多、掉的废钢越多 —— 探针里熔毁反而比高危好打，就是被货架滚雪球滚出来的。
+const ITEM_MAX = 3;
+const itemHave = id => (G.items && G.items[id]) || 0;
+// 越往后越贵：第 1 波原价，第 30 波约 2.8 倍 —— 后期捡得也多
+const shelfCost = base => Math.round(base * (1 + G.wave * .06) * (hqLv('depot') >= 2 ? .8 : 1));
+const shelfPrice = x => shelfCost(x.kind === 'wep' ? SHELF_WEP : ITEMS[x.id].cost * (1 + .25 * itemHave(x.id)));
+const rollPrice = () => shelfCost(SHELF_ROLL + 12 * (G.shelfRolls | 0));
+function shelfGuns() {                                   // 货架上能摆的枪：已解锁的（每日 / 每周全开），手里有的也行
+  const open = fixedRun();
+  return WEP_ORDER.filter(id => (id === 'pulse' || open || PROF.unlocked['w_' + id])
+    && !(MODE === 'weekly' && weekRule().id === 'melee' && slotOf(id) === 'range'));
+}
+function rollShelf() {
+  const out = (G.shelf || []).filter(x => x && x.lock && !x.sold);   // 锁住的留着
+  const guns = shelfGuns();
+  while (out.length < SHELF_N) {
+    if (RNG.card() < .3 && guns.length && P.owned.length < MAX_WEPS)
+      out.push({ kind: 'wep', id: guns[(RNG.card() * guns.length) | 0] });
+    else {
+      const pool = ITEM_IDS.filter(id => itemHave(id) < ITEM_MAX);
+      if (!pool.length) { out.push({ kind: 'item', id: ITEM_IDS[0], sold: 1 }); continue; }   // 全买满了：摆一格空的
+      out.push({ kind: 'item', id: pool[(RNG.card() * pool.length) | 0] });
+    }
+  }
+  G.shelf = out;
+}
+function shelfCan(x) {
+  if (!x || x.sold) return false;
+  if (x.kind === 'wep') return P.owned.length < MAX_WEPS;
+  return itemHave(x.id) < ITEM_MAX;
+}
+function shelfBuy(i) {
+  const x = G.shelf && G.shelf[i];
+  if (G.phase !== 'shop' || !shelfCan(x) || G.scrap < shelfPrice(x)) return false;
+  G.scrap -= shelfPrice(x); G.bought++;
+  if (x.kind === 'wep') { gainWep(x.id); Sfx.swap(); }
+  else {
+    ITEMS[x.id].f(P);
+    G.items[x.id] = (G.items[x.id] || 0) + 1;
+    equip(P.owned[0]);                                 // 倍率变了，重算一遍
+    Sfx.buff();
+  }
+  x.sold = 1; x.lock = 0;
+  syncShop(); syncHud();
+  return true;
+}
+function shelfRoll() {
+  if (G.phase !== 'shop' || G.scrap < rollPrice()) return false;
+  G.scrap -= rollPrice();
+  G.shelfRolls = (G.shelfRolls | 0) + 1;
+  rollShelf();
+  Sfx.swap();
+  syncShop(); syncHud();
+  return true;
+}
+function shelfLock(i) {
+  const x = G.shelf && G.shelf[i];
+  if (!x || x.sold) return false;
+  x.lock = x.lock ? 0 : 1;
+  syncShop();
+  return true;
+}
 // 已解锁（或每日局全开）、但这一局还没带在身上的枪
 function shopGuns() {
   const open = fixedRun();
@@ -4591,9 +4794,8 @@ function shopBuy(id) {
   return true;
 }
 // 商店只在「它真有东西给你」的时候才拦一下。买不起也没伤，就别打断节奏。
-function shopWorth() {
-  return shopList().some(it => G.scrap >= shopCost(it) && it.can());
-}
+// 货架加进来之后每波都开 —— 买不买、留多少是这一波最主要的决定，跳过它就没有这个决定了
+function shopWorth() { return true; }
 // 触屏控件该不该出现，由这一个地方说了算。原来这三行写在 loop() 里，
 // 只有下一帧才生效，而且离线环境 requestAnimationFrame 是空的 —— 根本验不到。
 function syncTC() {
@@ -4606,6 +4808,8 @@ function syncTC() {
 }
 function openShop() {
   G.phase = 'shop';
+  G.shelfRolls = 0;                                     // 刷新价每次进店从头算
+  rollShelf();
   syncShop();
   const b = el('shopBox');
   if (b) b.classList.add('show');
@@ -4616,6 +4820,26 @@ function closeShop() {
   if (G.phase === 'shop') { G.phase = 'break'; G.waveT = .7; }
 }
 function syncShop() {
+  const sh = el('shelfItems');
+  if (sh && G.shelf) {
+    sh.innerHTML = G.shelf.map((x, i) => {
+      const isW = x.kind === 'wep', W = isW && WEAPONS[x.id], I = !isW && ITEMS[x.id];
+      const c = shelfPrice(x), can = shelfCan(x), ok2 = can && G.scrap >= c;
+      const have = isW ? P.owned.filter(id => id === x.id).length : (G.items[x.id] || 0);
+      const why = x.sold ? '已买' : !can ? (isW ? '武器栏满了' : '已经买满 ' + ITEM_MAX + ' 份') : ok2 ? '' : '废钢不够';
+      return `<div class="sbox"><button class="sitem${isW ? ' wep' : ''}${x.sold ? ' sold' : ok2 ? '' : ' lock'}" data-shelf="${i}">`
+        + `<span class="stag">${i + 1} · ${isW ? '武器' : '道具'}${have ? ' · 已有 ' + have : ''}</span>`
+        + `<span class="sn">${isW ? W.n : I.n}</span>`
+        + `<span class="sd">${isW ? W.d : I.d}</span>`
+        + `<span class="sc">${x.sold ? '' : c + ' 废钢'}${why ? ' ' + why : ''}</span></button>`
+        + (x.sold ? '' : `<button class="slock${x.lock ? ' on' : ''}" data-slock="${i}">${x.lock ? '已锁' : '锁'}</button>`)
+        + '</div>';
+    }).join('');
+    const rb = el('shelfRoll');
+    if (rb) { const c = rollPrice(); rb.textContent = '刷 新 · ' + c + ' 废钢' + (isTouch ? '' : '  [R]'); rb.classList.toggle('lock', G.scrap < c); }
+    const hh = el('shelfHint');
+    if (hh) hh.textContent = isTouch ? '· 锁住的下一波还在' : '· 按 1-4 买 · 锁住的下一波还在';
+  }
   const box = el('shopItems');
   if (!box) return;
   box.innerHTML = shopList().map(it => {
@@ -4623,6 +4847,7 @@ function syncShop() {
     const why = it.can() ? (ok2 ? '' : ' 废钢不够') : ' 用不上';
     const off = c < it.cost ? ` <s>${it.cost}</s>` : '';
     return `<button class="sitem${ok2 ? '' : ' lock'}" data-shop="${it.id}">`
+      + (isTouch ? '' : `<span class="stag">${shopList().indexOf(it) + 5}</span>`)
       + `<span class="sn">${it.n}</span>`
       + `<span class="sd">${it.d}</span>`
       + `<span class="sc">${c} 废钢${off}${why}</span></button>`;
@@ -4745,14 +4970,60 @@ const SLOTS = ['range', 'melee', 'magic'];             // 类别还在：卡池�
 function slotOf(id) { return (WEAPONS[id] && WEAPONS[id].slot) || 'range'; }
 function inSlot(sl) { return P.owned.find(id => slotOf(id) === sl) || null; }
 function setWeps(list) {                               // 整个换掉武器栏（开局、每周规则）
-  P.owned = []; P.wcd = []; P.widle = []; P.wang = [];
+  P.owned = []; P.wcd = []; P.widle = []; P.wang = []; P.wtier = [];
   for (const id of list) gainWep(id);
 }
 function gainWep(id) {
   if (!WEAPONS[id] || P.owned.length >= MAX_WEPS) return false;
-  P.owned.push(id); P.wcd.push(0); P.widle.push(0); P.wang.push(P.face < 0 ? Math.PI : 0);
+  if (!P.wtier) P.wtier = P.owned.map(() => 1);         // 老存档里没有品阶
+  P.owned.push(id); P.wcd.push(0); P.widle.push(0); P.wang.push(P.face < 0 ? Math.PI : 0); P.wtier.push(1);
   equip(P.owned[0]);
   return true;
+}
+
+/* ---- 合成：同名同品阶的两把 → 高一阶的一把，空出一格 ----
+   品阶 Ⅰ→Ⅱ→Ⅲ→Ⅳ 只放大这把枪的伤害。两把 Ⅰ 一起打是 ×2，合成的 Ⅱ 只有 ×1.6 ——
+   单看伤害是亏的，换来的是空出的那一格能再带一把。所以「留着两把一起打」和「合了腾格子」是个真选择，
+   不是捡到就合。什么时候合由你定：战斗里随时点亮着的那一格（键盘 C、手柄 Y），不自动合。 */
+const WTIER_MUL = [1, 1.6, 2.4, 3.5];
+const TIER_TXT = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ'];
+const tierOf = i => (P.wtier && P.wtier[i]) || 1;
+function mergeOf(i) {                                  // 跟第 i 把能合的那一把的下标，没有就 -1
+  const id = P.owned[i], t = tierOf(i);
+  if (!id || t >= WTIER_MUL.length) return -1;
+  for (let j = 0; j < P.owned.length; j++) if (j !== i && P.owned[j] === id && tierOf(j) === t) return j;
+  return -1;
+}
+function mergeWep(i) {
+  const j = mergeOf(i);
+  if (j < 0 || !P) return false;
+  if (!P.wtier) P.wtier = P.owned.map(() => 1);
+  const keep = Math.min(i, j), gone = Math.max(i, j), id = P.owned[keep];
+  P.wtier[keep] = tierOf(keep) + 1;
+  for (const k of ['owned', 'wcd', 'widle', 'wang', 'wtier']) P[k].splice(gone, 1);
+  P.wcd[keep] = 0;                                     // 合完马上能打一发，手感上是「升级了」
+  const t = P.wtier[keep];
+  banner(WEAPONS[id].n + ' ' + TIER_TXT[t - 1], '合成 · 伤害 ×' + WTIER_MUL[t - 1] + ' · 武器栏空出一格');
+  flashAt(P.x, P.y, 'rgb(' + WEAPONS[id].col + ')', 18, .25);
+  burstFx(P.x, P.y, 16, 'rgb(' + WEAPONS[id].col + ')', 160);
+  Sfx.buff ? Sfx.buff() : Sfx.levelup();
+  equip(P.owned[0]);
+  return true;
+}
+/* ---- 同类套装 ----
+   远程 / 近战 / 炼金三类原来只是分类，带同类不给任何东西 —— 没有理由去凑一个流派。
+   现在按带着的把数（重复的也算）给套装：2 / 4 / 6 把，这一类的伤害 +10% / +25% / +45%，
+   另外各给一样跟这类打法对路的：近战缩短冲刺冷却（贴上去要靠它），炼金拉长区域持续（摆盘要时间）。 */
+const SETS = {
+  range: { n: '远程', dmg: [1, 1.1, 1.25, 1.45], d: '' },
+  melee: { n: '近战', dmg: [1, 1.1, 1.25, 1.45], dash: [1, .9, .8, .7], d: '冲刺冷却 −10% / −20% / −30%' },
+  magic: { n: '炼金', dmg: [1, 1.1, 1.25, 1.45], zone: [1, 1.2, 1.4, 1.6], d: '区域持续 +20% / +40% / +60%' },
+};
+function setCount(sl) { return P ? P.owned.filter(id => slotOf(id) === sl).length : 0; }
+function setLv(sl) { const n = setCount(sl); return n >= 6 ? 3 : n >= 4 ? 2 : n >= 2 ? 1 : 0; }
+function mergeAny() {                                   // 键盘 C / 手柄 Y：合第一对能合的
+  for (let i = 0; i < P.owned.length; i++) if (mergeOf(i) >= 0) return mergeWep(i);
+  return false;
 }
 
 /* ================= 自动开火 =================
@@ -4773,6 +5044,9 @@ function autoFire(dt) {
     P.wcd[i] -= dt; P.widle[i] += dt;
     if (P.wcd[i] > 0) continue;
     loadWep(P.owned[i]);
+    P.dmg *= WTIER_MUL[tierOf(i) - 1];                 // 品阶只放大伤害
+    { const sl = slotOf(P.owned[i]), lv = setLv(sl), S = SETS[sl];   // 同类套装
+      P.dmg *= S.dmg[lv]; if (S.zone) P.zlife *= S.zone[lv]; }
     const R = (RANGE_OF[P.kind] || (() => 160))();
     let tg = null, td = R;
     for (const m of G.mobs) {
@@ -4797,7 +5071,7 @@ function autoFire(dt) {
     P.wcd[i] = P.fireT > 0 ? P.fireT : 1 / (P.fireRate * rush);
   }
   // 歇下来时 P 上留第一把的数值（HUD、反应伤害读它）。力场盾在格挡：看它自己瞄的方向。
-  if (P.owned.length) loadWep(P.owned[0]);
+  if (P.owned.length) { loadWep(P.owned[0]); P.dmg *= WTIER_MUL[tierOf(0) - 1]; }
   const gi = P.owned.indexOf('guard');
   P.block = gi >= 0 ? WEAPONS.guard.block : 0;
   P.blockAng = gi >= 0 ? P.wang[gi] : 0;
@@ -4855,7 +5129,7 @@ function meleeSweep(a, mul, wep) {
     // 击退按【单位向量 × 固定像素】算，不能除以距离 —— 那样越近推得越少，
     // 而近战恰恰是贴着打的，等于没有击退。而"把空间打出来"是近战成立的理由。
     const nx = d > 1 ? dx / d : 1, ny = d > 1 ? dy / d : 0;
-    hurtMob(m, P.dmg * mul * (crit ? 3 : 1), nx * P.knock * .08, ny * P.knock * .08, P.x, P.y);
+    NUMCRIT = crit; hurtMob(m, P.dmg * mul * (crit ? 3 : 1), nx * P.knock * .08, ny * P.knock * .08, P.x, P.y); NUMCRIT = false;
     G.wepDmg[wep] = (G.wepDmg[wep] || 0) + P.dmg * mul;
     burstFx(m.x, m.y, crit ? 9 : 5, crit ? '#ffe066' : '#dff6ff', 150);
     n++;
@@ -4910,7 +5184,7 @@ function fireLunge(a) {
     if (dd > P.reach + m.r) continue;
     const crit = RNG.fx() < P.crit;
     const nx = ex / Math.sqrt(seg), ny = ey / Math.sqrt(seg);
-    hurtMob(m, P.dmg * (crit ? 3 : 1), nx * 9, ny * 9, sx, sy);
+    NUMCRIT = crit; hurtMob(m, P.dmg * (crit ? 3 : 1), nx * 9, ny * 9, sx, sy); NUMCRIT = false;
     G.wepDmg.lance = (G.wepDmg.lance || 0) + P.dmg;
     burstFx(m.x, m.y, crit ? 10 : 6, crit ? '#ffe066' : '#ffd0a0', 170);
     n++;
@@ -5148,7 +5422,7 @@ function railBeam(a) {
     if (t < 0 || t > R) continue;
     if (len(m.x - P.x - dx * t, m.y - P.y - dy * t) > m.r + 4) continue;
     const crit = RNG.fx() < P.crit;
-    hurtMob(m, P.dmg * (crit ? 3 : 1), dx * 3, dy * 3, P.x, P.y);
+    NUMCRIT = crit; hurtMob(m, P.dmg * (crit ? 3 : 1), dx * 3, dy * 3, P.x, P.y); NUMCRIT = false;
     G.wepDmg.rail = (G.wepDmg.rail || 0) + P.dmg;
     burstFx(m.x, m.y, 7, '#c8a0ff', 150); flashAt(m.x, m.y, '#e6d4ff', 8); n++;
   }
@@ -5170,7 +5444,7 @@ function fireArc() {
     }
     if (!best) break;
     hit.push(best); pts.push([best.x, best.y]);
-    hurtMob(best, P.dmg * (RNG.fx() < P.crit ? 3 : 1), 0, 0, sx, sy);
+    NUMCRIT = RNG.fx() < P.crit; hurtMob(best, P.dmg * (NUMCRIT ? 3 : 1), 0, 0, sx, sy); NUMCRIT = false;
     G.wepDmg.arc = (G.wepDmg.arc || 0) + P.dmg;
     if (storm && !best.dead) {
       // 拽一下：40px 内的往它身上靠 8px，它自己挂上【引】—— 紧接着的那一跳雷就撞成超载
@@ -5215,7 +5489,7 @@ function fireBeam(a0) {
       const rx = m.x - P.x, ry = m.y - P.y, rd = len(rx, ry) || 1;
       if (rd > P.reach) continue;
       if (Math.abs(angDiff(Math.atan2(ry, rx), a0)) > .42) continue;
-      hurtMob(m, P.dmg * (RNG.fx() < P.crit ? 3 : 1), rx / rd * 3, ry / rd * 3, P.x, P.y);
+      NUMCRIT = RNG.fx() < P.crit; hurtMob(m, P.dmg * (NUMCRIT ? 3 : 1), rx / rd * 3, ry / rd * 3, P.x, P.y); NUMCRIT = false;
       G.wepDmg.beam = (G.wepDmg.beam || 0) + P.dmg; hit++;
     }
     for (let i = -2; i <= 2; i++)
@@ -5240,7 +5514,7 @@ function fireBeam(a0) {
     x2: P.x + dx * len2, y2: P.y + dy * len2, t: .09, col: P.wcol, cut: 1 });
   if (best) {
     const crit = RNG.fx() < P.crit;
-    hurtMob(best, P.dmg * (crit ? 3 : 1), dx * 4, dy * 4, P.x, P.y);
+    NUMCRIT = crit; hurtMob(best, P.dmg * (crit ? 3 : 1), dx * 4, dy * 4, P.x, P.y); NUMCRIT = false;
     G.wepDmg.beam = (G.wepDmg.beam || 0) + P.dmg;
     if (RNG.fx() < .3) burstFx(best.x, best.y, 2, 'rgb(' + P.wcol + ')', 70);
   }
@@ -5424,6 +5698,54 @@ function react(m, el) {
   }
   return null;
 }
+/* ---- 伤害数字 ----
+   打中了打了多少，原来全靠猜（画布上一个字都不画）。320×180 上直接写字是糊的，
+   所以用 3×5 的像素数字，按颜色和大小预先烤好、画的时候贴图。
+   同一只怪 0.15 秒内挨的打并成一个数往上加 —— 灼烧、静电场一秒跳好几下，
+   每下一个数的话一屏全是字。暴击大一号、金色；自己挨打红色，挂在人头上。 */
+const DIGITS = ['111101101101111', '010110010010111', '111001111100111', '111001111001111', '101101111001001',
+  '111100111001111', '111100111101111', '111001001001001', '111101111101111', '111101111001111'];
+let NUMCRIT = false;
+const NUM_SPR = {};
+function numSprite(d, col, sc) {
+  const key = d + col + sc;
+  if (NUM_SPR[key]) return NUM_SPR[key];
+  const c = document.createElement('canvas'); c.width = 3 * sc + 1; c.height = 5 * sc + 1;
+  const x = c.getContext('2d');
+  for (const [dx, dy, f] of [[1, 1, 'rgba(0,0,0,.75)'], [0, 0, col]]) {    // 先画一层黑影，再画本色
+    x.fillStyle = f;
+    for (let i = 0; i < 15; i++) if (DIGITS[d][i] === '1') x.fillRect((i % 3) * sc + dx, ((i / 3) | 0) * sc + dy, sc, sc);
+  }
+  return (NUM_SPR[key] = c);
+}
+function dmgNum(m, v, kind) {
+  if (!OPT.nums || !G.nums || !(v > 0)) return;
+  const crit = kind === 'crit';
+  if (m.num && m.num.t < .15 && !m.num.hurt) { m.num.v += v; if (crit) m.num.crit = true; return; }
+  const n = { x: m.x + rnd(-3, 3), y: m.y - (m.r || 4) - 2, v, t: 0, crit, hurt: kind === 'hurt' };
+  G.nums.push(n);
+  if (G.nums.length > 60) G.nums.shift();
+  if (kind !== 'hurt') m.num = n;
+}
+function drawNums() {
+  for (const n of G.nums) {
+    const str = String(Math.max(1, Math.round(n.v)));
+    const sc = n.crit ? 2 : 1;
+    const col = n.hurt ? '#ff4d6d' : n.crit ? '#ffe066' : '#eaf6ff';
+    const a = n.t < .45 ? 1 : Math.max(0, 1 - (n.t - .45) / .25);
+    const pop = n.t < .08 ? 1 + (1 - n.t / .08) * .5 : 1;          // 刚冒出来时大一点再缩回去
+    const w = str.length * (3 * sc + 1) * pop;
+    let x = (n.x - G.cam.x - w / 2) | 0;
+    const y = (n.y - G.cam.y - n.t * 20 - 5 * sc) | 0;
+    ctx.globalAlpha = a;
+    for (const ch of str) {
+      const sp = numSprite(+ch, col, sc);
+      ctx.drawImage(sp, x, y, sp.width * pop, sp.height * pop);
+      x += (3 * sc + 1) * pop;
+    }
+    ctx.globalAlpha = 1;
+  }
+}
 function hurtMob(m, dmg, kx, ky, sx, sy) {
   if (P && P.charged) dmg *= 1 + 2 * P.charge;         // 蓄能：停火后的第一发
   if (m.markT > 0) dmg *= 1 + .25 * (m.markBy || 1);   // 拆解标记：被标记的多吃伤害
@@ -5443,6 +5765,7 @@ function hurtMob(m, dmg, kx, ky, sx, sy) {
   if (m.guarded > 0 && !G.overheat) dmg *= .35;                       // 被中继护着：先打中继
   m.hp -= dmg;
   m.flash = .12;
+  dmgNum(m, dmg, NUMCRIT ? 'crit' : '');
   // 冷凝弹头归并成【霜】属性：减速照旧，外加叠层，叠满冻住。
   if (P.slow) { m.slowT = Math.max(m.slowT, .8); addFrost(m, 1); }
   m.x += kx; m.y += ky;
@@ -5556,6 +5879,7 @@ function hurtPlayer(dmg, src) {
     P.inv = .3; return;
   }
   P.hp -= dmg; P.inv = .55;
+  dmgNum({ x: P.x, y: P.y - 6, r: 4 }, dmg, 'hurt');
   G.combo = 0;
   G.shake = Math.max(G.shake, 5);
   G.hitFlash = .3;
@@ -5643,7 +5967,7 @@ function update(dt) {
 
   if ((keys.Space || keys.ShiftLeft || TC.dash || PAD.dash) && P.dashCdT === 0) {
     TC.dash = 0; PAD.dash = 0;
-    P.dashT = .17; P.dashCdT = P.dashCd;
+    P.dashT = .17; P.dashCdT = P.dashCd * (SETS.melee.dash[setLv('melee')] || 1);   // 近战套装缩冷却
     const a = il > 0 ? Math.atan2(iy, ix) : (P.face < 0 ? Math.PI : 0);
     P.dvx = Math.cos(a) * 430; P.dvy = Math.sin(a) * 430;
     Sfx.dash();
@@ -5707,6 +6031,10 @@ function update(dt) {
     }
     if (G.waveT <= 0 && G.budget <= 0 && G.mobs.length === 0) {
       G.overheat = 0;
+      // 一波打完，地上的经验、废钢、零件、血包自动收进来（土豆兄弟那样）。
+      // 原来只在每 5 波换场地时扫一次，其余时候打完还得满场跑着捡。放在开商店之前，收到的废钢马上能花。
+      const note = sweepNote(sweepDrops(true));
+      if (note) G.tipQ.push({ n: '自 动 回 收', d: note });
       // 商店只在它真有东西给你的时候才拦 —— 买不起就别打断节奏。
       // 第 30 波打完是撤离，不进商店。
       if (G.wave < LAST_WAVE && shopWorth()) openShop();
@@ -5996,7 +6324,9 @@ function update(dt) {
     for (const m of G.mobs) {
       if (m.dead || b.life <= 0 || b.hits.indexOf(m) >= 0) continue;
       if (len(m.x - b.x, m.y - b.y) < m.r + 2) {
+        NUMCRIT = !!b.crit;
         hurtMob(m, b.dmg, b.vx * dt * .5, b.vy * dt * .5, b.x - b.vx * .05, b.y - b.vy * .05);
+        NUMCRIT = false;
         // 附了属性的子弹把属性一起打进去
         if (b.elem === 'trans') m.harvest = .6;        // 嬗：打死的也算在金雾里死
         if (b.elem === 'molten') { m.burn = Math.max(m.burn || 0, 3); react(m, 'molten'); }   // 熔：点燃三秒
@@ -6013,6 +6343,7 @@ function update(dt) {
   }
   G.bullets = G.bullets.filter(b => b.life > 0);
   for (const x of G.beams) x.t -= dt; G.beams = G.beams.filter(x => x.t > 0);
+  if (G.nums.length) { for (const n of G.nums) n.t += dt; G.nums = G.nums.filter(n => n.t < .7); }
 
   /* 场地互动物。三个都【对敌人同样生效】—— 只对玩家生效的话它就是添堵，
      对双方都生效才是战术：可以把人引进熔渣、用传送带拉开距离、打爆罐子清一片。 */
@@ -6927,6 +7258,7 @@ function render() {
     }
   }
 
+  drawNums();                                          // 伤害数字压在粒子上面，泛光之前画（泛光会把它洗亮一点，正好）
   drawOffscreenMarkers();
 
   // 准心拿掉了：全自动瞄准之后鼠标只管菜单
@@ -7055,16 +7387,28 @@ let WS_SIG = '';
 function syncWepSlots() {
   const box = el('wepSlots');
   if (!box || !P) return;
-  const sig = P.owned.join();
+  const sig = P.owned.map((id, i) => id + tierOf(i)).join();
   if (sig === WS_SIG && box.children.length === MAX_WEPS) return;
   WS_SIG = sig;
   let h = '';
   for (let i = 0; i < MAX_WEPS; i++) {
-    const id = P.owned[i], W = id && WEAPONS[id];
-    h += W ? `<span class="ws" style="--c:${W.col}" title="${W.n}">${W.s || W.n}<i></i></span>` : '<span class="ws empty">··</span>';
+    const id = P.owned[i], W = id && WEAPONS[id], t = W ? tierOf(i) : 1;
+    // 能合的那一格是个按钮（亮着、能点）；点不了的格子不接指针，手指按上去照样是摇杆
+    const can = W && mergeOf(i) >= 0;
+    h += !W ? '<span class="ws empty">··</span>'
+      : `<${can ? 'button' : 'span'} class="ws t${t}${can ? ' can' : ''}" data-i="${i}" style="--c:${W.col}" `
+        + `title="${W.n} ${TIER_TXT[t - 1]}${can ? ' · 点一下跟另一把合成' : ''}">${W.s || W.n}`
+        + (t > 1 ? `<b>${TIER_TXT[t - 1]}</b>` : '') + `<i></i></${can ? 'button' : 'span'}>`;
   }
   box.innerHTML = h;
 }
+// 点亮着的那一格就合成。用 pointerdown：手机上不等 click 的那点延迟，也不会顺手起摇杆（目标是按钮）
+el('wepSlots').addEventListener('pointerdown', e => {
+  const b = e.target.closest && e.target.closest('.ws.can');
+  if (!b || G.state !== 'play') return;
+  e.stopPropagation(); e.preventDefault();
+  mergeWep(+b.dataset.i);
+});
 function updateWepCd() {
   const box = el('wepSlots');
   if (!box || !P) return;
@@ -7157,7 +7501,7 @@ function start(seedOverride, rs) {
     wepDmg: {}, deathBy: null, bossKills: 0, coreKills: 0, tankKills: 0,
     buffs: {}, mod: null, eliteKills: 0, overheat: 0, won: false, seen: {}, tipQ: [], tipT: 0,
     unlockedDanger: null, waveMax: 0, rerolls: REROLLS, hookCd: 0, seenAff: {}, pityDone: 0,
-    pet: null, escorts: [], reacts: {}, route: null, routes: null,
+    pet: null, escorts: [], reacts: {}, route: null, routes: null, nums: [], items: {}, shelf: null, shelfRolls: 0,
     scrap: 0, scrapGot: 0, bought: 0, loot: {}
   });
   // 宠物要放在 Object.assign 之后 —— 放前面会被那一行重置回 null（踩过一次）。
@@ -7184,6 +7528,7 @@ function start(seedOverride, rs) {
     setArena(rs.arena | 0, false);
     Object.assign(G, rs.G);
     Object.assign(P, rs.P, { vx: 0, vy: 0, dashT: 0, inv: 1.2 });   // 刚续上给一秒多无敌，别一落地就挨打
+    if (!P.wtier || P.wtier.length !== P.owned.length) P.wtier = P.owned.map(() => 1);   // 加品阶之前的存档
     RNG.fx.s = rs.rng[0]; RNG.wave.s = rs.rng[1]; RNG.card.s = rs.rng[2];
     G.phase = 'break'; G.waveT = 2;
     banner('续 上 了', '第 ' + (G.wave + 1) + ' 波马上开始');
@@ -7400,6 +7745,9 @@ function howToHTML() {
     + `<p><b>武器栏 ${MAX_WEPS} 格</b>：远程、近战、炼金随便配，同一把也能带两把（两把霰弹就是两倍的霰弹）。`
     + '带着的每一把<b>同时自动开火</b>，各打各射程里最近的那个 —— 刀只砍贴脸的，磁轨打远处排队的。'
     + `满 ${MAX_WEPS} 把之后换装卡就不再发了。</p>`
+    + `<p><b>合成</b>：同名、同品阶的两把能合成高一阶的一把（Ⅰ→Ⅱ→Ⅲ→Ⅳ，伤害 ×${WTIER_MUL.join(' / ×')}），空出一格。`
+    + `能合的那一格会亮，战斗里随时${isTouch ? '点它' : '点它、或者按 <b>C</b>'}就合。`
+    + '两把 Ⅰ 一起打是 ×2，合成的 Ⅱ 只有 ×1.6 —— 合不合看你要伤害还是要格子。</p>'
     + '<p><b>炼金</b>那一路不靠杀人，直接输出只有远程的一到三成，价值全在后果上。'
     + '三种属性，每种两种投法：</p>'
     + dl([
@@ -7904,11 +8252,19 @@ el('hqMods').onclick = e => {
 el('tabBuild').onclick = () => showTab('build');
 el('tabBag').onclick = () => showTab('bag');
 el('tabDex').onclick = () => showTab('dex');
+el('tabStat').onclick = () => showTab('stat');
 el('shopGo').onclick = closeShop;
 el('routeItems').onclick = e => {
   const b = e.target.closest && e.target.closest('[data-route]');
   if (b) pickRoute(+b.dataset.route);
 };
+el('shelfItems').onclick = e => {
+  const l = e.target.closest && e.target.closest('[data-slock]');
+  if (l) { shelfLock(+l.dataset.slock); return; }
+  const b = e.target.closest && e.target.closest('[data-shelf]');
+  if (b) shelfBuy(+b.dataset.shelf);
+};
+el('shelfRoll').onclick = shelfRoll;
 el('shopItems').onclick = e => {
   const b = e.target.closest && e.target.closest('[data-shop]');
   if (b) shopBuy(b.dataset.shop);
@@ -8020,7 +8376,7 @@ window.NS = { G, get P() { return P; }, start, saveRun, loadRun, clearRun, syncC
   fit, cv, REF_W, REF_H, camAt, get VW() { return VW; }, get VH() { return VH; },
   loadDaily, saveDaily, DAILY_KEY, loadWeekly, WEEKLY_KEY, WEEK_RULES, weekNum, weekRule, wMul, fixedRun, get WEEKLY() { return WEEKLY; }, get MODE() { return MODE; }, get RUN_SEED() { return RUN_SEED; },
   ARENAS, ARENA, setArena, nextWave, genScenery, HAZ, LAST_WAVE, tier, TIERS, winRun, targetMass, spawnGap, spawnRate, xpNeed, HOOK_GAP,
-  DANGER, dangerIdx, DG, dangerMax, pickDanger, dgRamp, dgMul, get ARENA_I() { return ARENA_I; },
+  DANGER, dangerIdx, DG, dangerMax, pickDanger, dgRamp, dgMul, dgMulLate, get ARENA_I() { return ARENA_I; },
   hurtMob, hurtPlayer, blowUp, killMob, waveSpawn, isBoss, TIPS, BOSS_AT, bossOf, waveLeft, syncWave,
   AFFIX, AFFIX_IDS,
   fireBeam, fireMine, fireDisc, MINE_MAX, railBeam, throwDisc,
@@ -8033,7 +8389,7 @@ window.NS = { G, get P() { return P; }, start, saveRun, loadRun, clearRun, syncC
   syncHQ, showHQ, syncPity, togglePity, syncPet, syncStore, renderStoreLog, chainText, chainSteps, shopList, shopCost, intelText,
   showTab, bagHTML, syncTags,
   HOWTO, firstTime, howToHTML, showHow, ELEM, milesHTML, mileCat, mileProg, showMiles,
-  FROST_MAX, FROST_HOLD, addFrost, voltJump, quitSave, quitHint, PROF_FOLD, syncWepSlots, MAX_WEPS, setWeps, autoFire, loadWep, RANGE_OF, onView, sniperStand, EVOS, evoReady, evoCard, evoOn, evoElem, fireArc, eliteChance, ROUTES, rollRoutes, openRoute, pickRoute, routeNow, rMul, needRoute, EVAC_NEED, EVAC_R, startEvac, evacSpot, REACT, HAS, react, REACT_CD,
+  FROST_MAX, FROST_HOLD, addFrost, voltJump, SETS, setLv, setCount, statHTML, ITEMS, ITEM_IDS, rollShelf, shelfBuy, shelfRoll, shelfLock, shelfPrice, rollPrice, SHELF_N, dmgNum, drawNums, DIGITS, WTIER_MUL, TIER_TXT, mergeOf, mergeWep, mergeAny, quitSave, quitHint, PROF_FOLD, syncWepSlots, MAX_WEPS, setWeps, autoFire, loadWep, RANGE_OF, onView, sniperStand, EVOS, evoReady, evoCard, evoOn, evoElem, fireArc, eliteChance, ROUTES, rollRoutes, openRoute, pickRoute, routeNow, rMul, needRoute, EVAC_NEED, EVAC_R, startEvac, evacSpot, REACT, HAS, react, REACT_CD,
   gainWep, slotOf, inSlot, SLOTS,
   sweepDrops, sweepNote, gainXp,
   WRIG,

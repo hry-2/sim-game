@@ -54,6 +54,13 @@ function play(seed, maxWave, dg, hq) {
     // 并且刻意留一半废钢不花 —— 全花光的话就量不出「留到下一局」这条路了。
     if (G.phase === 'shop') {
       const keep = G.scrapGot * .5;
+      // 货架：武器栏没满先买枪，然后按价钱从便宜到贵买道具，同样留一半不花
+      for (let k = 0; k < 4; k++) {
+        const order = (G.shelf || []).map((x, i) => i).filter(i => G.shelf[i] && !G.shelf[i].sold)
+          .sort((a, b) => (G.shelf[a].kind === 'wep' ? 0 : 1) - (G.shelf[b].kind === 'wep' ? 0 : 1) || NS.shelfPrice(G.shelf[a]) - NS.shelfPrice(G.shelf[b]));
+        const i = order.find(i => G.scrap - NS.shelfPrice(G.shelf[i]) >= keep);
+        if (i == null || !NS.shelfBuy(i)) break;
+      }
       for (const id of ['fix', 'rr', 'buff']) {       // 军械不买：可能买到布雷器，它用不了
         while (G.scrap - (NS.SHOP.find(x => x.id === id) || {}).cost >= keep && NS.shopBuy(id)) { /* 能买就买 */ }
       }
@@ -124,6 +131,8 @@ function play(seed, maxWave, dg, hq) {
     // 一多半是它抽到刀之后自己饿死的）。
     // 近战就贴到砍得到的距离上；人越多贴得越浅，别一头扎进堆里。
     // 武器栏全自动：不用替它切枪、也不用替它瞄。站位按第一把（P 上歇着的是第一把的数值）。
+    // 合成：格子满了就合 —— 腾出格子好再拿新枪。没满时留着两把一起打（那样伤害更高）。
+    if (P.owned.length >= NS.MAX_WEPS) NS.mergeAny();
     const MELEE = { melee: 1, lunge: 1, guard: 1 };
     const isMelee = !!MELEE[P.kind];
     // 站在自己射程的【外沿】，不是往里钻。第一版写的是 reach*0.7，
@@ -217,7 +226,8 @@ const MAXW = Number(process.argv[2] || 31);
 const DG = Number(process.argv[3] || 0);
 // hq = 据点全满；full = 据点全满 + 里程碑全开（九把枪都在卡池里）
 const HQ = process.argv[4] === 'full' ? 'full' : process.argv[4] === 'hq';
-const seeds = [1, 20260910, 777, 424242, 9];
+// SEEDS=1,2,3 可以换一批 / 多跑几个种子 —— 五局分不开相邻两档的时候用
+const seeds = (process.env.SEEDS || '1,20260910,777,424242,9').split(',').map(Number);
 console.log(`每个种子最多打 ${MAXW} 波 · 危险等级 ${NS.DANGER[DG].n.replace(/ /g, '')}${HQ === 'full' ? ' · 多周目档案（九把枪全解锁）' : HQ ? ' · 据点全满' : ' · 新档案'}`);
 if (HQ === 'full') {
   // 量具的能力边界，必须印出来 —— 不印的话「多周目平均只到 7 波」

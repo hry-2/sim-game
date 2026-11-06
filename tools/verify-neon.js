@@ -991,11 +991,11 @@ console.log('武器栏');
   NST.setMode('free'); NST.start(7);
   const TP = NST.P;
   const slots = () => byId('wepSlots').innerHTML;
-  ok(TP.owned.length === 1 && (slots().match(/class="ws"/g) || []).length === 1 && (slots().match(/ws empty/g) || []).length === NST.MAX_WEPS - 1,
+  ok(TP.owned.length === 1 && (slots().match(/class="ws t\d/g) || []).length === 1 && (slots().match(/ws empty/g) || []).length === NST.MAX_WEPS - 1,
     '开局一把：武器栏一格亮、五格虚线 —— 还能带几把一眼看得出');
   ok(slots().indexOf(NST.WEAPONS[TP.owned[0]].s) > -1, '亮的那格写着武器的两字简称');
   NST.gainWep('lance'); NST.gainWep('pulse');
-  ok(TP.owned.length === 3 && (slots().match(/class="ws"/g) || []).length === 3, '同一把可以带两把（武器栏亮三格）');
+  ok(TP.owned.length === 3 && (slots().match(/class="ws t\d/g) || []).length === 3, '同一把可以带两把（武器栏亮三格）');
   for (let i = 0; i < 5; i++) NST.gainWep('shot');
   ok(TP.owned.length === NST.MAX_WEPS, `最多 ${NST.MAX_WEPS} 把，满了再给也不加`);
   ok(TP.wcd.length === TP.owned.length && TP.wang.length === TP.owned.length, '每一把都有自己的冷却和朝向');
@@ -1874,17 +1874,10 @@ console.log('废钢与商店');
   S3.scrap = 10;
   ok(NS.shopBuy('gun') === false && S3.scrap === 10, '买不起时不扣钱');
 
-  // 四、商店只在它真有东西给你的时候才拦
+  // 四、加了货架之后每波都开 —— 「这波买什么、留多少」是土豆兄弟那样的主要决定，跳过它就没这个决定了
   NS.start(80); const S4 = NS.G, P4 = NS.P;
   S4.scrap = 0; P4.hp = P4.maxhp;
-  ok(NS.shopWorth() === false, '身无分文又满血：商店不值得开');
-  S4.scrap = 5000;
-  ok(NS.shopWorth() === true, '有钱就值得开');
-  // 波次结束时按这个决定开不开
-  S4.scrap = 0; P4.hp = P4.maxhp;
-  S4.wave = 3; S4.phase = 'wave'; S4.waveT = -1; S4.budget = 0; S4.mobs.length = 0;
-  NS.update(D);
-  ok(S4.phase === 'break', '买不起的时候直接进下一波，不打断节奏');
+  ok(NS.shopWorth() === true, '身无分文也开 —— 货架看一眼，锁一格留到下一波也是决定');
   S4.scrap = 5000; S4.wave = 3; S4.phase = 'wave'; S4.waveT = -1; S4.budget = 0; S4.mobs.length = 0;
   NS.update(D);
   ok(S4.phase === 'shop', '有东西可买时才停下来');
@@ -4345,6 +4338,165 @@ console.log('存档退出');
   ok(NS.quitSave() === false && G.state === 'play', '没存档时第一下只提醒，不退');
   ok(NS.quitSave() === true && G.state === 'menu' && NS.loadRun() === null, '第二下才退');
   NS.clearRun();
+}
+
+// ---- 合成 ----
+// 同名同品阶的两把 → 高一阶的一把，空出一格。战斗里随时手动合，不自动合。
+console.log('合成');
+{
+  NS.setMode('free'); NS.start(606);
+  const P = NS.P, G = NS.G;
+  NS.setWeps(['shot', 'shot', 'pulse']);
+  ok(NS.mergeOf(0) === 1 && NS.mergeOf(2) === -1, '两把霰弹能合，单独一把脉冲不能');
+  ok(/class="ws t1 can"/.test(byId('wepSlots').innerHTML) && /<button class="ws t1 can" data-i="0"/.test(byId('wepSlots').innerHTML),
+    '能合的那一格是亮着的按钮');
+  ok(!/<button[^>]*data-i="2"/.test(byId('wepSlots').innerHTML), '合不了的格子不是按钮 —— 手指按上去照样是摇杆');
+  // 两把一起打：同一帧各开各的
+  G.mobs.length = 0; G.bullets.length = 0; G.budget = 0; G.waveT = 999;
+  NS.spawn('tank'); Object.assign(G.mobs[0], { x: P.x + 40, y: P.y, spd: 0, hp: 1e9, max: 1e9 });
+  P.wcd = [0, 0, 1e9];
+  NS.update(1 / 60);
+  ok(G.bullets.length >= 14, `合之前两把霰弹各打各的（一帧 ${G.bullets.length} 颗弹丸）`);
+  // 合
+  ok(NS.mergeWep(1) === true, '点第二把也能合');
+  ok(P.owned.join() === 'shot,pulse' && P.wtier.join() === '2,1', `合成之后：${P.owned.map((id, i) => id + P.wtier[i]).join(' ')}，空出一格`);
+  ok(P.wcd.length === 2 && P.wang.length === 2 && P.widle.length === 2, '冷却 / 朝向 / 停火计时跟着一起删了那一格');
+  // 伤害按品阶放大
+  G.bullets.length = 0; P.wcd = [0, 1e9];
+  NS.update(1 / 60);
+  const d2 = G.bullets[0] && G.bullets[0].dmg;
+  NS.setWeps(['shot']); G.bullets.length = 0; P.wcd = [0];
+  NS.update(1 / 60);
+  const d1 = G.bullets[0] && G.bullets[0].dmg;
+  ok(d1 && Math.abs(d2 / d1 - NS.WTIER_MUL[1]) < .2, `Ⅱ 阶伤害是 Ⅰ 阶的 ${(d2 / d1).toFixed(2)} 倍（暴击会抖一点）`);
+  // 只合同阶、封顶 Ⅳ
+  NS.setWeps(['rail', 'rail']); P.wtier = [2, 1];
+  ok(NS.mergeOf(0) === -1, '不同品阶不能合（Ⅱ + Ⅰ）');
+  P.wtier = [4, 4];
+  ok(NS.mergeOf(0) === -1, 'Ⅳ 是顶，两把 Ⅳ 也不再合');
+  // 键盘 C 合第一对
+  NS.setWeps(['pulse', 'arc', 'arc']);
+  key('KeyC', NS);
+  ok(P.owned.join() === 'pulse,arc' && P.wtier[1] === 2, '按 C 合第一对能合的');
+  // 合完空出的格子，换装卡又会发了
+  NS.setWeps(Array(NS.MAX_WEPS).fill('pulse'));
+  ok(!NS.rollOffer().some(u => u.wep), '满六格时不发换装卡');
+  NS.mergeAny();
+  let back = false;
+  for (let i = 0; i < 50 && !back; i++) back = NS.rollOffer().some(u => u.wep);
+  ok(back, '合完空出一格，换装卡又会发');
+  // 存档带着品阶
+  NS.setWeps(['shot', 'shot']); NS.mergeWep(0);
+  G.wave = 3; NS.saveRun();
+  NS.start(null, NS.loadRun());
+  ok(NS.P.owned.join() === 'shot' && NS.P.wtier.join() === '2', '续上存档，品阶还在');
+  NS.clearRun();
+}
+
+// ---- 危险档的伤害阶梯 ----
+// 武器栏全自动之后，全解锁档案在高危、熔毁都还能撤离四局 —— 档位拉不开。
+// 加的是敌人伤害（血量只会让波次变长），而且第 6 波起才往上走：开局一样，后半段才分出档来。
+console.log('危险档伤害');
+{
+  const d = NS.DANGER.map(g => g.dmg || 1);
+  ok(d[0] === 1 && d.every((v, i) => !i || v > d[i - 1]), `一档比一档疼（${d.join(' / ')}）`);
+  ok(NS.dgMulLate(2, 5) === 1 && NS.dgMulLate(2, 20) === 2 && NS.dgMulLate(2, 12) > 1 && NS.dgMulLate(2, 12) < 2,
+    '前 5 波不加，第 20 波加满 —— 开局不因为档位暴毙');
+  NS.setMode('free'); NS.PROF.dangerMax = 3;
+  const dmgAt = (dg, w) => { NS.pickDanger(dg); NS.start(3); NS.G.wave = w; NS.G.mobs.length = 0; NS.spawn('grunt'); return NS.G.mobs[0].dmg; };
+  ok(dmgAt(3, 3) === dmgAt(0, 3), '第 3 波时归零和标准的敌人一样疼');
+  ok(dmgAt(3, 25) > dmgAt(0, 25) * 2, '第 25 波时归零的敌人疼一倍多');
+  NS.pickDanger(0);
+}
+
+// ---- 土豆兄弟那一套：伤害数字、波末回收、货架、套装、属性页 ----
+console.log('伤害数字');
+{
+  NS.setMode('free'); NS.start(701);
+  const G = NS.G, P = NS.P;
+  G.mobs.length = 0; G.nums.length = 0;
+  NS.spawn('tank'); const m = G.mobs[0]; m.hp = m.max = 1e6;
+  NS.hurtMob(m, 7, 0, 0); NS.hurtMob(m, 5, 0, 0);
+  ok(G.nums.length === 1 && G.nums[0].v === 12, '同一只怪连着挨的打并成一个数（7 + 5 → 12）');
+  G.nums[0].t = .2; NS.hurtMob(m, 3, 0, 0);
+  ok(G.nums.length === 2, '隔一会儿再打就是新的一个');
+  let threw = null; try { NS.render(); } catch (e) { threw = e.message; }
+  ok(!threw, threw || '画得出来');
+  ok(NS.DIGITS.length === 10 && NS.DIGITS.every(d => d.length === 15), '0-9 都是 3×5 的像素字');
+  P.inv = 0; P.dashT = 0; G.buffs = {}; P.shield = 0;
+  const n0 = G.nums.length; NS.hurtPlayer(4, 'grunt');
+  ok(G.nums.length === n0 + 1 && G.nums[G.nums.length - 1].hurt, '自己挨打也冒一个（红的）');
+}
+console.log('波末回收');
+{
+  NS.start(702);
+  const G = NS.G, P = NS.P;
+  G.mobs.length = 0; G.drops.length = 0; G.scrap = 0;
+  G.drops.push({ x: P.x + 300, y: P.y, vx: 0, vy: 0, t: 0, kind: 'coin', v: 9 });
+  G.drops.push({ x: P.x + 300, y: P.y, vx: 0, vy: 0, t: 0, kind: 'rush' });
+  G.wave = 3; G.phase = 'wave'; G.waveT = -1; G.budget = 0;
+  NS.update(1 / 60);
+  ok(G.scrap === 9, '一波打完，地上的废钢自动收进来');
+  ok(G.drops.length === 1 && G.drops[0].kind === 'rush', '增益留在地上 —— 休息时吃掉就白白走完计时了');
+}
+console.log('货架');
+{
+  NS.start(703);
+  const G = NS.G, P = NS.P;
+  G.mobs.length = 0; G.wave = 4; G.scrap = 0; G.phase = 'wave'; G.waveT = -1; G.budget = 0;
+  NS.update(1 / 60);
+  ok(G.phase === 'shop' && G.shelf && G.shelf.length === NS.SHELF_N, `身无分文也开店，货架摆了 ${NS.SHELF_N} 格`);
+  ok(/data-shelf="0"/.test(byId('shelfItems').innerHTML) && /data-slock="0"/.test(byId('shelfItems').innerHTML), '每格能买、能锁');
+  // 买一件道具：真的生效、记下来
+  G.shelf = [{ kind: 'item', id: 'core' }, { kind: 'item', id: 'fin' }, { kind: 'wep', id: 'pulse' }, { kind: 'item', id: 'plate' }];
+  G.scrap = 0;
+  ok(NS.shelfBuy(0) === false, '买不起不扣钱');
+  G.scrap = 9999; const d0 = P.mul.dmg;
+  ok(NS.shelfBuy(0) === true && Math.abs(P.mul.dmg / d0 - 1.1) < 1e-9 && G.items.core === 1, '钨芯弹：伤害 ×1.1，记在这一局的道具里');
+  ok(G.shelf[0].sold && NS.shelfBuy(0) === false, '买过的那格不能再买');
+  const own = P.owned.length;
+  ok(NS.shelfBuy(2) === true && P.owned.length === own + 1, '货架上的武器直接进武器栏');
+  // 同一样最多 3 份，越买越贵
+  const p1 = NS.shelfPrice({ kind: 'item', id: 'core' });
+  G.items.core = 3;
+  G.shelf = [{ kind: 'item', id: 'core' }];
+  ok(NS.shelfBuy(0) === false, `一样道具一局最多 ${3} 份`);
+  G.items.core = 0;
+  ok(NS.shelfPrice({ kind: 'item', id: 'core' }) < p1, '已有几份就贵几成');
+  // 锁：刷新时留着
+  G.shelf = [{ kind: 'item', id: 'gel' }, { kind: 'item', id: 'fin' }, { kind: 'item', id: 'coil' }, { kind: 'item', id: 'cap' }];
+  NS.shelfLock(0);
+  const r0 = NS.rollPrice();
+  ok(NS.shelfRoll() === true && G.shelf[0].id === 'gel' && G.shelf[0].lock, '刷新时锁住的那格留着');
+  ok(NS.rollPrice() > r0, '越刷越贵');
+  // 下一波开店，锁住的还在
+  NS.closeShop(); G.phase = 'wave'; G.waveT = -1; G.budget = 0; G.mobs.length = 0;
+  NS.update(1 / 60);
+  ok(G.shelf.some(x => x.id === 'gel' && x.lock), '锁住的到下一波还在');
+  // 存档带着道具
+  G.items.core = 2; G.wave = 5; NS.saveRun(); NS.start(null, NS.loadRun());
+  ok(NS.G.items.core === 2, '续上存档，买过的道具还记着');
+  NS.clearRun();
+}
+console.log('套装与属性页');
+{
+  NS.start(704);
+  const G = NS.G, P = NS.P;
+  NS.setWeps(['blade']);
+  ok(NS.setLv('melee') === 0, '一把近战不成套');
+  NS.setWeps(['blade', 'lance', 'guard', 'blade']);
+  ok(NS.setLv('melee') === 2, '四把近战到第二档');
+  G.mobs.length = 0; G.budget = 0; G.waveT = 999;
+  NS.spawn('tank'); Object.assign(G.mobs[0], { x: P.x + 20, y: P.y, spd: 0, hp: 1e6, max: 1e6 });
+  NS.setWeps(['blade']); P.wcd = [0]; NS.update(1 / 60);
+  const h1 = 1e6 - G.mobs[0].hp; G.mobs[0].hp = 1e6;
+  NS.setWeps(['blade', 'lance', 'guard', 'lance']); P.wcd = [0, 1e9, 1e9, 1e9]; NS.update(1 / 60);
+  const h2 = 1e6 - G.mobs[0].hp;
+  ok(h1 > 0 && Math.abs(h2 / h1 - NS.SETS.melee.dmg[2]) < .35, `同一把振动刀，四近战套装下伤害 ×${(h2 / h1).toFixed(2)}（暴击会抖）`);
+  const sh = NS.statHTML();
+  ok(/伤害倍率/.test(sh) && /振动刀/.test(sh) && /近战 ×4/.test(sh) && /再 2 把到下一档/.test(sh), '属性页：数值、每把枪、套装和「还差几把」都在');
+  ok(/data-act|tabStat/.test(html) && /id="tabStat"/.test(html), '暂停里有「属性」那一页');
+  G.mobs.length = 0;
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');
