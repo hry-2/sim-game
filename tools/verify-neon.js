@@ -2508,12 +2508,11 @@ console.log('战利品与货摊');
   const names = NS.chainSteps().map(x => x.n.replace(/ /g, ''));
   ok(['打一局', '卖零件', '盖建筑', '炼精炼钢', '装改装件'].every(n => names.indexOf(n) > -1),
     `顶上把整条链列全了（${names.join(' › ')}）`);
-  // 中文可以在任何字之间断行 ——「装配台装改装件」原来在手机上被劈成两行
-  ok(/\.cstep\{[^}]*white-space:nowrap/.test(html), '每一格自己不许换行');
-  // 每一步都得能跳到对应那一栏，否则它只是句话，不是目录
+  // 五格步骤条换成了街景上楼头的「!」「↑」，只留一句「下一步」。
+  // 每一步都得能跳到街上真存在的那栋楼，否则它只是句话，不是导航
   const gos = NS.chainSteps().filter(x => x.go).map(x => x.go);
-  ok(gos.length >= 4 && gos.every(g => html.indexOf('id="' + g + '"') > -1),
-    `能点的步骤都指向真存在的栏目（${gos.join(' ')}）`);
+  ok(gos.length >= 4 && gos.every(g => NS.STREET.some(b => b.id === g)),
+    `能点的步骤都指向街上真存在的楼（${gos.join(' ')}）`);
   // 这一跳是长滚动里唯一的导航，不能因为系统关了动画就变成「点了没反应」
   ok(/scrollIntoView\(\{ behavior: REDUCE \? 'auto' : 'smooth'/.test(html),
     '开了「减少动态效果」就直接跳，不滑');
@@ -2541,10 +2540,8 @@ console.log('战利品与货摊');
   fresh();
   const st0 = NS.chainSteps(), t0 = NS.chainText();
   ok(st0.filter(x => x.on).length < st0.length, '空档案时有没走到的步骤');
-  ok((t0.match(/class="cstep now"/g) || []).length === 1,
-    '永远只有一步被标成「现在该做这个」');
-  ok(/class="cstep on"/.test(t0) && /class="cstep"/.test(t0),
-    '走过的和没走到的长得不一样');
+  ok((t0.match(/data-go=/g) || []).length === 1 && /<button class="ctip"/.test(t0),
+    '只说一步「现在该做这个」，而且点它就选中那栋楼');
   NS.PROF.parts = { cap: 1 }; NS.PROF.scrap = 9999; NS.buyHQ('smelt'); NS.buyHQ('bench');
   const t1 = NS.chainText();
   ok(NS.chainSteps().every(x => x.on) && !/cstep now/.test(t1),
@@ -4521,6 +4518,99 @@ console.log('怪的造型');
   Object.assign(m, { x: P.x + 40, y: P.y, ang: Math.PI }); NS.update(1 / 60); NS.render();
   ok(m.fl === 1, '换到右边 → 翻身朝左');
   G.mobs.length = 0;
+}
+
+// ---- 据点的可玩性：委托 / 接客 / 工坊 / 全景 ----
+// 被说「据点没什么可玩性」：原来就是「定个价、点开门、买几栋楼」，打完回来没什么要想的。
+console.log('据点：委托、接客、工坊、全景');
+{
+  const fresh = () => { for (const k of Object.keys(NS.PROF)) delete NS.PROF[k];
+    Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf(); };
+  // 一、委托
+  fresh(); NS.PROF.runs = 4;
+  NS.syncOrders();
+  const O = NS.PROF.orders;
+  ok(O.length === NS.ORDER_N, `进据点就有 ${O.length} 张委托`);
+  ok(new Set(O.map(o => o.pk)).size === O.length, '同一种零件不会同时挂两张');
+  ok(O.every(o => o.pk !== 'core'), '没打过 BOSS 不会有人要核心碎片');
+  ok(O.every(o => o.pay > o.need * NS.PART[o.pk].base * 1.5), '委托给的比市价高得多 —— 不然没人去凑');
+  const o0 = O[0], before = NS.PROF.scrap;
+  ok(!NS.deliver(0), '没凑齐交不了');
+  NS.PROF.parts = { [o0.pk]: o0.need + 1 };
+  ok(NS.deliver(0) && NS.PROF.scrap === before + o0.pay && NS.PROF.parts[o0.pk] === 1, `凑齐了交货：+${o0.pay} 废钢、扣掉 ${o0.need} 件`);
+  ok(NS.PROF.orders.length === NS.ORDER_N, '交掉一张马上补一张新的');
+  const keep = NS.PROF.orders.map(o => o.pk + o.until).join();
+  NS.PROF.runs += NS.ORDER_LIFE;
+  const gone = NS.syncOrders();
+  ok(gone.length === NS.ORDER_N && NS.PROF.orders.map(o => o.pk + o.until).join() !== keep, `过了 ${NS.ORDER_LIFE} 局没交，客人走了、换一批`);
+  NS.showHQ(true);
+  ok(/委托/.test(byId('hqhOrd').textContent) || /张/.test(byId('hqhOrd').textContent), '据点有委托栏');
+  ok(byId('hqOrders').innerHTML.indexOf('掉') > -1, '委托上写了哪种怪掉 —— 不用自己去翻图鉴');
+  NS.showHQ(false);
+  // 局内：捡到委托要的零件，横幅报进度；货箱页也看得到
+  NS.start(91);
+  const G = NS.G, P = NS.P, want = NS.PROF.orders[0];
+  G.drops.length = 0; G.drops.push({ x: P.x, y: P.y, vx: 0, vy: 0, t: 0, kind: 'part', pk: want.pk });
+  NS.update(1 / 60);
+  ok(/委托/.test(byId('banner').innerHTML), `捡到委托要的零件，横幅报进度（${byId('banner').textContent}）`);
+  ok(/委托/.test(NS.bagHTML()), '暂停的货箱页列着委托进度');
+
+  // 二、接客
+  fresh(); NS.PROF.runs = 2;
+  NS.PROF.parts = { cap: 12, optic: 6 };
+  NS.PROF.price = { cap: 999, optic: 999 };           // 标得没人够得着 → 每一位都要你拿主意
+  const D = NS.openDay();
+  ok(!!D.cur && !D.done, '开门接客：出价不够标价的客人站在摊前等你拿主意');
+  ok(D.cur.offer < D.cur.ask && D.cur.counter > D.cur.offer && D.cur.counter < D.cur.ask, '还价价在他的出价和你的标价中间');
+  const s0 = NS.PROF.scrap, c0 = D.cur;
+  NS.dayAct('take');
+  ok(NS.PROF.scrap === s0 + c0.offer && NS.PROF.parts[c0.pk] === (c0.pk === 'cap' ? 11 : 5), '按他的价成交：钱进账、货出库');
+  let seen = {}, guard = 0;
+  while (NS.DAY.cur && guard++ < 40) { seen[NS.DAY.cur.type] = 1; NS.dayAct(guard % 3 ? 'haggle' : 'pass'); }
+  ok(NS.DAY.done, '一天的客人走完就打烊');
+  ok(Object.keys(seen).length >= 2, `客人分几种（这一天来了：${Object.keys(seen).join(' ')}）`);
+  ok(NS.DAY.log.some(l => /还到/.test(l.t)), '还价有成有败，都写进日志');
+  // 标价在客人心理价以下：出价够了，自己就买走，不用你点
+  fresh(); NS.PROF.parts = { cap: 3 }; NS.PROF.price = { cap: 1 };
+  const D2 = NS.openDay();
+  ok(D2.done && D2.sold === 3 && !D2.cur, '出价够标价的客人自己买走，不打扰你');
+
+  // 三、工坊
+  fresh();
+  NS.PROF.parts = { fuse: 6, optic: 2, cap: 4, servo: 1 };
+  ok(NS.canCraft('bomb') && NS.craft('bomb') && NS.PROF.parts.fuse === 3 && NS.PROF.kit.bomb === 1, '做一件应急炸药：扣 3 个引爆管');
+  ok(NS.craft('lens'), '再做一件寻宝镜');
+  ok(!NS.canCraft('cell') && !NS.craft('bomb'), `最多放 ${NS.KIT_MAX} 件 —— 满了不让做`);
+  ok(NS.KIT_IDS.every(k => !/伤害|射速|\+\d+%/.test(NS.KIT[k].d)), '随身物都是一次性、有触发条件的，不卖裸数值');
+  NS.setMode('free'); NS.start(92);
+  ok(NS.G.kit.bomb && NS.G.kit.lens && NS.kitCount() === 0, '开局自动带上，档案里的扣掉');
+  const P2 = NS.P; P2.inv = 0; P2.dashT = 0; P2.hp = P2.maxhp * .35;
+  NS.hurtPlayer(P2.maxhp * .1, 'grunt');
+  ok(!NS.G.kit.bomb, '掉到三成血以下，应急炸药自己炸了');
+  NS.G.kit.cell = 1; P2.inv = 0; P2.hp = 5;
+  NS.hurtPlayer(50, 'grunt');
+  ok(NS.G.state === 'play' && P2.hp > 0 && !NS.G.kit.cell, '备用电池：倒下了又站起来一次');
+  // 开局补给：一开局就是三选一
+  fresh(); NS.PROF.kit = { pack: 1 }; NS.start(93);
+  ok(NS.G.state === 'levelup', '开局补给：一进局就先来一次升级三选一');
+  // 每日局不带
+  fresh(); NS.PROF.kit = { bomb: 1 }; NS.setMode('daily'); NS.start();
+  ok(!NS.G.kit.bomb && NS.PROF.kit.bomb === 1, '每日局是大家同一局，工坊的东西不带进去也不扣');
+  NS.setMode('free');
+
+  // 四、全景
+  ok(/id="hqView"/.test(html) && typeof NS.drawView === 'function', '据点顶上有一张全景');
+  ok(/if \(!lv\) lot\(b\); else drawB\(b, lv\)/.test(html), '盖了的楼画出来，没盖的是工地');
+  // 街景：九处都能点，点了下面只出那一块
+  ok(NS.STREET.length === 9 && NS.STREET.every(b => NS.PANEL_OF[b.id]), '街上九处，每处都有自己的面板');
+  ok(NS.selectHQ('bench') && NS.HQSEL === 'bench' && NS.PANEL_OF.bench.indexOf('bench') > -1, '点装配台：出建筑卡 + 改装栏');
+  const midX = b => b.x + b.w / 2;
+  ok(NS.STREET.every(b => NS.hqHit(midX(b), NS.HQ_GY - 2) === b.id), '每栋楼的位置点下去都命中它自己');
+  fresh(); NS.PROF.parts = { cap: 2 }; NS.PROF.scrap = 9999;
+  ok(NS.hqBadge('stall') === '!' && NS.hqBadge('smelt') === '↑' && NS.hqBadge('kennel') === '', '楼头上：有货的货摊「!」、买得起的楼「↑」');
+  NS.selectHQ('stall');
+  fresh(); NS.showHQ(true); NS.drawView(); NS.showHQ(false);
+  ok(NS.VIEW.raf === 0, '关了据点，全景的循环也停');
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');
