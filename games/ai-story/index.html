@@ -590,6 +590,22 @@
     .intro h2{font-size:22px}
     .npcrow .n-role{grid-column:1/-1;grid-row:2}
   }
+  /* 序章卡和人物登场卡 */
+  .prologue{margin:0 0 22px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+  .prologue summary{cursor:pointer;display:flex;align-items:center;gap:6px;font:600 14px var(--serif);color:var(--brand);list-style:none}
+  .prologue summary::-webkit-details-marker{display:none}
+  .prologue summary::after{content:'收起';margin-left:auto;font:12px var(--sans);color:var(--dim)}
+  .prologue:not([open]) summary::after{content:'展开'}
+  .prologue p{margin:10px 0 0;font:15px/1.85 var(--serif);color:var(--ink)}
+  .prologue .pc{font-size:14px;color:var(--muted)}
+  .prologue .pc b{display:inline-block;margin-right:8px;padding:0 6px;border-radius:4px;background:var(--line);color:var(--ink);font:500 11px/18px var(--sans)}
+  .debut{display:flex;gap:10px;align-items:center;margin:-8px 0 18px;padding:8px 12px;border-left:3px solid var(--brand);border-radius:0 8px 8px 0;background:color-mix(in srgb,var(--brand) 6%,transparent);animation:fadeup .4s ease-out}
+  .debut .av{flex:none;width:34px;height:34px;font-size:15px}
+  .debut .dt{min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
+  .debut small{flex-basis:100%;font-size:10px;letter-spacing:.15em;color:var(--brand)}
+  .debut b{font:600 15px var(--serif)}
+  .debut span{font-size:12px;color:var(--muted)}
+  .debut p{flex-basis:100%;margin:0;font-size:12px;color:var(--dim)}
   /* 视觉小说式对话：头像 + 名字牌 + 台词框；主角自己的话靠右 */
   .say{display:flex;gap:10px;align-items:flex-start;margin:0 0 .9em}
   .say .av{flex:none;width:36px;height:36px;font-size:15px}
@@ -725,7 +741,7 @@
 
     <div class="three">
       <label class="f"><span>叙事风格</span><select id="style"></select></label>
-      <label class="f"><span>每段长度</span><select id="length"><option value="short">短（100～200 字）</option><option value="mid" selected>中（150～400 字）</option><option value="long">长（300～600 字）</option></select></label>
+      <label class="f"><span>每段长度</span><select id="length"><option value="short">短（150～300 字）</option><option value="mid" selected>中（300～550 字）</option><option value="long">长（500～900 字）</option></select></label>
       <label class="f"><span>行动选项</span><select id="nChoices"><option value="0">不给，全靠自己写</option><option value="2">2 个</option><option value="3" selected>3 个</option><option value="4">4 个</option><option value="5">5 个</option></select></label>
     </div>
     <button class="ghost" id="btnProse" type="button" style="margin:0 0 14px">✎ 文笔设置：守则、禁用套话、参考段落</button>
@@ -1910,6 +1926,12 @@ function renderUsage(){
 }
 
 // 流式对话：onDelta(全文) 每收到一段就回调一次，返回最终全文
+function turnTokens(){
+  const set = Number(cfg.max) || 1200;
+  if (!game) return set;
+  const opening = game.history.filter(m => m.role === 'assistant').length === 0;
+  return Math.max(set, LENGTH_TOKENS[opening ? 'long' : game.setup.length] || LENGTH_TOKENS.mid);
+}
 // 重复惩罚：只用 presence_penalty（用过的词统一扣一点）。frequency_penalty 按次数累加，
 // 状态块 JSON 里大量重复的引号、括号会被扣得很重，容易写坏，所以不用。有的服务商不认，报 400 就去掉并记住
 const PENALTY_KEY = 'aistory.noPenalty';
@@ -1917,7 +1939,7 @@ let noPenalty = store.get(PENALTY_KEY, false);
 async function chatStream(messages, onDelta, signal, onWait){
   const pen = game ? prose().pen : 0;
   const res = await postChat({ model:cfg.model.trim(), messages, stream:true,
-    temperature:Number(cfg.temp) || 0.8, max_tokens:Number(cfg.max) || 1200,
+    temperature:Number(cfg.temp) || 0.8, max_tokens:turnTokens(),
     ...(pen > 0 && !noPenalty ? { presence_penalty:pen } : {}) }, signal, onWait);
 
   // 有的服务商忽略 stream 直接回整包 JSON
@@ -2052,8 +2074,9 @@ ${s.world || '由你决定一个有趣的世界。'}
 ${s.gender ? `性别：${s.gender}（以此为准：世界设定和人物介绍里与之冲突的称呼和身份，如千金 / 少爷、嫡女 / 嫡子、女配 / 男配、女校，都按主角性别自然改写，其余设定不变）\n` : ''}身份：${s.role || '由你根据世界决定'}${s.origin ? `\n出身：${s.origin}` : ''}${s.backstory ? `\n背景故事：${s.backstory}（围绕它埋伏笔，让过去的人和事找上门）` : ''}
 
 【主持原则】
-- 第二人称“你”叙述，每段 ${LENGTHS[s.length] || LENGTHS.mid} 字，画面感强。人物开口时台词单独起一行，写成：名字：“台词”（神态动作写在前后的叙述里）。${s.style ? `\n- 文风：${s.style}。` : ''}
+- 第二人称“你”叙述，每段 ${LENGTHS[s.length] || LENGTHS.mid} 字，画面感强。${vnOn ? '人物开口时台词单独起一行，写成：名字：“台词”；神态、动作、语气写在台词前后的叙述里，别只剩光秃秃的一句话。' : '对话用引号融在叙述里，像小说那样配上说话人的神态动作（如：她顿了顿，“……”）。'}${s.style ? `\n- 文风：${s.style}。` : ''}
 - 只写玩家行动的结果和世界的反应，绝不替玩家做决定、说话或行动。
+- 人物第一次登场：先用一两句交代他是谁——身份、一个好认的外貌或气质特点、和主角是什么关系（陌生人就写主角对他的第一印象）；有名有姓的人第一次开口前，让玩家知道说话的是谁。之后再提到就不用重复介绍。
 - 接着上一段的最后一刻写：先写玩家这个行动的直接后果，再往前推。不要突然换场景、跳时间或冒出没铺垫的人和事；在场的人不会凭空消失，没说完的话要有下文。
 - 世界有自己的逻辑：鲁莽有代价，NPC 有动机和记忆，伏笔要回收。
 - 玩家每次行动附一个 d20 骰点，只有行动有风险时才检定；正文里不要提骰子和数值。
@@ -2563,12 +2586,32 @@ function msgView(m, die, st){
   const loc = m.state && m.state.location;
   if (loc && loc !== (st.location || '')) v.cut = loc;
   if (m.state && m.state.check && die) v.chk = { ...m.state.check, d:die, terms:checkTerms(m.state.check, st) };
+  const deb = debuts(m.state, st);
+  if (deb.length) v.deb = deb;
   return v;
+}
+// 人物登场卡：这一段里第一次登场的人，在正文下面亮一张名片（身份 + 性格），像 galgame 的人名条
+function debuts(state, before){
+  if (!state || !Array.isArray(state.npcs)) return [];
+  const was = (before && before.npcs) || [];
+  return state.npcs.filter(n => n.met && !was.some(x => x.name === n.name && x.met)).map(n => {
+    const d = (game.setup.npcs || []).find(x => x.name === n.name) || {};
+    return { n:n.name, r:n.role || d.role || '', p:d.persona || '' };
+  });
+}
+const debutHtml = list => (list || []).map(d => `<div class="debut">${avatarHtml(d.n)}<div class="dt"><small>人物登场</small><b>${esc(d.n)}</b>${d.r ? `<span>${esc(d.r)}</span>` : ''}${d.p ? `<p>${esc(d.p)}</p>` : ''}</div></div>`).join('');
+// 序章卡：故事最上面放世界设定和主角，开局就看得到前因后果，不用等说书人讲
+function prologueHtml(){
+  const s = game.setup;
+  if (!s.world && !s.backstory) return '';
+  const who = [s.name, s.gender, s.role, s.origin].filter(Boolean).join(' · ');
+  return `<details class="prologue" open><summary>${ico('book')}序章 · ${esc(game.title || '')}</summary>
+    ${s.world ? `<p>${esc(s.world)}</p>` : ''}${who ? `<p class="pc"><b>你</b>${esc(who)}</p>` : ''}${s.backstory ? `<p class="pc"><b>过去</b>${esc(s.backstory)}</p>` : ''}</details>`;
 }
 function viewHtml(v){
   if (v.r === 'u') return `<div class="turn you">${esc(v.t)}${v.d ? `<span class="die">🎲${v.rr ? '1→' : ''}${v.d}</span>` : ''}</div>` + (v.ev ? eventCard(v.ev, v.ed) : '');
   return (v.cut ? sceneCut(v.cut) : '') + (v.chk ? checkCard(v.chk, v.chk.d, v.chk.terms) : '') +
-    `<div class="turn gm${v.cut ? ' opening' : ''}">${fmt(v.t)}</div>`;
+    `<div class="turn gm${v.cut ? ' opening' : ''}">${fmt(v.t)}</div>` + debutHtml(v.deb);
 }
 const eventCard = (t, d, fresh) => `<div class="event${fresh ? ' fresh' : ''}">${ico('dice')}<b>${d || ''}</b><span>突发事件</span><p>${esc(t)}</p></div>`;
 // 把 history 里的消息逐条转成视图（要按顺序走，好知道每条之前的状态和骰点）
@@ -2587,7 +2630,7 @@ function historyViews(list, st){
 function renderStory(){
   const arch = game.archive || [];
   const head = game.memory && !arch.length ? `<div class="turn sys">—— 更早的剧情已收进「前情提要」——</div>` : '';
-  $('story').innerHTML = head + [...arch, ...historyViews(game.history, fillRpg(game.baseState || (game.baseState = blankState())))].map(viewHtml).join('');
+  $('story').innerHTML = prologueHtml() + head + [...arch, ...historyViews(game.history, fillRpg(game.baseState || (game.baseState = blankState())))].map(viewHtml).join('');
 }
 
 function renderSide(){
@@ -3184,6 +3227,7 @@ async function runTurn(){
     if (news.length) showAlert(news.join('\n'), 'good');
     el.classList.remove('cursor');
     el.innerHTML = fmt(visibleText(raw));
+    el.insertAdjacentHTML('afterend', debutHtml(debuts(state, before)));
     setDot(true);
     autosave();
     justTurned = true;
@@ -3229,6 +3273,12 @@ function act(text){
 }
 
 // 历史太长时，把较早的部分压成摘要。失败就算了，下回合再试
+// 开局那一段：先写序幕（世界的来龙去脉、主角是谁、为什么在这），再进场景。只在开局发一次
+const OPENING = '【开局】这是故事的第一段，先写序幕再进入场景：\n' +
+  '1. 用三四句交代这个世界的来龙去脉：时代和地方、眼下的大局、正在发生的大事和它的起因。\n' +
+  '2. 交代主角是谁、从哪来、为什么会在这里、手上有什么、心里想要什么（按【主角】里的设定，没写的由你补全）。\n' +
+  '3. 再写此刻的场景，在场的人物都要交代身份，最后留一个迫在眉睫的钩子，停下来等玩家行动。\n' +
+  '这一段可以比平常长（500～800 字），序幕和场景之间空一行。';
 const KEEP = 14, LIMIT = 28;   // 超过 28 条消息就把前面的压成摘要，留最近 14 条（7 个回合）原文
 let compressing = false;
 async function compressIfLong(){
@@ -3597,7 +3647,9 @@ function styleText(){
   const v = STYLES[+$('style').value][0];
   return v === 'custom' ? $('styleCustom').value.trim() : v;
 }
-const LENGTHS = { short:'100～200', mid:'150～400', long:'300～600' };
+const LENGTHS = { short:'150～300', mid:'300～550', long:'500～900' };
+// 每段长度对应的输出上限（正文 + 状态块），设置里的 max_tokens 更大就用设置的；开局有序幕，按长档给
+const LENGTH_TOKENS = { short:1200, mid:1700, long:2400 };
 
 /* ================= 文笔约束 ================= */
 // 玩家可以改：写作守则开关、禁用套话、参考段落、套话检查、重复惩罚。存一份全局默认，开局时复制进这局存档
@@ -3617,15 +3669,20 @@ const proseDefault = () => normProse(store.get(PROSE_KEY, DEFAULT_PROSE));
 // 这局的设定：旧存档没有，用全局默认
 const prose = () => game && game.setup.prose ? normProse(game.setup.prose) : proseDefault();
 
+// 文笔示例：对话框模式下台词单独一行（页面画成对话框），关掉就写成小说里那样融在叙述中
+const VN_SAMPLE = '柳三娘没抬头，算盘珠子拨得噼啪响。直到你走到柜台前，她才慢悠悠掀起眼皮，目光在你腰间的剑上停了一停。\n柳三娘：“客官面生得很。打尖，还是——找人？”\n她把“找人”两个字咬得很轻，指尖按住一颗算珠，再没拨下去。';
+const NOVEL_SAMPLE = '柳三娘没抬头，算盘珠子拨得噼啪响。直到你走到柜台前，她才慢悠悠掀起眼皮，目光在你腰间的剑上停了一停。“客官面生得很。”她笑了笑，“打尖，还是——找人？”“找人”两个字咬得很轻，她的指尖按住一颗算珠，再没拨下去。';
 function proseRule(){
   const P = prose(), R = rules(), s = game.setup;
   const lines = [];
   if (P.guide) lines.push(
-    '- 用具体的动作、物件、声音、气味说话，少用形容词和抽象词；比喻要新鲜，想不出就不用。',
-    '- 一段只推进一件事；结尾停在动作、对白或悬念上，不写总结、感悟和“这一刻你明白……”。',
-    '- 不替主角写心理和决定，只写主角能感知到的：看到的、听到的、身体的反应。',
-    '- 每个人说话要像他自己：口头禅、句子长短、用词随性格和身份走；台词不要直接解释自己的情绪。',
-    '- 开头换着来，别每段都先写天气、光线和环境；不连用排比，不要段段都用问句收尾。');
+    '- 像写小说一样写，不是写剧情梗概：场面要铺开，有画面、有声音、有气味和光影，形容词要准，不堆砌；比喻要新鲜，想不出就不用。',
+    '- 写人：人物出场、开口、情绪变化时，都配上具体的神态和小动作——眼神往哪看、手上在做什么、语气和停顿、呼吸和脸色。用动作把情绪演出来，不要直接写“她很生气”“他很紧张”。',
+    '- 对话有来有回、有潜台词：话里藏着试探、回避、口是心非，别让人物一人一句地交代情节。每个人说话要像他自己：口头禅、句子长短、用词随性格和身份走。',
+    '- 节奏有张有弛：紧张处短句、快切；抒情和独处时放慢，写环境和细微的声响。一段只推进一件事，结尾停在动作、对白或悬念上，不写总结和感悟。',
+    '- 不替主角写心理和决定，只写主角能感知到的：看到的、听到的、身体的反应；其他人的心思通过他们的动作和表情流露出来。',
+    '- 开头换着来，别每段都先写天气和环境；不连用排比，不要段段都用问句收尾。',
+    `- 示例（只学写法，不照搬内容）：\n${vnOn ? VN_SAMPLE : NOVEL_SAMPLE}`);
   if (R.tone) lines.push(`- 基调：${R.tone}${s.style ? '（具体文风以上面的“文风”为准）' : ''}`);
   if (P.bans.length) lines.push(`- 不要用这些套话：${P.bans.join('、')}。`);
   if (P.sample) lines.push(`- 参考下面这段的语感和节奏（只学写法，不照搬内容和人物）：\n「${P.sample}」`);
@@ -3766,7 +3823,7 @@ function startGame(){
             backstory:$('backstory').value.trim(), style:styleText(), length:$('length').value, nChoices:+$('nChoices').value,
             worldId:selScen.id === 'custom' ? 'c:' + world.slice(0, 20) : selScen.id, events:$('optEvents').checked, prose:proseDefault(),
             ...(preset ? { rulesId:selScen.id } : { rules:clone(draft) }), origin:o ? genderize(`${o.name}（${o.desc}）`, genderKey($('pcGender').value.trim())) : '' },
-    history:[{ role:'user', hidden:true, content:'【开局】请描写开场：交代主角此刻的处境、身边的环境和一个迫在眉睫的钩子，然后停下来等玩家行动。' }],
+    history:[{ role:'user', hidden:true, content:OPENING }],
     memory:'', created:Date.now(),
     baseState:{ ...blankState(), ...start,
                 npcs:npcs.map(n => ({ name:n.name, role:n.role, favor:n.favor0, note:'', met:false, ...(n.romance ? { romance:true, love:n.love0 || 0, bond:'' } : {}) })) },
@@ -4112,7 +4169,11 @@ function syncMenu(){
   $('btnEvents').textContent = `随机事件：${game && game.setup.events === false ? '关' : '开'}`;
 }
 $('btnProseGame').onclick = () => { $('more').open = false; openProse('game'); };
-$('btnVn').onclick = () => { vnOn = !vnOn; store.set('aistory.vn', vnOn); syncMenu(); renderStory(); };
+// 对话框开关也决定说书人怎么写台词：开着写成「名字：“台词”」单独一行，关了写成小说里那样融在叙述中
+$('btnVn').onclick = () => {
+  vnOn = !vnOn; store.set('aistory.vn', vnOn); syncMenu(); renderStory();
+  sysNote(vnOn ? '对话框显示已打开：之后台词会单独成行，显示成对话框。' : '对话框显示已关闭：之后说书人会像小说那样把对话写进叙述里。');
+};
 $('btnEvents').onclick = () => {
   game.setup.events = game.setup.events === false; syncMenu(); autosave();
   sysNote(game.setup.events ? '随机事件已打开：每隔几回合会掷一次骰。' : '随机事件已关闭。');
