@@ -2849,7 +2849,7 @@ console.log('货箱');
   // 原来这是「货箱格子」+「存量要价表」两块，同一个数量显示了两遍，现在并成一张表。
   fresh(); NS.syncStore();
   const grid = byId('hqStock').innerHTML;
-  ok(NS.PART_IDS.every(k => grid.indexOf(NS.PART[k].n) > -1), '据点货摊空着也列全九种');
+  ok(NS.PART_IDS.every(k => grid.indexOf(NS.PART[k].n.replace(/ /g, '')) > -1), '据点货摊空着也列全九种（没货的压成一行小标签）');
   ok((grid.match(/pitem zero/g) || []).length === NS.PART_IDS.length, '一件都没有时九行全是暗的');
   ok(grid.indexOf('data-pr') < 0, '没货的行不给加减价的按钮 —— 定不了不存在的东西的价');
   NS.PROF.parts = { plate: 4 }; NS.syncStore();
@@ -2877,8 +2877,10 @@ console.log('掉落物名字');
   mk({ kind: 'xp' });
   NS.render();
   const tags = byId('dtags').children.filter(e => !e.hidden).map(e => e.textContent);
-  ok(tags.indexOf('伺服马达') > -1, `零件写名字（${tags.join(' ')}）`);
-  ok(tags.indexOf('超频') > -1, '增益写名字');
+  // 名字后面跟用处：只写「超频」「伺服马达」的话玩家看不出捡了干什么
+  ok(tags.indexOf('伺服马达 · 回据点卖钱') > -1, `零件写名字和用处（${tags.join(' ')}）`);
+  ok(tags.indexOf('超频 · 射速×2') > -1, '增益写名字和效果');
+  ok(NS.BUFF_IDS.every(k => NS.BUFFS[k].tag && NS.SPR['i_' + k]), '六种增益每种都有一句短效果和自己的图标');
   // 只标「同一类里有好几种」的。经验/废钢/治疗包各只有一种意思，
   // 全标只会在战场上糊一层字。
   ok(tags.length === 2, `一种形状一个意思的不标（现在标了 ${tags.length} 个）`);
@@ -3329,7 +3331,9 @@ console.log('货摊画面');
   const stock = byId('hqStock').innerHTML;
   ok(/要 价/.test(stock), '有列头写明那一列是「要价」');
   ok(/存 量/.test(stock) && /零 件/.test(stock), '三列都有名字');
-  ok(/每件/.test(stock) && /±10/.test(stock), '说清是每件的价、一下加减多少');
+  ok(/每件/.test(stock) && /±1[^0]/.test(stock) && /按住/.test(stock), '说清是每件的价、一下加减多少、按住连续变');
+  // 一下 ±1：合理价位只在基准上下 18%，±10 一下就跳出去了
+  ok((stock.match(/data-pr="[a-z]+:-?1"/g) || []).length === 4, '加减按钮一下只动 1 块');
   ok(/客人转身走|砸名声/.test(stock) && /赚得少/.test(stock),
     '说清定高定低各自的代价 —— 这是这套玩法唯一的决策，不能靠猜');
   // 展开讲的那几句挪进了「怎么玩」—— 四行小字压在表头上，看一遍之后每次进来都碍事
@@ -4496,6 +4500,26 @@ console.log('套装与属性页');
   const sh = NS.statHTML();
   ok(/伤害倍率/.test(sh) && /振动刀/.test(sh) && /近战 ×4/.test(sh) && /再 2 把到下一档/.test(sh), '属性页：数值、每把枪、套装和「还差几把」都在');
   ok(/data-act|tabStat/.test(html) && /id="tabStat"/.test(html), '暂停里有「属性」那一页');
+  G.mobs.length = 0;
+}
+
+// ---- 怪的造型：正面站着、左右翻身 ----
+// 原来是俯视的方块、整张图跟着朝向转，转起来只剩一块几何体。现在跟主角同一个视角。
+console.log('怪的造型');
+{
+  const small = Object.keys(NS.MOB).filter(k => !NS.MOB[k].boss);
+  const skinKeys = ['B', 'S', 'L', 'C', 'O', 'H'];
+  const bad = small.filter(k => NS.GRID[NS.MOB[k].spr].some(f => f.some(r => r.split('').some(ch => skinKeys.includes(ch)))));
+  ok(!bad.length, `小怪不用会被涂装重映射的颜色，换涂装不会把怪也染了（用了的：${bad.join(' ') || '无'}）`);
+  ok(small.every(k => NS.GRID[NS.MOB[k].spr].length >= 2), `${small.length} 种小怪每种都至少两帧动画`);
+  ok(/function drawMob\(/.test(html) && !/blit\(fr, x, y \+ hov, m\.ang/.test(html), '小怪不再整张图跟着朝向转');
+  // 盾是玩法：画出来的那块板子必须在它真正挡的那一侧
+  const G = NS.G, P = NS.P;
+  G.mobs.length = 0; NS.spawn('shieldbot');
+  const m = G.mobs[0]; Object.assign(m, { x: P.x - 40, y: P.y, spd: 0 }); NS.update(1 / 60); NS.render();
+  ok(Math.cos(m.ang) > .9 && m.fl === 0, '铁闸在玩家左边 → 朝右、盾朝右');
+  Object.assign(m, { x: P.x + 40, y: P.y, ang: Math.PI }); NS.update(1 / 60); NS.render();
+  ok(m.fl === 1, '换到右边 → 翻身朝左');
   G.mobs.length = 0;
 }
 

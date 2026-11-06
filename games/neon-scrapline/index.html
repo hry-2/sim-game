@@ -514,6 +514,12 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   /* 手机上据点是一条 1500px 的长滚动，而这里每一个决定都是「买不买得起」。
      钱一滚出视野就得来回翻，所以把它钉在顶上。
      必须是实底 —— 后面一排排建筑会直接透上来。 */
+  /* 桌面也钉住：三栏摆开之后不用滚，但窗口矮的时候照样会滚，钱和「返回」不能跟着走 */
+  #hqBox .hint{position:sticky;top:-18px;z-index:3;background:rgba(6,9,18,.97);
+    padding:8px 14px;border:1px solid #1b2742}
+  /* 手机上 390 宽放不下一行：各项自己不折（原来「废钢」「返回」被折成竖排），放不下就整项换行 */
+  #hqBox .hint{flex-wrap:wrap;justify-content:center;row-gap:8px}
+  #hqBox .hint .res,#hqBox .hint .chip{white-space:nowrap}
   body.touch #hqBox .hint{
     position:sticky;top:0;z-index:3;justify-content:center;
     margin:0 0 12px;
@@ -537,7 +543,7 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   /* width:100% 是必须的：#hqBox 是 grid + justify-items:center，
      不给宽度的话这一层会按内容收缩，两列直接堆成一列。 */
   .hqcols{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;
-    width:100%;max-width:720px}
+    width:100%;max-width:1100px}
   .hqcol{flex:1 1 300px;min-width:280px;max-width:350px}
   .hqh{font-family:var(--disp);font-size:9px;color:#54648a;letter-spacing:.16em;margin-bottom:7px}
   /* 五栏原来长得一模一样，整屏就是一条列表。给每栏标题挂个进度，
@@ -559,6 +565,8 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   .hqi .nm{color:#cfe8ff;font-family:var(--disp);font-size:9px;letter-spacing:.06em}
   .hqi .pr{color:var(--amber);white-space:nowrap}
   .hqi .ds{color:#6e7f9e;line-height:1.45;margin-top:3px}
+  .hqi .nx{display:block;color:#8fa4c6;line-height:1.45;margin-top:2px}
+  .hqi.lock .pr{color:#7a5a3a}
   .hqi.max{border-color:#2a4a2a} .hqi.max .pr{color:var(--tox)}
   .hqi.lock{opacity:.45;cursor:not-allowed}
   @media (hover:hover){.hqi.lock:hover{border-color:#22304f}}
@@ -569,6 +577,13 @@ img{max-width:100%}[hidden]{display:none!important}</style>
      一屏里假条目和真条目混在一起，看上去全是列表。 */
   .phint{font-size:10px;color:#54648a;letter-spacing:.08em;line-height:1.6;margin:4px 0 8px}
   .phint b{color:#8fa4c6;font-weight:600}
+  #hqMore.closed > :not(#hqLocked){display:none}
+  .hqlocked .phint{border-left:2px solid #22304f;padding-left:8px}
+  .pnone{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:6px 0 2px;
+    font-size:10px;color:#4a5a78;letter-spacing:.06em}
+  .pnone .lb{font-size:9px;color:#3e4c63}
+  .pnone .pitem.zero{display:inline-flex;align-items:center;gap:4px;padding:0;border:0;background:none;margin:0}
+  .pnone .dot{width:6px;height:6px;display:inline-block}
   /* 完整货箱：九种全列，没有的压暗。存量得一眼看全，
      只列「有的」会让空箱子变成「这一栏不存在」。 */
   .bgrid{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 9px}
@@ -622,6 +637,8 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     background:rgba(20,30,48,.9);border:1px solid #2c4260;width:22px;height:22px}
   .pitem button:hover{border-color:var(--cyan);color:#eaf6ff}
   body.touch .pitem button{width:34px;height:34px;font-size:13px}
+  /* 按住连续改价：长按不能弹出系统的选字 / 菜单 */
+  .pitem button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
   /* 货摊的画面。跟主画布一样走像素放大，不做插值。 */
   #hqScene{
     width:100%;max-width:340px;display:block;margin:0 0 8px;
@@ -898,8 +915,9 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   <div id="hqBox">
     <div class="head">据 点</div>
     <div class="chain" id="hqChain"></div>
-    <div class="hint">废钢 <b id="hqScrap">0</b> · 精炼钢 <b id="hqIngot">0</b>
-      <button class="chip" id="hqRefine">精 炼</button></div>
+    <div class="hint"><span class="res">废钢 <b id="hqScrap">0</b> · 精炼钢 <b id="hqIngot">0</b></span>
+      <button class="chip" id="hqRefine">精 炼</button>
+      <button class="chip" id="hqBack2">返 回</button></div>
     <div class="hqcols">
       <div class="hqcol">
         <div class="hqh">货 摊 <b id="hqhMkt"></b></div>
@@ -912,7 +930,8 @@ img{max-width:100%}[hidden]{display:none!important}</style>
         <div id="hqLog" class="slog"></div>
       </div>
       <div class="hqcol"><div class="hqh">建 筑 <b id="hqhBuild"></b></div><div id="hqBuild"></div></div>
-      <div class="hqcol">
+      <div class="hqcol" id="hqMore">
+        <div class="hqlocked" id="hqLocked"></div>
         <div class="hqh">武 器 改 装 <b id="hqhMods"></b></div><div id="hqMods"></div>
         <div class="hqh" style="margin-top:12px">宠 物 <b id="hqhPet"></b></div><div id="hqPet"></div>
         <div class="hqh" style="margin-top:12px">保 底 词 条 <b id="hqhPity"></b></div><div id="hqPity"></div>
@@ -1117,7 +1136,12 @@ const PAL = {
   K:'#05070d', B:'#1b2340', S:'#37456e', L:'#5b6d9e', G:'#8e9cc0',
   C:'#45f0ff', M:'#ff2ea6', P:'#a45cff', O:'#ff9d3d', D:'#452a4e',
   E:'#ff2f4f', W:'#eaf6ff', T:'#7cff4f', Y:'#ffe066',
-  R:'#8a5a2a', N:'#a01f6a', H:'#ffd9a0', X:'#2a1840'
+  R:'#8a5a2a', N:'#a01f6a', H:'#ffd9a0', X:'#2a1840',
+  // 小写的这组只给敌人用。涂装只会重映射 B/S/L/C/O/H，怪的颜色因此不会跟着主角的涂装一起变
+  a:'#262b40', b:'#454d6e', c:'#717ca3', d:'#b4bdd8', r:'#4a2a14', s:'#8a5a2a',
+  t:'#c8843e', o:'#ff9d3d', y:'#ffe066', e:'#ff2f4f', f:'#7a1026', m:'#ff2ea6',
+  n:'#8a1a5c', p:'#ff9ad2', u:'#a45cff', v:'#4f2a8a', w:'#d6b8ff', g:'#7cff4f',
+  h:'#2c7a2a', i:'#d4ffbf', q:'#45f0ff', j:'#16506a', z:'#f4f8ff', x:'#14182a'
 };
 function sprite(rows, pal) {
   pal = pal || PAL;
@@ -1135,25 +1159,34 @@ function sprite(rows, pal) {
   }
   return c;
 }
+// 上半身一份，腿每帧一份，拼起来
+const walk = (top, ...legs) => legs.map(l => top.concat(l));
 const GRID = {
+  // 增益图标：画的是效果本身。只用不会被涂装重映射的字母
+  i_rush:   [['....YY.', '...YY..', '..YY...', '.YYYYY.', '...YY..', '..YY...', '.YY....']],
+  i_ward:   [['.qqqqq.', 'qzqqqqq', 'qzqqqqq', 'qqqqqqq', '.qqqqq.', '..qqq..', '...q...']],
+  i_magnet: [['.ggggg.', 'gg...gg', 'gg...gg', 'gg...gg', 'zz...zz', 'zz...zz', '.......']],
+  i_surge:  [['...m...', '.m.m.m.', '..mmm..', 'mmmzmmm', '..mmm..', '.m.m.m.', '...m...']],
+  i_slow:   [['uuuuuuu', '.u...u.', '..uwu..', '...w...', '..u.u..', '.uwwwu.', 'uuuuuuu']],
+  i_vamp:   [['.ee.ee.', 'eezeeee', 'eeeeeee', 'eeeeeee', '.eeeee.', '..eee..', '...e...']],
   player: [
     [
       '.....KKKKKK.....',
-      '...KKBBBBBBKK...',
-      '..KBBSSSSSSBBK..',
-      '..KBSSSSSSSSBK..',
-      '..KBSLLLLLLSBK..',
-      '..KBSCCCCCCSBK..',
-      '..KBSCWWWWCSBK..',
-      '..KBSSCCCCSSBK..',
+      '...KKBLLLSBKK...',
+      '..KBLLSSSSSBBK..',
+      '..KBLSSSSSSSBK..',
+      '..KBSKKKKKKSBK..',
+      '..KBKCCCCCWKBK..',
+      '..KBKCWWCCCKBK..',
+      '..KBSKCCCCKSBK..',
       '..KBBSSSSSSBBK..',
       '...KKBSSSSBKK...',
-      '.KKBBBSSSSBBBKK.',
-      'KKOBSSLLLLSSBOKK',
+      '.KKBBBSLLSBBBKK.',
+      'KKOBSLLLLLSSBOKK',
+      'KHOBSLLCCLLSBOHK',
       'KHOBSLLLLLLSBOHK',
-      'KHOBSLLLLLLSBOHK',
       'KKOBSSLLLLSSBOKK',
-      '.KKBBSSSSSSBBKK.',
+      '.KKBOOOOOOOOBKK.',
       '...KBBBBBBBBK...',
       '...KBSSKKBSSK...',
       '...KBSSKKBSSK...',
@@ -1161,21 +1194,21 @@ const GRID = {
     ],
     [
       '.....KKKKKK.....',
-      '...KKBBBBBBKK...',
-      '..KBBSSSSSSBBK..',
-      '..KBSSSSSSSSBK..',
-      '..KBSLLLLLLSBK..',
-      '..KBSCCCCCCSBK..',
-      '..KBSCWWWWCSBK..',
-      '..KBSSCCCCSSBK..',
+      '...KKBLLLSBKK...',
+      '..KBLLSSSSSBBK..',
+      '..KBLSSSSSSSBK..',
+      '..KBSKKKKKKSBK..',
+      '..KBKCCCCCWKBK..',
+      '..KBKCWWCCCKBK..',
+      '..KBSKCCCCKSBK..',
       '..KBBSSSSSSBBK..',
       '...KKBSSSSBKK...',
-      '.KKBBBSSSSBBBKK.',
-      'KKOBSSLLLLSSBOKK',
+      '.KKBBBSLLSBBBKK.',
+      'KKOBSLLLLLSSBOKK',
+      'KHOBSLLCCLLSBOHK',
       'KHOBSLLLLLLSBOHK',
-      'KHOBSLLLLLLSBOHK',
       'KKOBSSLLLLSSBOKK',
-      '.KKBBSSSSSSBBKK.',
+      '.KKBOOOOOOOOBKK.',
       '...KBBBBBBBBK...',
       '...KBSSKKBLLK...',
       '...KBSSKKBLLK...',
@@ -1183,21 +1216,21 @@ const GRID = {
     ],
     [
       '.....KKKKKK.....',
-      '...KKBBBBBBKK...',
-      '..KBBSSSSSSBBK..',
-      '..KBSSSSSSSSBK..',
-      '..KBSLLLLLLSBK..',
-      '..KBSCCCCCCSBK..',
-      '..KBSCWWWWCSBK..',
-      '..KBSSCCCCSSBK..',
+      '...KKBLLLSBKK...',
+      '..KBLLSSSSSBBK..',
+      '..KBLSSSSSSSBK..',
+      '..KBSKKKKKKSBK..',
+      '..KBKCCCCCWKBK..',
+      '..KBKCWWCCCKBK..',
+      '..KBSKCCCCKSBK..',
       '..KBBSSSSSSBBK..',
       '...KKBSSSSBKK...',
-      '.KKBBBSSSSBBBKK.',
-      'KKOBSSLLLLSSBOKK',
+      '.KKBBBSLLSBBBKK.',
+      'KKOBSLLLLLSSBOKK',
+      'KHOBSLLCCLLSBOHK',
       'KHOBSLLLLLLSBOHK',
-      'KHOBSLLLLLLSBOHK',
       'KKOBSSLLLLSSBOKK',
-      '.KKBBSSSSSSBBKK.',
+      '.KKBOOOOOOOOBKK.',
       '...KBBBBBBBBK...',
       '...KBLLKKBSSK...',
       '...KBLLKKBSSK...',
@@ -1205,21 +1238,21 @@ const GRID = {
     ],
     [
       '.....KKKKKK.....',
-      '...KKBBBBBBKK...',
-      '..KBBSSSSSSBBK..',
-      '..KBSSSSSSSSBK..',
-      '..KBSLLLLLLSBK..',
-      '..KBSCCCCCCSBK..',
-      '..KBSCWWWWCSBK..',
-      '..KBSSCCCCSSBK..',
+      '...KKBLLLSBKK...',
+      '..KBLLSSSSSBBK..',
+      '..KBLSSSSSSSBK..',
+      '..KBSKKKKKKSBK..',
+      '..KBKCCCCCWKBK..',
+      '..KBKCWWCCCKBK..',
+      '..KBSKCCCCKSBK..',
       '..KBBSSSSSSBBK..',
       '...KKBSSSSBKK...',
-      '.KKBBBSSSSBBBKK.',
-      'KKOBSSLLLLSSBOKK',
+      '.KKBBBSLLSBBBKK.',
+      'KKOBSLLLLLSSBOKK',
+      'KHOBSLLCCLLSBOHK',
       'KHOBSLLLLLLSBOHK',
-      'KHOBSLLLLLLSBOHK',
       'KKOBSSLLLLSSBOKK',
-      '.KKBBSSSSSSBBKK.',
+      '.KKBOOOOOOOOBKK.',
       '...KBBBBBBBBK...',
       '...KBSSKKBLLK...',
       '...KBSSKKBLLK...',
@@ -2019,109 +2052,6 @@ const GRID = {
       'KWK',
     ],
   ],
-  shieldbot: [
-    [
-      '...KKKKKK.....',
-      '..KSSSSSSK.KK.',
-      '.KSSLLLLSSKGGK',
-      'KSSLLLLLLSSKGG',
-      'KSLLEEEELLSKGG',
-      'KSLLEEEELLSKGG',
-      'KSLLWWWWLLSKGG',
-      'KSLLEEEELLSKGG',
-      'KSLLEEEELLSKGG',
-      'KSSLLLLLLSSKGG',
-      '.KSSLLLLSSKGGK',
-      '..KSSSSSSK.KK.',
-      '...KKKKKK.....',
-    ],
-    [
-      '...KKKKKK.....',
-      '..KSSSSSSK.KK.',
-      '.KSSLLLLSSKGGK',
-      'KSSLLLLLLSSKGG',
-      'KSLLEEEELLSKGG',
-      'KSLLEEEELLSKGG',
-      'KSLLWCCWLLSKGG',
-      'KSLLEEEELLSKGG',
-      'KSLLEEEELLSKGG',
-      'KSSLLLLLLSSKGG',
-      '.KSSLLLLSSKGGK',
-      '..KSSSSSSK.KK.',
-      '...KKKKKK.....',
-    ],
-  ],
-  bomber: [
-    [
-      '...KKK...',
-      '.KKEEEKK.',
-      'KEEEEEEEK',
-      'KEEEEEEEK',
-      'KEEKKKEEK',
-      'KEEEEEEEK',
-      'KEEEEEEEK',
-      '.KKEEEKK.',
-      '...KKK...',
-    ],
-    [
-      '...KKK...',
-      '.KKEEEKK.',
-      'KEEWWWEEK',
-      'KEWWWWWEK',
-      'KEWKKKWEK',
-      'KEWWWWWEK',
-      'KEEWWWEEK',
-      '.KKEEEKK.',
-      '...KKK...',
-    ],
-  ],
-  relay: [
-    [
-      '......C......',
-      '....KKCKK....',
-      '.....KCK.....',
-      '.....KCK.....',
-      '...KKTTTKK...',
-      '..KTTTTTTTK..',
-      '.KTTDDDDDTTK.',
-      'KTTDDCCCDDTTK',
-      'KTTDDCWCDDTTK',
-      'KTTDDCCCDDTTK',
-      '.KTTDDDDDTTK.',
-      '..KTTTTTTTK..',
-      '...KKTTTKK...',
-    ],
-    [
-      '.....CCC.....',
-      '....KKCKK....',
-      '.....KCK.....',
-      '.....KCK.....',
-      '...KKTTTKK...',
-      '..KTTTTTTTK..',
-      '.KTTDDDDDTTK.',
-      'KTTDDCCCDDTTK',
-      'KTTDDCWCDDTTK',
-      'KTTDDCCCDDTTK',
-      '.KTTDDDDDTTK.',
-      '..KTTTTTTTK..',
-      '...KKTTTKK...',
-    ],
-    [
-      '......C......',
-      '....KKCKK....',
-      '.....KCK.....',
-      '.....KCK.....',
-      '...KKTTTKK...',
-      '..KTTTTTTTK..',
-      '.KTTDDDDDTTK.',
-      'KTTDDCCCDDTTK',
-      'KTTDDCWCDDTTK',
-      'KTTDDCCCDDTTK',
-      '.KTTDDDDDTTK.',
-      '..KTTTTTTTK..',
-      '...KKTTTKK...',
-    ],
-  ],
   pet_dog: [
     [
       '..K......K..',
@@ -2210,253 +2140,357 @@ const GRID = {
       '..K....K..',
     ],
   ],
-  splitter: [
+  // 拾荒机兵：锈色的小个子，一只红独眼，手里拎一截钢管
+  grunt: walk([
+    '.....KKKKK....',
+    '....KttttsK...',
+    '...KttsssssK..',
+    '...KtKKKKKKK..',
+    '...KsKxeyeeK..',
+    '...KsKKKKKKK..',
+    '....KrrrrrK...',
+    '...KsttttssK..',
+    '..KsKtdootsKK.',
+    '..KtKsttsssKcK',
+    '..KKKssssssKbK',
+    '....KrrrrrrKbK',
+    '....KKaKKaKK.K',
+  ], [
+    '....KaK..KaK..',
+    '....KbK..KbK..',
+    '...KKKK..KKKK.',
+  ], [
+    '...KaK....KaK.',
+    '...KbK....KbK.',
+    '..KKKK....KKKK',
+  ], [
+    '....KaK..KaK..',
+    '....KbK..KbK..',
+    '...KKKK..KKKK.',
+  ], [
+    '.....KaKKaK...',
+    '.....KbKKbK...',
+    '....KKKKKKKK..',
+  ]),
+
+  // 刀锋犬：侧面的四足机械狗，背上一排刀片，冲刺时前倾
+  rusher: [
     [
-      '...KKKKK...',
-      '..KTTTTTK..',
-      '.KTTNKNTTK.',
-      'KTTNKKKNTTK',
-      'KTNKKWKKNTK',
-      'KTTNKKKNTTK',
-      'KTTTNKNTTTK',
-      '.KTTTTTTTK.',
-      '..KKTTTKK..',
-      '...KKKKK...',
-      '....K.K....',
+      '...d.d.d..KK....',
+      '.KKdKdKdKKmmK...',
+      'KdmKmmmmmKnmmmKK',
+      '.KdmmmmmmmmmzeK.',
+      '..KmmmmmmmmmmmyK',
+      '..KnmmmmmmmnnKKK',
+      '..KnnnnnnnnnK...',
+      '...KbK.KbKbK....',
+      '..KbK..KbK.KbK..',
+      '..KK....KK..KK..',
     ],
     [
-      '...KKKKK...',
-      '..KTTTTTK..',
-      '.KTTNKNTTK.',
-      'KTNKKKKKNTK',
-      'KNKKWWWKKNK',
-      'KTNKKKKKNTK',
-      'KTTNKKNTTTK',
-      '.KTTTTTTTK.',
-      '..KKTTTKK..',
-      '...KKKKK...',
-      '...K...K...',
+      '...d.d.d..KK....',
+      '.KKdKdKdKKmmK...',
+      'KdmKmmmmmKnmmmKK',
+      '.KdmmmmmmmmmzeK.',
+      '..KmmmmmmmmmmmyK',
+      '..KnmmmmmmmnnKKK',
+      '..KnnnnnnnnnK...',
+      '..KbK...KbKbK...',
+      '..KbK...KbK.KbK.',
+      '..KK....KK...KK.',
+    ],
+    [
+      '...d.d.d..KK....',
+      '.KKdKdKdKKmmK...',
+      'KdmKmmmmmKnmmmKK',
+      '.KdmmmmmmmmmzeK.',
+      '..KmmmmmmmmmmmyK',
+      '..KnmmmmmmmnnKKK',
+      '..KnnnnnnnnnK...',
+      '.KbK....KbKbK...',
+      'KbK....KbK..KbK.',
+      'KK.....KK....KK.',
+    ],
+    [
+      '...d.d.d..KK....',
+      '.KKdKdKdKKmmK...',
+      'KdmKmmmmmKnmmmKK',
+      '.KdmmmmmmmmmzeK.',
+      '..KmmmmmmmmmmmyK',
+      '..KnmmmmmmmnnKKK',
+      '..KnnnnnnnnnK...',
+      '...KbKKbK.KbK...',
+      '...KbKKbK..KbK..',
+      '...KK.KK...KK...',
+    ],
+  ],
+
+  // 哨戒无人机：一颗紫色的眼球机，顶上两副旋翼，底下一根枪管
+  drone: [
+    [
+      'cccccK.....Kccccc',
+      '....KdK...KdK....',
+      '.....KK...KK.....',
+      '.....KKKKKKK.....',
+      '...KKvuuuuuvKK...',
+      '..KvuuwwuuuuuvK..',
+      '..KuuKKKKKKuuuK..',
+      '..KuKqqzqqqKuuK..',
+      '..KuKqzzqqjKuuK..',
+      '..KuuKKKKKKuuvK..',
+      '...KvuuuuuuvvK...',
+      '....KKvvvvvKK....',
+      '......KbbbK......',
+      '.......KcK.......',
+      '.......KKK.......',
+    ],
+    [
+      '...cccK.....Kccc.',
+      '....KdK...KdK....',
+      '.....KK...KK.....',
+      '.....KKKKKKK.....',
+      '...KKvuuuuuvKK...',
+      '..KvuuwwuuuuuvK..',
+      '..KuuKKKKKKuuuK..',
+      '..KuKqqqzqqKuuK..',
+      '..KuKqqzzqjKuuK..',
+      '..KuuKKKKKKuuvK..',
+      '...KvuuuuuuvvK...',
+      '....KKvvvvvKK....',
+      '......KbbbK......',
+      '.......KcK.......',
+      '.......KKK.......',
+    ],
+    [
+      '.....cK.....Kc...',
+      '....KdK...KdK....',
+      '.....KK...KK.....',
+      '.....KKKKKKK.....',
+      '...KKvuuuuuvKK...',
+      '..KvuuwwuuuuuvK..',
+      '..KuuKKKKKKuuuK..',
+      '..KuKqqzqqqKuuK..',
+      '..KuKqzzqqjKuuK..',
+      '..KuuKKKKKKuuvK..',
+      '...KvuuuuuuvvK...',
+      '....KKvvvvvKK....',
+      '......KbbbK......',
+      '.......KcK.......',
+      '.......KKK.......',
+    ],
+  ],
+
+  // 重装机甲：宽肩膀的双足机甲，驾驶舱一条橙色观察窗，肩上扛炮（炮管另画，会转）
+  tank: walk([
+    '......KKKKKKK.......',
+    '.....KcddddccK......',
+    '....KcdccccccbK.....',
+    '....KcKKKKKKKbK.....',
+    '....KcKoooyyoKbK....',
+    '....KbKKKKKKKKbK....',
+    '..KKKbbbbbbbbbbKKK..',
+    '.KdccKbccccccbKcbbK.',
+    '.KcbbKbcdoodcbKbbaK.',
+    '.KcbbKbccooccbKbbaK.',
+    '.KbaaKbbbbbbbbKaaaK.',
+    '..KKKKaaKKKKaaKKKK..',
+    '....KbbaK..KbbaK....',
+  ], [
+    '....KbbaK..KbbaK....',
+    '....KcbaK..KcbaK....',
+    '...KKKKKK..KKKKKK...',
+  ], [
+    '...KbbaK....KbbaK...',
+    '...KcbaK....KcbaK...',
+    '..KKKKKK....KKKKKK..',
+  ]),
+
+  // 铁闸：驼背的灰色重步兵，盾牌另画 —— 盾始终朝着它的朝向
+  shieldbot: walk([
+    '....KKKKKK.....',
+    '...KcddcccK....',
+    '...KcKKKKKbK...',
+    '...KbKeeyeKK...',
+    '..KKbKKKKKKbKK.',
+    '.KcbbbbbbbbbbbK',
+    '.KcbKccccccKbbK',
+    '.KbbKcdeecbKbaK',
+    '.KbaKcbbbbbKaaK',
+    '..KKKbbbbbbKKK.',
+    '....KaaaaaaK...',
+  ], [
+    '....KbK..KbK...',
+    '....KbK..KbK...',
+    '...KKKK..KKKK..',
+  ], [
+    '...KbK....KbK..',
+    '...KbK....KbK..',
+    '..KKKK....KKKK.',
+  ]),
+
+  // 爆囊：一颗长了脚的红色炸弹，头顶引线，凶巴巴的眼睛
+  bomber: [
+    [
+      '......y..',
+      '.....Ko..',
+      '....KK...',
+      '..KKKKK..',
+      '.KeezeeK.',
+      'KeezeeeeK',
+      'KeKKeKKeK',
+      'KezKeKzeK',
+      'KeeeeeeeK',
+      'KfeKKKefK',
+      '.KffffK..',
+      '..KK.KK..',
+    ],
+    [
+      '.....y...',
+      '.....Ko..',
+      '....KK...',
+      '..KKKKK..',
+      '.KeezeeK.',
+      'KeezeeeeK',
+      'KeKKeKKeK',
+      'KezKeKzeK',
+      'KeeeeeeeK',
+      'KfeKKKefK',
+      '.KffffK..',
+      '.KK...KK.',
+    ],
+  ],
+
+  // 信号中继：三脚架上的小塔，顶上一只天线碟，中间的绿芯一直在闪
+  relay: [
+    [
+      '......q......',
+      '.....KqK.....',
+      '...KKKdKKK...',
+      '..KcddddddK..',
+      '...KKbbbKK...',
+      '.....KbK.....',
+      '...KKhhhKK...',
+      '..KhggiggbK..',
+      '..KhgiiggbK..',
+      '..KhggggghK..',
+      '...KKhhhKK...',
+      '...KbKbKbK...',
+      '..KbK.K.KbK..',
+      '.KbK..K..KbK.',
+      '.KK..KKK..KK.',
+    ],
+    [
+      '.....qqq.....',
+      '.....KqK.....',
+      '...KKKdKKK...',
+      '..KcddddddK..',
+      '...KKbbbKK...',
+      '.....KbK.....',
+      '...KKhhhKK...',
+      '..KhgggggbK..',
+      '..KhgggggbK..',
+      '..KhggggghK..',
+      '...KKhhhKK...',
+      '...KbKbKbK...',
+      '..KbK.K.KbK..',
+      '.KbK..K..KbK.',
+      '.KK..KKK..KK.',
+    ],
+  ],
+
+  // 裂解体：一团绿色的胶质，里面裹着一颗暗核，会一伸一缩地蠕动
+  splitter: [
+    [
+      '....KKKKK....',
+      '..KKgiiggKK..',
+      '.KgiigggggKK.',
+      '.KgiggKKggzK.',
+      'KgggKKnnKgKgK',
+      'KggggKnKggggK',
+      'KgggggKggghgK',
+      'KhgggggggghhK',
+      '.KhhgggghhhK.',
+      '..KKKKKKKKK..',
+    ],
+    [
+      '.............',
+      '...KKKKKKK...',
+      '.KKgiiggggKK.',
+      'KgiiggKKggzgK',
+      'KgggKKnnKgKgK',
+      'KggggKnKggggK',
+      'KgggggKggghgK',
+      'KhgggggggghhK',
+      'KhhhgggghhhhK',
+      '.KKKKKKKKKKK.',
     ],
   ],
   shard: [
     [
       '..KKK..',
-      '.KTTTK.',
-      'KTNKNTK',
-      'KTKWKTK',
-      'KTNKNTK',
-      '.KTTTK.',
+      '.KgiiK.',
+      'KgigzgK',
+      'KggKgKK',
+      'KhgggK.',
+      '.KKKK..',
+      '.......',
+    ],
+    [
+      '.......',
+      '..KKKK.',
+      '.KgiizK',
+      'KgigKgK',
+      'KhgggK.',
+      '.KhhhK.',
       '..KKK..',
     ],
-    [
-      '..KKK..',
-      '.KTTTK.',
-      'KTNKNTK',
-      'KNKWKNK',
-      'KTNKNTK',
-      '.KTTTK.',
-      '...K...',
-    ],
   ],
-  sniper: [
-    [
-      '.......KKK.......',
-      '......KSSSK......',
-      '.....KSLLLSK.....',
-      '....KSLGGGLSK....',
-      '..KKSLGPPPGLSKKK.',
-      '.KSSSLGPPPGLSSSSK',
-      '..KKSLGGGGGLSKKK.',
-      '....KSLLLLLSK....',
-      '.....KSSSSSK.....',
-      '....KK.K.KK......',
-      '...KK..K..KK.....',
-      '..KK...K...KK....',
-    ],
-    [
-      '.......KKK.......',
-      '......KSSSK......',
-      '.....KSLLLSK.....',
-      '....KSLGGGLSK....',
-      '..KKSLGEEEGLSKKKK',
-      '.KSSSLGEWEGLSWWWW',
-      '..KKSLGEEEGLSKKKK',
-      '....KSLLLLLSK....',
-      '.....KSSSSSK.....',
-      '....KK.K.KK......',
-      '...KK..K..KK.....',
-      '..KK...K...KK....',
-    ],
-  ],
-  hauler: [
-    [
-      '...KKKKKK...',
-      '..KSSSSSSK..',
-      '.KSLLLLLLSK.',
-      'KSLMMKKMMLSK',
-      'KSLMKOOKMLSK',
-      'KSLMKOOKMLSK',
-      'KSLMMKKMMLSK',
-      '.KSLLLLLLSK.',
-      '..KSSSSSSK..',
-      '...KKKKKK...',
-    ],
-    [
-      '...KKKKKK...',
-      '..KSSSSSSK..',
-      '.KSLLLLLLSK.',
-      'KSLMMKKMMLSK',
-      'KSLMKMMKMLSK',
-      'KSLMKOOKMLSK',
-      'KSLMMKKMMLSK',
-      '.KSLLLLLLSK.',
-      '..KSSSSSSK..',
-      '...KKKKKK...',
-    ],
-  ],
-  grunt: [
-    [
-      '...KK....KK...',
-      '..KRRK..KRRK..',
-      '..KRKKKKKRKK..',
-      '.KKRRRRRRRRKK.',
-      'KRRDDDDDDDDRRK',
-      'KRDDDEEEEDDDOK',
-      'KRDDDEEEEDDDOO',
-      'KRDDDEEEEDDDOK',
-      'KRRDDDDDDDDRRK',
-      '.KKRRRRRRRRKK.',
-      '..KRKKKKKRKK..',
-      '..KRRK..KRRK..',
-      '...KK....KK...',
-    ],
-    [
-      '...KK....KK...',
-      '..KRKK..KRKK..',
-      '..KRRKKKKRRK..',
-      '.KKRRRRRRRRKK.',
-      'KRRDDDDDDDDRRK',
-      'KRDDDEEEEDDDOK',
-      'KRDDDEEEEDDDOO',
-      'KRDDDEEEEDDDOK',
-      'KRRDDDDDDDDRRK',
-      '.KKRRRRRRRRKK.',
-      '..KRRKKKKRRK..',
-      '..KRKK..KRKK..',
-      '...KK....KK...',
-    ],
-  ],
-  rusher: [
-    [
-      '.......KKKK....',
-      '...KKKNMMMMKK..',
-      '..KNMMMMMMMMNK.',
-      '.KNMMMEEMMMMMK.',
-      'KNMMMMEEMMMMMWW',
-      '.KNMMMEEMMMMMK.',
-      '..KNMMMMMMMMNK.',
-      '...KKKNMMMMKK..',
-      '.......KKKK....',
-    ],
-    [
-      '.......KKKK....',
-      '...KKKNMMMMKKW.',
-      '..KNMMMMMMMMNWW',
-      '.KNMMMEEMMMMMWW',
-      'KNMMMMEEMMMMMWW',
-      '.KNMMMEEMMMMMWW',
-      '..KNMMMMMMMMNWW',
-      '...KKKNMMMMKKW.',
-      '.......KKKK....',
-    ],
-  ],
-  drone: [
-    [
-      'GG...........GG',
-      '.KK.........KK.',
-      '..KK.......KK..',
-      '...KKKPPPKKK...',
-      '....KPPPPPK....',
-      '...KPPPPPPPK...',
-      '..KPPPPPCCPPK..',
-      '..KPPPPCCCCPK..',
-      '..KPPPPPCCPPK..',
-      '...KPPPPPPPK...',
-      '....KPPPPPK....',
-      '...KKKPPPKKK...',
-      '..KK.......KK..',
-      '.KK.........KK.',
-      'GG...........GG',
-    ],
-    [
-      'G.............G',
-      '.KK.........KK.',
-      '..KK.......KK..',
-      '...KKKPPPKKK...',
-      '....KPPPPPK....',
-      '...KPPPPPPPK...',
-      '..KPPPPPCCPPK..',
-      '..KPPPPCCCCPK..',
-      '..KPPPPPCCPPK..',
-      '...KPPPPPPPK...',
-      '....KPPPPPK....',
-      '...KKKPPPKKK...',
-      '..KK.......KK..',
-      '.KK.........KK.',
-      '.G...........G.',
-    ],
-    [
-      '.G...........G.',
-      '.KK.........KK.',
-      '..KK.......KK..',
-      '...KKKPPPKKK...',
-      '....KPPPPPK....',
-      '...KPPPPPPPK...',
-      '..KPPPPPCCPPK..',
-      '..KPPPPCCCCPK..',
-      '..KPPPPPCCPPK..',
-      '...KPPPPPPPK...',
-      '....KPPPPPK....',
-      '...KKKPPPKKK...',
-      '..KK.......KK..',
-      '.KK.........KK.',
-      'G.............G',
-    ],
-  ],
-  tank: [
-    [
-      '..KKKKKKKKKKKK....',
-      '.KGGGGGGGGGGGGK...',
-      '.KGKGKGKGKGKGGK...',
-      'KKSSSSSSSSSSSSKK..',
-      'KSSLLLLLLLLLLSSKK.',
-      'KSLLLOOOOOOLLLSGW.',
-      'KSLLOEEEEEEOLLSGWW',
-      'KSLLOEEEEEEOLLSGWW',
-      'KSLLLOOOOOOLLLSGW.',
-      'KSSLLLLLLLLLLSSKK.',
-      'KKSSSSSSSSSSSSKK..',
-      '.KGKGKGKGKGKGGK...',
-      '.KGGGGGGGGGGGGK...',
-      '..KKKKKKKKKKKK....',
-    ],
-    [
-      '..KKKKKKKKKKKK....',
-      '.KGGGGGGGGGGGGK...',
-      '.KGGKGKGKGKGKGK...',
-      'KKSSSSSSSSSSSSKK..',
-      'KSSLLLLLLLLLLSSKK.',
-      'KSLLLOOOOOOLLLSGW.',
-      'KSLLOEEEEEEOLLSGWW',
-      'KSLLOEEEEEEOLLSGWW',
-      'KSLLLOOOOOOLLLSGW.',
-      'KSSLLLLLLLLLLSSKK.',
-      'KKSSSSSSSSSSSSKK..',
-      '.KGGKGKGKGKGKGK...',
-      '.KGGGGGGGGGGGGK...',
-      '..KKKKKKKKKKKK....',
-    ],
-  ],
+
+  // 钉枪手：瘦高的紫色斗篷，兜帽底下一条红光，枪另画（会转，会蓄力发亮）
+  sniper: walk([
+    '.....KKKK...',
+    '....KvuuuK..',
+    '...KvuwwuuK.',
+    '...KvKKKKuK.',
+    '...KvKeeyKK.',
+    '...KvKKKKvK.',
+    '..KvvuuuuvK.',
+    '..KvuuwuuvK.',
+    '..KvuuuuuvK.',
+    '..KvvuuuvvK.',
+    '..KvvvuvvvK.',
+    '..KvvvKvvvK.',
+  ], [
+    '...KbK.KbK..',
+    '...KbK.KbK..',
+    '..KKK..KKK..',
+  ], [
+    '..KbK...KbK.',
+    '..KbK...KbK.',
+    '.KKK...KKK..',
+  ]),
+
+  // 拖曳者：粉色的蟹形机，前面一只大钳子（钩索从钳子里甩出去）
+  hauler: walk([
+    '.....KKKKKK.......',
+    '....KcdddccK......',
+    '...KcKKKKKKbK.....',
+    '...KcKmmpmKbK.KKK.',
+    '..KKbKKKKKKbKKdcK.',
+    '.KcbbbbbbbbbbKcKK.',
+    'KcbKnmmmmmnKbbKcK.',
+    'KbbKmmppmmmKbbbKcK',
+    'KbaKnmmmmmnKbaKcKK',
+    '.KKKKKKKKKKKKKKK..',
+  ], [
+    '.KbK.KbK.KbK.KbK..',
+    'KbK..KbK.KbK..KbK.',
+    'KK...KK...KK...KK.',
+  ], [
+    '..KbKKbK.KbKKbK...',
+    '.KbK.KbK.KbK.KbK..',
+    '.KK...KK.KK...KK..',
+  ]),
 };
 
 // 多帧精灵：按索引取一帧（负数也能取）
@@ -3773,23 +3807,23 @@ function openStore() {
    所以没有一栋建筑是「伤害 +x%」，给的都是「多一个格子」「多知道一点」
    「能指定一条保底」这种改变决策的东西。 */
 const HQ = {
-  smelt: { n: '精 炼 炉', d: '把废钢炼成精炼钢。等级越高越省废钢',
+  smelt: { n: '精 炼 炉', d: '把废钢炼成精炼钢 —— 装改装件要用。等级越高越省',
     lv: [{ c: 600, t: '解锁精炼 · 200 废钢 → 1 精炼钢' },
          { c: 1400, t: '160 废钢 → 1 精炼钢' },
          { c: 3000, t: '130 废钢 → 1 精炼钢' }] },
-  bench: { n: '装 配 台', d: '用精炼钢给枪装改装件。等级 = 同时能开几个',
+  bench: { n: '装 配 台', d: '用精炼钢给枪装改装件，换一种打法。等级 = 同时能开几个',
     lv: [{ c: 900, t: '解锁改装 · 同时开 1 个' },
          { c: 2200, t: '同时开 2 个' },
          { c: 4500, t: '同时开 3 个' }] },
-  depot: { n: '弹 药 库', d: '局内商店的货架',
-    lv: [{ c: 700, t: '商店多一格：整备（清空所有雷并回满冲刺）' },
-         { c: 1800, t: '商店全场 8 折' }] },
-  intel: { n: '情 报 站', d: '开局就知道这一局会摇到什么',
-    lv: [{ c: 500, t: '开局列出前 10 波的波次修饰' },
+  depot: { n: '弹 药 库', d: '每波打完的那个商店多给东西',
+    lv: [{ c: 700, t: '商店多一项「整备」：清掉场上的雷、冲刺立刻好' },
+         { c: 1800, t: '商店全部 8 折' }] },
+  intel: { n: '情 报 站', d: '开局就告诉你后面哪几波有特殊规则（加速、精英多……）',
+    lv: [{ c: 500, t: '开局列出前 10 波' },
          { c: 1600, t: '列出全部 30 波' }] },
-  train: { n: '义 体 车 间', d: '指定词条进「保底」—— 第一次升级必定出现',
-    lv: [{ c: 1000, t: '可以指定 1 条' },
-         { c: 2600, t: '可以指定 2 条' }] },
+  train: { n: '义 体 车 间', d: '挑一张升级卡当「保底」：每局第一次升级必定出现它',
+    lv: [{ c: 1000, t: '可以挑 1 张' },
+         { c: 2600, t: '可以挑 2 张' }] },
 };
 const HQ_IDS = Object.keys(HQ);
 function hqLv(id) { return (PROF.base && PROF.base[id]) | 0; }
@@ -4273,14 +4307,15 @@ function drawPlayer(x, y) {
    掉落物原来只有经验和血包，捡不捡没有决策。加几个短时增益，
    「要不要冒险跑过去捡」就成了一个即时选择。 */
 const BUFFS = {
-  rush:   { n: '超频',  t: 8,  c: '#ffe066', d: '射速翻倍' },
-  ward:   { n: '护壁',  t: 4,  c: '#45f0ff', d: '完全免伤' },
-  magnet: { n: '吸附',  t: 10, c: '#7cff4f', d: '拾取范围 ×4' },
-  surge:  { n: '磁暴',  t: 0,  c: '#ff2ea6', d: '当场清一片' },   // t:0 = 即时生效
+  // tag 是挂在地上那颗头顶的短句：名字看不出用处，所以直接写它干什么
+  rush:   { n: '超频',  t: 8,  c: '#ffe066', d: '8 秒内所有武器射速翻倍', tag: '射速×2' },
+  ward:   { n: '护壁',  t: 4,  c: '#45f0ff', d: '4 秒内完全不掉血', tag: '无敌' },
+  magnet: { n: '吸附',  t: 10, c: '#7cff4f', d: '10 秒内远处的经验和废钢都会飞过来', tag: '吸经验' },
+  surge:  { n: '磁暴',  t: 0,  c: '#ff2ea6', d: '捡到当场炸开，清掉身边一圈', tag: '炸一圈' },   // t:0 = 即时生效
   // 两个新的。时滞改的是「他们多快」，血偿改的是「杀得值不值」——
   // 都不是给玩家直接加数值。
-  slow:   { n: '时滞',  t: 6,  c: '#a45cff', d: '全场敌人慢一半' },
-  vamp:   { n: '血偿',  t: 7,  c: '#ff6b6b', d: '这段时间里每次击杀回 9 血' },
+  slow:   { n: '时滞',  t: 6,  c: '#a45cff', d: '6 秒内全场敌人慢一半', tag: '敌人减速' },
+  vamp:   { n: '血偿',  t: 7,  c: '#ff6b6b', d: '7 秒内每杀一只回 9 血', tag: '杀怪回血' },
 };
 const BUFF_IDS = Object.keys(BUFFS);
 function grabBuff(id) {
@@ -4661,13 +4696,13 @@ function xpNeed(lv) {
    定价按实测来：一局能捡 1500~3800 废钢（平均约 2800），
    所以价钱是几百这个量级。凭感觉定成几十的话，商店等于免费。 */
 const SHOP = [
-  { id: 'fix',  n: '现 场 修 复', cost: 100, d: '立刻回 45% 整合度',
+  { id: 'fix',  n: '现 场 修 复', cost: 100, d: '立刻回 45% 的血',
     can: () => P.hp < P.maxhp * .98,
     act: () => { P.hp = Math.min(P.maxhp, P.hp + P.maxhp * .45); Sfx.buff(); } },
-  { id: 'buff', n: '注 入 强 化', cost: 80,  d: '随机一个临时增益，立刻生效',
+  { id: 'buff', n: '注 入 强 化', cost: 80,  d: '随机一个地上那种增益',
     can: () => true,
     act: () => grabBuff(BUFF_IDS[(RNG.card() * BUFF_IDS.length) | 0]) },
-  { id: 'rr',   n: '多 一 次 重 摇', cost: 120, d: '这一局的升级重摇 +1',
+  { id: 'rr',   n: '多 一 次 重 摇', cost: 120, d: '升级时多一次「换一批」',
     can: () => true,
     act: () => { G.rerolls++; syncReroll(); Sfx.swap(); } },
   // 头牌：把「等卡池抽到」变成「花钱现在就要」。
@@ -4699,15 +4734,15 @@ const ITEMS = {
   frame:  { n: '轻 量 骨 架', d: '移速 +10%，生命上限 −10',   cost: 50, f: p => { p.speed *= 1.1; p.maxhp -= 10; p.hp = Math.min(p.hp, p.maxhp); } },
   plate:  { n: '装 甲 板',   d: '生命上限 +25，移速 −5%',     cost: 55, f: p => { p.maxhp += 25; p.hp += 25; p.speed *= .95; } },
   gel:    { n: '纳 米 凝 胶', d: '生命上限 +12，立刻回满',     cost: 60, f: p => { p.maxhp += 12; p.hp = p.maxhp; } },
-  coil:   { n: '吸 附 线 圈', d: '拾取范围 +35%',             cost: 35, f: p => { p.pickR *= 1.35; } },
-  leech:  { n: '血 肉 引 擎', d: '击杀回 2 血',               cost: 75, f: p => { p.lifesteal += 2; } },
-  scope:  { n: '瞄 准 模 组', d: '暴击率 +5%',                cost: 70, f: p => { p.crit += .05; } },
+  coil:   { n: '吸 附 线 圈', d: '更远就能吸到经验和废钢',       cost: 35, f: p => { p.pickR *= 1.35; } },
+  leech:  { n: '血 肉 引 擎', d: '每杀一只回 2 血',          cost: 75, f: p => { p.lifesteal += 2; } },
+  scope:  { n: '瞄 准 模 组', d: '暴击率 +5%，暴击打 3 倍',       cost: 70, f: p => { p.crit += .05; } },
   gamble: { n: '赌 徒 芯 片', d: '暴击率 +12%，生命上限 −15', cost: 70, f: p => { p.crit += .12; p.maxhp -= 15; p.hp = Math.min(p.hp, p.maxhp); } },
-  armor:  { n: '反 应 装 甲', d: '5% 概率完全免伤',           cost: 85, f: p => { p.shield = Math.min(.6, p.shield + .05); } },
+  armor:  { n: '反 应 装 甲', d: '挨打时 5% 概率一点血不掉',       cost: 85, f: p => { p.shield = Math.min(.6, p.shield + .05); } },
   barrel: { n: '长 枪 管',   d: '射程 +15%，弹速 +10%',       cost: 45, f: p => { p.mul.range *= 1.15; p.mul.bspd *= 1.1; } },
-  cap:    { n: '冲 刺 电 容', d: '冲刺冷却 −15%',             cost: 50, f: p => { if (p.dashCd < 1e8) p.dashCd *= .85; } },
-  spark:  { n: '静 电 线 圈', d: '身周放电 +3',               cost: 80, f: p => { p.aura += 3; } },
-  claw:   { n: '回 收 夹 爪', d: '捡到废钢回 2 血',           cost: 45, f: p => { p.salvage += 2; } },
+  cap:    { n: '冲 刺 电 容', d: '冲刺冷却 −15%',       cost: 50, f: p => { if (p.dashCd < 1e8) p.dashCd *= .85; } },
+  spark:  { n: '静 电 线 圈', d: '身边电场：贴身的怪持续挨电',       cost: 80, f: p => { p.aura += 3; } },
+  claw:   { n: '回 收 夹 爪', d: '每捡一块废钢回 2 血',       cost: 45, f: p => { p.salvage += 2; } },
 };
 const ITEM_IDS = Object.keys(ITEMS);
 const SHELF_N = 4, SHELF_WEP = 110, SHELF_ROLL = 18;
@@ -6501,7 +6536,7 @@ function update(dt) {
       else if (d.kind === 'part') {
         G.loot[d.pk] = (G.loot[d.pk] || 0) + rMul('parts');
         Sfx.buff();
-        banner(PART[d.pk].n, '收进货箱');
+        banner(PART[d.pk].n, '零件收进货箱 · 回据点的货摊卖成废钢');
         firstTime('bag');            // 第一件零件：告诉他货箱在哪，别只在聊天里说
       }
       else if (d.kind === 'coin') {
@@ -6640,6 +6675,83 @@ function drawMinimap() {
   if (P) { ctx.fillStyle = SKIN.trail; ctx.fillRect(ox + P.x * sx - 1, oy + P.y * sy - 1, 2, 2); }
 }
 
+// 小怪跟主角同一个视角：正面站着、左右翻身。
+// 原来是俯视的方块精灵、整张图跟着朝向转 —— 转起来就只剩一块几何体，也跟正面站着的主角不在一个世界里。
+// 有方向的部件（铁闸的盾、钉枪手的枪、重装的炮）单独画，自己朝目标转：方向本身是玩法，不能丢。
+const MOB_RATE = { drone: 22, rusher: 14, tank: 5, splitter: 4, relay: 3, bomber: 10, shard: 9 };
+const MOB_IDLE = { drone: 1, splitter: 1, relay: 1, bomber: 1, shard: 1 };   // 站着不动也要动的：旋翼、胶质、天线、引线
+function mobFace(m) {
+  // 带一点迟滞：怪在正上 / 正下方时不会每帧来回翻
+  const c = Math.cos(m.ang);
+  if (c > .25) m.fl = 0; else if (c < -.25) m.fl = 1;
+  return m.fl ? -1 : 1;
+}
+function drawMob(m, x, y) {
+  const t = m.type, sx = mobFace(m), sc = m.elite ? 1.25 : 1, hit = m.flash > 0;
+  const still = (t === 'sniper' && m.wind > 0) || (Math.abs(m.vx) + Math.abs(m.vy) < 2 && !MOB_IDLE[t]);
+  const dash = t === 'rusher' && m.dashT > 0;
+  const fr = frame(SPR[MOB[t].spr], still ? 0 : G.t * (MOB_RATE[t] || 8) * (dash ? 2 : 1) + m.phase * 3);
+  const by = t === 'drone' ? y + fr.height * sc / 2 : y + m.r;            // 图的底边：地面单位踩在投影上，飞的悬在正中
+  const shieldBack = t === 'shieldbot' && Math.sin(m.ang) < 0;           // 盾朝上（背对镜头）时被身体挡住
+  if (shieldBack) drawShield(m, x, by, sc);
+  if (t === 'tank') drawCannon(m, x - sx * 6 * sc, by - 12 * sc, sc);    // 炮扛在后肩上，先画，被身体压住炮尾
+  if (dash) {                                                             // 冲刺：身后拖几道速度线
+    ctx.strokeStyle = 'rgba(255,46,166,.55)'; ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) {
+      const yy = (by - 3 - i * 3) | 0, x0 = x - sx * (7 + i * 2);
+      ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x0 - sx * (6 + ((G.t * 40 + i * 5) % 5)), yy); ctx.stroke();
+    }
+  }
+  ctx.save();
+  ctx.translate(x | 0, by | 0);
+  if (dash) ctx.rotate(sx * .14);                                         // 冲刺时往前扑
+  ctx.scale(sx * sc * (hit ? 1.14 : 1), sc * (hit ? .88 : 1));           // 挨打压扁一下
+  ctx.imageSmoothingEnabled = false;
+  const dx = -(fr.width >> 1), dy = -fr.height;
+  ctx.drawImage(fr, dx, dy);
+  if (hit) { ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(fr, dx, dy); ctx.drawImage(fr, dx, dy); }
+  ctx.restore();
+  if (t === 'shieldbot' && !shieldBack) drawShield(m, x, by, sc);
+  if (t === 'sniper') drawRifle(m, x + sx * 2 * sc, by - 9 * sc, sc);
+}
+// 铁闸的盾：一块竖着的钢板，挡在它朝的那一侧。转身慢 —— 绕到侧后就是这块板子告诉你的
+function drawShield(m, x, by, sc) {
+  const a = m.ang, R = (m.r + 3) * sc;
+  ctx.save();
+  ctx.translate((x + Math.cos(a) * R) | 0, (by - 7 * sc + Math.sin(a) * R * .6) | 0);
+  ctx.rotate(a); ctx.scale(sc, sc);
+  ctx.fillStyle = '#05070d'; ctx.fillRect(-2.5, -8.5, 5, 17);
+  ctx.fillStyle = m.flash > 0 ? '#ffffff' : '#717ca3'; ctx.fillRect(-1.5, -7.5, 3, 15);
+  ctx.fillStyle = '#b4bdd8'; ctx.fillRect(.5, -7.5, 1, 15);              // 外沿的高光
+  ctx.fillStyle = '#ff2f4f'; ctx.fillRect(-1.5, -1, 3, 2);               // 中间一道红
+  ctx.restore();
+}
+// 钉枪手的枪：细长一根，蓄力时枪口越来越亮
+function drawRifle(m, x, y, sc) {
+  const a = m.ang, w = m.wind > 0 ? 1 - m.wind / .9 : 0;
+  ctx.save();
+  ctx.translate(x | 0, y | 0); ctx.rotate(a);
+  if (Math.cos(a) < 0) ctx.scale(sc, -sc); else ctx.scale(sc, sc);
+  ctx.fillStyle = '#05070d'; ctx.fillRect(-3, -1.5, 17, 3);
+  ctx.fillStyle = '#717ca3'; ctx.fillRect(-2, -.5, 15, 1);
+  ctx.fillStyle = '#a45cff'; ctx.fillRect(2, -3, 4, 2);                  // 瞄准镜
+  ctx.restore();
+  if (w > 0) orb(x + Math.cos(a) * 14 * sc, y + Math.sin(a) * 14 * sc, 3 + w * 6, 'rgba(255,47,79,' + (.4 + w * .5).toFixed(2) + ')');
+}
+// 重装的肩炮：开火前炮口先亮 —— 三连发的预告
+function drawCannon(m, x, y, sc) {
+  const a = m.ang, hot = m.cd < .45 ? 1 - m.cd / .45 : 0;
+  ctx.save();
+  ctx.translate(x | 0, y | 0); ctx.rotate(a);
+  if (Math.cos(a) < 0) ctx.scale(sc, -sc); else ctx.scale(sc, sc);
+  ctx.fillStyle = '#05070d'; ctx.fillRect(-4, -2.5, 15, 5);
+  ctx.fillStyle = '#454d6e'; ctx.fillRect(-3, -1.5, 13, 3);
+  ctx.fillStyle = '#717ca3'; ctx.fillRect(-3, -1.5, 13, 1);
+  ctx.fillStyle = hot > 0 ? '#ffe066' : '#ff9d3d'; ctx.fillRect(9, -1.5, 2, 3);
+  ctx.restore();
+  if (hot > 0) orb(x + Math.cos(a) * 11 * sc, y + Math.sin(a) * 11 * sc, 3 + hot * 5, 'rgba(255,157,61,' + (.3 + hot * .5).toFixed(2) + ')');
+}
+
 function drawBoss(m) {
   const x = m.x - G.cam.x, y = m.y - G.cam.y;
   const p2 = !!m.p2, d = MOB[m.type];
@@ -6760,12 +6872,16 @@ function render() {
     if (d.kind === 'hp') {
       orb(x, y, 8, 'rgba(255,46,166,.8)', b);
       ctx.fillStyle = '#ff8ecb'; ctx.fillRect(x - 2, y - 1, 5, 2); ctx.fillRect(x - .5, y - 2.5, 2, 5);
-    } else if (BUFFS[d.kind]) {                        // 增益：一个转着的方框，颜色就是它的身份
-      const c = BUFFS[d.kind].c;
-      orb(x, y, 9, c.replace('#', 'rgba(').length ? c + '99' : c, b);
-      ctx.save(); ctx.translate(x, y); ctx.rotate(G.t * 1.4);
-      ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.strokeRect(-3.5, -3.5, 7, 7); ctx.restore();
-      ctx.fillStyle = '#fff'; ctx.fillRect(x - 1, y - 1, 2, 2);
+    } else if (BUFFS[d.kind]) {
+      // 增益：原来六种都是「转着的方框」只靠颜色分，玩家看不出哪个是哪个、捡了有什么用。
+      // 现在每种一个图标，画的就是它干的事：闪电 = 射速、盾 = 无敌、磁铁 = 吸、爆星 = 炸、沙漏 = 减速、心 = 回血
+      const c = BUFFS[d.kind].c, by = y - 1 + Math.sin(G.t * 3 + d.t * 5) * 1.2;
+      orb(x, y, 10, c + '99', b);
+      ctx.fillStyle = 'rgba(5,7,13,.85)';
+      ctx.beginPath(); ctx.arc(x, by, 5.5, 0, TAU); ctx.fill();
+      ctx.strokeStyle = c; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x, by, 5.5, 0, TAU); ctx.stroke();
+      blit(SPR['i_' + d.kind][0], x, by);
     } else if (d.kind === 'part') {
       // 零件：六边形芯片，颜色就是它的身份。跟金碟/绿菱形/红曳光都不一样。
       const c = PART[d.pk].c;
@@ -7018,14 +7134,7 @@ function render() {
       ctx.beginPath(); ctx.ellipse(x, y + 4, m.r * .9, m.r * .35, 0, 0, TAU); ctx.fill();
       ctx.globalAlpha = 1;
     }
-    // 动画帧：快的走得快，慢的走得慢；phase 让同类不同步
-    const rate = m.type === 'drone' ? 22 : m.type === 'rusher' ? 14 : m.type === 'tank' ? 5 : 8;
-    const fr = frame(SPR[MOB[m.type].spr], G.t * rate + m.phase * 3);
-    if (m.flash > 0) {
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      blit(fr, x, y + hov, m.ang); blit(fr, x, y + hov, m.ang);
-      ctx.restore();
-    } else blit(fr, x, y + hov, m.ang, m.elite ? 1.25 : 1);
+    drawMob(m, x, y + hov);
     if (m.elite) {
       const ey = y + hov, r = m.r + 7;
       // 环染成【词缀】的颜色。词缀看不出来的话，「那只精英是什么货色」
@@ -7067,8 +7176,9 @@ function render() {
       const px = P.x - G.cam.x, py = P.y - G.cam.y;
       ctx.save();
       ctx.strokeStyle = 'rgba(255,46,166,.85)'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(x, y + hov);
-      const mx = (x + px) / 2 + Math.sin(G.t * 22) * 3, my = (y + hov + py) / 2 + Math.cos(G.t * 22) * 3;
+      const hx = x + (m.fl ? -8 : 8), hy = y - 3;       // 从钳子里甩出去
+      ctx.beginPath(); ctx.moveTo(hx, hy);
+      const mx = (hx + px) / 2 + Math.sin(G.t * 22) * 3, my = (hy + py) / 2 + Math.cos(G.t * 22) * 3;
       ctx.quadraticCurveTo(mx, my, px, py);             // 抖一下，读起来像绷紧的索
       ctx.stroke();
       ctx.fillStyle = '#ffd0ec'; ctx.fillRect(px - 1.5, py - 1.5, 3, 3);
@@ -7362,7 +7472,8 @@ function syncTags() {
     if (!d) { e.hidden = true; continue; }
     const info = d.kind === 'part' ? PART[d.pk] : BUFFS[d.kind];
     e.hidden = false;
-    e.textContent = info.n.replace(/ /g, '');
+    // 只写名字的话「超频」「电容组」看不出是干什么的 —— 后面跟上用处
+    e.textContent = info.n.replace(/ /g, '') + ' · ' + (d.kind === 'part' ? '回据点卖钱' : info.tag);
     e.style.color = info.c;
     e.style.left = ((d.x - G.cam.x) / VW * 100) + '%';
     e.style.top = ((d.y - G.cam.y - 9) / VH * 100) + '%';
@@ -7780,7 +7891,7 @@ function howToHTML() {
     + '零件：在据点的货摊上摆出来卖。</p>')
 
   + sec('摆 摊 卖 货 怎 么 定 价',
-    '<p>据点的<b>货摊</b>上，每种零件你自己开价（一下 ±10）。</p>'
+    '<p>据点的<b>货摊</b>上，每种零件你自己开价（点一下 ±1，按住连续变）。</p>'
     + dl([
       ['开高了', '客人嫌贵转身走。走的人多了<b>砸名声</b>，第二天来的人就少'],
       ['开低了', '秒卖光，但钱少赚'],
@@ -7862,23 +7973,24 @@ function syncStore() {
   const worth = own.reduce((n, k) => n + PROF.parts[k] * priceOf(k), 0);
   // 说明只留一行。展开讲的那几句挪进了标题页的「怎么玩」——
   // 四行小字压在表头上，看一遍之后每次进来都在碍事。
-  let h = '<div class="phint">一下 ±10 改<b>要价</b>（每件）。'
+  let h = '<div class="phint">点一下 ±1 改<b>要价</b>（每件），按住连续变。'
     + '高了客人转身走、砸名声；低了秒卖但赚得少 —— '
     + '<span class="hot">↑</span> 今天缺货、<span class="cold">↓</span> 积压。</div>'
     + '<div class="pcols"><span class="h1">零 件</span><span class="h2">存 量</span>'
     + '<span class="h3">要 价 / 件</span></div>';
-  h += PART_IDS.map(k => {
-    const q = (PROF.parts && PROF.parts[k]) | 0, mul = mktMul(k);
-    const tag = mul > 1 ? ' <span class="hot">↑</span>' : mul < 1 ? ' <span class="cold">↓</span>' : '';
-    if (!q) {
-      return `<div class="pitem zero"><span class="dot" style="background:${PART[k].c}"></span>`
-        + `<span class="pn">${PART[k].n}${tag}</span><span class="qt">—</span></div>`;
-    }
+  // 没货的不再一种一行：五六行暗着的「—」把有货的挤到下面去了。
+  // 九种还是都列着（「我的货箱在哪看」要的是这个），只是压成一行小标签
+  const tagOf = k => { const mul = mktMul(k); return mul > 1 ? ' <span class="hot">↑</span>' : mul < 1 ? ' <span class="cold">↓</span>' : ''; };
+  const none = PART_IDS.filter(k => !((PROF.parts && PROF.parts[k]) | 0));
+  h += own.map(k => {
+    const q = PROF.parts[k] | 0, tag = tagOf(k);
     return `<div class="pitem"><span class="dot" style="background:${PART[k].c}"></span>`
       + `<span class="pn">${PART[k].n}${tag}</span><span class="qt">×${q}</span>`
-      + `<button data-pr="${k}:-10">–</button><span class="pv">${priceOf(k)}</span>`
-      + `<button data-pr="${k}:10">+</button></div>`;
+      + `<button data-pr="${k}:-1">–</button><span class="pv">${priceOf(k)}</span>`
+      + `<button data-pr="${k}:1">+</button></div>`;
   }).join('');
+  if (none.length) h += '<div class="pnone"><span class="lb">没 货</span>' + none.map(k =>
+    `<span class="pitem zero"><span class="dot" style="background:${PART[k].c}"></span>${PART[k].n.replace(/ /g, '')}${tagOf(k)}</span>`).join('') + '</div>';
   // 一个总数比每行都挂个小计清爽，而且「这箱货值多少」才是你真正在优化的东西
   h += `<div class="pfoot">${own.length ? `按现在的要价全卖掉 <b>${worth}</b> 废钢`
     : '货箱是空的 —— 零件从敌人身上掉，打谁就掉什么'}</div>`;
@@ -8064,14 +8176,27 @@ function syncHQ() {
     mktE.textContent = kinds ? kinds + ' 种货' : '空 箱';
     mktE.classList.toggle('done', !kinds);
   }
+  // 改装、宠物、保底三栏一样都没开的时候，原来是三个标题各挂一句「未解锁」，
+  // 占掉一整栏还什么都不能点。合成一块，写清楚各自怎么开
+  const more = el('hqMore'), anyOpen = modSlots() || PET_IDS.some(petOwned) || hqLv('train');
+  if (more) {
+    more.classList.toggle('closed', !anyOpen);
+    el('hqLocked').innerHTML = anyOpen ? '' : '<div class="hqh">还 没 解 锁</div>'
+      + '<div class="phint"><b>武器改装</b> —— 盖装配台，用精炼钢换枪的打法</div>'
+      + '<div class="phint"><b>宠物</b> —— 货摊做生意做出来的，看标题页「下一个解锁」</div>'
+      + '<div class="phint"><b>保底词条</b> —— 盖义体车间，挑一张每局必出的升级卡</div>';
+  }
   bb.innerHTML = HQ_IDS.map(id => {
     const b = HQ[id], lv = hqLv(id), nx = hqNext(id);
     const afford = nx && PROF.scrap >= nx.c;
     const pips = b.lv.map((_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('');
     return `<button class="hqi${nx ? (afford ? '' : ' lock') : ' max'}" data-hq="${id}">`
       + `<span class="t"><span class="nm">${b.n}<span class="lvp">${pips}</span></span>`
-      + `<span class="pr">${nx ? nx.c + ' 废钢' : '已 满 级'}</span></span>`
-      + `<span class="ds">${nx ? nx.t : b.d}</span></button>`;
+      // 原来只写下一级的效果（「可以指定 1 条」），不说这栋楼是干什么的 —— 指定什么？
+      // 现在：一行用途，一行下一级；买不起直接写还差多少，不用自己减
+      + `<span class="pr">${!nx ? '已 满 级' : afford ? nx.c + ' 废钢' : '还差 ' + (nx.c - PROF.scrap)}</span></span>`
+      + `<span class="ds">${b.d}</span>`
+      + (nx ? `<span class="nx">${lv ? '下一级' : '盖好后'}：${nx.t}</span>` : '') + '</button>';
   }).join('');
   const slots = modSlots();
   // 说明文字原来包在 .hqi 里 —— 长得跟可点的条目一模一样，
@@ -8212,16 +8337,39 @@ el('mileBack').onclick = () => showMiles(false);
 el('howBtn').onclick = () => showHow(true);
 el('howBack').onclick = () => showHow(false);
 el('hqBtn').onclick = () => showHQ(true);
-el('hqBack').onclick = () => { showHQ(false); syncProf(); syncBest(); };
+el('hqBack').onclick = el('hqBack2').onclick = () => { showHQ(false); syncProf(); syncBest(); };
 el('hqScene').onclick = skipStore;                     // 不想看完就点一下
 el('hqRefine').onclick = () => { refine(1); syncHQ(); const c = el('hqChain'); if (c) c.innerHTML = chainText(); };
 el('hqBuild').onclick = e => {
   const b = e.target.closest && e.target.closest('[data-hq]');
   if (b && buyHQ(b.dataset.hq)) { syncHQ(); syncPity(); const c = el('hqChain'); if (c) c.innerHTML = chainText(); }
 };
-el('hqStock').onclick = e => {
+// 改价：点一下 ±1，按住连着变、越按越快。
+// 原来一下 ±10 —— 而合理价位只在基准上下 18%（电容组大概 25~35），一下就跳出去了。
+// 按住走 pointerdown + 计时器；松手挂在 window 上，因为 syncStore 每次都会重建这一行，按钮本身早换了。
+const PRH = { k: null, d: 0, n: 0, t: 0 };
+function prStep() {
+  if (!PRH.k) return;
+  PRH.n++;
+  setPrice(PRH.k, priceOf(PRH.k) + PRH.d * (PRH.n > 14 ? 5 : 1));     // 按了一秒多就一次 5
+  syncStore();
+  PRH.t = setTimeout(prStep, PRH.n > 14 ? 90 : 70);
+}
+function prStop() { clearTimeout(PRH.t); PRH.k = null; }
+el('hqStock').addEventListener('pointerdown', e => {
   const b = e.target.closest && e.target.closest('[data-pr]');
-  if (!b) return;
+  if (!b || e.button > 0) return;
+  e.preventDefault();
+  const [k, d] = b.dataset.pr.split(':');
+  prStop();
+  setPrice(k, priceOf(k) + (+d)); syncStore();
+  PRH.k = k; PRH.d = +d; PRH.n = 0;
+  PRH.t = setTimeout(prStep, 380);                      // 先停一下，点一下的时候不会多走
+});
+['pointerup', 'pointercancel', 'blur'].forEach(ev => window.addEventListener(ev, prStop));
+el('hqStock').onclick = e => {                           // 键盘（回车 / 空格）点出来的 click 没有指针按下，单独走一步
+  const b = e.target.closest && e.target.closest('[data-pr]');
+  if (!b || e.detail !== 0) return;
   const [k, d] = b.dataset.pr.split(':');
   setPrice(k, priceOf(k) + (+d));
   syncStore();
