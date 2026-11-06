@@ -75,6 +75,17 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   #prof .chip.lock{color:#3e4c63;border-color:#182541;cursor:not-allowed}
   @media (hover:hover){#prof .chip.lock:hover{border-color:#182541;color:#3e4c63}}
   #prof .next{color:#ffb03a;letter-spacing:.08em;margin-top:2px}
+  #prof .stat{font-size:10px;opacity:.85}
+  #prof .nw{white-space:nowrap}
+  #prof .stat b{margin-right:10px}
+  /* 折叠：按钮上写着现在配的是什么，点开才是那一排排选项 */
+  #prof .chip.fold{display:inline-flex;align-items:center;gap:6px}
+  #prof .chip.fold i{font-style:normal;color:#45f0ff}
+  #prof .chip.fold.open{border-color:#45f0ff;color:#eaf6ff}
+  #prof .chip.fold.fixed{cursor:default;color:#7f93b3}
+  #prof .pfold{display:flex;flex-direction:column;gap:5px;padding:7px 8px;
+    border:1px solid #1b2a46;background:rgba(8,14,26,.55)}
+  #prof .pfold.shut{display:none}
   /* 点了没成的时候说一句为什么。不说的话那一下就是「点了没反应」。 */
   #prof .say{color:#ffd08a;font-size:10px;line-height:1.5;max-width:460px;margin:2px auto 0;
     border-left:2px solid var(--amber);padding-left:9px;text-align:left}
@@ -94,8 +105,8 @@ img{max-width:100%}[hidden]{display:none!important}</style>
      暂停页不能一起藏，藏了就点不回来（见上一条）。 */
   body.touch #tc.play.modal{display:none}
   #tc .tsys{position:absolute;display:flex;gap:8px;pointer-events:none;
-    right:calc(12px + env(safe-area-inset-right,0px));
-    top:calc(54px + env(safe-area-inset-top,0px))}
+    right:calc(10px + env(safe-area-inset-right,0px));
+    top:calc(8px + env(safe-area-inset-top,0px))}   /* 顶到右上角；右边那块 HUD 排在它们下面 */
   #tc .tsys button{pointer-events:auto;width:44px;height:44px;border-radius:50%;
     font:600 11px/1 var(--mono,monospace);color:#9fb4cc;background:rgba(10,18,32,.6);
     border:1px solid rgba(120,150,190,.3);-webkit-tap-highlight-color:transparent}
@@ -144,54 +155,52 @@ img{max-width:100%}[hidden]{display:none!important}</style>
      一局结束回标题页的时候，正在淡出的「x17 COMBO」会挂在标题页右上角。
      手机上把连击挪到 top:106 之后更显眼了，正好压在标题页的正文上。 */
   body.menu #hud, body.menu #buffs, body.menu #comboWrap, body.menu #dtags{display:none}
-  #hud{
-    display:flex;flex-direction:column;gap:6px;
-    padding:10px 12px;font-size:11px;letter-spacing:.06em;
+  /* HUD 两块面板，各自贴角。原来是两行流式排版：手机竖屏上数字一变长就换行，
+     量到过增益条压住废钢、WAVE 压住血条、武器框钻到暂停键底下。 */
+  #hud .hb{
+    position:absolute;display:flex;flex-direction:column;gap:5px;padding:6px 8px 7px;
+    background:linear-gradient(rgba(4,7,16,.74),rgba(4,7,16,.52));
+    border:1px solid rgba(69,240,255,.14);font-size:11px;letter-spacing:.06em;
   }
-  /* 画布现在顶到屏幕边缘（viewport-fit=cover），所以 HUD 得自己让开刘海和圆角。
-     以前画布是居中缩在中间的，天然离边很远，用不着管这个。 */
-  body.touch #hud{
-    padding-top:calc(10px + env(safe-area-inset-top,0px));
-    padding-left:calc(12px + env(safe-area-inset-left,0px));
-    padding-right:calc(12px + env(safe-area-inset-right,0px));
+  #hudL{left:10px;top:10px}
+  /* 右上那块是一根窄柱：竖着拿手机时左右两块要并排放得下（360 宽也不撞） */
+  #hudR{right:10px;top:10px;min-width:112px}
+  #hudR .hr{justify-content:space-between}
+  #hudR .hr.end{justify-content:flex-end}
+  #hudR #waveBar{display:block;width:100%;height:5px}
+  /* 手机上画布顶到屏幕边，要让开刘海和圆角。暂停 / 音乐两个圆键占右上角，右边那块排在它们下面 */
+  body.touch #hudL{left:calc(10px + env(safe-area-inset-left,0px));top:calc(8px + env(safe-area-inset-top,0px))}
+  body.touch #hudR{right:calc(10px + env(safe-area-inset-right,0px));top:calc(60px + env(safe-area-inset-top,0px))}
+  body.touch #buffs{left:calc(10px + env(safe-area-inset-left,0px));top:calc(96px + env(safe-area-inset-top,0px))}
+  #hud .hr{display:flex;align-items:center;gap:7px;white-space:nowrap}
+  .lbl{color:#6b7ca3;font-size:9px;letter-spacing:.14em}
+  .bar{position:relative;height:7px;background:#0b1224;border:1px solid #1d2b4a}
+  .bar.hp{width:132px;height:9px}
+  .bar.xp{width:104px;height:5px}
+  #hpTxt{font-size:13px;color:#ffd6ea;min-width:26px}
+  .lv{font-size:9px;color:#7c8fb6;letter-spacing:.12em}
+  .lv b{font-size:12px;color:#eaf6ff;margin-left:3px}
+  #scoreTxt{font-size:15px;color:#eaf6ff;text-shadow:0 0 10px rgba(69,240,255,.45)}
+  #scrapTxt{color:var(--amber)}
+  #waveLeft{min-width:18px;text-align:right}
+  /* 武器栏：六格都画出来，空的是虚线 —— 「还能带几把」一眼看得出。
+     每格写两字简称、染武器本色，底下一条是冷却：满了就是这一把待发。 */
+  #wepSlots{gap:3px}
+  #wepSlots .ws{position:relative;min-width:25px;padding:3px 2px 4px;text-align:center;font-size:9px;line-height:1;
+    color:rgb(var(--c));border:1px solid rgba(var(--c),.55);background:rgba(var(--c),.09)}
+  #wepSlots .ws i{position:absolute;left:0;bottom:0;height:2px;width:100%;background:rgb(var(--c));
+    transform-origin:left;transform:scaleX(var(--r,1))}
+  #wepSlots .ws.empty{border:1px dashed #22314f;background:none;color:transparent}
+  /* 窄屏（竖着拿手机）两块要并排挤在 390 宽里 */
+  @media (max-width:430px){
+    .bar.hp{width:96px} .bar.xp{width:70px}
+    #wepSlots .ws{min-width:21px;font-size:8px}
+    #scoreTxt{font-size:13px}
   }
-  /* 右上角是暂停/音乐那两个圆键的地盘（96×44）。HUD 原来会一路排过去，
-     分数和废钢数字一变长就压在圆键底下 —— 量到过四处重叠
-     （btnPause×武器框、btnPause×废钢、btnPause×废钢值、btnMute×废钢值）。
-     所以给 HUD 让出这块角，让它宁可多换一行也不钻到按钮下面。 */
-  body.touch #hud{padding-right:calc(108px + env(safe-area-inset-right,0px))}
-  body.touch #buffs{
-    left:calc(14px + env(safe-area-inset-left,0px));
-    top:calc(78px + env(safe-area-inset-top,0px));
-  }
-  #hud .row{display:flex;align-items:center;gap:10px}
-  #hud .row.top{justify-content:space-between}
-  #hud .row{flex-wrap:wrap;row-gap:5px}
-  /* 标签和它的值必须一起换行。散着放的时候 375 宽的手机上量到过
-     「废钢」在 y37、「880」在 y58 —— 中间隔着一整行，等于两个都读不成。 */
-  #hud .u{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-  /* 血条是 flex:1 的，直接塞进 inline-flex 单元会缩成 min-width 不再伸长。
-     grow 让单元自己接着伸，条和数字绑在一起 —— 否则「100」会被甩到下一行变成孤零零一个数。 */
-  #hud .u.grow{display:flex;flex:1 1 auto;min-width:0}
-  /* 手机上这一行要挤进 375px。五个标签光文字就吃掉近一半宽度，
-     而其中四个是废话：粉条后面跟个数就是血、青条就是经验、
-     一排小格就是冲刺、写着枪名的框就是武器。
-     留下来的两个都是光秃秃的数字：「剩」挨着分数，两个裸数字并排谁也认不出谁；
-     「废钢」同理。判断标准是「这个数字旁边有没有东西在说它是什么」。 */
-  body.touch #hud .lbl{display:none}
-  body.touch #hud .u.keep .lbl{display:inline}
-  .lbl{color:#5d6b8c;font-size:9px;letter-spacing:.18em;text-transform:uppercase}
-  .bar{
-    position:relative;height:7px;flex:1 1 auto;min-width:56px;max-width:190px;
-    background:#0b1224;border:1px solid #1d2b4a;
-  }
-  /* min-width 是必须的：flex:1 的默认 basis 是 0，空间不够时会直接被压成 0 宽。
-     实测这一轮把波次条加进顶行之后，血条在 375 宽的手机上只剩 2px ——
-     不是「没注意看」，是真的看不见了。
-     顶行还要能换行，挤不下就让它掉到下一行，而不是把谁压没。 */
-  #hud .row.top{flex-wrap:wrap;row-gap:5px}
   .bar > i{position:absolute;inset:0;width:0%;display:block;transition:width .12s linear}
   #hpFill{background:linear-gradient(90deg,#ff2ea6,#ff6b6b);box-shadow:0 0 10px rgba(255,46,166,.7)}
+  #hpFill.low{background:linear-gradient(90deg,#ff3b5c,#ffb3c0);animation:hpPulse .7s ease-in-out infinite alternate}
+  @keyframes hpPulse{from{opacity:.6}to{opacity:1}}
   #xpFill{background:linear-gradient(90deg,#45f0ff,#7cff4f);box-shadow:0 0 10px rgba(69,240,255,.7)}
   .num{font-family:var(--disp);font-size:11px;color:#c9d6f0;font-variant-numeric:tabular-nums}
   .tag{
@@ -208,30 +217,31 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   #waveBar > i{position:absolute;inset:0;display:block;width:var(--w,100%);background:var(--amber);
     box-shadow:0 0 8px rgba(255,179,71,.55);transition:width .15s linear}
   #waveBar.clear > i{background:var(--tox);box-shadow:0 0 8px rgba(124,255,79,.55)}
-  #hud .num.small{font-size:10px;color:#8fa4c6;min-width:22px}
   #dashPip{display:flex;gap:3px}
   #dashPip span{width:14px;height:5px;background:#16223c;border:1px solid #223252}
   #dashPip span.on{background:var(--cyan);box-shadow:0 0 8px var(--cyan);border-color:var(--cyan)}
   /* 手机上右上角是暂停/音乐那两个圆键的地盘（top 54，高 44，到 98）。
      连击数原来贴在 top:60，正好压在它们底下 —— 全场最该一眼看到的数字看不见。
      跟 HUD 让出那块角是同一件事，这里往下挪到圆键下面。 */
-  body.touch #comboWrap{top:calc(106px + env(safe-area-inset-top,0px))}
+  body.touch #comboWrap{top:calc(150px + env(safe-area-inset-top,0px))}
   #comboWrap{
-    position:absolute;right:14px;top:60px;text-align:right;
+    position:absolute;right:12px;top:102px;text-align:right;
     font-family:var(--disp);font-size:14px;color:var(--amber);
     opacity:0;transition:opacity .2s;text-shadow:0 0 12px rgba(255,179,71,.8)
   }
   /* 增益条：没有倒计时的话「超频还剩几秒、要不要现在压上去」就无从判断，
      那这套增益就只是随机变强，不是决策。 */
-  #buffs{position:absolute;left:14px;top:78px;display:flex;flex-direction:column;gap:4px;pointer-events:none}
+  #buffs{position:absolute;left:10px;top:98px;display:flex;flex-direction:column;gap:4px;pointer-events:none}
   #buffs .bf{
     font-family:var(--disp);font-size:10px;letter-spacing:1px;color:var(--c);width:76px;
     border:1px solid var(--c);border-radius:2px;padding:2px 5px;background:rgba(4,6,14,.62);
     text-shadow:0 0 8px var(--c)
   }
   #buffs .bf i{display:block;height:2px;margin-top:3px;background:var(--c);box-shadow:0 0 6px var(--c)}
+  /* 横幅原来在 38%，正好压在玩家头上（人永远在画面正中），副标题横穿人物。挪到 22%：
+     在人上面、又在两块 HUD 下面（竖屏右边那块到 150px，844 高的 22% 是 185px） */
   #banner{
-    position:absolute;left:0;right:0;top:38%;text-align:center;
+    position:absolute;left:0;right:0;top:22%;text-align:center;
     font-family:var(--disp);font-size:20px;color:var(--cyan);
     text-shadow:0 0 18px rgba(69,240,255,.8);
     opacity:0;transition:opacity .35s;
@@ -726,7 +736,10 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   #pauseBox .dex .drow.lock .dn,#pauseBox .dex .drow.lock .dd{color:#3e4c63}
   #pauseBox .dex .dh{color:#54648a;letter-spacing:.16em;margin:10px 0 3px;font-family:var(--disp);font-size:9px}
   #pauseBox .dex .dh:first-child{margin-top:0}
-  #pauseBox .pbtns{margin-top:16px;display:flex;gap:8px;pointer-events:auto}
+  #pauseBox .pbtns{margin-top:16px;display:flex;gap:8px;pointer-events:auto;flex-wrap:wrap;justify-content:center}
+  /* 两个退出键各自会发生什么，写在按钮底下 —— 「放弃这局」曾经被当成「退出」按，存档就没了 */
+  #pauseBox .qhint{margin-top:10px;max-width:420px;font-size:10px;line-height:1.6;color:#6f82a8;letter-spacing:.06em}
+  #pauseBox .qhint b{color:#a9c0dc;font-weight:600}
   #pauseBox .chip{font:inherit;font-size:10px;letter-spacing:.12em;color:#a9c0dc;
     background:rgba(12,22,38,.8);border:1px solid #223252;padding:6px 14px;cursor:pointer}
   #pauseBox .chip:hover{border-color:#45f0ff;color:#eaf6ff}
@@ -772,31 +785,25 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   <div class="layer" id="dtags"></div><!-- 掉落物名字。画布太小写不了字，文字一律走 DOM -->
 
   <div class="layer" id="hud">
-    <div class="row top">
-      <div class="row">
-        <span class="lbl">整合度</span>
-        <span class="u grow"><span class="bar"><i id="hpFill"></i></span><span class="num" id="hpTxt">100</span></span>
-      </div>
-      <div class="row">
-        <span class="tag" id="waveTag">WAVE 01</span>
-        <span class="wbar" id="waveBar"><i></i></span>
-        <span class="u keep"><span class="lbl">剩</span><span class="num small" id="waveLeft">0</span></span>
-        <span class="num" id="scoreTxt">0</span>
-      </div>
+    <!-- 左上：自己的状态（血、等级经验、冲刺、武器栏）；右上：这一局的进度（波次、分数、废钢）。
+         两块各自定位，不再是一行行往下流 —— 流式排版在窄屏上会随数字长短换行，互相压住。 -->
+    <div class="hb" id="hudL">
+      <div class="hr"><span class="bar hp"><i id="hpFill"></i></span><span class="num" id="hpTxt">100</span></div>
+      <div class="hr"><span class="lv">LV<b class="num" id="lvTxt">1</b></span><span class="bar xp"><i id="xpFill"></i></span><span id="dashPip" title="冲刺"><span></span></span></div>
+      <div class="hr" id="wepSlots"></div>
     </div>
-    <div class="row">
-      <span class="u"><span class="lbl">义体等级</span><span class="num" id="lvTxt">1</span></span>
-      <span class="bar"><i id="xpFill"></i></span>
-      <span class="u"><span class="lbl">冲刺</span><span id="dashPip"><span></span></span></span>
-      <span class="u"><span class="lbl">武器</span><span class="tag" id="wepTxt">脉冲步枪</span></span>
-      <span class="u keep"><span class="lbl">废钢</span><span class="num small" id="scrapTxt">0</span></span>
+    <div class="hb" id="hudR">
+      <div class="hr"><span class="tag" id="waveTag">WAVE 01</span><span><span class="lbl">剩</span> <span class="num" id="waveLeft">0</span></span></div>
+      <span class="wbar" id="waveBar"><i></i></span>
+      <div class="hr end"><span class="num" id="scoreTxt">0</span></div>
+      <div class="hr end"><span class="lbl">废钢</span><span class="num" id="scrapTxt">0</span></div>
     </div>
   </div>
 
   <div class="layer" id="tc">
     <div class="stk" id="stkL"><i></i></div>
     <div class="stk r" id="stkR"><i></i></div>
-    <div class="tbtns"><button id="btnDash">冲刺</button><button id="btnWep">枪</button></div>
+    <div class="tbtns"><button id="btnDash">冲刺</button></div>
     <div class="tsys"><button id="btnPause">暂停</button><button id="btnMute">音乐</button></div>
     <div id="rotHint">横过来左右视野更宽</div>
   </div>
@@ -809,13 +816,13 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     <h1>NEON <em>SCRAPLINE</em></h1>
     <p class="sub">下城区 · 废钢回收线 · 生存射击</p>
     <div class="keys kb">
-      <div><b>WASD</b> 移动</div><div><b>鼠标</b> 瞄准 / 左键开火</div>
+      <div><b>WASD</b> 移动</div><div><b>枪</b> 全自动 · 只管走位</div>
       <div><b>空格</b> 相位冲刺</div><div><b>P</b> 暂停 · <b>M</b> 静音</div>
-      <div><b>1-6</b> 直接换枪 · <b>Q</b> 循环</div><div><b>手柄</b> 双摇杆 · RT/B/X</div>
+      <div><b>武器栏</b> 最多 6 把一起打</div><div><b>手柄</b> 左摇杆走 · B 冲刺</div>
     </div>
     <div class="keys tc">
-      <div><b>左半屏</b> 拖动移动</div><div><b>右半屏</b> 拖动瞄准开火</div>
-      <div><b>冲刺</b> 右下圆键</div><div><b>枪</b> 右下圆键换武器</div>
+      <div><b>左半屏</b> 拖动移动</div><div><b>枪</b> 全自动</div>
+      <div><b>冲刺</b> 右下圆键</div><div><b>武器栏</b> 最多 6 把</div>
     </div>
     <p class="sub" id="titleBest"></p>
     <div id="prof"></div>
@@ -899,8 +906,10 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     <div class="dex" id="dexPause"></div>
     <div class="pbtns">
       <button class="chip" id="resumeBtn">继 续</button>
+      <button class="chip" id="quitBtn">存 档 退 出</button>
       <button class="chip danger" id="giveupBtn">放 弃 这 局</button>
     </div>
+    <div class="qhint" id="quitHint"></div>
   </div>
 
   <div class="screen" id="over">
@@ -2515,22 +2524,15 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyP' && G.state === 'play') setPaused(!G.paused);
   if (e.code === 'KeyM') { Sfx.musicOn = !Sfx.musicOn; if (Sfx.musicGain) Sfx.musicGain.gain.value = Sfx.musicOn ? .5 : 0; }
   if (e.code === 'KeyR' && G.state === 'over') start();
-  if (e.code === 'KeyQ' && G.state === 'play') cycleWep();
   if (G.phase === 'shop' && G.state === 'play') {          // 商店：1-4 买，空格进下一波
     if (e.code === 'Space') closeShop();
     const sl = shopList();
     const si = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].indexOf(e.code);
     if (si >= 0 && sl[si]) shopBuy(sl[si].id);
   }
-  // 数字键直连武器。带满六把的时候 Q 键要按五下才换到想要的那把，
-  // 在一屏八十只怪的时候这五下就是五次挨打。
   if (G.phase === 'route' && G.state === 'play') {         // 选路：1 / 2
     const ri = ['Digit1', 'Digit2'].indexOf(e.code);
     if (ri >= 0) { pickRoute(ri); return; }
-  }
-  if (G.state === 'play' && G.phase !== 'shop' && G.phase !== 'route' && /^Digit[1-6]$/.test(e.code)) {
-    const id = P && P.owned[+e.code.slice(5) - 1];
-    if (id && id !== P.wep) { equip(id); Sfx.swap(); banner(WEAPONS[id].n, WEAPONS[id].d); }
   }
   if (G.state === 'levelup') {
     if (e.code === 'KeyR') doReroll();
@@ -2629,7 +2631,6 @@ function goTouch() {
     b.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); Sfx.init(); fn(); });
   };
   btn('btnDash', () => { if (P && P.dashCdT === 0) TC.dash = 1; });
-  btn('btnWep', () => cycleWep());
   btn('btnPause', () => { if (G.state === 'play') { setPaused(!G.paused); drop('L'); drop('R'); } });
   btn('btnMute', () => {
     Sfx.musicOn = !Sfx.musicOn;
@@ -2672,7 +2673,6 @@ function pollPad() {
   const tap = i => { const now = btn(i), was = PAD.prev[i]; PAD.prev[i] = now; return now && !was; };
   PAD.fire = btn(7) || btn(5) || btn(0) ? 1 : 0;        // 右扳机 / 右肩 / A 都能开火
   if (tap(1) || tap(10)) PAD.dash = 1;                  // B / 左摇杆键 冲刺
-  if (tap(2) || tap(4)) cycleWep();                     // X / 左肩 换枪
   if (tap(9) && G.state === 'play') setPaused(!G.paused);   // 暂停时 state 仍是 play，同一个键切回来
   if (G.phase === 'shop' && G.state === 'play') {          // 商店：A/B/X/Y 买四样，START 进下一波
     const sl = shopList();
@@ -2721,6 +2721,8 @@ function newPlayer() {
     hp: BASE.maxhp, fireT: 0, dashT: 0, dashCdT: 0, inv: 0, idleT: 0,
     lv: 1, xp: 0, need: xpNeed(1), auraT: 0, walk: 0,
     wep: 'pulse', owned: ['pulse'], kind: 'bullet', wcol: '69,240,255',
+    // 武器栏里每一把各自的：冷却 / 多久没开火（蓄能枪机用） / 正在瞄的方向（画枪用）
+    wcd: [0], widle: [0], wang: [0], face: 1, aimD: 0, blockAng: 0,
     // 词条作用在倍率上，不直接改武器本身 —— 否则换枪就把强化清掉了
     mul: { rate: 1, dmg: 1, count: 0, spread: 0, bspd: 1, range: 1, pierce: 0 }
   }, BASE);
@@ -2904,7 +2906,7 @@ function rollOffer() {
   // 加牌有个副作用 —— 每加一张，任何一张【特定】的牌就更难抽到。
   // 实测：词条从 18 条加到 22 条之后，开局抽不到伤害，5 局里 2 局第 5 波就死。
   // 所以新加的那几条机制牌延后进池，让开局的牌池保持紧凑。
-  const pool = UPGRADES.filter(u => (G.stacks[u.id] || 0) < u.max
+  const pool = UPGRADES.filter(u => (u.wep ? !P || P.owned.length < MAX_WEPS : (G.stacks[u.id] || 0) < u.max)
     && (!u.req || open || PROF.unlocked[u.req])
     && (!u.from || G.wave >= u.from)
     // 已经拿着的枪不许再进池。局内抽到的那次会记进 G.stacks，所以不会重复；
@@ -2912,7 +2914,6 @@ function rollOffer() {
     // 玩家抽到「霰弹枪」、以为是新枪、拿了，`f` 只是 equip 一把他早就有的枪，
     // 什么都没变，白白浪费一次三选一。玩家问「又捡了霰弹枪有什么增益」，
     // 答案是零，这张牌不该出现在那里。
-    && !(u.wep && P && P.owned.indexOf(u.wep) >= 0)
     && !(u.wep && MODE === 'weekly' && weekRule().id === 'melee' && slotOf(u.wep) === 'range'));
   const out = [];
   while (out.length < 3 && pool.length) {
@@ -2953,7 +2954,8 @@ function buildHTML() {
     (ic ? `<span class="ic">${ic}</span>` : '') + `<span>${name}</span>` +
     (st ? `<span class="st">${st}</span>` : '') + '</span>';
   let h = '<div class="brow"><span class="blbl">武器</span>';
-  h += P.owned.map(id => item(WEAPONS[id].ic, WEAPONS[id].n, '', id === P.wep ? 'now' : '')).join('');
+  h += P.owned.map(id => item(WEAPONS[id].ic, WEAPONS[id].n, '', '')).join('')
+    + item('', P.owned.length + ' / ' + MAX_WEPS, '', '');
   h += '</div>';
   // 词条按层数排，一眼看出这一局专精在哪
   const taken = UPGRADES.filter(u => !/^w_/.test(u.id) && (G.stacks[u.id] || 0) > 0)
@@ -3021,10 +3023,45 @@ function armGiveup() {
   G.deathBy = 'giveup';
   gameOver(false);                                     // 照常结算：废钢和里程碑都算
 }
+/* 存档退出：回标题页，存档留着，下次「继续」接着打。
+   存的永远是「一波开打之前」那个点 —— 场上是空的，只有人身上的东西和随机流要记：
+   · 波与波之间（商店、休息）：现在就是那个点，存一份最新的，商店里刚买的也算进去
+   · 打到一半：用这一波开打前那份，这一波重来
+   · 选路开着：用摆路之前那份。现在重存的话，续上之后会摇出另外两条路
+   · 第 1 波还没打完：没有存档，退了这一局就不留 —— 所以这时候要按两下 */
+let quitArm = false;
+const quitAt = () => G.phase === 'shop' || G.phase === 'break';
+function quitSaved() { const r = loadRun(); return r && r.seed === RUN_SEED ? r : null; }
+function quitHint() {
+  const h = el('quitHint');
+  if (!h) return;
+  const r = quitSaved(), w = quitAt() ? G.wave : r ? r.G.wave : -1;   // 存档里的波次 = 打完的那一波
+  const where = w < 0 ? null : w >= LAST_WAVE ? '撤离战' : '第 ' + (w + 1) + ' 波';
+  h.innerHTML = (where
+    ? '<b>存档退出</b>：下次从' + where + '开头接着打' + (G.phase === 'wave' && !quitAt() ? '，这一波打到一半的不算' : '')
+    : '<b>存档退出</b>：第 1 波还没打完，还没有存档 —— 退出后这一局不留')
+    + '<br><b>放弃这局</b>：现在结算（废钢和解锁照算），存档作废';
+}
+function quitSave() {
+  const b = el('quitBtn');
+  if (!quitAt() && !quitSaved() && !quitArm) {           // 没存档可留：先提醒一下
+    quitArm = true;
+    if (b) b.textContent = '再 按 一 次 · 不 留 存 档';
+    return false;
+  }
+  quitArm = false;
+  if (quitAt()) saveRun();
+  for (const id of ['shopBox', 'routeBox']) { const x = el(id); if (x) x.classList.remove('show'); }
+  backToTitle();
+  return true;
+}
 function setPaused(on) {
   G.paused = !!on;
   if (on) syncBuild();
   giveupArm = false;
+  quitArm = false;
+  { const qb = el('quitBtn'); if (qb) qb.textContent = '存 档 退 出'; }
+  if (on) quitHint();
   if (on) showDex(false);                              // 每次暂停都回到构筑页
   const gb = el('giveupBtn');
   if (gb) { gb.classList.remove('arm'); gb.textContent = '放 弃 这 局'; }
@@ -3047,7 +3084,9 @@ function renderOffer() {
       '<div class="icon">' + u.ic + '</div>' +
       '<h3>' + u.n + '</h3>' +
       '<p>' + u.d + '</p>' +
-      '<div class="stack">' + (st ? '已装载 ' + st + ' / ' + u.max : '未装载 · 上限 ' + u.max) + '</div>';
+      '<div class="stack">' + (u.wep
+        ? '武器栏 ' + P.owned.length + ' / ' + MAX_WEPS + (P.owned.indexOf(u.wep) >= 0 ? ' · 再带一把' : '')
+        : st ? '已装载 ' + st + ' / ' + u.max : '未装载 · 上限 ' + u.max) + '</div>';
     e.onclick = () => takeUpgrade(u);
     box.appendChild(e);
   });
@@ -3252,7 +3291,9 @@ function spawn(type) {
   const m0 = {
     type, x, y, vx: 0, vy: 0, ang: 0,
     r: d.r, hp: d.hp * hpS, max: d.hp * hpS, spd: d.spd * spdS,
-    dmg: d.dmg, xp: d.xp, flash: 0, slowT: 0, cd: rndw(.6, 2), phase: rndw(0, TAU),
+    // 伤害随波次涨（第 30 波 ×1.75）。武器栏全自动、六把一起打之后火力翻了几倍 ——
+    // 拿血量去追只会让每一波变长（探针里好几局拖到 45 分钟还没打完），让挨打更疼才是把压力找回来
+    dmg: d.dmg * (1 + w * .025), xp: d.xp, flash: 0, slowT: 0, cd: rndw(.6, 2), phase: rndw(0, TAU),
     dashT: 0, spin: 0, p2: 0, sum: 0, guarded: 0, fz: -1, links: null, elite: 0
   };
   if (G.mod && G.mod.spd) m0.spd *= G.mod.spd;
@@ -3379,7 +3420,7 @@ const fixedRun = () => MODE === 'daily' || MODE === 'weekly';
    逼你用平时不会用的方式打一整局。四条按周轮换，种子取这一周。 */
 const WEEK_RULES = [
   { id: 'melee',  n: '只 准 近 战', d: '开局拿振动刀，远程枪不进卡池',
-    f: p => { p.owned = []; gainWep('blade'); } },
+    f: p => { setWeps(['blade']); } },
   { id: 'nodash', n: '没 有 冲 刺', d: '相位冲刺拆掉了 —— 只能靠走位',
     f: p => { p.dashCd = 1e9; p.dashCdT = 1e9; } },   // 不用 Infinity：存档是 JSON，Infinity 会变成 null
   { id: 'glass',  n: '玻 璃 义 体', d: '生命上限只有四成，伤害 ×1.6',
@@ -3415,7 +3456,8 @@ let WEEKLY = loadWeekly();
    续上的时候从那一波的开头接着打 —— 打到一半关掉，这一波重来。 */
 const RUN_KEY = 'ns.run';
 const RUN_G = ['score', 'kills', 'wave', 'wepDmg', 'bossKills', 'coreKills', 'tankKills', 'eliteKills',
-  'seen', 'seenAff', 'rerolls', 'pityDone', 'scrap', 'scrapGot', 'bought', 'loot', 'stacks', 'escorts', 'reacts', 'route'];
+  'seen', 'seenAff', 'rerolls', 'pityDone', 'scrap', 'scrapGot', 'bought', 'loot', 'stacks', 'escorts', 'reacts', 'route',
+  'drops'];                                            // 地上没捡的也存：换场地时会被扫进来，少了它续上之后升级发的牌就不一样了
 function saveRun() {
   if (!P || G.state !== 'play') return false;
   const g = {}; for (const k of RUN_G) g[k] = G[k];
@@ -3839,6 +3881,8 @@ function pickChassis(id) {
 }
 
 /* ---- 档案面板：就在标题页上，不另开一屏 ---- */
+// 标题页上「配装」「观感」两个折叠开没开。只在这一页面里记着，不进档案 —— 每次打开游戏都从收起开始
+const PROF_FOLD = { gear: false, opt: false };
 function syncProf() {
   const box = document.getElementById('prof');
   if (!box) return;
@@ -3859,48 +3903,60 @@ function syncProf() {
       i > dangerMax() ? '打穿上一档才解锁' : g.d);
   });
   h += '</div>';
-  h += `<div class="prow"><span class="plbl">废钢</span><b>${PROF.scrap}</b>`
+  h += `<div class="prow stat"><span class="plbl">废钢</span><b>${PROF.scrap}</b>`
     + `<span class="plbl">局数</span><b>${PROF.runs}</b>`
     + `<span class="plbl">累计拆解</span><b>${PROF.kills}</b>`
     + (PROF.wins ? `<span class="plbl">撤离</span><b>${PROF.wins}</b>` : '') + `</div>`;
-  h += '<div class="prow"><span class="plbl">起手</span>';
-  if (daily) h += '<span class="plbl">' + (MODE === 'weekly' && weekRule().id === 'melee' ? '振动刀' : '脉冲步枪')
-    + ' · 标准型 · 词条全开（' + fixWord + '）</span>';
-  else for (const id of WEP_ORDER) {
-    const unlocked = id === 'pulse' || PROF.unlocked['w_' + id];
-    const bought = id === 'pulse' || PROF.bought[id];
-    // 「150废钢」原来读起来像「想用这把就得付钱」，而其实解锁之后它已经在局内
-    // 三选一的卡池里了 —— 买只是为了「开局就拿着」。这两件事得分开说。
-    const label = WEAPONS[id].n + (bought ? '' : unlocked ? ` 起手 ${WEP_COST}` : ' 未解锁');
-    const how = bought ? '已买下 · 点它设为起手武器'
-      : unlocked ? `已在局内卡池里，升级三选一会抽到；花 ${WEP_COST} 废钢可以买成起手武器`
-      : '还没解锁 —— 看下面那行「下一个解锁」';
-    h += chip(label, PROF.wep === id, !unlocked, 'wep:' + id, how + ' ｜ ' + WEAPONS[id].d);
-  }
-  h += '</div>';
-  // 这一行是回答「怎么获得新枪」的。两步：里程碑先把枪放进卡池，之后局内抽到或者花废钢买成起手。
-  // 提示紧跟在「起手」那一排下面 —— 原来挂在面板最末尾，
-  // 你在顶上点的枪，解释出现在四百像素以外，等于没说。
-  if (PROF_MSG) h += `<div class="prow say">${PROF_MSG}</div>`;
-  h += '<div class="prow hint2">新枪先靠里程碑进卡池，之后<b>局内升级三选一</b>抽到就永久带着（'
-    + (isTouch ? '右下圆键' : '1-6 / Q') + ' 切换）；'
-    + `花 ${WEP_COST} 废钢可以买成<b>起手</b>武器。</div>`;
-  h += '<div class="prow"><span class="plbl">涂装</span>';
-  if (daily) h += `<span class="plbl">${SKINS[dailySkin()].n} · 今日主题</span>`;
-  else for (const id of SKIN_ORDER) {
-    const sk = SKINS[id], unlocked = !sk.req || PROF.unlocked[sk.req];
-    h += chip(sk.n, PROF.skin === id, !unlocked, 'skin:' + id, '纯外观，不带数值');
-  }
-  h += '</div>';
+  /* 标题页原来一屏铺开：十七把起手武器（一多半是灰的「未解锁」）、六套涂装、三种底座、
+     三组观感设置，全是按钮，开始按钮被挤到手机屏幕外面。
+     现在只常驻「这一局打什么」（模式、危险档）；配装和观感各收进一个折叠，
+     收起时那颗按钮上就写着现在配的是什么 —— 不点开也知道。 */
+  const startWep = daily ? (MODE === 'weekly' && weekRule().id === 'melee' ? 'blade' : 'pulse')
+    : (PROF.wep && (PROF.wep === 'pulse' || PROF.bought[PROF.wep]) ? PROF.wep : 'pulse');
+  const gearSum = WEAPONS[startWep].n + ' · ' + (daily ? '标准型' : (CHASSIS[PROF.chassis] || CHASSIS.std).n)
+    + ' · ' + (daily ? SKINS[dailySkin()].n : (SKINS[PROF.skin] || SKINS.std).n);
+  const gearOpen = !daily && (PROF_FOLD.gear || !!PROF_MSG);   // 点了没成的时候要看得见原因，强制展开
+  h += '<div class="prow folds">'
+    + `<button class="chip fold${gearOpen ? ' open' : ''}${daily ? ' fixed' : ''}" data-act="fold:gear">`
+    + `<span class="plbl">配装</span>${gearSum}${daily ? '（' + fixWord + '）' : ' <i>' + (gearOpen ? '▾' : '▸') + '</i>'}</button>`
+    + `<button class="chip fold${PROF_FOLD.opt ? ' open' : ''}" data-act="fold:opt"><span class="plbl">观感</span><i>${PROF_FOLD.opt ? '▾' : '▸'}</i></button>`
+    + '</div>';
   if (!daily) {
+    h += `<div class="pfold${gearOpen ? '' : ' shut'}">`;
+    h += '<div class="prow"><span class="plbl">起手</span>';
+    let locked = 0;
+    for (const id of WEP_ORDER) {
+      const unlocked = id === 'pulse' || PROF.unlocked['w_' + id];
+      const bought = id === 'pulse' || PROF.bought[id];
+      // 没解锁的不再一把一把摆成灰按钮 —— 十几颗点不了的按钮只是噪音。数出来写一句就够了
+      if (!unlocked) { locked++; continue; }
+      // 「150废钢」原来读起来像「想用这把就得付钱」，而其实解锁之后它已经在局内
+      // 三选一的卡池里了 —— 买只是为了「开局就拿着」。这两件事得分开说。
+      const label = WEAPONS[id].n + (bought ? '' : ` 起手 ${WEP_COST}`);
+      const how = bought ? '已买下 · 点它设为起手武器'
+        : `已在局内卡池里，升级三选一会抽到；花 ${WEP_COST} 废钢可以买成起手武器`;
+      h += chip(label, PROF.wep === id, false, 'wep:' + id, how + ' ｜ ' + WEAPONS[id].d);
+    }
+    if (locked) h += `<span class="plbl">另有 ${locked} 把未解锁</span>`;
+    h += '</div>';
+    if (PROF_MSG) h += `<div class="prow say">${PROF_MSG}</div>`;
+    h += '<div class="prow hint2">新枪先靠里程碑进卡池，之后<b>局内升级三选一</b>抽到就加进武器栏（最多 '
+      + MAX_WEPS + ' 把，一起自动打）；'
+      + `花 ${WEP_COST} 废钢可以买成<b>起手</b>武器。</div>`;
     h += '<div class="prow"><span class="plbl">底座</span>';
     for (const id in CHASSIS) {
       const c = CHASSIS[id], unlocked = !c.req || PROF.unlocked[c.req];
       h += chip(c.n, PROF.chassis === id, !unlocked, 'ch:' + id, c.d);
     }
     h += '</div>';
+    h += '<div class="prow"><span class="plbl">涂装</span>';
+    for (const id of SKIN_ORDER) {
+      const sk = SKINS[id], unlocked = !sk.req || PROF.unlocked[sk.req];
+      h += chip(sk.n, PROF.skin === id, !unlocked, 'skin:' + id, '纯外观，不带数值');
+    }
+    h += '</div></div>';
   }
-  h += '<div class="prow"><span class="plbl">震屏</span>';
+  h += `<div class="pfold${PROF_FOLD.opt ? '' : ' shut'}"><div class="prow"><span class="plbl">震屏</span>`;
   for (const [v, n] of [[0, '关'], [.5, '弱'], [1, '标准']])
     h += chip(n, OPT.shake === v, false, 'opt:shake:' + v, '晕动敏感就关掉');
   h += '<span class="plbl">辉光</span>';
@@ -3909,7 +3965,7 @@ function syncProf() {
   h += '<span class="plbl">音量</span>';
   for (const [v, n] of [[0, '静音'], [.5, '低'], [1, '标准']])
     h += chip(n, OPT.vol === v, false, 'opt:vol:' + v, '');
-  h += '</div>';
+  h += '</div></div>';
   if (REDUCE) h += '<div class="prow next">系统里开了「减少动态效果」，震屏和辉光已默认关闭</div>';
   const nm = nextMile();
   // 这一行原来只是个通知。点开就是全部 31 条 ——
@@ -3917,10 +3973,11 @@ function syncProf() {
   const doneN = MILES.filter(m => PROF.unlocked[m.id]).length;
   h += `<div class="prow next"><button class="chip milebtn" data-act="miles">`
     + `${nm ? '下一个解锁：' + nm.d + ' → ' + nm.n : '全部解锁完了'}`
-    + ` ｜ 全部 ${doneN}/${MILES.length} ▸</button></div>`;
+    + ` <span class="nw">｜ 全部 ${doneN}/${MILES.length} ▸</span></button></div>`;   // 尾巴不拆行，窄屏上「▸」别孤零零掉下去
   box.innerHTML = h;
   for (const b of box.querySelectorAll('.chip')) b.onclick = () => {
     const [k, ...rest] = b.dataset.act.split(':'); const v = rest.join(':');
+    if (k === 'fold') { if (!b.classList.contains('fixed')) { PROF_FOLD[v] = !PROF_FOLD[v]; if (v === 'gear' && !PROF_FOLD.gear) profSay(''); syncProf(); } return; }
     if (k === 'opt') { const [ok2, ov] = v.split(':'); setOpt(ok2, +ov); return; }
     if (k === 'miles') { showMiles(true); return; }
     if (k === 'mode') setMode(v);
@@ -4057,28 +4114,43 @@ function decalsOn(where) {
   for (const id in DECAL) if (G.stacks[id] > 0 && DECAL[id].on === where) out.push(DECAL[id]);
   return out;
 }
+// 武器栏里第 i 把挂在身上的哪个位置。一把就在胸口；多把绕身体一圈（土豆兄弟那样），
+// 上半圈的画在身体后面、下半圈的画在前面，才有「围着人」的感觉。
+function gunSpot(i, n) {
+  if (n <= 1) return { x: 0, y: 1, back: false };
+  const a = -Math.PI / 2 + (i + .5) * TAU / n;
+  return { x: Math.cos(a) * 9, y: Math.sin(a) * 6 + 1, back: Math.sin(a) < -.2 };
+}
 function drawPlayer(x, y) {
   const bodySpr = frame(SPR.player, P.vxm ? P.walk : 0);
   const bw = bodySpr.width, bh = bodySpr.height;
-  const left = Math.cos(P.ang) < 0;                      // 往左瞄就把身体翻过来
-  const gunSpr = SPR[GUN_OF[P.wep] || 'gun_pulse'][0];
+  const left = (P.face || 1) < 0;                       // 身体朝走的方向
   const stacks = G.stacks;
+  const n = P.owned.length;
 
-  // 枪：绕胸口支点转。朝左时上下翻一下，否则枪会倒过来。
-  const drawGun = () => {
+  // 每一把各自绕自己的支点转、各自朝自己瞄的那个人。朝左时上下翻一下，否则枪会倒过来。
+  const drawGun = i => {
+    const id = P.owned[i], spot = gunSpot(i, n);
+    const gunSpr = SPR[GUN_OF[id] || 'gun_pulse'][0];
+    const a = P.wang && P.wang[i] != null ? P.wang[i] : (left ? Math.PI : 0);
+    const flip = Math.cos(a) < 0;
     ctx.save();
-    ctx.translate((x | 0) + (left ? -1 : 1), (y | 0) + 1);
-    ctx.rotate(P.ang);
-    if (left) ctx.scale(1, -1);
-    // 双联发射：每一层多一根枪管，这是最看得出来的叠加
-    const extra = Math.min(2, stacks.count || 0);
-    for (let i = extra; i >= 1; i--) blitAt(gunSpr, 1, -gunSpr.height / 2 + i * 4);
+    ctx.translate((x + spot.x) | 0, (y + spot.y) | 0);
+    ctx.rotate(a);
+    if (flip) ctx.scale(1, -1);
+    if (i === 0) {
+      // 双联发射：每一层多一根枪管；枪上的贴花也挂在第一把上
+      const extra = Math.min(2, stacks.count || 0);
+      for (let k = extra; k >= 1; k--) blitAt(gunSpr, 1, -gunSpr.height / 2 + k * 4);
+    }
     blitAt(gunSpr, 1, -gunSpr.height / 2);
-    for (const d of decalsOn('gun')) blitMid(SPR[d.g][0], d.x, d.y);
+    if (i === 0) for (const d of decalsOn('gun')) blitMid(SPR[d.g][0], d.x, d.y);
     ctx.restore();
   };
+  for (let i = 0; i < n; i++) if (gunSpot(i, n).back) drawGun(i);
 
-  const rig = WRIG[P.wep];
+  // 带着的每一把的挂件都上身（胸前弹带、背上电容塔……），同一把带两把只挂一次
+  const rigs = [...new Set(P.owned)].map(id => WRIG[id]).filter(Boolean);
   const sil = (SKINS[PROF.skin] || SKINS.std).sil;
   ctx.save();
   ctx.translate(x | 0, y | 0);
@@ -4086,13 +4158,13 @@ function drawPlayer(x, y) {
   // 涂装的剪影件顶在头上，画在最后面 —— 它要改的是轮廓，所以必须露在身体外
   if (sil && SPR[sil]) blitMid(SPR[sil][0], 0, -12);
   for (const d of decalsOn('back')) blitMid(SPR[d.g][0], d.x, d.y);   // 背上的先画，被身体压住一半
-  if (rig && rig.on === 'back' && SPR[rig.g]) blitMid(SPR[rig.g][0], rig.x, rig.y);
+  for (const rig of rigs) if (rig.on === 'back' && SPR[rig.g]) blitMid(SPR[rig.g][0], rig.x, rig.y);
   blitAt(bodySpr, -bw / 2, -bh / 2);
   for (const d of decalsOn('body')) blitMid(SPR[d.g][0], d.x, d.y);
-  if (rig && rig.on === 'body' && SPR[rig.g]) blitMid(SPR[rig.g][0], rig.x, rig.y);
+  for (const rig of rigs) if (rig.on === 'body' && SPR[rig.g]) blitMid(SPR[rig.g][0], rig.x, rig.y);
   ctx.restore();
 
-  drawGun();
+  for (let i = 0; i < n; i++) if (!gunSpot(i, n).back) drawGun(i);
 }
 
 /* ================= 临时增益 =================
@@ -4491,13 +4563,12 @@ const SHOP = [
     can: () => true,
     act: () => { G.mines.length = 0; if (P && P.dashCd < 1e8) P.dashCdT = 0; Sfx.buff(); } },   // 「没有冲刺」那一周别给它充上
   { id: 'gun',  n: '军 械 调 拨', cost: 300, d: '一把已解锁的枪，这一局带着',
-    can: () => shopGuns().length > 0,
+    can: () => shopGuns().length > 0 && P.owned.length < MAX_WEPS,   // 武器栏满了就不卖
     act: () => {
       const g = shopGuns();
       const id = g[(RNG.card() * g.length) | 0];
-      const old = inSlot(slotOf(id));                  // 换掉的是同槽那把，说清楚
       gainWep(id); Sfx.swap();
-      banner(WEAPONS[id].n, old ? '换下了 ' + WEAPONS[old].n : WEAPONS[id].d);
+      banner(WEAPONS[id].n, WEAPONS[id].d + ' · 武器栏 ' + P.owned.length + '/' + MAX_WEPS);
     } },
 ];
 // 已解锁（或每日局全开）、但这一局还没带在身上的枪
@@ -4609,8 +4680,9 @@ function waveSpawn(dt) {
 }
 
 
-// 把武器基础值 × 词条倍率，算出这一把枪现在的实际手感
-function equip(id) {
+// 把武器基础值 × 词条倍率，算出这一把枪现在的实际手感。
+// 武器栏里每一把开火前都要先 loadWep 一次 —— 开火的那些函数读的都是 P 上的数值。
+function loadWep(id) {
   const W = WEAPONS[id]; if (!W || !P) return;
   P.wep = id; P.kind = W.kind; P.wcol = W.col;
   // 注意：equip 只负责「换到这把」，不负责「获得」。
@@ -4656,31 +4728,79 @@ function equip(id) {
   P.railSplit = 0; P.nadeProx = 0; P.bladeKick = 0; P.beamWide = 0; P.mineRemote = 0; P.discTwin = 0;
   P.selfPush = 0;
   if (!fixedRun() && WMOD[id] && modOwned(id) && modOn(id)) WMOD[id].f(P);
+}
+function equip(id) {
+  if (!WEAPONS[id] || !P) return;
+  loadWep(id);
   P.fireT = Math.min(P.fireT, .25);
   syncHud();
 }
-/* 三个槽位：远程 / 近战 / 炼金，各带一把。
-   原来是抽到就往 P.owned 里加，最后十四把全带着 —— 那等于不用选。
-   现在抽到同类的会【替换】那个槽，所以「这张牌换不换」本身是个决定。 */
-const SLOTS = ['range', 'melee', 'magic'];
+/* 武器栏：六个格子，远程 / 近战 / 炼金随便配，同一把可以带两把（土豆兄弟那样）。
+   带着的每一把都自己找目标、自己开火，人只管走位和冲刺。
+   原来是「三个槽各一把、同时只用手上那一把、手动瞄准」—— 打起来得一边躲一边切枪一边瞄，
+   手机上尤其吃力，而带着的另外两把一直闲着。
+   满六把之后换装卡不再进卡池：格子满了，「再拿一把」就不是个选项了。 */
+const MAX_WEPS = 6;
+const SLOTS = ['range', 'melee', 'magic'];             // 类别还在：卡池过滤、每周「只准近战」要认远程
 function slotOf(id) { return (WEAPONS[id] && WEAPONS[id].slot) || 'range'; }
 function inSlot(sl) { return P.owned.find(id => slotOf(id) === sl) || null; }
-function gainWep(id) {
-  const sl = slotOf(id);
-  const old = inSlot(sl);
-  if (old === id) { equip(id); return; }
-  if (old) P.owned.splice(P.owned.indexOf(old), 1);
-  P.owned.push(id);
-  // 顺序固定成 远程→近战→炼金，这样数字键 1/2/3 永远指同一个槽
-  P.owned.sort((a, b) => SLOTS.indexOf(slotOf(a)) - SLOTS.indexOf(slotOf(b)));
-  equip(id);
+function setWeps(list) {                               // 整个换掉武器栏（开局、每周规则）
+  P.owned = []; P.wcd = []; P.widle = []; P.wang = [];
+  for (const id of list) gainWep(id);
 }
-function cycleWep() {
-  if (!P || P.owned.length < 2) return;
-  const i = P.owned.indexOf(P.wep);
-  equip(P.owned[(i + 1) % P.owned.length]);
-  Sfx.swap();
-  banner(WEAPONS[P.wep].n, WEAPONS[P.wep].d);
+function gainWep(id) {
+  if (!WEAPONS[id] || P.owned.length >= MAX_WEPS) return false;
+  P.owned.push(id); P.wcd.push(0); P.widle.push(0); P.wang.push(P.face < 0 ? Math.PI : 0);
+  equip(P.owned[0]);
+  return true;
+}
+
+/* ================= 自动开火 =================
+   每一把各自：冷却好了 → 在自己的射程里找最近的敌人 → 转过去 → 开火。
+   射程按武器类型算：枪看弹速 × 射程，近战看刀长，撞角看冲多远，炼金看扔多远。
+   会飞一段的（子弹、榴弹、回旋刃）打提前量；炼金弹直接扔到人身上。 */
+const RANGE_OF = {
+  bullet: () => P.bspd * P.range, nade: () => P.bspd * P.range, rail: () => P.reach || 260,
+  arc: () => P.reach, beam: () => P.reach, disc: () => P.reach, mine: () => 60,
+  melee: () => P.reach + 4, guard: () => P.reach + 4, lunge: () => (P.dash || 100) + 12, brand: () => P.reach + 4,
+  alch: () => 40 + 70 * (P.range || 1) + 24, lane: () => P.reach, burst: () => P.splash,
+};
+const LEAD = { bullet: 1, nade: 1, disc: 1 };
+function autoFire(dt) {
+  if (!P.owned.length) return;                         // 武器栏空着（验收里手动开火时会这样）就什么都不动
+  const rush = G.buffs.rush > 0 ? 2 : 1;
+  for (let i = 0; i < P.owned.length; i++) {
+    P.wcd[i] -= dt; P.widle[i] += dt;
+    if (P.wcd[i] > 0) continue;
+    loadWep(P.owned[i]);
+    const R = (RANGE_OF[P.kind] || (() => 160))();
+    let tg = null, td = R;
+    for (const m of G.mobs) {
+      if (m.dead) continue;
+      const d = len(m.x - P.x, m.y - P.y) - m.r;
+      if (d < td) { td = d; tg = m; }
+    }
+    if (!tg) continue;                                 // 没人可打就不开火，冷却留着
+    let tx = tg.x, ty = tg.y;
+    if (LEAD[P.kind]) {
+      const t = len(tx - P.x, ty - P.y) / Math.max(60, P.bspd || 265);
+      tx += (tg.vx || 0) * t; ty += (tg.vy || 0) * t;
+    }
+    P.ang = Math.atan2(ty - P.y, tx - P.x);
+    P.aimD = len(tx - P.x, ty - P.y);
+    P.wang[i] = P.ang;
+    P.fireT = 0;
+    P.charged = P.charge > 0 && P.widle[i] >= 1;        // 蓄能枪机：这一把歇够 1 秒，这一发 3 倍
+    fire();
+    P.charged = false; P.widle[i] = 0;
+    // 开火函数自己设了冷却的（电弧没跳着人只歇 0.12 秒）就用它的
+    P.wcd[i] = P.fireT > 0 ? P.fireT : 1 / (P.fireRate * rush);
+  }
+  // 歇下来时 P 上留第一把的数值（HUD、反应伤害读它）。力场盾在格挡：看它自己瞄的方向。
+  if (P.owned.length) loadWep(P.owned[0]);
+  const gi = P.owned.indexOf('guard');
+  P.block = gi >= 0 ? WEAPONS.guard.block : 0;
+  P.blockAng = gi >= 0 ? P.wang[gi] : 0;
 }
 
 /* ================= 开火 ================= */
@@ -4849,7 +4969,7 @@ const FROST_HOLD = 1.0;                                // 冻多久
 const FROST_DECAY = 2.2;                               // 不补霜的话多久掉一层
 const ZONE_MAX = 4;
 function fireAlch(a) {
-  const d = 40 + 70 * (P.range || 1);                  // 扔出去的距离。太远的话你看不清落点
+  const d = Math.min(40 + 70 * (P.range || 1), P.aimD || 1e9);   // 扔出去的距离：最远这么远，近了就扔到人身上
   const tx = clamp(P.x + Math.cos(a) * d, 12, ARENA.w - 12);
   const ty = clamp(P.y + Math.sin(a) * d, 12, ARENA.h - 12);
   G.orbs = G.orbs || [];
@@ -5030,7 +5150,7 @@ function railBeam(a) {
     const crit = RNG.fx() < P.crit;
     hurtMob(m, P.dmg * (crit ? 3 : 1), dx * 3, dy * 3, P.x, P.y);
     G.wepDmg.rail = (G.wepDmg.rail || 0) + P.dmg;
-    burstFx(m.x, m.y, 7, '#c8a0ff', 150); n++;
+    burstFx(m.x, m.y, 7, '#c8a0ff', 150); flashAt(m.x, m.y, '#e6d4ff', 8); n++;
   }
   G.beams.push({ x1: P.x + dx * 8, y1: P.y + dy * 8, x2, y2, t: .16, col: P.wcol });
   if (n) Sfx.hit();
@@ -5078,7 +5198,7 @@ function fireNade(a) {
     x: P.x + Math.cos(a) * 8, y: P.y + Math.sin(a) * 8,
     vx: Math.cos(a) * P.bspd, vy: Math.sin(a) * P.bspd,
     life: P.range, dmg: P.dmg, crit: false, pierce: 0, hits: [], px: 0, py: 0, bounce: P.bounce,
-    col: P.wcol, nade: 1, prox: P.nadeProx ? 1 : 0, splash: P.splash, wep: P.wep
+    col: P.wcol, nade: 1, prox: P.nadeProx ? 1 : 0, splash: P.splash, wep: P.wep, life0: P.range
   });
   muzzle(a, 4); G.shake = Math.max(G.shake, 1.8);
   Sfx.nade();
@@ -5101,7 +5221,7 @@ function fireBeam(a0) {
     for (let i = -2; i <= 2; i++)
       G.beams.push({ x1: P.x + dx * 8, y1: P.y + dy * 8,
         x2: P.x + Math.cos(a0 + i * .2) * P.reach, y2: P.y + Math.sin(a0 + i * .2) * P.reach,
-        t: .08, col: P.wcol, thin: 1 });
+        t: .08, col: P.wcol, cut: 1 });
     if (hit && RNG.fx() < .25) Sfx.hit();
     return;
   }
@@ -5117,7 +5237,7 @@ function fireBeam(a0) {
   }
   const len2 = best ? bd : P.reach;
   G.beams.push({ x1: P.x + dx * 8, y1: P.y + dy * 8,
-    x2: P.x + dx * len2, y2: P.y + dy * len2, t: .09, col: P.wcol, thin: 1 });
+    x2: P.x + dx * len2, y2: P.y + dy * len2, t: .09, col: P.wcol, cut: 1 });
   if (best) {
     const crit = RNG.fx() < P.crit;
     hurtMob(best, P.dmg * (crit ? 3 : 1), dx * 4, dy * 4, P.x, P.y);
@@ -5166,12 +5286,19 @@ function throwDisc(a0) {
   });
 }
 
+/* 开枪和命中各给一下「闪」。画面只有 320×180，原来开枪只有几颗 1px 的火星、
+   命中只有几颗 1~2px 的碎屑 —— 打没打出去、打没打中，几乎都靠音效猜。
+   闪只活六七十毫秒，不会糊屏，但够眼睛抓到。 */
+function flashAt(x, y, col, s, life) {
+  G.parts.push({ x, y, vx: 0, vy: 0, life: life || .07, max: life || .07, s, c: col, flash: 1 });
+}
 function muzzle(a, n) {
+  flashAt(P.x + Math.cos(a) * 11, P.y + Math.sin(a) * 11, 'rgb(' + (P.wcol || '255,224,102') + ')', 5 + n * .5);
   for (let i = 0; i < n; i++) {
     const d = a + rnd(-.5, .5);
     G.parts.push({ x: P.x + Math.cos(a) * 9, y: P.y + Math.sin(a) * 9,
       vx: Math.cos(d) * rnd(50, 160), vy: Math.sin(d) * rnd(50, 160),
-      life: .12, max: .12, s: 1, c: '#ffe066' });
+      life: .12, max: .12, s: rnd(1, 2), c: '#ffe066' });
   }
 }
 
@@ -5517,7 +5644,7 @@ function update(dt) {
   if ((keys.Space || keys.ShiftLeft || TC.dash || PAD.dash) && P.dashCdT === 0) {
     TC.dash = 0; PAD.dash = 0;
     P.dashT = .17; P.dashCdT = P.dashCd;
-    const a = il > 0 ? Math.atan2(iy, ix) : P.ang;
+    const a = il > 0 ? Math.atan2(iy, ix) : (P.face < 0 ? Math.PI : 0);
     P.dvx = Math.cos(a) * 430; P.dvy = Math.sin(a) * 430;
     Sfx.dash();
     for (let i = 0; i < 14; i++) burstFx(P.x, P.y, 1, SKIN.trail, 90);
@@ -5537,30 +5664,11 @@ function update(dt) {
       if (!m.dead && len(m.x - P.x, m.y - P.y) < m.r + 9) hurtMob(m, P.dashDmg * dt * 6, 0, 0);
   }
 
-  let shooting;
-  if (TC.on) {
-    if (TC.al > 0) P.ang = Math.atan2(TC.ay, TC.ax);
-    else { const m = nearestMob(); if (m) P.ang = Math.atan2(m.y - P.y, m.x - P.x); }
-    shooting = true;                                  // 手机上不留"要不要开枪"这个决策，横竖都要打
-  } else if (PAD.on && (PAD.al > 0 || PAD.fire)) {
-    if (PAD.al > 0) P.ang = Math.atan2(PAD.ay, PAD.ax);  // 右摇杆瞄
-    else { const m = nearestMob(); if (m) P.ang = Math.atan2(m.y - P.y, m.x - P.x); }
-    shooting = PAD.al > .35 || !!PAD.fire;               // 推着右摇杆就开火，也能用扳机
-  } else {
-    const wx = mouse.x + G.cam.x, wy = mouse.y + G.cam.y;
-    P.ang = Math.atan2(wy - P.y, wx - P.x);
-    shooting = mouse.down;
-  }
-
-  P.fireT -= dt;
-  // 蓄能枪机：记着停火多久了。停够 1 秒，下一发按 3 倍算。
-  P.idleT = shooting ? 0 : P.idleT + dt;
-  if (shooting && P.fireT <= 0) {
-    P.charged = P.charge > 0 && P.idleT >= 1;
-    fire();
-    P.charged = false;
-    P.fireT = 1 / (P.fireRate * (G.buffs.rush > 0 ? 2 : 1));
-  }
+  // 身体朝向跟着走的方向；站着不动就朝最近的那个
+  if (Math.abs(P.vx) > 4) P.face = P.vx > 0 ? 1 : -1;
+  else { const m = nearestMob(); if (m && Math.abs(m.x - P.x) > 4) P.face = m.x > P.x ? 1 : -1; }
+  // 不瞄准、不按开火：带着的每一把自己打
+  autoFire(dt);
 
   // 静电场
   if (P.aura) {
@@ -5580,8 +5688,8 @@ function update(dt) {
   }
 
   // 摄像机
-  const tx = camAt(P.x - VW / 2 + (mouse.x - VW / 2) * .18, ARENA.w, VW);
-  const ty = camAt(P.y - VH / 2 + (mouse.y - VH / 2) * .18, ARENA.h, VH);
+  const tx = camAt(P.x - VW / 2, ARENA.w, VW);         // 不再往鼠标那边偏 —— 鼠标不瞄准了
+  const ty = camAt(P.y - VH / 2, ARENA.h, VH);
   G.cam.x += (tx - G.cam.x) * Math.min(1, dt * 8);
   G.cam.y += (ty - G.cam.y) * Math.min(1, dt * 8);
 
@@ -5861,43 +5969,6 @@ function update(dt) {
     }
   }
 
-  // 近战挥出去的那道弧：从一侧扫到另一侧，看得见才叫挥击
-  for (const sl of G.slashes) {
-    const k = sl.t / .17, p = 1 - k;                    // p: 0→1 挥的进度
-    const from = sl.a - sl.half * sl.dir;
-    const cur = from + sl.half * 2 * sl.dir * p;
-    const x0 = sl.x - G.cam.x, y0 = sl.y - G.cam.y;
-    for (const [w, al] of [[7, .22 * k], [2.5, .85 * k]]) {
-      ctx.strokeStyle = 'rgba(' + sl.col + ',' + al.toFixed(2) + ')'; ctx.lineWidth = w;
-      ctx.beginPath();
-      ctx.arc(x0, y0, sl.reach * (.72 + .28 * p), Math.min(from, cur), Math.max(from, cur));
-      ctx.stroke();
-    }
-    ctx.strokeStyle = 'rgba(255,255,255,' + (.8 * k).toFixed(2) + ')'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(x0, y0);
-    ctx.lineTo(x0 + Math.cos(cur) * sl.reach, y0 + Math.sin(cur) * sl.reach); ctx.stroke();
-  }
-  // 磁轨的光束
-  for (const bm of G.beams) {
-    const k = bm.t / .16;
-    ctx.strokeStyle = 'rgba(' + bm.col + ',' + (.35 * k).toFixed(2) + ')'; ctx.lineWidth = 9 * k;
-    ctx.beginPath(); ctx.moveTo(bm.x1 - G.cam.x, bm.y1 - G.cam.y); ctx.lineTo(bm.x2 - G.cam.x, bm.y2 - G.cam.y); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,' + (.9 * k).toFixed(2) + ')'; ctx.lineWidth = 2 * k;
-    ctx.beginPath(); ctx.moveTo(bm.x1 - G.cam.x, bm.y1 - G.cam.y); ctx.lineTo(bm.x2 - G.cam.x, bm.y2 - G.cam.y); ctx.stroke();
-  }
-  // 电弧链：折线加一点抖动
-  for (const ar of G.arcs) {
-    const k = ar.t / .13;
-    for (const [w, c] of [[7, 'rgba(' + ar.col + ',' + (.3 * k).toFixed(2) + ')'], [1.5, 'rgba(230,255,220,' + (.95 * k).toFixed(2) + ')']]) {
-      ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath();
-      for (let i = 0; i < ar.pts.length; i++) {
-        const [ax, ay] = ar.pts[i];
-        const jx = i ? rnd(-2, 2) : 0, jy = i ? rnd(-2, 2) : 0;
-        if (i === 0) ctx.moveTo(ax - G.cam.x, ay - G.cam.y); else ctx.lineTo(ax - G.cam.x + jx, ay - G.cam.y + jy);
-      }
-      ctx.stroke();
-    }
-  }
   // 玩家子弹
   for (const b of G.bullets) {
     b.px = b.x; b.py = b.y;
@@ -5933,6 +6004,7 @@ function update(dt) {
         if (b.elem === 'frost') addFrost(m, 1);          // 霜脉冲：子弹自己叠霜（addFrost 里会认反应）
         G.wepDmg[b.wep || 'pulse'] = (G.wepDmg[b.wep || 'pulse'] || 0) + b.dmg;
         burstFx(b.x, b.y, b.crit ? 8 : 4, b.crit ? '#ffe066' : 'rgb(' + (b.col || '69,240,255') + ')', 120);
+        flashAt(b.x, b.y, b.crit ? '#ffe066' : 'rgb(' + (b.col || '69,240,255') + ')', b.crit ? 9 : 6);   // 打中的那一下
         Sfx.hit();
         b.hits.push(m);
         if (b.hits.length > b.pierce) { b.life = 0; break; }
@@ -6071,7 +6143,7 @@ function update(dt) {
     // 力场盾：正面扇形里飞来的子弹直接弹开。判的是【子弹在你哪一边】，
     // 不是它往哪飞 —— 后者会让贴着你擦过去的子弹也算挡住，那就成了无敌。
     if (b.life > 0 && P.block && len(b.x - P.x, b.y - P.y) < 26) {
-      const rel = Math.abs(angDiff(Math.atan2(b.y - P.y, b.x - P.x), P.ang));
+      const rel = Math.abs(angDiff(Math.atan2(b.y - P.y, b.x - P.x), P.blockAng));   // 盾朝它自己瞄的那个人
       if (rel < P.block * Math.PI / 360) {
         b.life = 0;
         burstFx(b.x, b.y, 4, '#c8a0ff', 130);
@@ -6287,6 +6359,57 @@ function drawBoss(m) {
   ctx.fillStyle = d.col; ctx.fillRect(x - w / 2, y - 28, w * hp, 3);
 }
 
+/* 挥砍弧、光束、电弧。这三样原来写在 update() 里，而 render() 一上来就把整块画布涂成背景色 ——
+   等于每一帧画完马上被盖掉：磁轨、熔切光束、电弧链、雷跳、近战的挥击弧，从来没上过屏幕。
+   挪到 render 里、子弹之前画。 */
+function drawStrikes() {
+  // 近战挥出去的那道弧：从一侧扫到另一侧，看得见才叫挥击
+  for (const sl of G.slashes) {
+    const k = sl.t / .17, p = 1 - k;                    // p: 0→1 挥的进度
+    const from = sl.a - sl.half * sl.dir;
+    const cur = from + sl.half * 2 * sl.dir * p;
+    const x0 = sl.x - G.cam.x, y0 = sl.y - G.cam.y;
+    for (const [w, al] of [[7, .22 * k], [2.5, .85 * k]]) {
+      ctx.strokeStyle = 'rgba(' + sl.col + ',' + al.toFixed(2) + ')'; ctx.lineWidth = w;
+      ctx.beginPath();
+      ctx.arc(x0, y0, sl.reach * (.72 + .28 * p), Math.min(from, cur), Math.max(from, cur));
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,' + (.8 * k).toFixed(2) + ')'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x0, y0);
+    ctx.lineTo(x0 + Math.cos(cur) * sl.reach, y0 + Math.sin(cur) * sl.reach); ctx.stroke();
+  }
+  // 磁轨的光束
+  for (const bm of G.beams) {
+    // thin：雷跳、超载的细线；cut：熔切光束，按住就一直在，不跟着淡出变细
+    const k = bm.cut ? 1 : clamp(bm.t / .16, 0, 1), th = bm.thin ? .45 : bm.cut ? .7 : 1;
+    const x1 = bm.x1 - G.cam.x, y1 = bm.y1 - G.cam.y, x2 = bm.x2 - G.cam.x, y2 = bm.y2 - G.cam.y;
+    ctx.save(); ctx.lineCap = 'round';
+    for (const [w, c] of [[11, 'rgba(' + bm.col + ',' + (.3 * k).toFixed(2) + ')'],
+                          [4, 'rgba(' + bm.col + ',' + (.85 * k).toFixed(2) + ')'],
+                          [1.6, 'rgba(255,255,255,' + (.95 * k).toFixed(2) + ')']]) {
+      ctx.strokeStyle = c; ctx.lineWidth = Math.max(1, w * th * (.4 + .6 * k));
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    }
+    ctx.restore();
+    if (!bm.thin) orb(x2, y2, (bm.cut ? 6 + Math.sin(G.t * 40) * 1.5 : 8 * k), 'rgba(' + bm.col + ',.8)');   // 光束的尽头亮一下（熔切的在抖，像在烧）
+  }
+  // 电弧链：折线加一点抖动
+  for (const ar of G.arcs) {
+    const k = ar.t / .13;
+    for (let i = 1; i < ar.pts.length; i++) orb(ar.pts[i][0] - G.cam.x, ar.pts[i][1] - G.cam.y, 7, 'rgba(' + ar.col + ',.7)', k);
+    for (const [w, c] of [[9, 'rgba(' + ar.col + ',' + (.3 * k).toFixed(2) + ')'], [3, 'rgba(' + ar.col + ',' + (.85 * k).toFixed(2) + ')'],
+                          [1.2, 'rgba(240,255,235,' + (.95 * k).toFixed(2) + ')']]) {
+      ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath();
+      for (let i = 0; i < ar.pts.length; i++) {
+        const [ax, ay] = ar.pts[i];
+        const jx = i ? rnd(-2, 2) : 0, jy = i ? rnd(-2, 2) : 0;
+        if (i === 0) ctx.moveTo(ax - G.cam.x, ay - G.cam.y); else ctx.lineTo(ax - G.cam.x + jx, ay - G.cam.y + jy);
+      }
+      ctx.stroke();
+    }
+  }
+}
 function render() {
   const sh = G.shake * OPT.shake;                    // 设置里可以调到 0
   const ox = sh > .05 ? rnd(-sh, sh) : 0, oy = sh > .05 ? rnd(-sh, sh) : 0;
@@ -6373,11 +6496,15 @@ function render() {
     ctx.restore();
   }
   // 飞行中的炼金弹
-  if (G.orbs) for (const o of G.orbs) {
+  if (G.orbs) for (const o of G.orbs) {               // 抛出去的炼金弹：有影子、有弧线，落点一眼看得出
     const x = o.x - G.cam.x, y = o.y - G.cam.y;
-    orb(x, y, 7, 'rgba(' + o.col + ',.5)');
+    const h = Math.sin(clamp(o.t / o.fly, 0, 1) * Math.PI) * 12;
+    ctx.globalAlpha = .35; ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(x, y + 2, 4, 1.8, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+    orb(x, y - h, 10, 'rgba(' + o.col + ',.6)');
     ctx.fillStyle = 'rgb(' + o.col + ')';
-    ctx.fillRect((x | 0) - 2, (y | 0) - 2, 4, 4);
+    ctx.fillRect((x | 0) - 3, (y - h | 0) - 3, 6, 6);
+    ctx.fillStyle = '#fff'; ctx.fillRect((x | 0) - 1, (y - h | 0) - 1, 2, 2);
   }
 
   // 货梯：地上的东西，画在敌人之前。站上去变绿，外圈是进度
@@ -6490,12 +6617,14 @@ function render() {
     const x = mn.x - G.cam.x, y = mn.y - G.cam.y;
     const armed = mn.arm <= 0;
     const bl = armed ? .55 + .45 * Math.sin(G.t * 7) : (((G.t * 12) | 0) % 2 ? 1 : .25);
-    orb(x, y, armed ? 9 : 6, armed ? 'rgba(255,47,79,' + (.3 * bl).toFixed(2) + ')' : 'rgba(255,224,102,.28)');
+    orb(x, y, armed ? 12 : 8, armed ? 'rgba(255,47,79,' + (.45 * bl).toFixed(2) + ')' : 'rgba(255,224,102,.4)');
     ctx.fillStyle = '#2a2018';
-    ctx.beginPath(); ctx.ellipse(x, y + 1, 4.5, 2.4, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x, y + 1, 6, 3.2, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = armed ? 'rgba(255,47,79,.8)' : 'rgba(255,224,102,.7)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(x, y + 1, 6, 3.2, 0, 0, TAU); ctx.stroke();
     ctx.fillStyle = armed ? '#ff2f4f' : '#ffe066';
     ctx.globalAlpha = bl;
-    ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+    ctx.fillRect(x - 2, y - 2, 4, 4);
     ctx.globalAlpha = 1;
     if (armed) {                                       // 待发的画一圈作用范围，别踩自己的雷
       ctx.strokeStyle = 'rgba(255,47,79,' + (.18 * bl).toFixed(2) + ')'; ctx.lineWidth = 1;
@@ -6505,12 +6634,14 @@ function render() {
   // 回旋刃：转着的绿环
   for (const dc of G.discs) {
     const x = dc.x - G.cam.x, y = dc.y - G.cam.y;
-    orb(x, y, 10, 'rgba(124,255,79,.35)');
+    orb(x, y, 13, 'rgba(124,255,79,.4)');
     ctx.save(); ctx.translate(x, y); ctx.rotate(dc.spin);
+    ctx.strokeStyle = 'rgba(124,255,79,.35)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(0, 0, 7, 0, TAU); ctx.stroke();
     ctx.strokeStyle = '#7cff4f'; ctx.lineWidth = 2;
     for (let i = 0; i < 3; i++) {
       const a0 = i * TAU / 3;
-      ctx.beginPath(); ctx.arc(0, 0, 5, a0, a0 + .75); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, 7, a0, a0 + 1.1); ctx.stroke();
     }
     ctx.fillStyle = '#eaffe0'; ctx.fillRect(-1, -1, 2, 2);
     ctx.restore();
@@ -6660,18 +6791,35 @@ function render() {
     }
   }
 
+  drawStrikes();
   // 玩家子弹
+  // 原来拖的尾巴是「上一帧到这一帧」那一小段 —— 265px/s 的子弹一帧只走 4px，
+  // 加上 1px 的白芯，在 320×180 上就是一个点。尾巴改成按速度算的固定长度，三层：外光、本色、白芯。
   for (const b of G.bullets) {
     const x = b.x - G.cam.x, y = b.y - G.cam.y;
-    const px = b.px - G.cam.x, py = b.py - G.cam.y;
     const col = b.crit ? '255,224,102' : (b.col || '69,240,255');
-    ctx.strokeStyle = 'rgba(' + col + ',.32)';
-    ctx.lineWidth = b.crit ? 4 : 3;
-    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,.92)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke();
-    orb(x, y, b.crit ? 6 : 4, 'rgba(' + col + ',.75)');
+    if (b.nade) {                                      // 榴弹：抛出去的一颗球，地上有影子，引信在闪
+      const k = b.life0 ? clamp(1 - b.life / b.life0, 0, 1) : .5;
+      const h = Math.sin(k * Math.PI) * 10;            // 抛物线的高度 —— 读得出它是越过前排落下去的
+      ctx.globalAlpha = .35; ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.ellipse(x, y + 2, 3.5, 1.6, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+      orb(x, y - h, 7, 'rgba(' + col + ',.55)');
+      ctx.fillStyle = 'rgb(' + col + ')'; ctx.fillRect((x - 2) | 0, (y - h - 2) | 0, 4, 4);
+      ctx.fillStyle = ((G.t * 14) | 0) % 2 ? '#fff' : '#ff2f4f'; ctx.fillRect((x - .5) | 0, (y - h - 3) | 0, 1, 1);
+      continue;
+    }
+    const sp = len(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp;
+    const big = b.crit ? 1.5 : 1;
+    const tail = clamp(sp * .045, 6, 14) * big;
+    ctx.save(); ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(' + col + ',.35)'; ctx.lineWidth = 4 * big;
+    ctx.beginPath(); ctx.moveTo(x - ux * tail, y - uy * tail); ctx.lineTo(x, y); ctx.stroke();
+    ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = 2 * big;
+    ctx.beginPath(); ctx.moveTo(x - ux * tail * .7, y - uy * tail * .7); ctx.lineTo(x, y); ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x - ux * tail * .35, y - uy * tail * .35); ctx.lineTo(x, y); ctx.stroke();
+    ctx.restore();
+    orb(x, y, 5 * big, 'rgba(' + col + ',.8)');
   }
 
   // 静电场
@@ -6726,9 +6874,6 @@ function render() {
       ctx.globalAlpha = 1;
       drawPlayer(x, y);
     }
-    // 枪口指示
-    const gx = x + Math.cos(P.ang) * 11, gy = y + Math.sin(P.ang) * 11;
-    orb(gx, gy, 5, 'rgba(255,224,102,.5)');
     // 血量画在玩家身上。HUD 左上角那条谁也不会看 —— 打起来眼睛一直在自己身上。
     // 满血时不画，免得平时糊一圈；一掉血就出来，越低越显眼。
     const hf = clamp(P.hp / P.maxhp, 0, 1);
@@ -6762,7 +6907,14 @@ function render() {
   for (const p of G.parts) {
     const a = p.life / p.max;
     const x = p.x - G.cam.x, y = p.y - G.cam.y;
-    if (p.ring) {
+    if (p.flash) {                                     // 开枪 / 命中的闪：一团光 + 白芯，越来越小
+      orb(x, y, p.s * (.55 + .45 * a), p.c, .9 * a);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#fff';
+      const c = Math.max(1, Math.round(p.s * .35 * a));
+      ctx.fillRect((x - c / 2) | 0, (y - c / 2) | 0, c, c);
+      ctx.globalAlpha = 1;
+    } else if (p.ring) {
       ctx.globalAlpha = a;
       ctx.strokeStyle = p.c; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(x, y, p.s * (1.2 - a), 0, TAU); ctx.stroke();
@@ -6777,16 +6929,7 @@ function render() {
 
   drawOffscreenMarkers();
 
-  // 准心
-  const mx = mouse.x | 0, my = mouse.y | 0;
-  ctx.strokeStyle = 'rgba(69,240,255,.95)'; ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(mx - 8, my + .5); ctx.lineTo(mx - 3, my + .5);
-  ctx.moveTo(mx + 4, my + .5); ctx.lineTo(mx + 9, my + .5);
-  ctx.moveTo(mx + .5, my - 8); ctx.lineTo(mx + .5, my - 3);
-  ctx.moveTo(mx + .5, my + 4); ctx.lineTo(mx + .5, my + 9);
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(255,46,166,.9)'; ctx.fillRect(mx, my, 1, 1);
+  // 准心拿掉了：全自动瞄准之后鼠标只管菜单
 
   ctx.restore();
   drawMinimap();
@@ -6903,15 +7046,33 @@ function syncHud() {
   const st = el('scrapTxt');
   if (st) st.textContent = G.scrap;
   el('waveTag').textContent = G.phase === 'evac' ? 'EVAC' : 'WAVE ' + String(Math.max(1, G.wave)).padStart(2, '0');
-  const wt = el('wepTxt');
-  // Q▸ 是给键盘看的提示。触屏有专门的换枪圆键，写 Q 只会让人去找 Q 在哪
-  if (wt) wt.textContent = WEAPONS[P.wep].n + (!isTouch && P.owned.length > 1 ? '  Q▸' : '');
-  const wb = el('btnWep');
-  if (wb) {
-    const W = WEAPONS[P.wep];
-    wb.textContent = W.s || W.n;                       // 圆按钮只放得下两个字
-    wb.style.setProperty('--wc', W.col);
-    wb.classList.toggle('lock', P.owned.length < 2);   // 只有一把枪 → 置灰
+  syncWepSlots();
+  const hf = el('hpFill');
+  if (hf) hf.classList.toggle('low', P.hp / P.maxhp < .34);
+}
+// 武器栏六格：带着的写两字简称、染本色，空格画虚线。武器有变化才重建，冷却每帧只改一个变量。
+let WS_SIG = '';
+function syncWepSlots() {
+  const box = el('wepSlots');
+  if (!box || !P) return;
+  const sig = P.owned.join();
+  if (sig === WS_SIG && box.children.length === MAX_WEPS) return;
+  WS_SIG = sig;
+  let h = '';
+  for (let i = 0; i < MAX_WEPS; i++) {
+    const id = P.owned[i], W = id && WEAPONS[id];
+    h += W ? `<span class="ws" style="--c:${W.col}" title="${W.n}">${W.s || W.n}<i></i></span>` : '<span class="ws empty">··</span>';
+  }
+  box.innerHTML = h;
+}
+function updateWepCd() {
+  const box = el('wepSlots');
+  if (!box || !P) return;
+  for (let i = 0; i < P.owned.length; i++) {
+    const c = box.children[i]; if (!c) continue;
+    const per = 1 / Math.max(.05, WEAPONS[P.owned[i]].rate * ((P.mul && P.mul.rate) || 1));
+    const v = clamp(1 - (P.wcd[i] || 0) / per, 0, 1).toFixed(2);
+    if (c.__r !== v) { c.__r = v; c.style.setProperty('--r', v); }
   }
 }
 function updateDash() {
@@ -6941,7 +7102,7 @@ function updateBuffs() {
   }
 }
 function updateCombo() {
-  updateDash();
+  updateDash(); updateWepCd();
   updateBuffs();
   syncWave();          // 每帧走一次：挂在 syncHud 上的话，空档期没有击杀就不会刷新
   const w = el('comboWrap');
@@ -7016,7 +7177,7 @@ function start(seedOverride, rs) {
     P.hp = P.maxhp;
     // 起手武器要走 gainWep —— equip 只管换手，不管「拿到」。
     // 买成起手的那把会顶掉同槽的默认枪（目前只有远程槽有默认枪）。
-    gainWep(PROF.wep && (PROF.wep === 'pulse' || PROF.bought[PROF.wep]) ? PROF.wep : 'pulse');
+    setWeps([PROF.wep && (PROF.wep === 'pulse' || PROF.bought[PROF.wep]) ? PROF.wep : 'pulse']);
   }
   if (rs) {
     // 换场地会重新生成装饰，而装饰也走刷怪流 —— 所以先换场地，最后才把随机流拨回存档那一格
@@ -7193,17 +7354,15 @@ function howToHTML() {
   + sec('怎 么 操 作',
     '<div class="honly-kb">' + dl([
       ['W A S D', '移动'],
-      ['鼠标', '瞄准，按住左键开火'],
       ['空格', '冲刺 —— 冲的那一下打不到你'],
-      ['1-6 / Q', '换枪'],
       ['P', '暂停。暂停里能看这一局的构筑、货箱、敌人图鉴'],
-    ]) + '<p>手柄也能用：左摇杆走，右摇杆瞄，RT 开火，B 冲刺，X 换枪。</p></div>'
+    ]) + '<p><b>不用瞄准、不用按开火</b>：带着的每一把枪自己找射程里最近的敌人打，你只管走位和冲刺。</p>'
+    + '<p>手柄也能用：左摇杆走，B 冲刺，START 暂停。</p></div>'
     + '<div class="honly-tc">' + dl([
       ['左半屏拖动', '移动'],
-      ['右半屏拖动', '瞄准，松手前一直开火'],
-      ['右下圆键', '上面那个冲刺，下面那个换枪'],
+      ['右下圆键', '冲刺 —— 冲的那一下打不到你'],
       ['右上圆键', '暂停。暂停里能看这一局的构筑、货箱、敌人图鉴'],
-    ]) + '<p>横过来拿手机，左右看得更宽。</p></div>')
+    ]) + '<p><b>枪全自动</b>：带着的每一把自己找射程里最近的敌人打，你只管走位。横过来拿手机，左右看得更宽。</p></div>')
 
   + sec('一 局 是 怎 么 走 的',
     '<ol class="hstep">'
@@ -7238,9 +7397,9 @@ function howToHTML() {
     + `<p>也可以在标题页花 ${WEP_COST} 废钢把它买成<b>起手武器</b>，开局就拿着。</p>`
     + '<p>每把枪改的是<b>怎么打</b>，不是数值大小：霰弹有后坐力、磁轨一枪穿一整排、'
     + '布雷器不用瞄、改成算他们会往哪走。</p>'
-    + '<p><b>三个槽，各带一把</b>：远程、近战、炼金。抽到同类的换装卡会<b>替换</b>那个槽里的枪 ——'
-    + '带满十四把等于不用选，所以每张换装卡都是个决定。'
-    + `按 <b>${isTouch ? '右下圆键' : '1 / 2 / 3'}</b> 在三把之间切换。</p>`
+    + `<p><b>武器栏 ${MAX_WEPS} 格</b>：远程、近战、炼金随便配，同一把也能带两把（两把霰弹就是两倍的霰弹）。`
+    + '带着的每一把<b>同时自动开火</b>，各打各射程里最近的那个 —— 刀只砍贴脸的，磁轨打远处排队的。'
+    + `满 ${MAX_WEPS} 把之后换装卡就不再发了。</p>`
     + '<p><b>炼金</b>那一路不靠杀人，直接输出只有远程的一到三成，价值全在后果上。'
     + '三种属性，每种两种投法：</p>'
     + dl([
@@ -7756,6 +7915,7 @@ el('shopItems').onclick = e => {
 };
 el('resumeBtn').onclick = () => setPaused(false);
 el('giveupBtn').onclick = armGiveup;
+el('quitBtn').onclick = quitSave;
 el('rerollBtn').onclick = doReroll;
 // 原来是 onclick = start —— 点击事件被当成 seedOverride 传进去，`事件 >>> 0` 是 0，
 // 于是从标题页点开始的每一局都是同一个种子：同一批怪、同一批三选一。
@@ -7851,7 +8011,7 @@ fit();
 // 验收钩子。整个游戏包在 IIFE 里，没有它就没法用脚本摆敌人位置、验精灵和武器手感，
 // 而这些正是肉眼最难看准的东西。市井那边也是把全局摊开给 tools/verify-*.js 用的，
 // 这里保持一致。只读内部状态，不影响玩法。
-window.NS = { G, get P() { return P; }, start, saveRun, loadRun, clearRun, syncCont, RUN_KEY, spawn, equip, cycleWep, fire,
+window.NS = { G, get P() { return P; }, start, saveRun, loadRun, clearRun, syncCont, RUN_KEY, spawn, equip, fire,
   update, render, WEAPONS, WEP_ORDER, SPR, MOB, UPGRADES, frame, TC, nearestMob,
   gameOver, runReport, topWeapon, topUpgrades, loadBest, saveBest, SAVE_KEY, bestOf, get BEST() { return BEST; },
   PROF, PROF_DEF, PROF_KEY, MILES, CHASSIS, WEP_COST, checkMiles, nextMile, bankRun, buyWep, pickWep, pickChassis,
@@ -7873,7 +8033,7 @@ window.NS = { G, get P() { return P; }, start, saveRun, loadRun, clearRun, syncC
   syncHQ, showHQ, syncPity, togglePity, syncPet, syncStore, renderStoreLog, chainText, chainSteps, shopList, shopCost, intelText,
   showTab, bagHTML, syncTags,
   HOWTO, firstTime, howToHTML, showHow, ELEM, milesHTML, mileCat, mileProg, showMiles,
-  FROST_MAX, FROST_HOLD, addFrost, voltJump, onView, sniperStand, EVOS, evoReady, evoCard, evoOn, evoElem, fireArc, eliteChance, ROUTES, rollRoutes, openRoute, pickRoute, routeNow, rMul, needRoute, EVAC_NEED, EVAC_R, startEvac, evacSpot, REACT, HAS, react, REACT_CD,
+  FROST_MAX, FROST_HOLD, addFrost, voltJump, quitSave, quitHint, PROF_FOLD, syncWepSlots, MAX_WEPS, setWeps, autoFire, loadWep, RANGE_OF, onView, sniperStand, EVOS, evoReady, evoCard, evoOn, evoElem, fireArc, eliteChance, ROUTES, rollRoutes, openRoute, pickRoute, routeNow, rMul, needRoute, EVAC_NEED, EVAC_R, startEvac, evacSpot, REACT, HAS, react, REACT_CD,
   gainWep, slotOf, inSlot, SLOTS,
   sweepDrops, sweepNote, gainXp,
   WRIG,

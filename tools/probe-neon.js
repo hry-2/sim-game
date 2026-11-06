@@ -70,15 +70,11 @@ function play(seed, maxWave, dg, hq) {
     if (G.state === 'levelup') {
       // 按一个固定优先级拿牌。之前是无脑拿第一张，结果同一套数值下
       // 有的种子到 21 波、有的第 2 波就死 —— 那测的是运气不是曲线。
-      // 机器人不会用布雷器 —— 那把枪的本事是「算他们会走哪」，
-      // 而它只会瞄着打。换上去之后一发都打不死，直接卡住。
-      // 这是量具的能力边界，不是那把枪的问题：有些武器的技巧是位置性的，
-      // 机器人评估不了。所以让它跳过。
-      if (G.offer.length > 1) {
-        const usable = G.offer.filter(u => u.id !== 'w_mine');
-        if (usable.length) G.offer = usable;
-      }
+      // 武器栏全自动之后，布雷器也是自己放 —— 不再需要跳过它。
+      // 拿牌：武器栏没满就先拿枪（土豆兄弟的玩家都是先把格子填满），然后才是数值词条。
       const pri = ['dmg', 'rof', 'hp', 'count', 'spd', 'pierce', 'leech', 'crit', 'mag', 'shield'];
+      const gun = P.owned.length < NS.MAX_WEPS && G.offer.find(u => u.wep);
+      if (gun) { NS.takeUpgrade(gun); continue; }
       if (!G.offer.length) { NS.G.state = 'play'; continue; }   // 兜底，正常不该发生
       const pick = G.offer.slice().sort((a, b) => {
         const ia = pri.indexOf(a.id), ib = pri.indexOf(b.id);
@@ -127,14 +123,7 @@ function play(seed, maxWave, dg, hq) {
     // 所以三把近战的平衡数据一直是空的（`full` 档平均只到 7.3 波，
     // 一多半是它抽到刀之后自己饿死的）。
     // 近战就贴到砍得到的距离上；人越多贴得越浅，别一头扎进堆里。
-    // 三槽之后，抽到换装卡会自动换到新枪上 —— 机器人可能被塞了一把
-    // 冷却 2 秒、伤害 6 的炼金武器，然后拿着它打完整局。
-    // 它不会「用炼金摆盘再切回来打」（那需要读懂战场，它读不懂），
-    // 所以默认切回远程槽。**这是量具的能力边界：炼金这一路它测不了。**
-    if (P.owned.length > 1) {
-      const rng = P.owned.find(id => NS.slotOf(id) === 'range');
-      if (rng && NS.WEAPONS[P.wep].slot === 'magic') NS.equip(rng);
-    }
+    // 武器栏全自动：不用替它切枪、也不用替它瞄。站位按第一把（P 上歇着的是第一把的数值）。
     const MELEE = { melee: 1, lunge: 1, guard: 1 };
     const isMelee = !!MELEE[P.kind];
     // 站在自己射程的【外沿】，不是往里钻。第一版写的是 reach*0.7，
