@@ -497,6 +497,42 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   .ctip{font-size:10px;line-height:1.7;color:#5d7392;max-width:520px;margin:7px auto 0}
   .ctip b{color:#8fa4c6;font-weight:600}
   #hqBox .hint b{color:var(--amber);font-weight:600;font-size:12px}
+  /* 据点顶栏：返回 · 三块资源（像素图标 + 大数字 + 小字说明）· 精炼。原来是一行灰字夹两个数 */
+  #hqBox .hqbar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;
+    width:100%;max-width:980px;padding:8px 10px;border:1px solid #22304f;
+    background:linear-gradient(180deg,rgba(14,20,38,.98),rgba(6,9,18,.98));box-shadow:0 1px 0 #0b1120,0 8px 18px rgba(0,0,0,.35)}
+  .hqres{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+  .rc{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 8px;min-width:96px;
+    background:rgba(8,12,24,.9);border:1px solid #1b2742;border-radius:3px}
+  .rc .pi{width:22px;height:22px;flex:none;filter:drop-shadow(0 0 4px rgba(255,179,71,.35))}
+  .rc:nth-child(3) .pi{filter:drop-shadow(0 0 4px rgba(255,46,166,.4))}
+  .rc .rv{display:flex;flex-direction:column;line-height:1.05}
+  #hqBox .hqbar .rc b{font-family:var(--disp);font-size:15px;color:var(--amber);letter-spacing:.04em;text-shadow:0 0 10px rgba(255,179,71,.35)}
+  #hqBox .hqbar .rc:nth-child(2) b{color:#ffd34d}
+  #hqBox .hqbar .rc:nth-child(3) b{color:#ff8ecb;text-shadow:0 0 10px rgba(255,46,166,.35)}
+  .rc small{font-size:8px;color:#5d6b88;letter-spacing:.14em;margin-top:3px}
+  .rc b.bump{animation:rcbump .45s ease-out}
+  @keyframes rcbump{0%{transform:scale(1.35);color:#fff}100%{transform:scale(1)}}
+  @media (prefers-reduced-motion:reduce){.rc b.bump{animation:none}}
+  .rc b{display:inline-block;transform-origin:left center}
+  .hqback{font:inherit;font-size:10px;letter-spacing:.12em;color:#8fa4c6;background:none;border:1px solid #22304f;
+    padding:8px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  @media (hover:hover){.hqback:hover{color:#cfe8ff;border-color:var(--cyan)}}
+  #hqBox .chip.refine{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 14px;
+    border-color:#5a4a20;background:linear-gradient(180deg,rgba(60,44,12,.85),rgba(28,20,6,.9))}
+  #hqBox .chip.refine b{color:#ffd34d;font-size:10px;letter-spacing:.14em}
+  #hqBox .chip.refine small{display:flex;align-items:center;gap:3px;font-size:9px;color:#c8a860;letter-spacing:.04em}
+  #hqBox .chip.refine .pi{width:11px;height:11px}
+  #hqBox .chip.refine.lock{background:rgba(10,14,24,.8);border-color:#182541}
+  #hqBox .chip.refine.lock b,#hqBox .chip.refine.lock small{color:#3e4c63}
+  /* 手机：一行放不下 —— 资源占满第一行，返回和精炼排第二行 */
+  @media (max-width:560px){
+    #hqBox .hqbar{grid-template-columns:auto 1fr;grid-template-areas:"res res" "back ref";row-gap:8px}
+    .hqres{grid-area:res;flex-wrap:nowrap;gap:5px} .hqback{grid-area:back} #hqBox .chip.refine{grid-area:ref}
+    .rc{min-width:0;flex:1;padding:4px 6px;gap:5px} .rc .pi{width:18px;height:18px}
+    #hqBox .hqbar .rc b{font-size:13px}
+  }
+
   /* 手机上据点是一条 1500px 的长滚动，而这里每一个决定都是「买不买得起」。
      钱一滚出视野就得来回翻，所以把它钉在顶上。
      必须是实底 —— 后面一排排建筑会直接透上来。 */
@@ -504,8 +540,7 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   #hqBox .hint{position:sticky;top:-18px;z-index:3;background:rgba(6,9,18,.97);
     padding:8px 14px;border:1px solid #1b2742}
   /* 手机上 390 宽放不下一行：各项自己不折（原来「废钢」「返回」被折成竖排），放不下就整项换行 */
-  #hqBox .hint{flex-wrap:wrap;justify-content:center;row-gap:8px}
-  #hqBox .hint .res,#hqBox .hint .chip{white-space:nowrap}
+  #hqBox .hint .chip,.hqback{white-space:nowrap}
   body.touch #hqBox .hint{
     position:sticky;top:0;z-index:3;justify-content:center;
     margin:0 0 12px;
@@ -551,7 +586,9 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   /* 面板标题已经写了是哪一处，这几块自己的小标题就重复了；装配台、义体车间下面那第二块还留着 */
   .hqp[data-p=stall] > .hqh,.hqp[data-p=board] > .hqh,.hqp[data-p=kit] > .hqh,.hqp[data-p=build] > .hqh,.hqp[data-p=kennel] > .hqh{display:none}
   .ctip{font-family:inherit;font-size:10px;background:none;border:0;cursor:pointer;display:block}
-  #hqView{cursor:pointer;box-shadow:none}
+  /* 手机浏览器点可点元素会蒙一层蓝（tap highlight），整条街一点就变蓝 —— 选中已经有橙框了，关掉它 */
+  #hqView,.hqstreet,#hqTags{cursor:pointer;box-shadow:none;-webkit-tap-highlight-color:transparent}
+  .hqstreet{cursor:default}
   @media (hover:hover){.ctip:hover{color:#cfe8ff}}
   .hqh{font-family:var(--disp);font-size:9px;color:#54648a;letter-spacing:.16em;margin-bottom:7px}
   /* 五栏原来长得一模一样，整屏就是一条列表。给每栏标题挂个进度，
@@ -926,9 +963,15 @@ img{max-width:100%}[hidden]{display:none!important}</style>
 
   <div id="hqBox">
     <div class="head">据 点</div>
-    <div class="hint"><span class="res">废钢 <b id="hqScrap">0</b> · 精炼钢 <b id="hqIngot">0</b></span>
-      <button class="chip" id="hqRefine">精 炼</button>
-      <button class="chip" id="hqBack2">返 回</button></div>
+    <div class="hint hqbar">
+      <button class="hqback" id="hqBack2">‹ 返 回</button>
+      <div class="hqres">
+        <span class="rc" title="废钢：盖楼、改价都用它"><svg class="pi" viewBox="0 0 9 9" shape-rendering="crispEdges"><path fill="#7a4a12" d="M2 0h5v1h1v1h1v5h-1v1h-1v1h-5v-1h-1v-1h-1v-5h1v-1h1z"/><path fill="#ffb347" d="M2 1h5v1h1v5h-1v1h-5v-1h-1v-5h1z"/><path fill="#ffe066" d="M2 1h3v1h-2v2h-1v-2z"/><path fill="#7a4a12" d="M4 3h1v3h-1z"/></svg><span class="rv"><b id="hqScrap">0</b><small>废 钢</small></span></span>
+        <span class="rc" title="精炼钢：装改装件用"><svg class="pi" viewBox="0 0 9 9" shape-rendering="crispEdges"><path fill="#7a5a10" d="M2 2h5v1h1v1h1v4h-9v-4h1v-1h1z"/><path fill="#ffd34d" d="M2 3h5v1h1v3h-7v-3h1z"/><path fill="#fff2b0" d="M2 3h4v1h-4z"/><path fill="#c89a20" d="M1 6h7v1h-7z"/></svg><span class="rv"><b id="hqIngot">0</b><small>精 炼 钢</small></span></span>
+        <span class="rc" title="名声：决定每天来几位客人"><svg class="pi" viewBox="0 0 9 9" shape-rendering="crispEdges"><path fill="#a01f6a" d="M4 0h1v2h1v1h3v1h-1v1h-1v2h1v2h-1v-1h-1v-1h-1v1h-1v1h-1v-2h1v-2h-1v-1h-1v-1h3v-1h1z"/><path fill="#ff2ea6" d="M4 1h1v2h1v1h2v1h-1v1h-1v1h-3v-1h-1v-1h-1v-1h2v-1h1z"/><path fill="#ff9ad2" d="M4 2h1v2h-1z"/></svg><span class="rv"><b id="hqFame">0</b><small>名 声</small></span></span>
+      </div>
+      <button class="chip refine" id="hqRefine">精 炼</button>
+    </div>
     <div class="hqstreet" id="hqStreet"><div class="hqsw"><canvas id="hqView" width="400" height="170"></canvas><div id="hqTags"></div></div></div>
     <div class="chain" id="hqChain"></div>
     <div id="hqPanel">
@@ -8663,9 +8706,18 @@ function skipStore() {                                  // 点一下画面直接
   drawStore();
 }
 // 显示用的废钢数。放动画的时候要减掉「还没走到的那几笔」。
+// 顶栏的数字一变就跳一下：钱进账、炼出一块钢，眼睛得抓得到
+const COIN_I = '<svg class="pi" viewBox="0 0 9 9" shape-rendering="crispEdges"><path fill="#7a4a12" d="M2 0h5v1h1v1h1v5h-1v1h-1v1h-5v-1h-1v-1h-1v-5h1v-1h1z"/><path fill="#ffb347" d="M2 1h5v1h1v5h-1v1h-5v-1h-1v-5h1z"/><path fill="#ffe066" d="M2 1h3v1h-2v2h-1v-2z"/><path fill="#7a4a12" d="M4 3h1v3h-1z"/></svg>', INGOT_I = '<svg class="pi" viewBox="0 0 9 9" shape-rendering="crispEdges"><path fill="#7a5a10" d="M2 2h5v1h1v1h1v4h-9v-4h1v-1h1z"/><path fill="#ffd34d" d="M2 3h5v1h1v3h-7v-3h1z"/><path fill="#fff2b0" d="M2 3h4v1h-4z"/><path fill="#c89a20" d="M1 6h7v1h-7z"/></svg>';
+function bump(e, v) {
+  const t = String(v);
+  if (e.textContent === t) return;
+  const was = e.textContent;
+  e.textContent = t;
+  if (was !== '' && was !== '0' && e.classList) { e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump'); }
+}
 function showScrap() {
   const e = el('hqScrap');
-  if (e) e.textContent = PROF.scrap - (SCENE.pend | 0);
+  if (e) bump(e, PROF.scrap - (SCENE.pend | 0));
 }
 // 货摊那块小画布取消了：卖货的表演直接画在街上的货摊前
 function drawStore() { drawView(); }
@@ -8742,10 +8794,11 @@ function syncHQ() {
   const bb = el('hqBuild'), mb = el('hqMods');
   if (!bb) return;
   showScrap();                                         // 放动画时显示的是「已经到账的那部分」
-  el('hqIngot').textContent = PROF.ingot | 0;
+  bump(el('hqIngot'), PROF.ingot | 0);
   const r = refineRate();
   const rb = el('hqRefine');
-  rb.textContent = r ? '精 炼 · ' + r + ' → 1' : '精 炼 · 未 解 锁';
+  rb.innerHTML = r ? `<b>精 炼</b><small>${r} ${COIN_I} → 1 ${INGOT_I}</small>` : '<b>精 炼</b><small>先盖精炼炉</small>';
+  { const f = el('hqFame'); if (f) bump(f, fame()); }
   rb.classList.toggle('lock', !r || PROF.scrap < r);
   // 栏目标题上挂进度：五栏原来长得一模一样，整屏就是一条列表，
   // 「这栏我还有没有事可做」得一行行读下去才知道。
