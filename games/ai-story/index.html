@@ -1715,8 +1715,11 @@ const GENDER_WORDS = {
      ['师兄','师姐'],['师弟','师妹'],['男人','女人'],['少年','少女'],['男孩','女孩'],['未婚夫','未婚妻'],['丈夫','妻子'],
      ['男主','女主'],['男配','女配'],['哥哥','姐姐'],['弟弟','妹妹'],['父亲','母亲'],['儿子','女儿']],
 };
-// 全女世界：人物的身份、性格、秘密里写成男性的称谓换成女性（名字不动，靠名字认人）
-const castText = t => game && game.setup.allFemale ? genderize(t, 'F') : String(t ?? '');
+// 全女世界：人物的身份、性格、秘密、世界设定里写成男性的称谓和“他”换成女性（名字不动，靠名字认人）。
+// “他”只换代词：其他、吉他、他乡、他日、他人、他处、他物、他国不动
+const femPronoun = t => String(t ?? '').replace(/他们/g, '她们').replace(/(^|[^其吉])他(?![乡日人处物国])/g, '$1她');
+const femText = t => femPronoun(genderize(t, 'F'));
+const castText = t => game && game.setup.allFemale ? femText(t) : String(t ?? '');
 const genderize = (text, g) => (GENDER_WORDS[g] || []).reduce((t, [a, b]) => t.split(a).join(b), String(text ?? ''));
 const curGender = () => genderKey(game && (game.setup.gender || (game.setup.allFemale ? '女' : '')));
 const lvTitle = (R, lv) => { const g = curGender(), list = (g === 'M' && R.titlesM) || R.titles; return genderize(list[Math.min(lv - 1, list.length - 1)], g); };
@@ -2070,11 +2073,16 @@ Lv${st.lv}「${lvTitle(R, st.lv)}」 经验 ${st.exp}/${expNeed(st.lv)}｜${R.hp
 
 // 固定的部分放前面、每回合变的放最后：支持前缀缓存的服务商能复用前半段，输入更便宜
 function systemPrompt(){
+  const p = buildSystemPrompt();
+  // 全女世界：规则里泛指人物的“他”也换成“她”，免得说书人被带偏
+  return game.setup.allFemale ? femPronoun(p) : p;
+}
+function buildSystemPrompt(){
   const s = game.setup, R = rules(), npcs = curState().npcs || [];
   return `你是一位经验丰富的文字冒险游戏主持人（说书人），用简体中文主持一场单人互动小说。
 
 【世界】
-${s.world || '由你决定一个有趣的世界。'}
+${castText(s.world) || '由你决定一个有趣的世界。'}
 
 【主角】
 名字：${s.name || '还没有，由你起一个贴合世界的名字，并写进状态块的 name'}
@@ -2619,7 +2627,7 @@ function prologueHtml(){
   if (!s.world && !s.backstory) return '';
   const who = [s.name, s.gender, s.role, s.origin].filter(Boolean).join(' · ');
   return `<details class="prologue" open><summary>${ico('book')}序章 · ${esc(game.title || '')}</summary>
-    ${s.world ? `<p>${esc(s.world)}</p>` : ''}${who ? `<p class="pc"><b>你</b>${esc(who)}</p>` : ''}${s.backstory ? `<p class="pc"><b>过去</b>${esc(s.backstory)}</p>` : ''}</details>`;
+    ${s.world ? `<p>${esc(castText(s.world))}</p>` : ''}${who ? `<p class="pc"><b>你</b>${esc(who)}</p>` : ''}${s.backstory ? `<p class="pc"><b>过去</b>${esc(s.backstory)}</p>` : ''}</details>`;
 }
 function viewHtml(v){
   if (v.r === 'u') return `<div class="turn you">${esc(v.t)}${v.d ? `<span class="die">🎲${v.rr ? '1→' : ''}${v.d}</span>` : ''}</div>` + (v.ev ? eventCard(v.ev, v.ed) : '');
@@ -3355,9 +3363,16 @@ function readNpcRow(el){
                   romance:el.querySelector('.n-romance').checked, likes:v('.n-likes'), ...(+el.dataset.love0 ? { love0:+el.dataset.love0 } : {}) } : null;
 }
 const NPC_START_MAX = 6;
+// 开局页的人物列表：开着全女世界就把预设人物的身份、性格、秘密、喜好换成女性写法再填进去。
+// 记下填进去的样子，切换开关时只要玩家没改过就按新开关重填
+let npcFilled = '', npcSource = [];
+const npcRowsJSON = () => JSON.stringify([...$('npcEdit').children].map(readNpcRow));
 function fillNpcEdit(list){
+  npcSource = list;
+  const fem = $('optFemale').checked;
   $('npcEdit').innerHTML = '';
-  list.forEach(d => $('npcEdit').appendChild(npcRow(d)));
+  list.forEach(d => $('npcEdit').appendChild(npcRow(fem ? { ...d, role:femText(d.role || ''), persona:femText(d.persona || ''), secret:femText(d.secret || ''), likes:femText(d.likes || '') } : d)));
+  npcFilled = npcRowsJSON();
 }
 $('btnNpcAdd').onclick = () => {
   if ($('npcEdit').children.length >= NPC_START_MAX){ $('startHint').textContent = `开局最多 ${NPC_START_MAX} 个人物，其余可以在游戏里再加。`; return; }
@@ -3531,7 +3546,10 @@ $('pcGender').addEventListener('input', () => renderOrigins());
 // 全女世界默认开，记住上次的选择；开着时性别框留空就是女
 $('optFemale').checked = store.get('aistory.allFemale', true);
 function syncFemaleHint(){ $('pcGender').placeholder = $('optFemale').checked ? '留空就是女，可写 女扮男装……' : '留空按剧本，可写 男 / 女 / 女扮男装……'; }
-$('optFemale').onchange = () => { store.set('aistory.allFemale', $('optFemale').checked); syncFemaleHint(); renderOrigins(); };
+$('optFemale').onchange = () => {
+  store.set('aistory.allFemale', $('optFemale').checked); syncFemaleHint(); renderOrigins();
+  if (npcRowsJSON() === npcFilled) fillNpcEdit(npcSource);   // 人物列表没手改过才重填
+};
 syncFemaleHint();
 function curOrigin(){ return draft && draft.origins[+$('origin').value || 0]; }
 function showOrigin(){
