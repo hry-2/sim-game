@@ -841,13 +841,14 @@
 const CFG_KEY = 'aistory.cfg.v1', SAVE_KEY = 'aistory.saves.v1', SLOT_N = 4;   // 槽 0 = 自动存档
 
 const PROVIDERS = [
-  { name:'Agnes 国内', base:'https://api.agnes-ai.cn/v1',     model:'agnes-3.0-flash' },
-  { name:'Agnes 国际', base:'https://apihub.agnes-ai.com/v1', model:'agnes-3.0-flash' },
-  { name:'DeepSeek',   base:'https://api.deepseek.com/v1',    model:'deepseek-chat' },
-  { name:'OpenRouter', base:'https://openrouter.ai/api/v1',   model:'' },
+  // rpm：已知的每分钟请求上限（Agnes 是 20），不知道的留 0 = 不限，撞到限流时再自动记
+  { name:'Agnes 国内', base:'https://api.agnes-ai.cn/v1',     model:'agnes-3.0-flash', rpm:20 },
+  { name:'Agnes 国际', base:'https://apihub.agnes-ai.com/v1', model:'agnes-3.0-flash', rpm:20 },
+  { name:'DeepSeek',   base:'https://api.deepseek.com/v1',    model:'deepseek-chat',   rpm:0 },
+  { name:'OpenRouter', base:'https://openrouter.ai/api/v1',   model:'',                rpm:0 },
 ];
 // rpm：每分钟最多发几个请求，0 表示不限；撞到服务商限流时会自动记下来
-const DEFAULT_CFG = { base:PROVIDERS[0].base, key:'', model:PROVIDERS[0].model, temp:0.9, max:1200, rpm:0 };
+const DEFAULT_CFG = { base:PROVIDERS[0].base, key:'', model:PROVIDERS[0].model, temp:0.9, max:1200, rpm:PROVIDERS[0].rpm };
 const KNOWN_MODELS = ['agnes-3.0-flash','agnes-3.0-qwen','agnes-2.5-pro-alpha','agnes-2.0-flash'];
 
 const store = {
@@ -857,6 +858,12 @@ const store = {
 let cfg = { ...DEFAULT_CFG, ...store.get(CFG_KEY, {}) };
 // 早先版本把国内地址写成了 apihub.agnes-ai.cn，存过设置的人顺手迁过来
 if (String(cfg.base).replace(/\/+$/,'') === 'https://apihub.agnes-ai.cn/v1') cfg.base = PROVIDERS[0].base;
+// 用 Agnes 的老设置：每分钟上限统一按官方的 20 来（之前没填或被限流自动记成了更小的数），只迁一次
+if (!store.get('aistory.rpmAgnes20', false)){
+  const pv = PROVIDERS.find(p => p.rpm && String(cfg.base).replace(/\/+$/,'') === p.base);
+  if (pv){ cfg.rpm = pv.rpm; store.set(CFG_KEY, cfg); }
+  store.set('aistory.rpmAgnes20', true);
+}
 
 /* ================= 开局剧本 ================= */
 // romance：可攻略，有心动值；likes：喜欢什么、讨厌什么，送礼和约会时说书人会参考
@@ -1611,6 +1618,8 @@ function buildMessages(){
 function userText(m){ return m.die ? `${m.content}\n（本回合骰点：${m.die}）` : m.content; }
 
 /* ================= 解析 AI 输出 ================= */
+// 模型写的字段只认文字和数字；写成对象、数组、true 之类的一律当空，免得界面上出现 [object Object]
+const txt = v => typeof v === 'string' ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : '';
 // 模型写的 JSON 常见几种毛病：包了代码块、中文引号和标点、注释、多余的逗号、键名没加引号。
 // 先原样解析，失败了再修这些毛病重试；还不行就把原来的错误抛出去
 function looseJSON(text){
@@ -1684,14 +1693,14 @@ function parseState(raw, prev){
   const body = raw.slice(at).replace(/<\s*\/?\s*state[^>]*>/gi, '').replace(/```(json)?/gi, '').trim();
   try{
     const s = looseJSON(body);
-    const arr = v => Array.isArray(v) ? v.map(String).filter(Boolean) : [];
+    const arr = v => Array.isArray(v) ? v.map(txt).filter(Boolean) : [];
     const num = (v, d) => Number.isFinite(+v) ? Math.round(+v) : d;
     const next = {
       ...prev, attrs:{ ...prev.attrs },
       hp:Math.max(0, Math.min(prev.maxHp, num(s.hp, prev.hp))),
       mp:Math.max(0, Math.min(prev.maxMp, num(s.mp, prev.mp))),
       money:Math.max(0, num(s.money, prev.money)),
-      location:String(s.location ?? prev.location), time:String(s.time ?? prev.time),
+      location:txt(s.location) || prev.location, time:txt(s.time) || prev.time,
       inventory:applyItems(prev.inventory, s), status:Array.isArray(s.status) ? arr(s.status) : prev.status || [],
       skills:mergeSkills(prev.skills, s.skills),
       check:parseCheck(s.check, prev), shop:parseShop(s.shop),
@@ -1744,9 +1753,9 @@ function normInv(list, prev){
 }
 function normItem(x){
   if (typeof x === 'string') return { name:x.trim().slice(0, 16), qty:1, type:'misc', desc:'' };
-  return { name:String(x && x.name || '').trim().slice(0, 16),
+  return { name:txt(x && x.name || '').trim().slice(0, 16),
            qty:Math.max(0, Math.min(999, Math.round(+x.qty) || 1)),
-           type:INV_TYPES.includes(x.type) ? x.type : 'misc', desc:String(x.desc || '').slice(0, 30) };
+           type:INV_TYPES.includes(x.type) ? x.type : 'misc', desc:txt(x.desc || '').slice(0, 30) };
 }
 
 // 检定：模型报用了哪项属性、哪个技能、多难、结果；总点数由页面按同一公式算出来给玩家看
@@ -1754,7 +1763,8 @@ function parseCheck(c, st){
   if (!c || typeof c !== 'object' || !c.attr) return null;
   const result = ['success','fail','crit','fumble'].includes(c.result) ? c.result : 'success';
   const dc = Math.max(1, Math.min(40, Math.round(+c.dc) || 14));
-  return { what:String(c.what || '').slice(0, 20), attr:String(c.attr).slice(0, 8), skill:String(c.skill || '').slice(0, 16), dc, result };
+  const attr = txt(c.attr).slice(0, 8);
+  return attr ? { what:txt(c.what || '').slice(0, 20), attr, skill:txt(c.skill || '').slice(0, 16), dc, result } : null;
 }
 // <check> 里只有做什么、用哪项属性和技能、难度；成败由页面按公式算，模型写的 result 不采用
 const CHECK_RE = /<check>([\s\S]*?)<\/check>/;
@@ -1777,9 +1787,9 @@ function checkTerms(chk, st){
 
 function parseShop(sh){
   if (!sh || typeof sh !== 'object' || !Array.isArray(sh.items)) return null;
-  const items = sh.items.map(i => ({ name:String(i && i.name || '').slice(0, 16), price:Math.max(0, Math.round(+i.price) || 0), desc:String(i.desc || '').slice(0, 30) }))
+  const items = sh.items.map(i => ({ name:txt(i && i.name || '').slice(0, 16), price:Math.max(0, Math.round(+i.price) || 0), desc:txt(i.desc || '').slice(0, 30) }))
     .filter(i => i.name).slice(0, 8);
-  return items.length ? { name:String(sh.name || '商店').slice(0, 16), items } : null;
+  return items.length ? { name:txt(sh.name || '商店').slice(0, 16), items } : null;
 }
 
 /* ---------- 天赋：每 5 级三选一 ---------- */
@@ -1843,7 +1853,7 @@ function mergeEquip(prev, upd, attrs){
     for (const [a, v] of Object.entries(u.bonus || {})){
       if (a in attrs && Number.isFinite(+v) && +v) bonus[a] = Math.max(-GEAR_BONUS_MAX, Math.min(GEAR_BONUS_MAX, Math.round(+v)));
     }
-    eq[k] = { name:String(u.name).slice(0, 16), desc:String(u.desc || '').slice(0, 30), bonus };
+    eq[k] = { name:txt(u.name).slice(0, 16), desc:txt(u.desc || '').slice(0, 30), bonus };
   }
   return eq;
 }
@@ -1854,17 +1864,17 @@ function mergeQuests(prev, upd){
   const list = (prev || []).map(q => ({ ...q, cur:false }));
   if (!Array.isArray(upd)) return list;
   for (const u of upd){
-    const title = u && String(u.title || '').trim().slice(0, 20);
+    const title = u && txt(u.title || '').trim().slice(0, 20);
     if (!title) continue;
     const status = ['active','done','failed'].includes(u.status) ? u.status : 'active';
     let q = list.find(x => x.title === title);
     if (!q){
       if (list.length >= QUEST_MAX) list.splice(list.findIndex(x => x.status !== 'active'), 1);
-      list.push({ title, type:u.type === 'main' ? 'main' : 'side', desc:String(u.desc || '').slice(0, 60), status, note:String(u.note || '').slice(0, 40), cur:'new' });
+      list.push({ title, type:u.type === 'main' ? 'main' : 'side', desc:txt(u.desc || '').slice(0, 60), status, note:txt(u.note || '').slice(0, 40), cur:'new' });
       continue;
     }
-    if (u.desc) q.desc = String(u.desc).slice(0, 60);
-    if (u.note) q.note = String(u.note).slice(0, 40);
+    if (u.desc) q.desc = txt(u.desc).slice(0, 60);
+    if (u.note) q.note = txt(u.note).slice(0, 40);
     if (status !== q.status || u.note) q.cur = 'up';
     q.status = status;
   }
@@ -1877,7 +1887,7 @@ function mergeReps(prev, upd){
   const list = (prev || []).map(r => ({ ...r, cur:false }));
   if (!Array.isArray(upd)) return list;
   for (const u of upd){
-    const name = u && String(u.name || '').trim().slice(0, 12);
+    const name = u && txt(u.name || '').trim().slice(0, 12);
     if (!name || !Number.isFinite(+u.rep)) continue;
     let r = list.find(x => x.name === name);
     if (!r){ if (list.length >= REP_MAX) continue; r = { name, rep:0 }; list.push(r); }
@@ -1892,17 +1902,17 @@ function mergeSkills(prev, upd){
   const list = (prev || []).map(k => ({ ...k, cur:false }));
   if (!Array.isArray(upd)) return list;
   for (const u of upd){
-    const name = u && String(u.name || '').trim().slice(0, 16);
+    const name = u && txt(u.name || '').trim().slice(0, 16);
     if (!name) continue;
     const lv = Math.max(1, Math.min(SKILL_MAX_LV, Math.round(+u.lv) || 1));
     let k = list.find(x => x.name === name);
     if (!k){
       if (list.length >= SKILL_MAX) continue;
-      list.push({ name, lv, desc:String(u.desc || '').slice(0, 30), cur:'new' });
+      list.push({ name, lv, desc:txt(u.desc || '').slice(0, 30), cur:'new' });
       continue;
     }
     if (lv > k.lv){ k.lv = lv; k.cur = 'up'; }
-    if (u.desc && !k.desc) k.desc = String(u.desc).slice(0, 30);
+    if (u.desc && !k.desc) k.desc = txt(u.desc).slice(0, 30);
   }
   return list;
 }
@@ -1913,7 +1923,7 @@ function mergeNpcs(prev, upd){
   const list = prev.map(n => ({ ...n, cur:false }));   // cur = 本回合出场或有变化
   if (!Array.isArray(upd)) return list;
   for (const u of upd){
-    const name = u && String(u.name || '').trim();
+    const name = u && txt(u.name || '').trim();
     if (!name) continue;
     let n = list.find(x => x.name === name);
     if (!n){
@@ -1921,9 +1931,9 @@ function mergeNpcs(prev, upd){
       n = { name, role:'', favor:0, note:'' };
       list.push(n);
     }
-    if (u.role && !n.role) n.role = String(u.role).slice(0, 24);   // 玩家写的身份不让模型改短
+    if (u.role && !n.role) n.role = txt(u.role).slice(0, 24);   // 玩家写的身份不让模型改短
     if (u.favor != null && Number.isFinite(+u.favor)) n.favor = Math.max(-100, Math.min(100, Math.round(+u.favor)));
-    if (u.note) n.note = String(u.note).slice(0, 40);
+    if (u.note) n.note = txt(u.note).slice(0, 40);
     if (u.romance === true && !n.romance){ n.romance = true; n.love = n.love || 0; n.bond = n.bond || ''; }
     if (n.romance){
       if (u.love != null && Number.isFinite(+u.love)) n.love = Math.max(0, Math.min(100, Math.round(+u.love)));
@@ -2772,9 +2782,9 @@ $('btnGenRules').onclick = async () => {
       g = looseJSON(raw);
     }
     loadRules(g);
-    if (Array.isArray(g.npcs) && g.npcs.length) fillNpcEdit(g.npcs.slice(0, 6).map(n => ({ name:String(n.name || ''), role:String(n.role || ''), persona:String(n.persona || ''), secret:String(n.secret || ''),
-      favor0:ATTITUDES.map(x => x[0]).includes(+n.favor0) ? +n.favor0 : 0, romance:!!n.romance, likes:String(n.likes || '') })));
-    if (g.name) genName = String(g.name).slice(0, 8);
+    if (Array.isArray(g.npcs) && g.npcs.length) fillNpcEdit(g.npcs.slice(0, 6).map(n => ({ name:txt(n.name || ''), role:txt(n.role || ''), persona:txt(n.persona || ''), secret:txt(n.secret || ''),
+      favor0:ATTITUDES.map(x => x[0]).includes(+n.favor0) ? +n.favor0 : 0, romance:!!n.romance, likes:txt(n.likes || '') })));
+    if (g.name) genName = txt(g.name).slice(0, 8);
     $('advBox').open = true;
     $('genHint').textContent = `生成好了${g.name ? '：「' + genName + '」' : ''}。下面的规则和人物都可以再改。`;
   }catch(e){
@@ -2954,7 +2964,13 @@ function writeSlot(i){
   const s = saves(); s[i] = snapshot();
   return store.set(SAVE_KEY, s);
 }
-function autosave(){ if (game) writeSlot(0); }
+// 自动存档写不进去（浏览器存储满了或被禁用）时提醒一次，不然玩家会以为进度存住了
+let autosaveWarned = false;
+function autosave(){
+  if (!game || writeSlot(0) || autosaveWarned) return;
+  autosaveWarned = true;
+  showAlert('自动存档失败：浏览器存储满了或被禁用，这局的进度没有存进本机。可以点「⋯ → 导出为文件」另存一份。', 'wait');
+}
 
 function renderSlots(){
   const s = saves(), el = $('slotList'); el.innerHTML = '';
@@ -3022,7 +3038,7 @@ function fillModels(list){
 $('presetRow').innerHTML = '';
 PROVIDERS.forEach(p => {
   const b = document.createElement('button'); b.className = 'ghost'; b.type = 'button'; b.textContent = p.name;
-  b.onclick = () => { $('cfgBase').value = p.base; if (p.model) $('cfgModel').value = p.model; cfgMsg(''); };
+  b.onclick = () => { $('cfgBase').value = p.base; if (p.model) $('cfgModel').value = p.model; $('cfgRpm').value = p.rpm; cfgMsg(''); };
   $('presetRow').appendChild(b);
 });
 $('btnEye').onclick = () => {
