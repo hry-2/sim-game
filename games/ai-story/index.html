@@ -1464,15 +1464,15 @@ async function chatOnce(messages, maxTokens, temperature, json, onWait){
 function stateRule(){
   const R = rules(), a0 = R.attrs[0][0];
   return `【输出格式 —— 必须遵守】
-回复由两部分组成：先是故事本身，再另起一行写状态块（合法 JSON，不加代码块标记）。没有变化的字段直接省略，choices 必须写。
+回复由两部分组成：先是故事本身，再另起一行写状态块。状态块一定要用 <state> 和 </state> 包住，里面是合法 JSON；不要加代码块标记，不要把 JSON 直接贴在故事后面。没有变化的字段直接省略，choices 必须写。
 故事直接从第一句写起：不要加标题，不要写“正文”“故事”“第 X 段”之类的标签，不要用 #、【】、--- 这些 Markdown 标记，状态块前面也不要写“状态块”。
 <state>
-{"hp":${R.hp}当前值,"mp":${R.mp}当前值,"money":${R.money}当前值,"exp":本回合经验,"location":"地点","time":"时间","status":["临时状态"],"gain":[{"name":"物品","qty":1,"type":"consumable","desc":"效果"}],"lose":[{"name":"物品","qty":1}],"check":{"what":"做什么","attr":"属性","skill":"技能或空","dc":14,"result":"success"},"skills":[{"name":"技能","lv":1,"desc":"效果"}],"equip":{"weapon":{"name":"装备","bonus":{"${a0}":1},"desc":"效果"}},"quests":[{"title":"任务","type":"main","desc":"目标","status":"active","note":"进展"}],"reps":[{"name":"势力","rep":10}],"npcs":[{"name":"人名","favor":10,"love":20,"note":"近况"}],"choices":${nChoicesExample()},"gameOver":false}
+{"hp":${R.hp}当前值,"mp":${R.mp}当前值,"money":${R.money}当前值,"exp":本回合经验,"location":"地点","time":"时间","status":["临时状态"],"gain":[{"name":"物品","qty":1,"type":"consumable","desc":"效果"}],"lose":[{"name":"物品","qty":1}],"skills":[{"name":"技能","lv":1,"desc":"效果"}],"equip":{"weapon":{"name":"装备","bonus":{"${a0}":1},"desc":"效果"}},"quests":[{"title":"任务","type":"main","desc":"目标","status":"active","note":"进展"}],"reps":[{"name":"势力","rep":10}],"npcs":[{"name":"人名","favor":10,"love":20,"note":"近况"}],"choices":${nChoicesExample()},"gameOver":false}
 </state>
 - hp / mp / money 写本回合结束时的值；上限、等级、物品清单由系统维护。
 - exp：平淡 0～5；克服困难、打赢一场、解开线索 10～30；重大转折 40～80。
 - gain / lose：获得和失去的物品（用掉、送出、卖掉都算 lose）。type：consumable 消耗品、gear 可装备、quest 剧情物品、misc 杂物。
-- check：本回合做了检定才写；result 是 success / fail / crit（骰出 20）/ fumble（骰出 1）。
+- 检定不写进状态块，写在回复的最开头（见【规则】）。
 - shop：在商人跟前才写 {"name":"店名","items":[{"name":"商品","price":价格,"desc":"效果"}]}，4～6 件，用${R.money}标价；离开就省略。买：扣钱 + gain；卖：半价 + lose。
 - skills 只写新学或升级的（lv 1～${SKILL_MAX_LV}）。attrUp 只在奇遇、苦修时给，如 {"${a0}":1}。
 - equip 只写换上 / 卸下的格子（weapon / armor / trinket），卸下写 null。
@@ -1502,7 +1502,10 @@ function rulePrompt(){
   const R = rules();
   return `【规则】
 属性含义（1～${ATTR_MAX}，普通人 3～5）：${R.attrs.map(([a, d]) => `${a}（${d}）`).join('；')}
-- 有风险的行动做检定：骰点 + 最相关的属性 + 相关技能等级 + 天赋加成，对比难度：简单 10、普通 14、困难 18、极难 22。骰出 1 必出岔子，20 必定漂亮地成功。算出什么结果正文就写什么，并写进 check。
+- 有风险的行动做检定：骰点 + 最相关的属性 + 相关技能等级 + 天赋加成，对比难度：简单 10、普通 14、困难 18、极难 22。总点数 ≥ 难度就成功；骰出 20 大成功，骰出 1 大失败。
+- 要检定的回合，回复的第一行先写检定，再写故事，例如：
+<check>{"what":"翻越围墙","attr":"属性名","skill":"技能名或空","dc":14}</check>
+  写之前先按上面的公式算好成败，故事按算出的结果写。页面会立刻亮出骰子和总点数，所以故事和数字必须对得上。不检定的回合不写这一行。
 - ${R.mp}：${R.mpUse}。${R.money}用于买卖、贿赂、住店、打点，花了要扣，赚了要加。
 - 技能靠拜师、读书、实战、奇遇获得，反复使用会升级。${R.pool ? `这个世界常见的技能：${R.pool}（也可以按剧情创造新的）。` : ''}
 - 装备可以加 1～${GEAR_BONUS_MAX} 点属性，不要凭空送神器。
@@ -1644,15 +1647,20 @@ function stripThink(raw){
   return raw.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/<think>[\s\S]*$/, '').replace(/^\s+/, '');
 }
 // 正文 = <state> 之前的部分；流式时把半截的 "<sta" 也藏起来
+// 状态块从哪开始。模型不一定老实写 <state>：可能写成 <State>、包进 ```json 代码块、或者直接把 JSON 贴在故事后面。
+// 故事里不会有代码块，也不会有一行以 {" 开头，所以这几种都当成状态块的起点；流式中只吐出一个 { 的行也算
+function stateStart(t){
+  const hits = [t.search(/<\s*state\b/i), t.search(/(^|\n)[ \t]*```/), t.search(/(^|\n)[ \t]*\{(\s*"|\s*$)/)].filter(i => i >= 0);
+  return hits.length ? Math.min(...hits) : -1;
+}
 function visibleText(raw){
-  let t = stripThink(raw);
-  const i = t.indexOf('<state');
+  let t = stripThink(raw).replace(CHECK_RE, '');
+  const open = t.indexOf('<check');                 // 还没写完的检定行先藏起来
+  if (open >= 0) t = t.slice(0, open);
+  const i = stateStart(t);
   if (i >= 0) t = t.slice(0, i);
-  else {
-    const m = t.match(/<s?t?a?t?e?$/);
-    if (m && m[0]) t = t.slice(0, -m[0].length);
-  }
-  return cleanNarr(t.replace(/```\s*$/,''));
+  t = t.replace(/(<[a-zA-Z]{0,5}|`{1,3}[a-z]*)$/, '');   // 半截的 "<sta" "``" 也藏起来
+  return cleanNarr(t);
 }
 // 模型有时会照着提示词的结构给回复加标签：「## 正文」「【正文】」「正文：」「---」「状态块：」。
 // 这些纯标签行整行删掉；其他 Markdown 标题去掉井号保留文字；行首的「正文：」只去标签
@@ -1671,15 +1679,9 @@ function cleanNarr(t){
 }
 function parseState(raw, prev){
   raw = stripThink(raw);
-  let body = null;
-  const m = raw.match(/<state>([\s\S]*?)(<\/state>|$)/);
-  if (m) body = m[1];
-  else {
-    const j = raw.lastIndexOf('{"hp"');
-    if (j >= 0) body = raw.slice(j);
-  }
-  if (!body) return { ...prev, choices:[], expGain:0, lvUp:0, check:null, shop:null };
-  body = body.replace(/```(json)?/g,'').trim();
+  const at = stateStart(raw.replace(CHECK_RE, m => ' '.repeat(m.length)));   // 检定行里的 JSON 不算状态块
+  if (at < 0) return { ...prev, choices:[], expGain:0, lvUp:0, check:null, shop:null };
+  const body = raw.slice(at).replace(/<\s*\/?\s*state[^>]*>/gi, '').replace(/```(json)?/gi, '').trim();
   try{
     const s = looseJSON(body);
     const arr = v => Array.isArray(v) ? v.map(String).filter(Boolean) : [];
@@ -1753,6 +1755,20 @@ function parseCheck(c, st){
   const result = ['success','fail','crit','fumble'].includes(c.result) ? c.result : 'success';
   const dc = Math.max(1, Math.min(40, Math.round(+c.dc) || 14));
   return { what:String(c.what || '').slice(0, 20), attr:String(c.attr).slice(0, 8), skill:String(c.skill || '').slice(0, 16), dc, result };
+}
+// <check> 里只有做什么、用哪项属性和技能、难度；成败由页面按公式算，模型写的 result 不采用
+const CHECK_RE = /<check>([\s\S]*?)<\/check>/;
+function resolveCheck(obj, die, st){
+  const c = parseCheck(obj, st);
+  if (!c || !die) return null;
+  const t = checkTerms(c, st), total = die + t.attr + t.skill + t.talent;
+  c.result = die === 20 ? 'crit' : die === 1 ? 'fumble' : total >= c.dc ? 'success' : 'fail';
+  return c;
+}
+function streamedCheck(text, die, st){
+  const m = stripThink(text).match(CHECK_RE);
+  if (!m) return null;
+  try{ return resolveCheck(looseJSON(m[1]), die, st); }catch{ return null; }
 }
 function checkTerms(chk, st){
   const skill = st.skills.find(k => k.name === chk.skill);
@@ -2378,11 +2394,17 @@ async function runTurn(){
   scrollEnd();                       // 只在玩家发出行动的这一刻滚一次；之后生成多长都不再拽页面
   setBusy(true);
   aborter = new AbortController();
-  let raw = '';
+  let raw = '', liveCheck = null;
   const msgs = buildMessages();
+  const start = curState(), die = (game.history[game.history.length - 1] || {}).die || 0;
   try{
     raw = await chatStream(msgs, full => {
       raw = full;
+      // 检定行一到就出卡、开始掷骰，故事接着在下面流出来
+      if (!liveCheck && die && (liveCheck = streamedCheck(full, die, start))){
+        el.insertAdjacentHTML('beforebegin', checkCard(liveCheck, die, checkTerms(liveCheck, start)));
+        rollDice(el.previousElementSibling);
+      }
       el.innerHTML = fmt(visibleText(full));
       updateNewBelow();
     }, aborter.signal, sec => showAlert(`接口限流：这一分钟的请求数到上限了，${sec} 秒后自动继续。不想等可以点「停止」。`, 'wait'));
@@ -2390,10 +2412,12 @@ async function runTurn(){
     addUsage(msgs, raw);
     raw = stripThink(raw);
     if (!raw.trim()) throw { status:0, body:'', message:'模型返回了空内容' };
-    const before = curState(), state = parseState(raw, before);
-    const lastUser = game.history[game.history.length - 1];
-    if (state.location && state.location !== (before.location || '')){ el.insertAdjacentHTML('beforebegin', sceneCut(state.location)); el.classList.add('opening'); }
-    if (state.check && lastUser && lastUser.die){ el.insertAdjacentHTML('beforebegin', checkCard(state.check, lastUser.die, checkTerms(state.check, before))); rollDice(el.previousElementSibling); }
+    const before = start, state = parseState(raw, before);
+    // 检定以开头那行为准；旧写法（写在状态块里）也认，成败同样由页面重算
+    state.check = liveCheck || (state.check && resolveCheck(state.check, die, before)) || null;
+    const head = liveCheck ? el.previousElementSibling : el;   // 场景分隔要排在检定卡前面
+    if (state.location && state.location !== (before.location || '')){ head.insertAdjacentHTML('beforebegin', sceneCut(state.location)); el.classList.add('opening'); }
+    if (state.check && !liveCheck){ el.insertAdjacentHTML('beforebegin', checkCard(state.check, die, checkTerms(state.check, before))); rollDice(el.previousElementSibling); }
     game.history.push({ role:'assistant', content:raw, state });
     if (!game.setup.name && state.pcName){ game.setup.name = state.pcName; sysNote(`说书人给你起名「${state.pcName}」。`); }
     if (state.talentPick && !before.talentPick) setTimeout(openTalent, 400);
