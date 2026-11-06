@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>游戏柜 · sim-game</title>
-<meta name="description" content="八个单文件网页游戏：街机、动作、模拟生存、聚会、AI 文字冒险。零依赖、点开就玩。">
+<meta name="description" content="五个单文件网页游戏：街机、动作、聚会、AI 文字冒险。零依赖、点开就玩。">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Silkscreen&family=Noto+Sans+SC:wght@400;500&display=swap">
 <style>
@@ -17,10 +17,7 @@
     --muted:#78877a;
     --dim:#4e5b51;
     --amber:#ffb03a;
-    --sim:#7dd18a;
     --neon:#ff2ea6;
-    --harbor:#45f0ff;
-    --street:#d2e24a;
     --nod:#3ddc97;
     --coin:#ffcf4d;
     --fish:#3fd8e0;
@@ -180,19 +177,18 @@
   <header>
     <div class="marquee">
       <h1>游戏柜</h1>
-      <span class="en">arcade cabinet / 8 titles</span>
+      <span class="en">arcade cabinet / 5 titles</span>
       <a class="purse" href="games/coin-pusher/index.html" title="币袋：全柜通用，街机里赢">
         <span class="k">币袋</span><b id="purseNum">300</b><span class="u">币</span>
       </a>
     </div>
     <div class="rule"></div>
     <div class="rule"></div>
-    <p class="lede">八个单文件网页游戏，点开就玩。街机赢的币存进<b>币袋</b>，全柜通用。</p>
+    <p class="lede">五个单文件网页游戏，点开就玩。街机赢的币存进<b>币袋</b>，全柜通用。</p>
     <nav class="jump" aria-label="分类">
       <a href="#arcade" style="--accent:var(--coin)">街机<i>2</i></a>
       <a href="#party" style="--accent:var(--nod)">聚会<i>1</i></a>
-      <a href="#action" style="--accent:var(--neon)">动作<i>2</i></a>
-      <a href="#life" style="--accent:var(--sim)">模拟 · 生存<i>2</i></a>
+      <a href="#action" style="--accent:var(--neon)">动作<i>1</i></a>
       <a href="#tale" style="--accent:var(--tale)">文字冒险<i>1</i></a>
     </nav>
   </header>
@@ -234,7 +230,7 @@
 
   </div>
 
-  <h2 class="sec" id="action">动作<span>射击 · 潜入</span></h2>
+  <h2 class="sec" id="action">动作<span>射击 · Roguelite</span></h2>
   <div class="rack">
 
     <a class="cart" href="games/neon-scrapline/index.html" style="--accent:var(--neon)">
@@ -243,38 +239,6 @@
         <div class="kicker">俯视射击 · Roguelite</div>
         <h3>霓虹废钢线<span class="sub">NEON SCRAPLINE</span></h3>
         <p>打穿三十波机兵，十七把武器加改装词条，零件拿回据点卖。</p>
-      </div>
-    </a>
-
-    <a class="cart" href="games/nightharbor/index.html" style="--accent:var(--harbor)">
-      <canvas class="shot" id="shotHarbor" width="192" height="108"></canvas>
-      <div class="body">
-        <div class="kicker">潜入 · 分支剧情<em class="tag">原型</em></div>
-        <h3>夜 港<span class="sub">NIGHT HARBOR</span></h3>
-        <p>义体欠款还剩 90 天，硬冲、潜行、绕背处决都走得通。</p>
-      </div>
-    </a>
-
-  </div>
-
-  <h2 class="sec" id="life">模拟 · 生存<span>慢慢玩</span></h2>
-  <div class="rack">
-
-    <a class="cart" href="games/sim/index.html" style="--accent:var(--sim)">
-      <canvas class="shot" id="shotSim" width="192" height="108"></canvas>
-      <div class="body">
-        <div class="kicker">生活模拟 · 效用 AI</div>
-        <h3>市 井<span class="sub">SIM-GAME</span></h3>
-        <p>你操控小满，另外三个人自己过日子，点 NPC 看它在想什么。</p>
-      </div>
-    </a>
-
-    <a class="cart" href="games/quiet-street/index.html" style="--accent:var(--street)">
-      <canvas class="shot" id="shotStreet" width="192" height="108"></canvas>
-      <div class="body">
-        <div class="kicker">疫后生存 · 日志<em class="tag">在做</em></div>
-        <h3>静 街<span class="sub">QUIET STREET</span></h3>
-        <p>三百二十只僵尸跟着噪音迁移，死了镇子还在。</p>
       </div>
     </a>
 
@@ -330,79 +294,6 @@
 
   /* ---- 卡带缩略图：程序化像素动画（192x108 内部分辨率） ---- */
   const W = 192, H = 108;
-
-  // 1) 生活模拟：黄昏田野 + 亮着灯的小屋 + 三个走动的小人
-  const simCv = document.getElementById('shotSim'), sim = simCv.getContext('2d');
-  const walkers = [
-    { x: 40, dir: 1, spd: 5.5, c: '#ffd9a0', y: 84 },
-    { x: 108, dir: -1, spd: 4.2, c: '#a8d8ff', y: 92 },
-    { x: 150, dir: 1, spd: 6.5, c: '#ffb3c8', y: 78 }
-  ];
-  function drawSim(t) {
-    // 天空
-    const sky = sim.createLinearGradient(0, 0, 0, H * .62);
-    sky.addColorStop(0, '#1d2b3f');
-    sky.addColorStop(.55, '#3d3a52');
-    sky.addColorStop(1, '#8a5a52');
-    sim.fillStyle = sky; sim.fillRect(0, 0, W, H);
-    // 太阳
-    sim.fillStyle = '#ffc27a';
-    sim.fillRect(150, 44, 7, 7);
-    // 云（缓慢漂移）
-    sim.fillStyle = 'rgba(255,214,180,.22)';
-    for (let i = 0; i < 4; i++) {
-      const cx = ((t * 3 + i * 61) % (W + 40)) - 20;
-      sim.fillRect(cx, 16 + i * 7, 22 - i * 2, 3);
-      sim.fillRect(cx + 5, 13 + i * 7, 11, 3);
-    }
-    // 远山
-    sim.fillStyle = '#2b2c3d';
-    for (let x = 0; x < W; x += 8) {
-      const h = 10 + Math.sin(x * .07) * 5 + Math.cos(x * .19) * 3;
-      sim.fillRect(x, H * .62 - h, 8, h + 2);
-    }
-    // 草地
-    sim.fillStyle = '#2f4a33'; sim.fillRect(0, H * .62, W, H);
-    sim.fillStyle = '#3a5c3d'; sim.fillRect(0, H * .70, W, H);
-    // 田垄（透视）
-    for (let i = 0; i < 7; i++) {
-      const y = 74 + i * 5, w = 1 + i * .5;
-      sim.fillStyle = i % 2 ? '#4a3a2a' : '#553f2c';
-      sim.fillRect(10 - i * 2, y, W - 20 + i * 4, Math.max(1, w | 0));
-      // 作物
-      sim.fillStyle = '#7dd18a';
-      for (let x = 16 - i * 2; x < W - 16; x += 14 - i) sim.fillRect(x, y - 2, 2, 2);
-    }
-    // 小屋
-    const hx = 22, hy = 52;
-    sim.fillStyle = '#22232f'; sim.fillRect(hx, hy + 8, 30, 18);
-    sim.fillStyle = '#3d2f34';
-    for (let i = 0; i < 8; i++) sim.fillRect(hx - 2 + i * 2, hy + 8 - i, 34 - i * 4, 2);
-    // 窗户灯光（呼吸）
-    const g = .65 + .35 * Math.sin(t * 2.1);
-    sim.fillStyle = 'rgba(255,196,110,' + g.toFixed(3) + ')';
-    sim.fillRect(hx + 6, hy + 13, 6, 6);
-    sim.fillRect(hx + 19, hy + 13, 6, 6);
-    sim.fillStyle = 'rgba(255,196,110,.10)';
-    sim.fillRect(hx + 1, hy + 9, 28, 15);
-    // 小人（走到边界折返）
-    for (const p of walkers) {
-      p.x += p.dir * p.spd * (reduce ? 0 : 1 / 60);
-      if (p.x < 8 || p.x > W - 10) p.dir *= -1;
-      const bob = Math.abs(Math.sin(t * 6 + p.x)) * 1.4 | 0;
-      sim.fillStyle = '#181a20';
-      sim.fillRect(p.x | 0, (p.y - bob) | 0, 4, 7);
-      sim.fillStyle = p.c;
-      sim.fillRect(p.x | 0, (p.y - bob) | 0, 4, 3);
-      sim.fillStyle = 'rgba(0,0,0,.35)';
-      sim.fillRect((p.x - 1) | 0, p.y + 7, 6, 1);
-    }
-    // 暖色雾
-    const warm = sim.createLinearGradient(0, 0, 0, H);
-    warm.addColorStop(0, 'rgba(255,170,110,.10)');
-    warm.addColorStop(1, 'rgba(20,26,20,.35)');
-    sim.fillStyle = warm; sim.fillRect(0, 0, W, H);
-  }
 
   // 2) 赛博朋克：网格地面 + 霓虹地平线 + 弹道
   const neCv = document.getElementById('shotNeon'), ne = neCv.getContext('2d');
@@ -472,151 +363,6 @@
     for (let y = 0; y < H; y += 2) ne.fillRect(0, y, W, 1);
   }
 
-
-  // 3) 潜入：暗房间 + 守卫扫视锥 + 蹲在掩体后的玩家
-  const nhCv = document.getElementById('shotHarbor'), nh = nhCv.getContext('2d');
-  function drawHarbor(t) {
-    // 地板：和游戏里一样的棋盘格
-    nh.fillStyle = '#0f131c'; nh.fillRect(0, 0, W, H);
-    for (let y = 0; y < H; y += 8) for (let x = 0; x < W; x += 8)
-      if (((x / 8) + (y / 8)) & 1) { nh.fillStyle = '#141a26'; nh.fillRect(x, y, 8, 8); }
-    // 下半间是暗房间——潜行路线就是顺着暗的地方走
-    nh.fillStyle = 'rgba(2,3,8,.75)'; nh.fillRect(8, 64, 96, H - 72);
-    // 墙：外框 + 一道横墙，中间留门
-    nh.fillStyle = '#2b3550';
-    nh.fillRect(0, 0, W, 8); nh.fillRect(0, H - 8, W, 8);
-    nh.fillRect(0, 0, 8, H); nh.fillRect(W - 8, 0, 8, H);
-    nh.fillRect(0, 56, 72, 8); nh.fillRect(96, 56, W - 96, 8);
-    nh.fillStyle = '#3d4a6b';
-    nh.fillRect(0, 61, 72, 3); nh.fillRect(96, 61, W - 96, 3); nh.fillRect(0, H - 8, W, 3);
-    // 门（横墙的缺口）
-    nh.fillStyle = '#8a6a2a'; nh.fillRect(72, 58, 6, 5); nh.fillRect(90, 58, 6, 5);
-    // 掩体：挡子弹不挡视线
-    for (const [cx, cy] of [[38, 24], [148, 26], [124, 78]]) {
-      nh.fillStyle = '#7a4a2a'; nh.fillRect(cx, cy + 3, 14, 11);
-      nh.fillStyle = '#a86a3a'; nh.fillRect(cx, cy, 14, 5);
-      nh.fillStyle = '#5a3418'; nh.fillRect(cx + 6, cy, 2, 14);
-    }
-    // 目标终端：一直在闪
-    nh.fillStyle = '#222a3c'; nh.fillRect(168, 18, 11, 10);
-    nh.fillStyle = ((t * 3) | 0) % 2 ? '#45f0ff' : '#2b7f9e'; nh.fillRect(169, 19, 9, 5);
-    nh.fillStyle = '#0a0d14'; nh.fillRect(170, 21 + (((t * 4) | 0) % 3), 7, 1);
-    // 守卫：来回巡逻，视锥左右扫，撞到横墙就被截断
-    const gx = 108 + Math.sin(t * .55) * 32, gy = 32;
-    const ga = Math.PI * .5 + Math.sin(t * .9) * .95;
-    const R = 48, HA = .5;
-    nh.fillStyle = 'rgba(255,230,120,.14)';
-    nh.beginPath(); nh.moveTo(gx, gy);
-    for (let i = 0; i <= 14; i++) {
-      const a = ga - HA + HA * 2 * i / 14, dy = Math.sin(a);
-      let r = R;
-      if (dy > .05) {                                  // 朝下的那几条射线会被横墙挡住，门口除外
-        const rr = (56 - gy) / dy;
-        if (rr < r && Math.abs(gx + Math.cos(a) * rr - 84) > 12) r = rr;
-      }
-      nh.lineTo(gx + Math.cos(a) * r, gy + Math.sin(a) * r);
-    }
-    nh.closePath(); nh.fill();
-    nh.fillStyle = '#9aa6bf'; nh.fillRect(gx - 4, gy - 4, 8, 8);
-    nh.fillStyle = '#e6d2b5'; nh.fillRect(gx - 2, gy - 6, 4, 3);
-    nh.save(); nh.translate(gx, gy); nh.rotate(ga);
-    nh.fillStyle = '#1a1e2a'; nh.fillRect(2, -1, 8, 2); nh.restore();
-    // 玩家：蹲在暗房间的掩体后面，比守卫小一号（蹲着）
-    const px = 46 + Math.sin(t * .4) * 12, py = 86;
-    nh.fillStyle = 'rgba(0,0,0,.4)';
-    nh.beginPath(); nh.ellipse(px, py + 4, 7, 3, 0, 0, Math.PI * 2); nh.fill();
-    nh.strokeStyle = 'rgba(69,240,255,.35)'; nh.lineWidth = 1;
-    nh.beginPath(); nh.ellipse(px, py, 8, 7, 0, 0, Math.PI * 2); nh.stroke();
-    nh.fillStyle = '#45f0ff'; nh.fillRect(px - 3, py - 3, 6, 6);
-    nh.fillStyle = '#ffd9a0'; nh.fillRect(px - 2, py - 5, 4, 3);
-    nh.fillStyle = '#dfe8ff'; nh.fillRect(px + 3, py - 1, 6, 2);
-    // 义眼 HUD：宽限期在走
-    nh.fillStyle = 'rgba(7,8,13,.72)'; nh.fillRect(12, 12, 46, 9);
-    nh.fillStyle = 'rgba(255,143,109,.9)';
-    nh.fillRect(14, 15, 20 + Math.round(Math.sin(t * .5) * 2), 3);
-    nh.fillStyle = 'rgba(255,143,109,.25)'; nh.fillRect(34, 15, 22, 3);
-    // 扫描线
-    nh.fillStyle = 'rgba(0,0,0,.22)';
-    for (let y = 0; y < H; y += 2) nh.fillRect(0, y, W, 1);
-  }
-
-  // 4) 静街：夜里的街口。签名画面就两样——黑暗里的几点眼睛，和扩散开的噪音圈
-  const stCv = document.getElementById('shotStreet'), st = stCv.getContext('2d');
-  const eyes = [
-    { x: 26, y: 30, s: 3.1, ph: 0 }, { x: 170, y: 40, s: -2.6, ph: 1.7 },
-    { x: 150, y: 92, s: -3.4, ph: .8 }, { x: 54, y: 96, s: 2.4, ph: 2.6 },
-    { x: 12, y: 66, s: 2.8, ph: 4.1 },
-  ];
-  function stHouse(x, y, w, h, boards) {
-    st.fillStyle = '#6c5e4a'; st.fillRect(x, y, w, h);              // 室内地板
-    st.fillStyle = '#3b3833'; st.fillRect(x, y, w, 3);              // 墙：压暗
-    st.fillRect(x, y + h - 3, w, 3); st.fillRect(x, y, 3, h); st.fillRect(x + w - 3, y, 3, h);
-    st.fillStyle = '#524d45'; st.fillRect(x, y, w, 1);
-    for (let i = 0; i < 3; i++) {                                   // 柜子：亮顶的一条是"没翻过"
-      const cx = x + 8 + i * 14, cy = y + h - 11;
-      st.fillStyle = '#7a6a52'; st.fillRect(cx, cy, 8, 7);
-      st.fillStyle = '#9a8a6c'; st.fillRect(cx + 1, cy + 1, 6, 1);
-    }
-    if (boards) { st.fillStyle = '#7a6448';                          // 钉上木板的窗
-      st.fillRect(x + w - 3, y + 8, 3, 4); st.fillRect(x + w - 5, y + 7, 7, 2);
-      st.fillRect(x + w - 5, y + 12, 7, 2); }
-    else { st.fillStyle = '#7f9aa6'; st.fillRect(x + w - 3, y + 8, 3, 6); }
-  }
-  function drawStreet(t) {
-    st.fillStyle = '#3e4836'; st.fillRect(0, 0, W, H);
-    for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) {  // 地面颗粒：弱，不是花纹
-      const h = ((x * 73856093) ^ (y * 19349663)) >>> 8;
-      st.fillStyle = (h & 3) ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.04)';
-      st.fillRect(x, y, 3, 3);
-    }
-    st.fillStyle = '#4e4e4a'; st.fillRect(0, 48, W, 16);             // 横街
-    st.fillRect(88, 0, 14, H);                                      // 主街
-    stHouse(10, 6, 64, 34, true);
-    stHouse(116, 8, 64, 32, false);
-    stHouse(20, 74, 56, 28, false);
-    // 玩家站在街口
-    const px = 95, py = 56;
-    st.fillStyle = '#1b1c18'; st.fillRect(px - 3, py - 9, 6, 11);
-    st.fillStyle = '#c8bfae'; st.fillRect(px - 3, py - 9, 6, 4);
-    // 夜：一张径向的暗，亮的只有脚下（和游戏里 1/3 分辨率的乘算层同一个意思）
-    const g = st.createRadialGradient(px, py, 8, px, py, 104);
-    g.addColorStop(0, 'rgba(6,8,14,0)'); g.addColorStop(.45, 'rgba(6,8,14,.30)');
-    g.addColorStop(1, 'rgba(6,8,14,.74)');
-    st.fillStyle = g; st.fillRect(0, 0, W, H);
-    // 手电：扫一个来回
-    const ang = -Math.PI / 2 + Math.sin(t * .5) * 1.15;
-    st.save(); st.beginPath(); st.moveTo(px, py);
-    st.arc(px, py, 62, ang - .30, ang + .30); st.closePath();
-    const cg = st.createRadialGradient(px, py, 4, px, py, 62);
-    cg.addColorStop(0, 'rgba(255,238,200,.42)'); cg.addColorStop(1, 'rgba(255,238,200,0)');
-    st.fillStyle = cg; st.fill(); st.restore();
-    // 眼睛：黑暗里先看见的是它们，然后才是轮廓
-    for (const e of eyes) {
-      const dx = px - e.x, dy = py - e.y, d = Math.hypot(dx, dy) || 1;
-      const ex = e.x + dx / d * (Math.sin(t * .35 + e.ph) * 9 + 9);
-      const ey = e.y + dy / d * (Math.sin(t * .35 + e.ph) * 9 + 9);
-      const lit = Math.abs(((Math.atan2(ey - py, ex - px) - ang + Math.PI * 3) % (Math.PI * 2)) - Math.PI) > Math.PI - .34;
-      if (lit) { st.fillStyle = 'rgba(78,84,80,.85)'; st.fillRect(ex - 3, ey - 9, 6, 11); }
-      st.fillStyle = '#d2e24a';
-      st.fillRect(ex - 2, ey - 6, 2, 2); st.fillRect(ex + 1, ey - 6, 2, 2);
-    }
-    // 噪音圈：一下一下地扩出去，白色虚线 —— UI 用高饱和硬边，场景低饱和
-    const period = 2.6, k = (t % period) / period;
-    st.strokeStyle = `rgba(240,240,232,${(.34 * (1 - k)).toFixed(3)})`;
-    st.setLineDash([3, 5]); st.lineWidth = 1;
-    st.beginPath(); st.arc(px, py, 8 + k * 74, 0, Math.PI * 2); st.stroke();
-    st.setLineDash([]);
-    // 热度小地图：同色相四档明度
-    const lv = [0, 1, 2, 3].map(i => Math.floor(1.6 + 1.4 * Math.sin(t * .4 + i)) & 3);
-    st.fillStyle = 'rgba(10,12,14,.8)'; st.fillRect(160, 84, 26, 18);
-    for (let i = 0; i < 4; i++) {
-      st.fillStyle = ['#243038', '#3c5462', '#6d94a6', '#cfe4ee'][lv[i]];
-      st.fillRect(162 + (i % 2) * 12, 86 + ((i / 2) | 0) * 8, 10, 6);
-    }
-    const cold = st.createLinearGradient(0, 0, 0, H);
-    cold.addColorStop(0, 'rgba(120,150,170,.05)'); cold.addColorStop(1, 'rgba(10,14,20,.16)');
-    st.fillStyle = cold; st.fillRect(0, 0, W, H);
-  }
 
   // 5) 点头：一台横屏手机绕横轴来回翻。下翻转绿、上翻转黄、回中转白 ——
   //    不写一个字，光看动画就知道这游戏怎么玩
@@ -851,11 +597,11 @@
   let t0 = performance.now();
   function frame(now) {
     const t = (now - t0) / 1000;
-    drawSim(t); drawNeon(t); drawHarbor(t); drawStreet(t); drawNod(t); drawCoinThumb(t); drawFishThumb(t); drawTale(t);
+    drawNeon(t); drawNod(t); drawCoinThumb(t); drawFishThumb(t); drawTale(t);
     if (!reduce) requestAnimationFrame(frame);
   }
   // 首帧【同步】画一次，别等 rAF：页面在后台标签里打开时浏览器根本不触发 rAF，
-  // 八张卡带就全是空白的，等切回来才突然出现。
+  // 卡带就全是空白的，等切回来才突然出现。
   frame(t0);
   if (!reduce) requestAnimationFrame(frame);
 })();
