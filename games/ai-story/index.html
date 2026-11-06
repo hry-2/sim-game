@@ -84,7 +84,11 @@
   }
   .dlg-x:hover{background:var(--panel-2);color:var(--ink)}
   .presetrow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
-  .presetrow button{font-size:12px}
+  .presetrow button{font-size:12px;display:inline-flex;align-items:center;gap:5px}
+  .presetrow button.on{border-color:var(--brand);color:var(--ink);background:color-mix(in srgb,var(--brand) 12%,transparent)}
+  .presetrow button i{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+  .presetrow button .x{margin-left:2px;color:var(--dim);font-style:normal}
+  .presetrow button .x:hover{color:var(--hp)}
 
   /* ---------- 开局 ---------- */
   .intro{text-align:center;margin:18px 0 22px}
@@ -930,7 +934,8 @@
   <button class="dlg-x" type="button" data-close aria-label="关闭，不保存">×</button>
   <h2>接口设置</h2>
   <div class="presetrow" id="presetRow"></div>
-  <label class="f"><span>接口地址（Base URL，OpenAI 兼容）</span><input type="text" id="cfgBase" spellcheck="false" autocomplete="off"></label>
+  <label class="f hide" id="cfgNameBox"><span>名称（自定义接口显示在上面的按钮上）</span><input type="text" id="cfgName" maxlength="12" placeholder="例：我的中转站"></label>
+  <label class="f"><span>接口地址（Base URL，OpenAI 兼容）</span><input type="text" id="cfgBase" spellcheck="false" autocomplete="off" placeholder="https://.../v1"></label>
   <label class="f"><span>API Key</span>
     <div class="row" style="flex-wrap:nowrap">
       <input type="password" id="cfgKey" spellcheck="false" autocomplete="off" placeholder="sk-...">
@@ -990,6 +995,11 @@ if (!store.get('aistory.rpmAgnes20', false)){
   if (pv){ cfg.rpm = pv.rpm; store.set(CFG_KEY, cfg); }
   store.set('aistory.rpmAgnes20', true);
 }
+// 多个接口源：每个地址各记一套 Key / 模型 / 每分钟上限（profiles），切换时不会互相覆盖。
+// cfg 顶层的 base / key / model / rpm 永远是当前在用的那一套
+const normBase = b => String(b || '').trim().replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
+if (!cfg.profiles || typeof cfg.profiles !== 'object') cfg.profiles = {};
+if (normBase(cfg.base) && !cfg.profiles[normBase(cfg.base)]) cfg.profiles[normBase(cfg.base)] = { key:cfg.key, model:cfg.model, rpm:cfg.rpm };
 
 /* ================= 开局剧本 ================= */
 // romance：可攻略，有心动值；likes：喜欢什么、讨厌什么，送礼和约会时说书人会参考；love0 是开局就有的心动（青梅竹马、前任）
@@ -1745,7 +1755,7 @@ function explainError(e, status, body){
   if (status === 429) return `接口限流（429）：每分钟请求太多，或者额度用完了。${curRpm() ? `已经把每分钟上限${tempRpm ? '暂时' : ''}记为 ${curRpm()} 次，之后会自动放慢；` : ''}稍等一会儿再点「重试」。\n${body||''}`;
   if (status) return `接口返回 ${status}。\n${body||''}`;
   return '连不上接口：网络不通，或这个服务不允许网页直接调用（CORS）。\n' +
-         '可以先点「接口设置 → 测试连接」看看；如果一直这样，需要换一家服务商或加一层转发代理。\n' +
+         `可以先点「接口设置 → 测试连接」看看；如果一直这样，需要换一家允许网页直接调用的服务商。\n` +
          (e && e.message ? '（' + e.message + '）' : '');
 }
 
@@ -1802,7 +1812,12 @@ function onRateLimited(res){
     const saved = { ...DEFAULT_CFG, ...store.get(CFG_KEY, {}) };
     const preset = PROVIDERS.find(p => p.rpm && String(saved.base).replace(/\/+$/, '') === p.base);
     if (preset) tempRpm = ok;
-    else { cfg.rpm = ok; saved.rpm = ok; store.set(CFG_KEY, saved); }
+    else {
+      cfg.rpm = ok; saved.rpm = ok;
+      const pf = saved.profiles && saved.profiles[normBase(saved.base)];
+      if (pf) pf.rpm = ok;
+      store.set(CFG_KEY, saved);
+    }
   }
   const ra = +res.headers.get('retry-after');
   return ra > 0 ? ra * 1000 : Math.max(5000, (reqLog[0] || Date.now()) + 60000 - Date.now() + 500);
@@ -3873,37 +3888,102 @@ function exportGame(){
 function setDot(ok){ $('cfgDot').className = 'dot ' + (ok ? 'on' : 'bad'); }
 function fillCfgForm(c){
   $('cfgBase').value = c.base; $('cfgKey').value = c.key; $('cfgModel').value = c.model;
+  $('cfgName').value = c.name || '';
   $('cfgTemp').value = c.temp; $('cfgMax').value = c.max; $('cfgRpm').value = c.rpm || 0;
 }
 function readCfgForm(){
   return { base:$('cfgBase').value.trim(), key:$('cfgKey').value.trim(), model:$('cfgModel').value.trim(),
            temp:Math.min(2, Math.max(0, parseFloat($('cfgTemp').value) || 0.9)),
            max:Math.min(8000, Math.max(200, parseInt($('cfgMax').value, 10) || 1200)),
-           rpm:Math.min(600, Math.max(0, parseInt($('cfgRpm').value, 10) || 0)) };
+           rpm:Math.min(600, Math.max(0, parseInt($('cfgRpm').value, 10) || 0)),
+           name:$('cfgName').value.trim().slice(0, 12) };
 }
 function cfgMsg(t, cls){ const m = $('cfgMsg'); m.textContent = t || ''; m.className = 'msg ' + (cls || ''); }
 function openCfg(note){
   fillCfgForm(cfg); cfgMsg(note || '', note ? 'err' : '');
+  formProfiles = JSON.parse(JSON.stringify(cfg.profiles || {})); formBase = normBase(cfg.base);
+  renderSources();
   const all = store.get(USAGE_KEY, {});
   $('usageAll').textContent = all.calls ? `这台设备累计用了 ${all.est ? '约 ' : ''}${fmtK((all.in || 0) + (all.out || 0))} tokens（输入 ${fmtK(all.in || 0)}，输出 ${fmtK(all.out || 0)}，${all.calls} 次调用）。` : '';
   $('dlgCfg').showModal();
 }
-function fillModels(list){
-  $('modelList').innerHTML = [...new Set([...list, ...KNOWN_MODELS])].map(m => `<option value="${esc(m)}">`).join('');
+// 模型下拉：只放当前这个接口的——之前拉到过的列表，Agnes 再补上几个已知的型号
+function fillModels(base){
+  const b = normBase(base), pf = formProfiles[b] || (cfg.profiles || {})[b] || {};
+  const known = /agnes-ai\./.test(b) ? KNOWN_MODELS : [];
+  $('modelList').innerHTML = [...new Set([...(pf.models || []), ...known])].map(m => `<option value="${esc(m)}">`).join('');
 }
 
-$('presetRow').innerHTML = '';
-PROVIDERS.forEach(p => {
-  const b = document.createElement('button'); b.className = 'ghost'; b.type = 'button'; b.textContent = p.name;
-  b.onclick = () => { $('cfgBase').value = p.base; if (p.model) $('cfgModel').value = p.model; $('cfgRpm').value = p.rpm; cfgMsg(''); };
-  $('presetRow').appendChild(b);
+// 弹窗里的接口源：预设的几家 + 自己填过的地址。点一下就把表单换成那一家记着的 Key / 模型 / 上限，
+// 切走之前先把表单上的这一套记进 formProfiles；按「保存」才写进本机
+let formProfiles = {}, formBase = '';
+function stashForm(){
+  const b = normBase(formBase), f = readCfgForm();
+  if (b && (f.key || f.model || f.name)) formProfiles[b] = { ...formProfiles[b], key:f.key, model:f.model, rpm:f.rpm, name:f.name };
+}
+function loadSource(base, preset){
+  stashForm();
+  const b = normBase(base), pf = formProfiles[b];
+  $('cfgBase').value = b;
+  $('cfgKey').value = pf ? pf.key : '';
+  $('cfgModel').value = pf && pf.model ? pf.model : (preset ? preset.model : '');
+  $('cfgRpm').value = pf ? pf.rpm || 0 : (preset ? preset.rpm : 0);
+  $('cfgName').value = pf && pf.name || '';
+  formBase = b;
+  renderSources();
+  cfgMsg(pf && pf.key ? '' : '这个接口还没填 Key。');
+}
+function renderSources(){
+  const cur = normBase($('cfgBase').value);
+  fillModels(cur);
+  const custom = Object.keys(formProfiles).filter(b => !PROVIDERS.some(p => p.base === b));
+  const host = b => { try{ return new URL(b).host; }catch{ return b.slice(0, 24); } };
+  $('presetRow').innerHTML = [...PROVIDERS.map(p => [p.base, p.name, false]), ...custom.map(b => [b, formProfiles[b].name || host(b), true])].map(([b, name, own]) =>
+    `<button class="ghost${b === cur ? ' on' : ''}" type="button" data-base="${esc(b)}" title="${esc(b)}">${formProfiles[b] && formProfiles[b].key ? '<i title="已存 Key"></i>' : ''}${esc(name)}${own ? '<em class="x" data-del="1" title="删掉这个接口">×</em>' : ''}</button>`).join('')
+    + `<button class="ghost${!cur ? ' on' : ''}" type="button" data-new="1">＋ 自定义</button>`;
+  // 预设的几家不用起名；自定义的显示名称框
+  $('cfgNameBox').classList.toggle('hide', PROVIDERS.some(p => p.base === cur));
+}
+// 新建自定义接口：先把表单上这一套记下，再清空让你填
+function newSource(){
+  stashForm();
+  formBase = '';
+  ['cfgBase', 'cfgKey', 'cfgModel', 'cfgName'].forEach(id => { $(id).value = ''; });
+  $('cfgRpm').value = 0;
+  renderSources();
+  cfgMsg('填上接口地址、Key 和模型，保存后会出现在上面的按钮里。');
+  $('cfgName').focus();
+}
+$('presetRow').addEventListener('click', e => {
+  if (e.target.closest('button[data-new]')){ newSource(); return; }
+  const b = e.target.closest('button[data-base]');
+  if (!b) return;
+  const base = b.dataset.base;
+  if (e.target.dataset.del){
+    if (!confirm(`删掉 ${base} 记着的 Key 和模型？`)) return;
+    delete formProfiles[base];
+    if (normBase($('cfgBase').value) === base){ formBase = ''; loadSource(PROVIDERS[0].base, PROVIDERS[0]); }
+    else renderSources();
+    return;
+  }
+  loadSource(base, PROVIDERS.find(p => p.base === base));
 });
+// 手动改了地址：换成那个地址记着的一套（没记过就保留表单上已填的 Key，方便第一次填自定义地址）
+$('cfgBase').addEventListener('change', () => {
+  const b = normBase($('cfgBase').value);
+  if (b === normBase(formBase)) return;
+  if (formProfiles[b]) loadSource(b, PROVIDERS.find(p => p.base === b));
+  else { stashForm(); formBase = b; stashForm(); renderSources(); }   // 新地址填完就出现在按钮里
+});
+$('cfgName').addEventListener('change', () => { if (formBase) { stashForm(); renderSources(); } });
 $('btnEye').onclick = () => {
   const k = $('cfgKey'); k.type = k.type === 'password' ? 'text' : 'password';
   $('btnEye').textContent = k.type === 'password' ? '显示' : '隐藏';
 };
+// 拉模型列表、测试连接：临时用表单上的设置发请求，完了换回来。
+// 只在全局设置还是这份临时设置时才换回——等待期间点了「保存」，就别把刚保存的覆盖掉
 $('btnModels').onclick = async () => {
-  const old = cfg; cfg = { ...cfg, ...readCfgForm() };
+  const old = cfg, tmp = cfg = { ...cfg, ...readCfgForm() };
   cfgMsg('正在拉取模型列表……');
   try{
     reqLog.push(Date.now());
@@ -3911,13 +3991,20 @@ $('btnModels').onclick = async () => {
     if (!res.ok) throw { status:res.status, body:await readErr(res) };
     const j = await res.json();
     const ids = (j.data || j.models || []).map(m => m.id || m.name || m).filter(x => typeof x === 'string');
-    fillModels(ids);
+    // 拉到的列表记在这个接口名下：切走再切回来还在，关掉弹窗不保存也不丢
+    const b = normBase($('cfgBase').value), list = [...new Set(ids)].slice(0, 300);
+    formProfiles[b] = { ...formProfiles[b], models:list };
+    // 已保存过的接口顺手把列表写进本机；这时 cfg 是表单的临时副本，不能整份存，只改存好的那份里的 models
+    const real = cfg === tmp ? old : cfg, saved = store.get(CFG_KEY, {});
+    if (real.profiles && real.profiles[b]) real.profiles[b].models = list;
+    if (saved.profiles && saved.profiles[b]){ saved.profiles[b].models = list; store.set(CFG_KEY, saved); }
+    fillModels(b);
     cfgMsg(ids.length ? `拿到 ${ids.length} 个模型，点模型输入框可以选。` : '接口通了，但没返回模型列表，请手动填模型名。', 'ok');
   }catch(e){ cfgMsg(explainError(e, e && e.status, e && e.body), 'err'); }
-  cfg = old;
+  if (cfg === tmp) cfg = old;
 };
 $('btnTest').onclick = async () => {
-  const old = cfg; cfg = { ...cfg, ...readCfgForm() };
+  const old = cfg, tmp = cfg = { ...cfg, ...readCfgForm() };
   if (!cfgReady()){ cfgMsg('接口地址、Key、模型都要填。', 'err'); cfg = old; return; }
   cfgMsg('正在发一句测试……');
   const t0 = performance.now();
@@ -3926,15 +4013,25 @@ $('btnTest').onclick = async () => {
     cfgMsg(`连接成功（${Math.round(performance.now() - t0)} ms）：${r.trim() || '（返回了空内容）'}`, 'ok');
     setDot(true);
   }catch(e){ cfgMsg(explainError(e, e && e.status, e && e.body), 'err'); setDot(false); }
-  cfg = old;
+  if (cfg === tmp) cfg = old;
 };
 $('btnCfgSave').onclick = () => {
-  cfg = readCfgForm(); tempRpm = 0;
+  if (!normBase($('cfgBase').value)){ cfgMsg('先填接口地址。', 'err'); return; }
+  formBase = normBase($('cfgBase').value);
+  stashForm();
+  cfg = { ...readCfgForm(), profiles:formProfiles }; tempRpm = 0;
+  cfg.base = normBase(cfg.base);
   store.set(CFG_KEY, cfg);
   $('dlgCfg').close();
 };
 $('btnClearKey').onclick = () => {
-  $('cfgKey').value = ''; cfg.key = ''; store.set(CFG_KEY, cfg); cfgMsg('Key 已从本机清除。', 'ok');
+  // 只清当前这个接口的 Key，其他接口记着的不动
+  const b = normBase($('cfgBase').value);
+  $('cfgKey').value = '';
+  if (formProfiles[b]) formProfiles[b].key = '';
+  if (cfg.profiles && cfg.profiles[b]) cfg.profiles[b].key = '';
+  if (normBase(cfg.base) === b) cfg.key = '';
+  store.set(CFG_KEY, cfg); renderSources(); cfgMsg('这个接口的 Key 已从本机清除。', 'ok');
   $('cfgDot').className = 'dot';
 };
 $('btnCfg').onclick = () => openCfg();
@@ -4046,7 +4143,7 @@ $('fileImport').onchange = async e => {
 };
 
 /* ================= 启动 ================= */
-fillModels([]);
+fillModels(cfg.base);
 renderScenarios();
 pickScenario(selScen);
 
