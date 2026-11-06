@@ -2460,10 +2460,16 @@ const QUOTE_PAIR = { '“':'”', '"':'"', '「':'」', '『':'』' };
 let vnOn = store.get('aistory.vn', true);
 // 「林晚照低声道：“……”」这种写法：去掉说话的动词留下名字；只剩“他 / 她”的认不出是谁，照普通段落排
 const SPEECH_TAIL = /(低声|轻声|冷冷|冷声|笑着|淡淡|小声|大声|柔声|沉声|忽然|突然|缓缓)?地?(说道|说|问道|问|喊道|喊|答道|答|笑道|叹道|开口|道)$/;
-function speaker(w){
+// 只认三种说话人：主角、已知人物（前缀相同也算，“夏目葵学姐”认成夏目葵）、4 个字以内的短名字。
+// 「门口贴着告示：“今日歇业。”」这种长主语就是叙述，照普通段落排
+function speaker(w, known){
   const n = w.trim().replace(SPEECH_TAIL, '').trim();
-  return n && !/^(他|她|它|他们|她们|旁白|注|提示|时间|地点)$/.test(n) ? n : '';
+  if (!n || /^(他|她|它|他们|她们|旁白|注|提示|时间|地点)$/.test(n)) return '';
+  if (n === '你' || n === game.setup.name) return n;
+  const k = known.find(x => n.startsWith(x) || x.startsWith(n));
+  return k || ([...n].length <= 4 ? n : '');
 }
+const knownNames = () => [...new Set([...(curState().npcs || []), ...(game.setup.npcs || [])].map(n => n.name).filter(Boolean))].sort((a, b) => b.length - a.length);
 const inline = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 function sayHtml(who, line){
   // 整行就是一句被引号包住的台词：去掉引号；引号后面还跟着叙述的，原样保留
@@ -2473,15 +2479,16 @@ function sayHtml(who, line){
   return `<div class="say${me ? ' me' : ''}">${me ? '' : avatarHtml(who)}<div class="bub"><b>${esc(who)}</b><p>${inline(line)}</p></div></div>`;
 }
 function fmt(text){
+  const known = vnOn && game ? knownNames() : [];
   return text.split(/\n+/).filter(p => p.trim()).map(p => {
-    const m = vnOn && p.trim().match(SAY_RE), who = m && speaker(m[1]);
+    const m = vnOn && game && p.trim().match(SAY_RE), who = m && speaker(m[1], known);
     return who ? sayHtml(who, m[2].trim()) : '<p>' + inline(p) + '</p>';
   }).join('');
 }
 // 头像：玩家上传过图片就用图片，否则是按名字算的底色 + 首字
 function avatarHtml(name, cls = 'av'){
   const img = game && game.avatars && game.avatars[name];
-  return img ? `<span class="${cls} img" style="background:url(${img})"></span>` : `<span class="${cls}" style="background:${avatarColor(name)}">${esc([...name][0] || '?')}</span>`;
+  return img && AV_RE.test(img) ? `<span class="${cls} img" style="background:url('${img}')"></span>` : `<span class="${cls}" style="background:${avatarColor(name)}">${esc([...name][0] || '?')}</span>`;
 }
 
 // 检定卡：🎲 骰点 + 属性 + 技能 + 天赋 = 总点数 对比难度，再给结果。st 是检定发生前的状态
@@ -3003,7 +3010,7 @@ function relMapSvg(s){
   let lines = '', labels = '', nodes = '', defs = '';
   const node = (name, x, y, r, i) => {
     const img = game.avatars && game.avatars[name];
-    if (img){ defs += `<clipPath id="rc${i}"><circle cx="${f(x)}" cy="${f(y)}" r="${r}"/></clipPath>`;
+    if (img && AV_RE.test(img)){ defs += `<clipPath id="rc${i}"><circle cx="${f(x)}" cy="${f(y)}" r="${r}"/></clipPath>`;
       return `<image href="${img}" x="${f(x - r)}" y="${f(y - r)}" width="${2 * r}" height="${2 * r}" clip-path="url(#rc${i})" preserveAspectRatio="xMidYMid slice"/>`; }
     return `<circle cx="${f(x)}" cy="${f(y)}" r="${r}" fill="${avatarColor(name)}"/><text class="ini" x="${f(x)}" y="${f(y + 5)}" text-anchor="middle">${esc([...name][0])}</text>`;
   };
@@ -3532,7 +3539,7 @@ $('fileWorld').onchange = async e => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
   try{
-    const w = JSON.parse(await f.text());
+    const w = scrub(JSON.parse(await f.text()));
     if (!w || w.kind !== 'aistory-world' || !w.rules) throw 0;
     w.id = 'my_' + Date.now().toString(36);
     w.rules = normRules(w.rules); w.npcs = Array.isArray(w.npcs) ? w.npcs : [];
@@ -3597,18 +3604,27 @@ function proseRule(){
 
 // 每段写完，页面自己查一遍：用了套话、结尾写成总结、开头和上一段一样、替主角做了决定。
 // 查出来的问题挂在这条消息上，下一回合附在状态后面提醒说书人；没问题就不占 token
+// 台词里的话不算：NPC 问一句“你决定了吗”不是替主角做决定；台词行开头都是“名字：”，也不拿来比开头
+const stripQuotes = t => t.replace(/[“"「『][^”"」』]*[”"」』]?/g, '');
+const textLines = t => t.split('\n').map(x => x.trim()).filter(Boolean);
+function narrHead(t){ const l = textLines(t)[0] || ''; return SAY_RE.test(l) ? '' : l.slice(0, 5); }
 function proseLint(story, prevStory){
   const P = prose(), out = [];
   if (!P.check || !story) return out;
+  const narr = stripQuotes(story);
   const hits = P.bans.filter(b => story.includes(b));
   if (hits.length) out.push(`用了套话「${hits.slice(0, 4).join('」「')}」`);
-  const like = (story.match(/仿佛|似乎|宛如|好像|犹如/g) || []).length;
+  const like = (narr.match(/仿佛|似乎|宛如|好像|犹如/g) || []).length;
   if (like >= 4) out.push(`“仿佛 / 似乎 / 宛如”用了 ${like} 次`);
-  const sents = story.replace(/\s+/g, '').match(/[^。！？!?]+[。！？!?]*[”」』]?/g) || [];
-  const last = sents[sents.length - 1] || '';
-  if (/这一刻|你知道|你明白|你意识到|才刚刚开始|命运/.test(last)) out.push('结尾写成了总结感悟');
-  if (prevStory && story.slice(0, 5) === prevStory.slice(0, 5)) out.push('开头和上一段一样');
-  if (/你(心想|暗想|决定|下定决心|暗下决心|打定主意)/.test(story)) out.push('替主角写了心理或决定');
+  // 结尾：最后一行是台词就不查；是叙述就看它的最后一句
+  const lastLine = textLines(story).pop() || '';
+  if (!SAY_RE.test(lastLine)){
+    const sents = stripQuotes(lastLine).match(/[^。！？!?]+[。！？!?]*/g) || [];
+    if (/这一刻|你知道|你明白|你意识到|才刚刚开始|命运/.test(sents[sents.length - 1] || '')) out.push('结尾写成了总结感悟');
+  }
+  const h = narrHead(story);
+  if (h && prevStory && h === narrHead(prevStory)) out.push('开头和上一段一样');
+  if (/你(心想|暗想|决定|下定决心|暗下决心|打定主意)/.test(narr)) out.push('替主角写了心理或决定');
   return out;
 }
 function lastLint(){
@@ -3989,12 +4005,41 @@ $('btnEvents').onclick = () => {
   sysNote(game.setup.events ? '随机事件已打开：每隔几回合会掷一次骰。' : '随机事件已关闭。');
 };
 $('btnImport').onclick = () => $('fileImport').click();
+// 导入的文件可能是别人发来的，不能信：所有字符串去掉能跳出 HTML 属性 / 标签的字符（< > " ' `），
+// 规则过一遍 normRules，头像只认图片 data URL。说书人原文（history 里的 content）照旧保留，它渲染时一律转义，
+// 而且 <state> <check> 这些标签还要靠它解析
+const AV_RE = /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+function scrubStr(v){ return String(v).replace(/[<>"'`]/g, ''); }
+function scrub(v, keepContent){
+  if (typeof v === 'string') return scrubStr(v);
+  if (Array.isArray(v)) return v.map(x => scrub(x, keepContent));
+  if (v && typeof v === 'object'){
+    const o = {};
+    for (const [k, x] of Object.entries(v)){
+      if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+      o[scrubStr(k)] = keepContent && k === 'content' && typeof x === 'string' ? x : scrub(x, keepContent);
+    }
+    return o;
+  }
+  return typeof v === 'number' || typeof v === 'boolean' || v === null ? v : undefined;
+}
+function sanitizeGame(raw){
+  const avatars = raw.avatars && typeof raw.avatars === 'object' ? raw.avatars : {};
+  const g = scrub({ ...raw, avatars:undefined }, true);
+  g.avatars = Object.fromEntries(Object.entries(avatars).filter(([, v]) => typeof v === 'string' && v.length < 200000 && AV_RE.test(v)).map(([k, v]) => [scrubStr(k), v]));
+  if (g.setup.rules) g.setup.rules = normRules(g.setup.rules);
+  if (g.setup.rulesId && !RULES[g.setup.rulesId]) delete g.setup.rulesId;
+  g.history = g.history.filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string');
+  if (!Array.isArray(g.archive)) delete g.archive;
+  return g;
+}
 $('fileImport').onchange = async e => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
   try{
-    const g = JSON.parse(await f.text());
-    if (!g || !Array.isArray(g.history) || !g.setup) throw 0;
+    const raw = JSON.parse(await f.text());
+    if (!raw || !Array.isArray(raw.history) || !raw.setup || typeof raw.setup !== 'object') throw 0;
+    const g = sanitizeGame(raw);
     game = g; delete game.savedAt; delete game.turns;
     showGame();
   }catch{ alert('这不是说书人的存档文件。'); }
