@@ -131,7 +131,23 @@
   .slot{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
   .slot:first-of-type{border-top:0}
   .slot .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .slot .t i{font-style:normal;color:var(--muted);margin-left:6px}
+  .slot .t b{font-weight:500}
+  .slot .t i{display:block;font-style:normal;font-size:12px;color:var(--muted)}
+  .slot .sdot{width:8px;height:8px;border-radius:50%;flex:none}
+  .slot .ghost{font-size:12px;padding:3px 10px}
+  .slots .sh{margin:4px 0 4px;font:600 13px var(--sans);color:var(--muted)}
+  .slots .sh + div{margin-bottom:10px}
+  .slots .hint{margin:4px 0 0}
+  .sgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .sbox{
+    display:flex;flex-direction:column;gap:2px;min-width:0;padding:10px;text-align:left;border-radius:8px;
+    background:var(--bg);border:1px dashed var(--line);
+  }
+  .sbox.used{border-style:solid}
+  .sbox:hover{border-color:var(--brand)}
+  .sbox b{font-size:13px}
+  .sbox span{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sbox i{font-style:normal;font-size:11px;color:var(--dim)}
 
   /* ---------- 游戏中 ---------- */
   /* 正文一行三十来个字最好读，所以正文栏封顶 40rem，两栏一起居中 */
@@ -669,7 +685,9 @@
   </div>
 
   <div class="card slots">
-    <h3 style="margin:0 0 6px;font:600 13px var(--sans);color:var(--muted)">存档</h3>
+    <h3 class="sh">继续游戏</h3>
+    <div id="autoList"></div>
+    <h3 class="sh">手动存档</h3>
     <div id="slotList"></div>
     <div class="row" style="margin-top:8px">
       <button class="ghost" id="btnImport">从文件导入</button>
@@ -793,6 +811,12 @@
   </div>
 </dialog>
 
+<dialog id="dlgSlots">
+  <button class="dlg-x" type="button" data-close aria-label="关闭">×</button>
+  <h2>存到哪个槽位</h2>
+  <div class="sgrid" id="slotGrid"></div>
+</dialog>
+
 <dialog id="dlgTalent">
   <h2>选择天赋</h2>
   <p class="hint" style="margin:-6px 0 12px">三选一，选了就不能改。</p>
@@ -838,7 +862,7 @@
 'use strict';
 
 /* ================= 配置 ================= */
-const CFG_KEY = 'aistory.cfg.v1', SAVE_KEY = 'aistory.saves.v1', SLOT_N = 4;   // 槽 0 = 自动存档
+const CFG_KEY = 'aistory.cfg.v1';
 
 const PROVIDERS = [
   // rpm：已知的每分钟请求上限（Agnes 是 20），不知道的留 0 = 不限，撞到限流时再自动记
@@ -2958,49 +2982,106 @@ function showStart(){
   renderSlots(); window.scrollTo(0, 0);
 }
 
-function saves(){ const s = store.get(SAVE_KEY, []); return Array.isArray(s) ? s : []; }
-function snapshot(){ return { ...game, savedAt:Date.now(), turns:game.history.filter(m => m.role === 'assistant').length }; }
-function writeSlot(i){
-  const s = saves(); s[i] = snapshot();
-  return store.set(SAVE_KEY, s);
+/* ================= 存档 =================
+   每份存档单独一个键（aistory.save.<key>），另有一个小索引记标题、等级、时间。
+   key 是 auto:<局 id>（每局自己的自动存档，最多留 AUTO_MAX 局）或 slot:<n>（手动存档位）。
+   这样每回合自动存档只写这一局，不用把所有存档整个重写一遍；存不下时先删最旧的别局自动存档腾地方 */
+const SAVE_INDEX = 'aistory.saves.v2', SAVE_PREFIX = 'aistory.save.', AUTO_MAX = 12, SLOT_MAX = 10;
+const saveIndex = () => { const s = store.get(SAVE_INDEX, []); return Array.isArray(s) ? s : []; };
+function rawSet(k, v){ try{ localStorage.setItem(k, v); return true; }catch{ return false; } }
+function rawDel(k){ try{ localStorage.removeItem(k); }catch{} }
+function readSave(key){ return store.get(SAVE_PREFIX + key, null); }
+function removeSave(key){ rawDel(SAVE_PREFIX + key); store.set(SAVE_INDEX, saveIndex().filter(m => m.key !== key)); }
+
+function snapshot(){ return { ...game, savedAt:Date.now(), turns:game.history.filter(m => m.role === 'assistant').length + (game.archive || []).filter(v => v.r === 'g').length }; }
+// 索引里的一行：从存档本身算出来，列表显示用
+function saveMeta(key, g){
+  const st = [...g.history].reverse().find(m => m.state)?.state || g.baseState || {};
+  const R = RULES[g.setup.rulesId] || g.setup.rules || RULES.custom;
+  return { key, kind:key.startsWith('auto:') ? 'auto' : 'slot', gameId:g.id, title:g.title || '未命名', name:g.setup.name || '',
+           lv:st.lv || 1, turns:g.turns || 0, theme:R.theme || 'ink', savedAt:g.savedAt || Date.now() };
 }
+function putSave(key, g){
+  const data = JSON.stringify(g);
+  for (let tries = 0; tries < 6; tries++){
+    if (rawSet(SAVE_PREFIX + key, data)){
+      const idx = saveIndex().filter(m => m.key !== key);
+      idx.push(saveMeta(key, g));
+      // 自动存档超过上限，删最旧的
+      const autos = idx.filter(m => m.kind === 'auto').sort((a, b) => b.savedAt - a.savedAt);
+      for (const old of autos.slice(AUTO_MAX)){ rawDel(SAVE_PREFIX + old.key); idx.splice(idx.indexOf(old), 1); }
+      return store.set(SAVE_INDEX, idx);
+    }
+    const victim = saveIndex().filter(m => m.kind === 'auto' && m.key !== key).sort((a, b) => a.savedAt - b.savedAt)[0];
+    if (!victim) return false;
+    removeSave(victim.key);
+  }
+  return false;
+}
+
+// 旧版只有一个数组：槽 0 是唯一的自动存档，1～3 是手动槽。读一次搬过来就删
+(function migrateSaves(){
+  const old = store.get('aistory.saves.v1', null);
+  if (!Array.isArray(old)) return;
+  old.forEach((g, i) => { if (g && g.setup) putSave(i === 0 ? 'auto:' + (g.id || 'old') : 'slot:' + i, g); });
+  rawDel('aistory.saves.v1');
+})();
+
 // 自动存档写不进去（浏览器存储满了或被禁用）时提醒一次，不然玩家会以为进度存住了
 let autosaveWarned = false;
 function autosave(){
-  if (!game || writeSlot(0) || autosaveWarned) return;
+  if (!game || putSave('auto:' + game.id, snapshot()) || autosaveWarned) return;
   autosaveWarned = true;
   showAlert('自动存档失败：浏览器存储满了或被禁用，这局的进度没有存进本机。可以点「⋯ → 导出为文件」另存一份。', 'wait');
 }
 
+function loadSave(key){
+  const g = readSave(key);
+  if (!g || !g.setup){ alert('这个存档读不出来了，可能已经损坏。'); removeSave(key); renderSlots(); return; }
+  game = g; delete game.savedAt; delete game.turns;
+  showGame();
+}
+const fmtTime = t => new Date(t).toLocaleString('zh-CN', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+function saveRow(m, label){
+  const c = (THEMES[m.theme] || THEMES.ink).c;
+  return `<div class="slot" data-key="${esc(m.key)}">
+    <span class="sdot" style="background:${c[7]}"></span>
+    <span class="t"><b>${label ? label + ' · ' : ''}${esc(m.title)}</b><i>${m.name ? esc(m.name) + ' · ' : ''}Lv${m.lv} · 第 ${m.turns} 段 · ${fmtTime(m.savedAt)}</i></span>
+    <button class="ghost" data-act="load">读取</button><button class="ghost" data-act="del">删除</button></div>`;
+}
 function renderSlots(){
-  const s = saves(), el = $('slotList'); el.innerHTML = '';
-  for (let i = 0; i < SLOT_N; i++){
-    const g = s[i];
-    const row = document.createElement('div'); row.className = 'slot';
-    const label = i === 0 ? '自动' : '槽 ' + i;
-    if (g){
-      const d = new Date(g.savedAt);
-      row.innerHTML = `<span class="t"><b>${label}</b> · ${esc(g.title)}<i>第 ${g.turns} 段 · ${d.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</i></span>`;
-      const load = document.createElement('button'); load.className = 'ghost'; load.textContent = '读取';
-      load.onclick = () => { game = structuredClone(g); delete game.savedAt; delete game.turns; showGame(); };
-      const del = document.createElement('button'); del.className = 'ghost'; del.textContent = '删除';
-      del.onclick = () => { if (confirm('删除这个存档？')){ const a = saves(); a[i] = null; store.set(SAVE_KEY, a); renderSlots(); } };
-      row.append(load, del);
-    } else {
-      row.innerHTML = `<span class="t"><b>${label}</b><i>空</i></span>`;
-    }
-    el.appendChild(row);
-  }
+  const idx = saveIndex();
+  const autos = idx.filter(m => m.kind === 'auto').sort((a, b) => b.savedAt - a.savedAt);
+  const slots = idx.filter(m => m.kind === 'slot').sort((a, b) => a.key.localeCompare(b.key, 'en', { numeric:true }));
+  $('autoList').innerHTML = autos.length ? autos.map(m => saveRow(m)).join('') : '<p class="hint">还没有。开一局之后，每局会各自自动存档（最多保留最近 ' + AUTO_MAX + ' 局）。</p>';
+  $('slotList').innerHTML = slots.map(m => saveRow(m, '槽 ' + m.key.slice(5))).join('') +
+    `<p class="hint">${SLOT_MAX - slots.length} 个空位。游戏里点「⋯ → 存档到槽位」。</p>`;
 }
+document.querySelector('.card.slots').addEventListener('click', e => {
+  const b = e.target.closest('button[data-act]'), row = b && b.closest('.slot');
+  if (!row) return;
+  if (b.dataset.act === 'load') loadSave(row.dataset.key);
+  else if (confirm('删除这个存档？删了就找不回来。')){ removeSave(row.dataset.key); renderSlots(); }
+});
 
+// 游戏里存到手动槽位：弹窗列出 10 个位子
 function saveToSlot(){
-  const s = saves();
-  const lines = [];
-  for (let i = 1; i < SLOT_N; i++) lines.push(`${i}：${s[i] ? s[i].title + '（第 ' + s[i].turns + ' 段）' : '空'}`);
-  const n = parseInt(prompt('存到哪个槽？\n' + lines.join('\n'), '1'), 10);
-  if (!(n >= 1 && n < SLOT_N)) return;
-  sysNote(writeSlot(n) ? `已存到槽 ${n}。` : '存档失败：浏览器存储不可用或已满。');
+  const idx = saveIndex();
+  $('slotGrid').innerHTML = Array.from({ length:SLOT_MAX }, (_, i) => {
+    const m = idx.find(x => x.key === 'slot:' + (i + 1));
+    return `<button class="sbox${m ? ' used' : ''}" data-n="${i + 1}"><b>槽 ${i + 1}</b><span>${m ? esc(m.title) + ' · 第 ' + m.turns + ' 段' : '空'}</span>${m ? `<i>${fmtTime(m.savedAt)}</i>` : ''}</button>`;
+  }).join('');
+  toggleSheet(false);
+  $('dlgSlots').showModal();
 }
+$('slotGrid').addEventListener('click', e => {
+  const b = e.target.closest('.sbox');
+  if (!b) return;
+  if (b.classList.contains('used') && !confirm(`槽 ${b.dataset.n} 已经有存档了，要覆盖吗？`)) return;
+  const ok = putSave('slot:' + b.dataset.n, snapshot());
+  $('dlgSlots').close();
+  sysNote(ok ? `已存到槽 ${b.dataset.n}。` : '存档失败：浏览器存储不可用或已满。可以用「导出为文件」另存。');
+});
 
 function sysNote(t){ showAlert(t, 'info'); }
 
