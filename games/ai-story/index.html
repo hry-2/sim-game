@@ -745,6 +745,7 @@
       <label class="f"><span>行动选项</span><select id="nChoices"><option value="0">不给，全靠自己写</option><option value="2">2 个</option><option value="3" selected>3 个</option><option value="4">4 个</option><option value="5">5 个</option></select></label>
     </div>
     <button class="ghost" id="btnProse" type="button" style="margin:0 0 14px">✎ 文笔设置：守则、禁用套话、参考段落</button>
+    <label class="optrow"><input type="checkbox" id="optFemale" checked> ♀ 全女世界：所有角色都是女性（主角性别留空时也是女）</label>
     <label class="optrow"><input type="checkbox" id="optEvents" checked> 🎲 随机事件：每隔几回合掷一次骰，触发偶遇、意外和小插曲</label>
     <label class="f hide" id="styleCustomBox"><span>自己描述风格</span><input type="text" id="styleCustom" maxlength="80" placeholder="例：像王家卫电影的旁白，慢、碎、有画面"></label>
     <label class="f"><span>额外要求（可选）</span><input type="text" id="extra" placeholder="例：节奏慢一点、多一些对话、不要太血腥" maxlength="200"></label>
@@ -808,6 +809,7 @@
               <button id="btnProseGame">文笔设置</button>
               <button id="btnVn">对话框显示：开</button>
               <button id="btnEvents">随机事件：开</button>
+              <button id="btnFemale">全女世界：关</button>
             </div>
           </details>
         </div>
@@ -1708,10 +1710,15 @@ const genderKey = g => /^(男|男性|男生|少年|man|male)/i.test(g || '') ? '
 const GENDER_WORDS = {
   M:[['恶役千金','恶役少爷'],['千金','少爷'],['嫡女','嫡子'],['淑女','绅士'],['名媛','名流'],['王国之花','王国之星'],['学院之花','学院之星'],['一枝花','俏郎君'],['交际花','交际名流'],
      ['一品诰命','一品国公'],['王妃','亲王'],['郡主','郡王'],['县主','县侯'],['女配','男配'],['学姐','学长'],['姐妹','兄弟'],['妹妹','弟弟']],
-  F:[['学长','学姐'],['少爷','千金'],['贵公子','名媛'],['俏郎君','一枝花'],['郎中','医女'],['兄弟','姐妹'],['小吏','女吏']],
+  F:[['学长','学姐'],['少爷','千金'],['贵公子','名媛'],['俏郎君','一枝花'],['郎中','医女'],['兄弟','姐妹'],['小吏','女吏'],
+     ['王太子','王太女'],['太子','皇太女'],['天子','女帝'],['皇帝','女帝'],['王子','公主'],['公子','小姐'],['男团','女团'],
+     ['师兄','师姐'],['师弟','师妹'],['男人','女人'],['少年','少女'],['男孩','女孩'],['未婚夫','未婚妻'],['丈夫','妻子'],
+     ['男主','女主'],['男配','女配'],['哥哥','姐姐'],['弟弟','妹妹'],['父亲','母亲'],['儿子','女儿']],
 };
+// 全女世界：人物的身份、性格、秘密里写成男性的称谓换成女性（名字不动，靠名字认人）
+const castText = t => game && game.setup.allFemale ? genderize(t, 'F') : String(t ?? '');
 const genderize = (text, g) => (GENDER_WORDS[g] || []).reduce((t, [a, b]) => t.split(a).join(b), String(text ?? ''));
-const curGender = () => genderKey(game && game.setup.gender);
+const curGender = () => genderKey(game && (game.setup.gender || (game.setup.allFemale ? '女' : '')));
 const lvTitle = (R, lv) => { const g = curGender(), list = (g === 'M' && R.titlesM) || R.titles; return genderize(list[Math.min(lv - 1, list.length - 1)], g); };
 // 存档只记世界观的 id，规则以代码里的为准；更早的存档存的是整份规则，照旧用
 function rules(){ return RULES[game.setup.rulesId] || game.setup.rules || RULES.custom; }
@@ -2071,7 +2078,7 @@ ${s.world || '由你决定一个有趣的世界。'}
 
 【主角】
 名字：${s.name || '还没有，由你起一个贴合世界的名字，并写进状态块的 name'}
-${s.gender ? `性别：${s.gender}（以此为准：世界设定和人物介绍里与之冲突的称呼和身份，如千金 / 少爷、嫡女 / 嫡子、女配 / 男配、女校，都按主角性别自然改写，其余设定不变）\n` : ''}身份：${s.role || '由你根据世界决定'}${s.origin ? `\n出身：${s.origin}` : ''}${s.backstory ? `\n背景故事：${s.backstory}（围绕它埋伏笔，让过去的人和事找上门）` : ''}
+${s.gender || s.allFemale ? `性别：${s.gender || '女'}（以此为准：世界设定和人物介绍里与之冲突的称呼和身份，如千金 / 少爷、嫡女 / 嫡子、女配 / 男配、女校，都按主角性别自然改写，其余设定不变）\n` : ''}身份：${s.role || '由你根据世界决定'}${s.origin ? `\n出身：${s.origin}` : ''}${s.backstory ? `\n背景故事：${s.backstory}（围绕它埋伏笔，让过去的人和事找上门）` : ''}
 
 【主持原则】
 - 第二人称“你”叙述，每段 ${LENGTHS[s.length] || LENGTHS.mid} 字，画面感强。${vnOn ? '人物开口时台词单独起一行，写成：名字：“台词”；神态、动作、语气写在台词前后的叙述里，别只剩光秃秃的一句话。' : '对话用引号融在叙述里，像小说那样配上说话人的神态动作（如：她顿了顿，“……”）。'}${s.style ? `\n- 文风：${s.style}。` : ''}
@@ -2083,7 +2090,7 @@ ${s.gender ? `性别：${s.gender}（以此为准：世界设定和人物介绍�
 - 玩家最新的那条消息前面会附上【当前状态】和【人物现状】，那是最新数值，以它为准。
 - 物品、${R.hp}、${R.money}前后一致，物品效果要真的生效。${s.extra ? `\n- 玩家额外要求：${s.extra}` : ''}
 ${proseRule()}
-${rulePrompt()}${npcs.length ? NPC_RULE : ''}${npcs.some(n => n.romance) ? LOVE_RULE : ''}${R.gal ? GAL_RULE : ''}
+${rulePrompt()}${npcs.length ? NPC_RULE : ''}${npcs.some(n => n.romance) ? LOVE_RULE : ''}${R.gal ? GAL_RULE : ''}${s.allFemale ? ALL_FEMALE_RULE : ''}
 ${stateRule()}
 ${game.memory ? `\n【前情提要】\n${game.memory}\n` : ''}`;
 }
@@ -2119,6 +2126,12 @@ const GAL_RULE = `
 - 写好心动瞬间：一个眼神、一句只对主角说的话、指尖的温度。人物各有说话方式，别让所有人一个腔调。
 - 结局：恋人且心动 ≥ 90、跨过了心结 → 那个人的专属结局；脚踏几条船被发现 → 修罗场；故事走到尽头谁也没攻略下 → 普通结局。到了结局写尾声并 gameOver。
 `;
+// 全女世界：开局可选（默认开），所有角色都是女性
+const ALL_FEMALE_RULE = `
+【全女世界】这个世界里的所有角色都是女性，主角也是（【主角】里另写了性别的以那里为准）。
+- 世界设定和人物介绍里写成男性的人物、称谓和身份，一律按女性来写：师兄→师姐、皇帝→女帝、王子→公主、少爷→小姐、男团→女团，用“她”。人物名字保持不变（页面靠名字认人），名字偏男性也照用。
+- 新出场的路人、士兵、店家、敌人也都是女性。感情线照常写，在女性之间展开。
+`;
 const NPC_RULE = `
 【重要人物】他们贯穿全剧，不是背景板：
 - 会主动出现、推动事件（找上门、求助、递消息、设局、背叛），每隔几段至少让一位登场或产生影响；主角不在场时他们的事也在推进。
@@ -2130,13 +2143,13 @@ function npcList(){
   const list = curState().npcs || [], defs = game.setup.npcs || [];
   return list.map(n => {
     const d = defs.find(x => x.name === n.name) || {};
-    const parts = [n.name, n.role || d.role || '身份未明'];
-    if (d.persona) parts.push('性格：' + d.persona);
+    const parts = [n.name, castText(n.role || d.role || '身份未明')];
+    if (d.persona) parts.push('性格：' + castText(d.persona));
     // 没登场的人只给名字、身份、性格，够说书人安排出场；秘密、好感、喜好等登场后再带
     if (!n.met) return '- ' + parts.concat(d.debut ? '未登场，玩家刚加入，请在一两段内让其出场' : '未登场').join('｜');
-    if (d.secret) parts.push('隐藏动机：' + d.secret);
+    if (d.secret) parts.push('隐藏动机：' + castText(d.secret));
     parts.push(`好感 ${n.favor}`);
-    if (n.romance) parts.push(`♥ 心动 ${n.love || 0}${n.bond ? '（' + n.bond + '）' : ''}${d.likes ? '，喜好：' + d.likes : ''}`);
+    if (n.romance) parts.push(`♥ 心动 ${n.love || 0}${n.bond ? '（' + n.bond + '）' : ''}${d.likes ? '，喜好：' + castText(d.likes) : ''}`);
     if (n.note) parts.push('近况：' + n.note);
     return '- ' + parts.join('｜');
   }).join('\n');
@@ -2596,7 +2609,7 @@ function debuts(state, before){
   const was = (before && before.npcs) || [];
   return state.npcs.filter(n => n.met && !was.some(x => x.name === n.name && x.met)).map(n => {
     const d = (game.setup.npcs || []).find(x => x.name === n.name) || {};
-    return { n:n.name, r:n.role || d.role || '', p:d.persona || '' };
+    return { n:n.name, r:castText(n.role || d.role || ''), p:castText(d.persona || '') };
   });
 }
 const debutHtml = list => (list || []).map(d => `<div class="debut">${avatarHtml(d.n)}<div class="dt"><small>人物登场</small><b>${esc(d.n)}</b>${d.r ? `<span>${esc(d.r)}</span>` : ''}${d.p ? `<p>${esc(d.p)}</p>` : ''}</div></div>`).join('');
@@ -2907,10 +2920,10 @@ function npcCard(n, before, s){
   const d = old ? n.favor - old.favor : 0;
   const left = n.favor >= 0 ? 50 : 50 + n.favor / 2, width = Math.abs(n.favor) / 2;
   const ext = [
-    def.persona && `<div><span>性格</span>${esc(def.persona)}</div>`,
+    def.persona && `<div><span>性格</span>${esc(castText(def.persona))}</div>`,
     `<div><span>好感</span>${n.favor} / 100</div>`,
     n.romance && `<div><span>心动</span>${n.love || 0} / 100</div>`,
-    n.romance && def.likes && `<div><span>喜好</span>${esc(def.likes)}</div>`,
+    n.romance && def.likes && `<div><span>喜好</span>${esc(castText(def.likes))}</div>`,
     def.secret && `<div><span>秘密</span>藏着点什么，说书人会慢慢揭开</div>`,
     `<div class="ract"><button class="ghost" data-avatar="${esc(n.name)}">换头像</button>${game.avatars && game.avatars[n.name] ? `<button class="ghost" data-avreset="${esc(n.name)}">恢复默认</button>` : ''}</div>`,
   ].filter(Boolean).join('') + (n.romance && n.met && s ? romanceActions(n, s) : '');
@@ -2921,7 +2934,7 @@ function npcCard(n, before, s){
     <div class="nh"><b>${esc(n.name)}</b>${n.bond ? `<span class="bond">💞 ${esc(n.bond)}</span>` : ''}<span class="sp"></span>
       ${d ? `<span class="d ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d}</span>` : ''}
       <span class="tier ${t.cls}">${t.label}</span></div>
-    ${n.role ? `<div class="r">${esc(n.role)}</div>` : ''}
+    ${n.role ? `<div class="r">${esc(castText(n.role))}</div>` : ''}
     ${n.met ? `<div class="fv" title="好感 ${n.favor}"><i style="left:${left}%;width:${width}%;background:${n.favor >= 0 ? 'var(--ok)' : 'var(--hp)'}"></i></div>` : ''}
     ${n.romance && n.met ? `<div class="love"><span>♥</span><div class="lb"><i style="width:${n.love || 0}%"></i></div><b>${loveStage(n)}</b>${ld ? `<em class="d ${ld > 0 ? 'up' : 'down'}">${ld > 0 ? '+' : ''}${ld}</em>` : ''}</div>` : ''}
     ${n.met && n.note ? `<p class="note">${esc(n.note)}</p>` : ''}
@@ -3506,17 +3519,24 @@ $('attrEdit').addEventListener('click', e => {
 // 出身：给属性加成和一个出身技能。加成算在分配之外，可以超过开局上限
 function renderOrigins(){
   const os = draft.origins;
-  const g = genderKey($('pcGender').value.trim()), at = $('origin').value;
+  const g = startGender(), at = $('origin').value;
   $('origin').innerHTML = os.length ? os.map((o, i) => `<option value="${i}">${esc(genderize(o.name, g))}</option>`).join('') : '<option value="">（这个世界没有设定出身）</option>';
   if (at && os[+at]) $('origin').value = at;
   showOrigin();
 }
+// 开局页上主角的性别：填了按填的，没填且开着全女世界就是女
+const startGender = () => genderKey($('pcGender').value.trim() || ($('optFemale').checked ? '女' : ''));
 // 改了性别，出身名字跟着换（千金 ↔ 少爷）
 $('pcGender').addEventListener('input', () => renderOrigins());
+// 全女世界默认开，记住上次的选择；开着时性别框留空就是女
+$('optFemale').checked = store.get('aistory.allFemale', true);
+function syncFemaleHint(){ $('pcGender').placeholder = $('optFemale').checked ? '留空就是女，可写 女扮男装……' : '留空按剧本，可写 男 / 女 / 女扮男装……'; }
+$('optFemale').onchange = () => { store.set('aistory.allFemale', $('optFemale').checked); syncFemaleHint(); renderOrigins(); };
+syncFemaleHint();
 function curOrigin(){ return draft && draft.origins[+$('origin').value || 0]; }
 function showOrigin(){
   const o = curOrigin();
-  $('originHint').textContent = o ? `${genderize(o.desc, genderKey($('pcGender').value.trim()))}。${Object.entries(o.bonus).map(([a, v]) => `${a}${v > 0 ? '+' : ''}${v}`).join('，') || '无属性加成'}；技能「${o.skill.name}」：${o.skill.desc}` : '';
+  $('originHint').textContent = o ? `${genderize(o.desc, startGender())}。${Object.entries(o.bonus).map(([a, v]) => `${a}${v > 0 ? '+' : ''}${v}`).join('，') || '无属性加成'}；技能「${o.skill.name}」：${o.skill.desc}` : '';
   renderAttrEdit();
 }
 $('origin').onchange = showOrigin;
@@ -3821,8 +3841,8 @@ function startGame(){
     title:genName || (selScen.id === 'custom' ? (world.slice(0, 12) || '自定义') : selScen.name),
     setup:{ name:$('pcName').value.trim(), gender:$('pcGender').value.trim(), role:$('pcRole').value.trim(), world, extra:$('extra').value.trim(), npcs,
             backstory:$('backstory').value.trim(), style:styleText(), length:$('length').value, nChoices:+$('nChoices').value,
-            worldId:selScen.id === 'custom' ? 'c:' + world.slice(0, 20) : selScen.id, events:$('optEvents').checked, prose:proseDefault(),
-            ...(preset ? { rulesId:selScen.id } : { rules:clone(draft) }), origin:o ? genderize(`${o.name}（${o.desc}）`, genderKey($('pcGender').value.trim())) : '' },
+            allFemale:$('optFemale').checked, worldId:selScen.id === 'custom' ? 'c:' + world.slice(0, 20) : selScen.id, events:$('optEvents').checked, prose:proseDefault(),
+            ...(preset ? { rulesId:selScen.id } : { rules:clone(draft) }), origin:o ? genderize(`${o.name}（${o.desc}）`, startGender()) : '' },
     history:[{ role:'user', hidden:true, content:OPENING }],
     memory:'', created:Date.now(),
     baseState:{ ...blankState(), ...start,
@@ -4167,12 +4187,17 @@ $('btnExport').onclick = () => { $('more').open = false; exportGame(); };
 function syncMenu(){
   $('btnVn').textContent = `对话框显示：${vnOn ? '开' : '关'}`;
   $('btnEvents').textContent = `随机事件：${game && game.setup.events === false ? '关' : '开'}`;
+  $('btnFemale').textContent = `全女世界：${game && game.setup.allFemale ? '开' : '关'}`;
 }
 $('btnProseGame').onclick = () => { $('more').open = false; openProse('game'); };
 // 对话框开关也决定说书人怎么写台词：开着写成「名字：“台词”」单独一行，关了写成小说里那样融在叙述中
 $('btnVn').onclick = () => {
   vnOn = !vnOn; store.set('aistory.vn', vnOn); syncMenu(); renderStory();
   sysNote(vnOn ? '对话框显示已打开：之后台词会单独成行，显示成对话框。' : '对话框显示已关闭：之后说书人会像小说那样把对话写进叙述里。');
+};
+$('btnFemale').onclick = () => {
+  game.setup.allFemale = !game.setup.allFemale; syncMenu(); renderStory(); renderSide(); autosave(); $('more').open = false;
+  sysNote(game.setup.allFemale ? '全女世界已打开：从下一段起，所有角色都按女性来写。' : '全女世界已关闭：之后按原来的设定写。');
 };
 $('btnEvents').onclick = () => {
   game.setup.events = game.setup.events === false; syncMenu(); autosave();
