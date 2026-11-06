@@ -979,7 +979,7 @@ const PROVIDERS = [
   { name:'OpenRouter', base:'https://openrouter.ai/api/v1',   model:'',                rpm:0 },
 ];
 // rpm：每分钟最多发几个请求，0 表示不限；撞到服务商限流时会自动记下来
-const DEFAULT_CFG = { base:PROVIDERS[0].base, key:'', model:PROVIDERS[0].model, temp:0.9, max:1200, rpm:PROVIDERS[0].rpm };
+const DEFAULT_CFG = { base:PROVIDERS[0].base, key:'', model:PROVIDERS[0].model, temp:0.8, max:1200, rpm:PROVIDERS[0].rpm };
 const KNOWN_MODELS = ['agnes-3.0-flash','agnes-3.0-qwen','agnes-2.5-pro-alpha','agnes-2.0-flash'];
 
 const store = {
@@ -994,6 +994,14 @@ if (!store.get('aistory.rpmAgnes20', false)){
   const pv = PROVIDERS.find(p => p.rpm && String(cfg.base).replace(/\/+$/,'') === p.base);
   if (pv){ cfg.rpm = pv.rpm; store.set(CFG_KEY, cfg); }
   store.set('aistory.rpmAgnes20', true);
+}
+// 剧情连贯性调整（只迁一次）：温度还是老默认 0.9 的改成 0.8，重复惩罚还是老默认 0.3 的关掉——
+// 两个都会让剧情跳、用词怪。自己改过的值不动
+if (!store.get('aistory.steady1', false)){
+  if (+cfg.temp === 0.9){ cfg.temp = 0.8; store.set(CFG_KEY, cfg); }
+  const pr = store.get('aistory.prose.v1', null);
+  if (pr && +pr.pen === 0.3){ pr.pen = 0; store.set('aistory.prose.v1', pr); }
+  store.set('aistory.steady1', true);
 }
 // 多个接口源：每个地址各记一套 Key / 模型 / 每分钟上限（profiles），切换时不会互相覆盖。
 // cfg 顶层的 base / key / model / rpm 永远是当前在用的那一套
@@ -1909,7 +1917,7 @@ let noPenalty = store.get(PENALTY_KEY, false);
 async function chatStream(messages, onDelta, signal, onWait){
   const pen = game ? prose().pen : 0;
   const res = await postChat({ model:cfg.model.trim(), messages, stream:true,
-    temperature:Number(cfg.temp) || 0.9, max_tokens:Number(cfg.max) || 1200,
+    temperature:Number(cfg.temp) || 0.8, max_tokens:Number(cfg.max) || 1200,
     ...(pen > 0 && !noPenalty ? { presence_penalty:pen } : {}) }, signal, onWait);
 
   // 有的服务商忽略 stream 直接回整包 JSON
@@ -1962,7 +1970,7 @@ function stateRule(){
 回复由两部分组成：先是故事本身，再另起一行写状态块。状态块一定要用 <state> 和 </state> 包住，里面是合法 JSON；不要加代码块标记，不要把 JSON 直接贴在故事后面。没有变化的字段直接省略，choices 必须写。
 故事直接从第一句写起：不要加标题，不要写“正文”“故事”“第 X 段”之类的标签，不要用 #、【】、--- 这些 Markdown 标记，状态块前面也不要写“状态块”。
 <state>
-{"hp":${R.hp}当前值,"mp":${R.mp}当前值,"money":${R.money}当前值,"exp":本回合经验,"location":"地点","time":"时间","status":["临时状态"],"gain":[{"name":"物品","qty":1,"type":"consumable","desc":"效果"}],"lose":[{"name":"物品","qty":1}],"skills":[{"name":"技能","lv":1,"desc":"效果"}],"equip":{"weapon":{"name":"装备","bonus":{"${a0}":1},"desc":"效果"}},"quests":[{"title":"任务","type":"main","desc":"目标","status":"active","note":"进展"}],"reps":[{"name":"势力","rep":10}],"npcs":[{"name":"人名","favor":10,"love":20,"note":"近况"}],"rels":[{"a":"人名","b":"人名","rel":"关系"}],"choices":${nChoicesExample()},"gameOver":false}
+{"hp":${R.hp}当前值,"mp":${R.mp}当前值,"money":${R.money}当前值,"exp":本回合经验,"location":"地点","time":"时间","status":["临时状态"],"gain":[{"name":"物品","qty":1,"type":"consumable","desc":"效果"}],"lose":[{"name":"物品","qty":1}],"skills":[{"name":"技能","lv":1,"desc":"效果"}],"equip":{"weapon":{"name":"装备","bonus":{"${a0}":1},"desc":"效果"}},"quests":[{"title":"任务","type":"main","desc":"目标","status":"active","note":"进展"}],"reps":[{"name":"势力","rep":10}],"npcs":[{"name":"人名","favor":10,"love":20,"note":"近况"}],"rels":[{"a":"人名","b":"人名","rel":"关系"}],"plot":"剧情笔记","choices":${nChoicesExample()},"gameOver":false}
 </state>
 - hp / mp / money 写本回合结束时的值；上限、等级、物品清单由系统维护。
 - exp：平淡 0～5；克服困难、打赢一场、解开线索 10～30；重大转折 40～80。
@@ -1973,6 +1981,7 @@ function stateRule(){
 - equip 只写换上 / 卸下的格子（weapon / armor / trinket），卸下写 null。
 - quests 只写新接、有进展、结束的；title 不超过 12 字且不要改；type 是 main / side；status 是 active / done / failed。
 - rels：人物之间（不含主角）的关系有新揭示或变化时才写，rel 不超过 6 字（情敌、师徒、旧识、暗恋、仇人……），写 "" 表示关系解除。
+- plot：写给你自己的剧情笔记，玩家看不到，不超过 60 字，每回合都写：这场戏的目标、悬着没解决的事、下一步打算。下一回合会原样还给你，接着它往下写，别半路丢掉。
 - reps 只写声望变了的势力。npcs 只写出场或变了的人：favor 好感，love 心动（仅 ♥），bond 关系（仅变化时），note 近况不超过 20 字，新人物加 role。
 ${nChoicesRule()}${game.setup.name ? '' : `
 - 主角还没有名字：在故事里给主角起一个贴合世界的名字（已经起过就沿用），并在状态块里写 "name":"名字"。页面记下后就不用再写。`}
@@ -1985,11 +1994,15 @@ const gearText = g => { const b = Object.entries(g.bonus || {}).map(([a, v]) => 
 const nChoices = () => game.setup.nChoices ?? 3;
 function nChoicesRule(){
   const n = nChoices();
-  return n ? `- choices 给 ${n} 个，彼此差异明显，每个不超过 20 字；玩家也可能不选而自由行动。` : '- choices 一律给空数组：这局不提供选项，玩家完全自由行动。正文结尾可以留一个悬念或提问。';
+  return n ? `- choices 给 ${n} 个，玩家也可能不选而自由行动。写法：
+  · 每个都直接回应正文最后那一刻的局面（刚说出口的话、刚出现的人或危险），不跳到别处。
+  · ${n} 个各走不同的路子，比如开口交涉、动手、调查、冒险、耍心眼、先退一步，后果也要往不同方向走。
+  · 至少一个和在场的人物有关；明显有风险的在末尾标“（有风险）”。
+  · 写成玩家口吻的具体动作，每个不超过 20 字，例如“拦住她，问清楚那封信”。不要“继续前进”“观察四周”“看看情况”这类空话，不要已经做过或此刻做不到的事。` : '- choices 一律给空数组：这局不提供选项，玩家完全自由行动。正文结尾可以留一个悬念或提问。';
 }
 function nChoicesExample(){
   const n = nChoices();
-  return n ? JSON.stringify(Array.from({ length:n }, (_, i) => `行动选项${i + 1}`)) : '[]';
+  return n ? JSON.stringify(Array.from({ length:n }, (_, i) => `具体做法${i + 1}`)) : '[]';
 }
 
 // 角色卡：等级、资源、属性、技能，外加检定和成长规则
@@ -2041,6 +2054,7 @@ ${s.gender ? `性别：${s.gender}（以此为准：世界设定和人物介绍�
 【主持原则】
 - 第二人称“你”叙述，每段 ${LENGTHS[s.length] || LENGTHS.mid} 字，画面感强。人物开口时台词单独起一行，写成：名字：“台词”（神态动作写在前后的叙述里）。${s.style ? `\n- 文风：${s.style}。` : ''}
 - 只写玩家行动的结果和世界的反应，绝不替玩家做决定、说话或行动。
+- 接着上一段的最后一刻写：先写玩家这个行动的直接后果，再往前推。不要突然换场景、跳时间或冒出没铺垫的人和事；在场的人不会凭空消失，没说完的话要有下文。
 - 世界有自己的逻辑：鲁莽有代价，NPC 有动机和记忆，伏笔要回收。
 - 玩家每次行动附一个 d20 骰点，只有行动有风险时才检定；正文里不要提骰子和数值。
 - 玩家最新的那条消息前面会附上【当前状态】和【人物现状】，那是最新数值，以它为准。
@@ -2054,8 +2068,8 @@ ${game.memory ? `\n【前情提要】\n${game.memory}\n` : ''}`;
 // 这样系统提示词和之前的历史每回合一字不差，支持前缀缓存的服务商能整段复用
 function turnContext(){
   const st = curState(), npcs = st.npcs || [], rels = st.rels || [];
-  const lint = lastLint();
-  return `${statePrompt()}${npcs.length ? `【人物现状】\n${npcList()}\n` : ''}${rels.length ? `【人物之间】${rels.map(r => `${r.a}—${r.b}：${r.rel}`).join('；')}\n` : ''}${lint.length ? `【文笔提醒】上一段${lint.join('；')}。这一段换个写法。\n` : ''}`;
+  const lint = lastLint(), plot = st.plot;
+  return `${statePrompt()}${npcs.length ? `【人物现状】\n${npcList()}\n` : ''}${rels.length ? `【人物之间】${rels.map(r => `${r.a}—${r.b}：${r.rel}`).join('；')}\n` : ''}${plot ? `【剧情笔记】（你上回合写给自己的）${plot}\n` : ''}${lint.length ? `【文笔提醒】上一段${lint.join('；')}。这一段换个写法。\n` : ''}`;
 }
 
 // 人物表：玩家写的设定（性格、秘密）+ 当前好感和近况，每回合重新拼一次
@@ -2116,7 +2130,7 @@ function buildMessages(){
 }
 function userText(m){
   return (m.die ? `${m.content}\n（本回合骰点：${m.die}）` : m.content) +
-    (m.event ? `\n（突发事件：${m.event}。在这一段里自然地让它发生，正文不要出现“随机事件”这几个字）` : '');
+    (m.event ? `\n（突发事件：${m.event}。挑合适的时机让它发生：和眼下的场面冲突就放到这一段的结尾，或者换成说得通的形式；先写完玩家行动的后果。正文不要出现“随机事件”这几个字）` : '');
 }
 
 /* ================= 解析 AI 输出 ================= */
@@ -2210,6 +2224,7 @@ function parseState(raw, prev){
       equip:mergeEquip(prev.equip, s.equip, prev.attrs), quests:mergeQuests(prev.quests, s.quests),
       reps:mergeReps(prev.reps, s.reps), rels:mergeRels(prev.rels, s.rels),
       choices:arr(s.choices).slice(0, 5), gameOver:!!s.gameOver, ending:s.gameOver ? txt(s.ending).trim().slice(0, 20) : '',
+      plot:txt(s.plot).trim().slice(0, 100) || prev.plot || '',
       pcName:typeof s.name === 'string' ? s.name.trim().slice(0, 12) : '',   // 说书人给主角起的名字，只在玩家没填名字时有用
     };
     // 特殊事件加属性：单次最多 ±2
@@ -3214,7 +3229,7 @@ function act(text){
 }
 
 // 历史太长时，把较早的部分压成摘要。失败就算了，下回合再试
-const KEEP = 10, LIMIT = 20;   // 超过 20 条消息就把前面的压成摘要，只留最近 10 条原文
+const KEEP = 14, LIMIT = 28;   // 超过 28 条消息就把前面的压成摘要，留最近 14 条（7 个回合）原文
 let compressing = false;
 async function compressIfLong(){
   if (compressing || game.history.length <= LIMIT) return;
@@ -3227,7 +3242,7 @@ async function compressIfLong(){
   $('memText').textContent = '（正在整理前情提要……）';
   try{
     const sumMsgs = [
-      { role:'system', content:'你是剧情记录员。把文字冒险的剧情压缩成要点摘要，保留：主要事件经过、出场人物及其与主角的关系、未解的伏笔和承诺、主角获得或失去的重要物品与能力。用简体中文，条目式，不超过 400 字。只输出摘要。' },
+      { role:'system', content:'你是剧情记录员。把文字冒险的剧情压缩成摘要，分三块写：\n【经过】主要事件，按时间顺序，写清因果。\n【人物】出场人物和主角的关系、各自的立场，秘密已经透露到哪一步。\n【悬着的事】进行中的冲突、谁在等主角回应、约定和期限、没解开的伏笔、主角手上的重要物品和能力。\n用简体中文，条目式，不超过 600 字。已有摘要里的要点合并进来，过时的删掉。只输出摘要。' },
       { role:'user', content:(game.memory ? '【已有摘要】\n' + game.memory + '\n\n' : '') + '【新增剧情】\n' + transcript },
     ];
     const sum = await chatOnce(sumMsgs, 800);
@@ -3589,11 +3604,11 @@ const LENGTHS = { short:'100～200', mid:'150～400', long:'300～600' };
 const PROSE_KEY = 'aistory.prose.v1';
 const DEFAULT_BANS = ['嘴角勾起','一抹弧度','闪过一丝','心中一动','不由得','仿佛时间静止','空气仿佛凝固','一股暖流','深吸一口气','不知为何',
   '命运的齿轮','一切才刚刚开始','心跳漏了一拍','嘴角微微上扬','莫名的','这一刻，你'];
-const DEFAULT_PROSE = { guide:true, bans:DEFAULT_BANS, sample:'', check:true, pen:0.3 };
+const DEFAULT_PROSE = { guide:true, bans:DEFAULT_BANS, sample:'', check:true, pen:0 };
 function normProse(o){
   o = o && typeof o === 'object' ? o : {};
   const bans = Array.isArray(o.bans) ? o.bans : DEFAULT_BANS;
-  return { guide:o.guide !== false, check:o.check !== false,
+  return { guide:o.guide !== false, check:o.check !== false, steady:true,   // steady：已按新默认迁过，showGame 不再动它
            bans:[...new Set(bans.map(b => String(b).trim().slice(0, 16)).filter(Boolean))].slice(0, 40),
            sample:String(o.sample || '').trim().slice(0, 600),
            pen:Number.isFinite(+o.pen) ? Math.max(0, Math.min(1, Math.round(+o.pen * 10) / 10)) : DEFAULT_PROSE.pen };
@@ -3761,6 +3776,7 @@ function startGame(){
 }
 
 function showGame(){
+  if (game.setup.prose && !game.setup.prose.steady){ if (+game.setup.prose.pen === 0.3) game.setup.prose.pen = 0; game.setup.prose.steady = true; }
   $('scrStart').classList.add('hide'); $('scrGame').classList.remove('hide'); $('btnMenu').classList.remove('hide');
   document.body.classList.add('in-game');
   applyTheme(rules().theme);
@@ -3893,7 +3909,7 @@ function fillCfgForm(c){
 }
 function readCfgForm(){
   return { base:$('cfgBase').value.trim(), key:$('cfgKey').value.trim(), model:$('cfgModel').value.trim(),
-           temp:Math.min(2, Math.max(0, parseFloat($('cfgTemp').value) || 0.9)),
+           temp:Math.min(2, Math.max(0, parseFloat($('cfgTemp').value) || 0.8)),
            max:Math.min(8000, Math.max(200, parseInt($('cfgMax').value, 10) || 1200)),
            rpm:Math.min(600, Math.max(0, parseInt($('cfgRpm').value, 10) || 0)),
            name:$('cfgName').value.trim().slice(0, 12) };
