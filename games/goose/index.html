@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#dceade"><title>抓大鹅 · 3D 乡间三消</title>
 <style>
-:root{--ink:#284a3e;--green:#3e7453;--leaf:#b8cd90;--paper:#fafbf1;--orange:#e99346;--line:#b9cbb1;--water:#9ec9c2}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{margin:0;color:var(--ink);font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#dceade;background-image:radial-gradient(ellipse at 5% 90%,#aecbc0 0,transparent 45%),radial-gradient(ellipse at 100% 10%,#edf1d8 0,transparent 45%);min-height:100svh}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}button:focus-visible,a:focus-visible{outline:3px solid var(--orange);outline-offset:4px}button:disabled{cursor:default;opacity:.45}a{color:inherit}.layout{max-width:1040px;margin:auto;padding:28px 32px;display:grid;grid-template-columns:290px minmax(0,420px);justify-content:space-between;gap:40px;align-items:center;min-height:100svh}.back{text-decoration:none;font-size:13px;display:inline-block;margin-bottom:42px}.eyebrow{font-size:11px;letter-spacing:.25em;color:#65816a}.intro h1{font-family:"STKaiti","KaiTi",serif;font-size:74px;letter-spacing:-.07em;margin:14px 0 18px;line-height:1.1;transform:rotate(-3deg)}.intro h1 span{color:var(--orange)}.intro p{font-size:14px;line-height:2;color:#617565;max-width:245px}.pond{width:255px;height:190px;margin:32px 0 12px}.note{font-size:11px!important;letter-spacing:.08em}.game{width:100%;max-width:420px;position:relative}.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px}.label{font-size:11px;letter-spacing:.13em;color:#70806b}.level{font-family:"STKaiti","KaiTi",serif;font-size:25px;font-weight:bold;margin:5px 0}.smallbtn{background:#ffffff66;border:1px solid var(--line);border-radius:50%;height:39px;width:39px;font-size:18px}.top-actions{display:flex;gap:8px}.progress{height:6px;border-radius:8px;background:#bdcfb2;overflow:hidden}.progress div{height:100%;background:var(--green);transition:width .3s}.progress-label{display:flex;justify-content:space-between;font-size:11px;color:#73816c;margin:8px 2px 14px}.basket{position:relative;border:10px solid #c3a779;border-radius:42px;background-color:#e4d3a5;background-image:repeating-linear-gradient(0deg,transparent 0 7px,#bd9a5a20 7px 9px),repeating-linear-gradient(90deg,transparent 0 7px,#bd9a5a20 7px 9px);box-shadow:inset 0 0 0 3px #a78a5b,inset 0 0 30px #ae8e5260,0 10px 0 #7e69432b;aspect-ratio:1.08}.basket:before{content:"乡 间 好 物";position:absolute;left:0;right:0;bottom:15px;text-align:center;font-size:12px;letter-spacing:.3em;color:#9e895e}.board{position:absolute;inset:13px 10px 36px}.tile{position:absolute;width:15%;height:17.5%;padding:0;border:1px solid #d8d7b9;border-radius:15px;background:#fffff6;box-shadow:0 5px 0 #b0b68c,0 7px 7px #685b4530;display:flex;align-items:center;justify-content:center;transition:filter .2s,transform .15s,opacity .15s;font-size:clamp(25px,3.5vw,35px);line-height:1}.tile:not(:disabled):hover{transform:translateY(-4px) rotate(-3deg);background:#fff}.tile.blocked{filter:brightness(.74) saturate(.6);opacity:1}.tile.hint{outline:3px solid #ee9d41;animation:wiggle .7s infinite alternate}.status{min-height:42px;padding:15px 0 8px;text-align:center;font-size:12px;color:#5c735c}.tray-wrap{background:#f6f7e7;border:1px solid #c6cfb0;border-radius:19px;padding:13px 12px 10px;box-shadow:0 4px 0 #bfccaa}.tray-head{display:flex;justify-content:space-between;font-size:11px;color:#7a866d;margin:0 3px 10px}.tray{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.slot{aspect-ratio:1;background:#e4e9d2;border:1px solid #d1d9bc;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:inset 0 2px 3px #9eac8e24}.slot.filled{background:#fffff8;animation:pop .18s ease-out}.tray-wrap.danger{border-color:#d78861}.tools{display:flex;justify-content:center;gap:clamp(8px,3vw,22px);margin:23px 0 0}.tool{border:0;background:transparent;font-size:11px;display:flex;align-items:center;gap:6px;flex-direction:column;min-width:56px}.tool i{display:grid;place-items:center;border:1px solid #b8c9a5;border-radius:16px;width:48px;height:43px;font-size:21px;background:#edf1dc;box-shadow:0 3px 0 #b5c5a3;font-style:normal}.tool b{font-weight:normal}.modal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:#233e3580;backdrop-filter:blur(6px);padding:24px}.modal[hidden]{display:none}.dialog{width:min(360px,100%);background:var(--paper);border:2px solid #becdab;border-radius:28px;padding:30px;text-align:center;box-shadow:0 15px 50px #1e382f40}.dialog h2{font-family:"STKaiti","KaiTi",serif;font-size:32px;margin:12px 0}.dialog p{font-size:13px;line-height:1.9;color:#6c7c65;white-space:pre-line}.dialog .big-goose{font-size:65px}.primary,.secondary{width:100%;padding:13px;border-radius:13px;font-weight:600;margin-top:10px;border:0;background:var(--green);color:white}.secondary{background:#e6ecd9;color:var(--ink)}@keyframes pop{from{transform:scale(.6)}to{transform:scale(1)}}@keyframes wiggle{to{transform:translateY(-5px) rotate(5deg)}}@media(max-width:740px){.layout{display:block;padding:16px 17px 24px;max-width:480px;min-height:100svh}.intro{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}.back{margin:0;font-size:12px}.intro h1{font-size:32px;margin:0;letter-spacing:-.07em}.intro .eyebrow,.intro p,.pond{display:none}.top{margin-bottom:8px}.level{font-size:23px}.progress-label{margin-bottom:10px}.tile{font-size:30px;border-radius:12px}.tools{margin-top:18px}.slot{font-size:27px}.basket{border-width:8px}.board{inset:12px 6px 32px}.status{padding-top:12px;min-height:37px}}@media(prefers-reduced-motion:reduce){*,*:before{animation:none!important;transition:none!important}}
+:root{--ink:#284a3e;--green:#3e7453;--leaf:#b8cd90;--paper:#fafbf1;--orange:#e99346;--line:#b9cbb1;--water:#9ec9c2}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{margin:0;color:var(--ink);font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#dceade;background-image:radial-gradient(ellipse at 5% 90%,#aecbc0 0,transparent 45%),radial-gradient(ellipse at 100% 10%,#edf1d8 0,transparent 45%);min-height:100svh}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}button:focus-visible,a:focus-visible{outline:3px solid var(--orange);outline-offset:4px}button:disabled{cursor:default;opacity:.45}a{color:inherit}.layout{max-width:1040px;margin:auto;padding:28px 32px;display:grid;grid-template-columns:290px minmax(0,420px);justify-content:space-between;gap:40px;align-items:center;min-height:100svh}.back{text-decoration:none;font-size:13px;display:inline-block;margin-bottom:42px}.eyebrow{font-size:11px;letter-spacing:.25em;color:#65816a}.intro h1{font-family:"STKaiti","KaiTi",serif;font-size:74px;letter-spacing:-.07em;margin:14px 0 18px;line-height:1.1;transform:rotate(-3deg)}.intro h1 span{color:var(--orange)}.intro p{font-size:14px;line-height:2;color:#617565;max-width:245px}.pond{width:255px;height:190px;margin:32px 0 12px}.note{font-size:11px!important;letter-spacing:.08em}.game{width:100%;max-width:420px;position:relative}.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px}.label{font-size:11px;letter-spacing:.13em;color:#70806b}.level{font-family:"STKaiti","KaiTi",serif;font-size:25px;font-weight:bold;margin:5px 0}.smallbtn{background:#ffffff66;border:1px solid var(--line);border-radius:50%;height:39px;width:39px;font-size:18px}.top-actions{display:flex;gap:8px}.progress{height:6px;border-radius:8px;background:#bdcfb2;overflow:hidden}.progress div{height:100%;background:var(--green);transition:width .3s}.progress-label{display:flex;justify-content:space-between;font-size:11px;color:#73816c;margin:8px 2px 14px}.basket{position:relative;border:10px solid #c3a779;border-radius:42px;background-color:#e4d3a5;background-image:repeating-linear-gradient(0deg,transparent 0 7px,#bd9a5a20 7px 9px),repeating-linear-gradient(90deg,transparent 0 7px,#bd9a5a20 7px 9px);box-shadow:inset 0 0 0 3px #a78a5b,inset 0 0 30px #ae8e5260,0 10px 0 #7e69432b;aspect-ratio:1.08}.basket:before{content:"乡 间 好 物";position:absolute;left:0;right:0;bottom:15px;text-align:center;font-size:12px;letter-spacing:.3em;color:#9e895e}.board{position:absolute;inset:13px 10px 36px}.tile{position:absolute;width:15%;height:17.5%;padding:0;border:1px solid #d8d7b9;border-radius:15px;background:#fffff6;box-shadow:0 5px 0 #b0b68c,0 7px 7px #685b4530;display:flex;align-items:center;justify-content:center;transition:filter .2s,transform .15s,opacity .15s;font-size:clamp(25px,3.5vw,35px);line-height:1}.tile:not(:disabled):hover{transform:translateY(-4px) rotate(-3deg);background:#fff}.tile.blocked{filter:brightness(.74) saturate(.6);opacity:1}.tile.hint{outline:3px solid #ee9d41;animation:wiggle .7s infinite alternate}.status{min-height:42px;padding:15px 0 8px;text-align:center;font-size:12px;color:#5c735c}.tray-wrap{background:#f6f7e7;border:1px solid #c6cfb0;border-radius:19px;padding:13px 12px 10px;box-shadow:0 4px 0 #bfccaa}.tray-head{display:flex;justify-content:space-between;font-size:11px;color:#7a866d;margin:0 3px 10px}.tray{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.slot{aspect-ratio:1;background:#e4e9d2;border:1px solid #d1d9bc;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:inset 0 2px 3px #9eac8e24}.slot.filled{background:#fffff8;animation:pop .18s ease-out}.tray-wrap.danger{border-color:#d78861}.tools{display:flex;justify-content:center;gap:clamp(8px,3vw,22px);margin:23px 0 0}.tool{border:0;background:transparent;font-size:11px;display:flex;align-items:center;gap:6px;flex-direction:column;min-width:56px}.tool i{display:grid;place-items:center;border:1px solid #b8c9a5;border-radius:16px;width:48px;height:43px;font-size:21px;background:#edf1dc;box-shadow:0 3px 0 #b5c5a3;font-style:normal}.tool b{font-weight:normal}.modal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:#233e3580;backdrop-filter:blur(6px);padding:24px}.modal[hidden]{display:none}.dialog{width:min(360px,100%);max-height:calc(100svh - 32px);overflow:auto;background:var(--paper);border:2px solid #becdab;border-radius:28px;padding:30px;text-align:center;box-shadow:0 15px 50px #1e382f40}.dialog h2{font-family:"STKaiti","KaiTi",serif;font-size:32px;margin:12px 0}.dialog p{font-size:13px;line-height:1.9;color:#6c7c65;white-space:pre-line}.dialog .big-goose{font-size:65px}.primary,.secondary{width:100%;padding:13px;border-radius:13px;font-weight:600;margin-top:10px;border:0;background:var(--green);color:white}.secondary{background:#e6ecd9;color:var(--ink)}@keyframes pop{from{transform:scale(.6)}to{transform:scale(1)}}@keyframes wiggle{to{transform:translateY(-5px) rotate(5deg)}}@media(max-width:740px){.layout{display:block;padding:16px 17px 24px;max-width:480px;min-height:100svh}.intro{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}.back{margin:0;font-size:12px}.intro h1{font-size:32px;margin:0;letter-spacing:-.07em}.intro .eyebrow,.intro p,.pond{display:none}.top{margin-bottom:8px}.level{font-size:22px}.top-actions{gap:6px}.smallbtn{height:35px;width:35px;font-size:17px}.progress-label{margin-bottom:10px}.tile{font-size:30px;border-radius:12px}.tools{margin-top:18px}.slot{font-size:27px}.basket{border-width:8px}.board{inset:12px 6px 32px}.status{padding-top:12px;min-height:37px}}@media(max-width:380px){.level{font-size:20px}}@media(prefers-reduced-motion:reduce){*,*:before{animation:none!important;transition:none!important}}
 /* The 3D scene replaces the flat tiles; semantic buttons remain for keyboard play. */
 .layout{max-width:1160px;grid-template-columns:290px minmax(0,460px)}
 .game{max-width:460px}.basket{border:0;border-radius:28px;background:radial-gradient(ellipse at 50% 65%,#cbd9bf,#e8edda 75%);box-shadow:inset 0 0 0 1px #c5d1b9;aspect-ratio:1.16;overflow:hidden}
@@ -14,6 +14,7 @@
 .board .tile:focus-visible{clip-path:none;width:auto;height:auto;left:12px!important;top:12px!important;padding:8px 12px;z-index:99!important;font-size:23px;transform:none;box-shadow:0 3px 10px #0002}
 .webgl-error{position:absolute;inset:20%;font-size:14px;line-height:2;z-index:3}
 .slot img{width:100%;height:100%;object-fit:contain;pointer-events:none}.credits{display:block;text-align:center;font-size:10px;color:#7b8d76;margin-top:15px;text-underline-offset:3px}
+.archive{display:grid;gap:8px;margin:16px 0 2px;text-align:left}.archive[hidden]{display:none}.archive-row{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1px solid #cdd9bc;border-radius:15px;background:#f3f7e6;text-align:left;line-height:1.55}.archive-row:not(:disabled):hover{background:#eef4dd}.archive-row.current{border-color:#e0a568;box-shadow:0 2px 0 #e9934633}.archive-row .mark{width:24px;font-size:19px;text-align:center}.archive-row b{display:block;font-size:13px}.archive-row small{color:#7a886f;font-size:11px}.archive-row .state{margin-left:auto;font-size:11px;color:#65785f;text-align:right;white-space:nowrap}.archive-reset{border:0;background:none;color:#8d9a83;font-size:11px;text-decoration:underline;text-underline-offset:3px;margin-top:12px;padding:4px;align-self:center}
 @media(max-width:740px){.layout{display:block}.basket{aspect-ratio:1.03}.game{max-width:none}.view-tip{bottom:12px}}
 </style>
 </head>
@@ -21,49 +22,115 @@
 <main class="layout">
 <aside class="intro"><a class="back" href="../../index.html">← 回游戏柜</a><div class="eyebrow">A LITTLE 3D COUNTRYSIDE PUZZLE</div><h1>抓<span>大鹅</span></h1><p>转一转，找一找，<br>逮一只神气大鹅。<br>一盘立体好物，三个凑一组。</p>
 <svg class="pond" viewBox="0 0 270 200" aria-label="池塘边的大白鹅" role="img"><ellipse cx="136" cy="157" rx="122" ry="35" fill="#a7ccc1"/><g fill="none" stroke="#e1ede0" stroke-width="2"><ellipse cx="149" cy="157" rx="67" ry="16"/><path d="M26 156h36m153 9h24"/></g><g stroke="#688e68" stroke-width="3" fill="none"><path d="M39 146q5-31-9-49m11 47q-1-33 12-44M230 148q-6-26 5-41"/></g><g transform="rotate(-8 140 125)"><ellipse cx="137" cy="133" rx="43" ry="29" fill="#fffff4"/><path d="M151 128q17-22 12-54q-5-28 14-28q20 0 18 20q-2 8-9 11l-1 48q-6 24-34 15" fill="#fffff4"/><path d="m192 58 21 9-23 5" fill="#e99346"/><circle cx="184" cy="57" r="3" fill="#284a3e"/><path d="M115 124q6 24 33 15" fill="none" stroke="#dce6d5" stroke-width="3"/><path d="m102 128-17-12 6 23" fill="#fffff4"/></g><path d="m213 65 9-9m-5 20 12 2" stroke="#d99b50" stroke-width="2" stroke-linecap="round"/></svg><p class="note">不赶时间，慢慢凑齐。</p></aside>
-<section class="game" aria-label="3D 抓大鹅游戏"><header class="top"><div><div class="label" id="chapter">第一站 · 农家小院</div><div class="level" id="level">先来热热手</div></div><div class="top-actions"><button class="smallbtn" id="sound" aria-label="开启音效" aria-pressed="false">♪</button><button class="smallbtn" id="help" aria-label="玩法说明">?</button><button class="smallbtn" id="restart" aria-label="重新开始">↻</button></div></header>
+<section class="game" aria-label="3D 抓大鹅游戏"><header class="top"><div><div class="label" id="chapter">第一站 · 农家小院</div><div class="level" id="level">先来热热手</div></div><div class="top-actions"><button class="smallbtn" id="archive" aria-label="关卡存档">▤</button><button class="smallbtn" id="sound" aria-label="开启音效" aria-pressed="false">♪</button><button class="smallbtn" id="help" aria-label="玩法说明">?</button><button class="smallbtn" id="restart" aria-label="重新开始">↻</button></div></header>
 <div class="progress"><div id="bar"></div></div><div class="progress-label"><span id="remaining"></span><span id="caught">已抓到 0 只鹅</span></div>
 <div class="basket"><div class="board" id="board" aria-label="3D 物品盘"></div><span class="view-tip">⤾ 拖动转一转 · 点击拿起来</span></div><div class="status" id="status" role="status" aria-live="polite">点击收取 · 拖动转视角 · 晃一晃翻动好物</div>
 <div class="tray-wrap" id="trayWrap"><div class="tray-head"><span>收纳槽 · 三个相同自动消除</span><span id="capacity">0 / 7</span></div><div class="tray" id="tray" aria-label="收纳槽"></div></div>
 <div class="tools"><button class="tool" id="shake"><i>≈</i><b>晃一晃</b></button><button class="tool" id="undo"><i>↶</i><b>撤回 <span id="undoCount">3</span></b></button><button class="tool" id="shuffle"><i>⤨</i><b>洗牌 <span id="shuffleCount">2</span></b></button><button class="tool" id="hint"><i>☀</i><b>提示 <span id="hintCount">3</span></b></button></div><a class="credits" href="../../THIRD-PARTY-NOTICES.md" target="_blank" rel="noopener">3D · Three.js / Cannon.js · MIT</a></section></main>
-<div class="modal" id="modal" hidden><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle"><div class="big-goose" id="dialogIcon">🪿</div><h2 id="dialogTitle"></h2><p id="dialogText"></p><button class="primary" id="dialogPrimary"></button><button class="secondary" id="dialogSecondary" hidden></button></section></div>
+<div class="modal" id="modal" hidden><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle"><div class="big-goose" id="dialogIcon">🪿</div><h2 id="dialogTitle"></h2><p id="dialogText"></p><div class="archive" id="archiveList" hidden></div><button class="primary" id="dialogPrimary"></button><button class="secondary" id="dialogSecondary" hidden></button></section></div>
 <script>
 'use strict';
-const ITEMS=[['🥕','胡萝卜'],['🌽','玉米'],['🍅','番茄'],['🥬','青菜'],['🍆','茄子'],['🍎','苹果'],['🍄','蘑菇'],['🎃','南瓜'],['🪿','大鹅']];
-const LEVELS=[{name:'先来热热手',place:'第一站 · 农家小院',layers:[[4,3],[3,2]],types:4},{name:'鹅躲到菜园啦',place:'第二站 · 田边菜园',layers:[[6,5],[5,4],[4,3],[1,1]],types:7},{name:'最后一筛，抓住它',place:'第三站 · 丰收集市',layers:[[6,5],[5,4],[4,3],[3,2],[3,2],[1,1]],types:8}];
-const $=id=>document.getElementById(id);let tiles=[],tray=[],history=[],level=0,total=0,cleared=0,caught=0,phase='playing',uses={},sound=false,audio,solution=[],focusReturn;
+const ITEMS=[['🥕','胡萝卜'],['🌽','玉米'],['🍅','番茄'],['🥬','青菜'],['🍆','茄子'],['🍎','苹果'],['🍄','蘑菇'],['🎃','南瓜'],['🪿','大鹅'],['🥦','西兰花'],['🍓','草莓'],['🍐','梨'],['🍇','葡萄'],['🥔','土豆'],['🌶️','辣椒'],['🍑','桃子']];
+// 大鹅固定是第 9 类：关卡里最后一组永远是鹅，其余种类从 PRODUCE 里抽。
+const GOOSE=8,PRODUCE=ITEMS.map((_,i)=>i).filter(i=>i!==GOOSE);
+const LEVELS=[{name:'先来热热手',place:'第一站 · 农家小院',layers:[[4,3],[3,2]],types:5},{name:'鹅躲到菜园啦',place:'第二站 · 田边菜园',layers:[[6,5],[5,4],[4,3],[1,1]],types:9},{name:'最后一筛，抓住它',place:'第三站 · 丰收集市',layers:[[6,5],[5,4],[4,3],[3,2],[3,2],[1,1]],types:12}];
+const $=id=>document.getElementById(id);let tiles=[],tray=[],history=[],level=0,total=0,cleared=0,caught=0,phase='playing',uses={},sound=false,audio,solution=[],focusReturn,resumeMotion=null;
+/* 关卡存档：三关的进度、每关的通关次数，以及【这一筛没打完的盘面】都存在浏览器里。
+   只存"打到第几关"不够——这类游戏一局十分钟上下，刷新一下从头来最伤人。
+   物理位置（view3d.snapshot）也一起存，读档后好物还躺在原处。 */
+const SAVE_KEY='goose.archive.v1';
+const blankArchive=()=>({v:1,level:0,unlocked:0,caught:0,records:LEVELS.map(()=>({wins:0,losses:0,clean:0})),session:null});
+function loadArchive(){
+  const fresh=blankArchive();
+  let d;try{d=JSON.parse(localStorage.getItem(SAVE_KEY))}catch{return fresh}
+  if(!d||d.v!==1)return fresh;
+  fresh.unlocked=Math.min(LEVELS.length-1,Math.max(0,d.unlocked|0));
+  fresh.level=Math.min(LEVELS.length-1,Math.max(0,d.level|0));
+  fresh.caught=Math.max(0,d.caught|0);
+  for(let i=0;i<LEVELS.length;i++){const r=d.records?.[i]||{};fresh.records[i]={wins:Math.max(0,r.wins|0),losses:Math.max(0,r.losses|0),clean:Math.max(0,r.clean|0)}}
+  // 手改过的存档只可能弄坏这一块：盘面校验不过就当没有，回到本关开头，而不是让页面崩掉
+  if(validSession(d.session)&&d.session.level<=fresh.unlocked)fresh.session=d.session;
+  return fresh;
+}
+function validSession(s){
+  if(!s||!Array.isArray(s.tiles)||!Array.isArray(s.tray)||!(s.level>=0&&s.level<LEVELS.length))return false;
+  const total=LEVELS[s.level].layers.reduce((n,[c,r])=>n+c*r,0);
+  if(s.tiles.length+s.tray.length+(s.cleared|0)!==total)return false;
+  const ids=new Set(),counts=Array(ITEMS.length).fill(0);
+  for(const t of [...s.tiles,...s.tray]){
+    if(!Number.isInteger(t.id)||ids.has(t.id)||!Number.isInteger(t.type)||t.type<0||t.type>=ITEMS.length)return false;
+    ids.add(t.id);counts[t.type]++;
+  }
+  if(!counts.every(n=>n%3===0))return false;
+  if(!s.tiles.every(t=>Number.isFinite(t.x)&&Number.isFinite(t.y)&&Number.isInteger(t.z)))return false;
+  const u=s.uses||{};return ['undo','shuffle','hint'].every(k=>Number.isInteger(u[k])&&u[k]>=0);
+}
+const archive=loadArchive();
+function saveArchive(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(archive))}catch{}}
+function persist(){
+  archive.session=null;
+  if(phase==='playing'&&tiles.length+tray.length)archive.session={level,tiles:tiles.map(t=>({id:t.id,x:t.x,y:t.y,z:t.z,type:t.type})),tray:tray.map(t=>({id:t.id,type:t.type})),cleared,uses:{...uses},solution:solution.slice(),motion:view3d?.snapshot()||null};
+  archive.caught=caught;saveArchive();
+}
 let view3d = null;
 function randomize(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function overlaps(a,b){return Math.abs(a.x-b.x)<14.5&&Math.abs(a.y-b.y)<17}
 function available(tile,list=tiles){return !list.some(t=>t.z>tile.z&&overlaps(t,tile))}
 function removalOrder(){const pool=tiles.slice(),order=[];while(pool.length){const choices=pool.filter(t=>available(t,pool));const t=choices[Math.floor(Math.random()*choices.length)];order.push(t);pool.splice(pool.indexOf(t),1)}return order}
 function deal(){const order=removalOrder(),types=[];const counts=Array(ITEMS.length).fill(0);for(const t of [...tiles,...tray])counts[t.type]++;for(let k=0;k<counts.length;k++){const held=tray.filter(t=>t.type===k).length;if(held){for(let n=0;n<3-held;n++)types.push(k);counts[k]-=3}}
-const groups=[];for(let k=0;k<counts.length;k++)for(let n=0;n<counts[k]/3;n++)groups.push(k);const geese=groups.filter(k=>k===8);randomize(groups);for(const k of [...groups.filter(k=>k!==8),...geese])types.push(k,k,k);order.forEach((t,i)=>t.type=types[i]);solution=order.map(t=>t.id)}
-function start(index){view3d?.reset();level=index;phase='playing';tiles=[];tray=[];history=[];cleared=0;uses={undo:3,shuffle:2,hint:3};const cfg=LEVELS[level];cfg.layers.forEach(([cols,rows],z)=>{for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)tiles.push({id:tiles.length,x:(100-cols*15.5)/2+c*15.5,y:(100-rows*18)/2+r*18,z,type:0})});total=tiles.length;const groups=total/3;for(let i=0;i<total;i++)tiles[i].type=Math.floor(i/3)===groups-1?8:Math.floor(i/3)%cfg.types;deal();closeModal();say('点击收取 · 拖动转视角 · 晃一晃翻动好物');render()}
+const groups=[];for(let k=0;k<counts.length;k++)for(let n=0;n<counts[k]/3;n++)groups.push(k);const geese=groups.filter(k=>k===GOOSE);randomize(groups);for(const k of [...groups.filter(k=>k!==GOOSE),...geese])types.push(k,k,k);order.forEach((t,i)=>t.type=types[i]);solution=order.map(t=>t.id)}
+function start(index){view3d?.reset();level=index;phase='playing';tiles=[];tray=[];history=[];cleared=0;uses={undo:3,shuffle:2,hint:3};resumeMotion=null;archive.level=level;archive.session=null;const cfg=LEVELS[level];cfg.layers.forEach(([cols,rows],z)=>{for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)tiles.push({id:tiles.length,x:(100-cols*15.5)/2+c*15.5,y:(100-rows*18)/2+r*18,z,type:0})});total=tiles.length;const groups=total/3,kinds=randomize(PRODUCE.slice()).slice(0,cfg.types),last=groups-1;for(let i=0;i<total;i++)tiles[i].type=Math.floor(i/3)===last?GOOSE:kinds[Math.floor(i/3)%kinds.length];deal();closeModal();say('点击收取 · 拖动转视角 · 晃一晃翻动好物');render();persist()}
+function restoreSession(s){level=s.level;phase='playing';tiles=s.tiles.map(t=>({...t}));tray=s.tray.map(t=>({...t}));cleared=s.cleared|0;uses={undo:3,shuffle:2,hint:3,...s.uses};solution=(s.solution||[]).slice();total=tiles.length+tray.length+cleared;history=[];resumeMotion=Array.isArray(s.motion)?s.motion:null;closeModal();render();say('接着上次的进度 · 点「↻」可以重开这一筛')}
 function tone(match=false){if(!sound)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.resume();[0,...(match?[.09,.18]:[])].forEach((delay,i)=>{const o=audio.createOscillator(),g=audio.createGain(),t=audio.currentTime+delay;o.type='sine';o.frequency.setValueAtTime(match?[523,659,784][i]:420,t);g.gain.setValueAtTime(.07,t);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g);g.connect(audio.destination);o.start(t);o.stop(t+.15)})}catch{}}
 function say(text){$('status').textContent=text}
 function snapshot(){return {tiles:tiles.map(t=>({...t})),tray:tray.map(t=>({...t})),cleared,solution:solution.slice(),motion:view3d?.snapshot()}}
 // A ray-confirmed 3D hit is selectable even when the conservative deal grid overlaps.
-function pick(id,visibleHit=false){if(phase!=='playing')return;const t=tiles.find(t=>t.id===id);if(!t||(!visibleHit&&!available(t)))return;history.push(snapshot());tiles=tiles.filter(x=>x.id!==id);solution=solution.filter(x=>x!==id);tray.push(t);tray.sort((a,b)=>a.type-b.type);const match=tray.filter(x=>x.type===t.type).length===3;if(match){tray=tray.filter(x=>x.type!==t.type);cleared+=3;say(t.type===8?'嘎！大鹅被你找到了！':'凑齐一组'+ITEMS[t.type][1]+'！继续找找');}else say(tray.length>=5?'收纳槽快满了，优先凑齐已有的物品':'再找找相同的'+ITEMS[t.type][1]);tone(match);render();if(!tiles.length&&!tray.length){phase='won';render();caught++;$('caught').textContent='已抓到 '+caught+' 只鹅';openModal('抓到大鹅啦！',level===2?'三筛好物全部收齐，三只大鹅也乖乖回家。\n歇一歇，或再挑战一次吧。':'这一筛收得干干净净。\n下一只鹅躲得更深了，去找找？',level===2?'再玩一轮':'去下一站',()=>start((level+1)%LEVELS.length),'留在这里',closeModal)}else if(tray.length>=7){phase='lost';render();openLoss()}}
-function render(){view3d?.sync();const cfg=LEVELS[level];$('chapter').textContent=cfg.place;$('level').textContent=cfg.name;$('remaining').textContent='已收齐 '+cleared+' / '+total+' 件';$('bar').style.width=cleared/total*100+'%';$('capacity').textContent=tray.length+' / 7';$('trayWrap').classList.toggle('danger',tray.length>=5);$('board').querySelectorAll('.tile').forEach(b=>b.remove());for(const t of tiles){const b=document.createElement('button');const free=view3d?true:available(t);b.className='tile'+(free?'':' blocked');b.disabled=!free;b.dataset.id=t.id;b.style.cssText=`left:${t.x}%;top:${t.y}%;z-index:${t.z+1}`;b.textContent=ITEMS[t.type][0];b.setAttribute('aria-label',ITEMS[t.type][1]+(free?'':'（被遮挡）'));b.onclick=()=>view3d?view3d.pickVisible(t.id):pick(t.id);$('board').append(b)}$('tray').replaceChildren();for(let i=0;i<7;i++){const slot=document.createElement('div');slot.className='slot'+(tray[i]?' filled':'');slot.textContent=tray[i]?ITEMS[tray[i].type][0]:'';if(tray[i]&&view3d){const img=document.createElement('img');img.src=view3d.icons[tray[i].type];img.alt=ITEMS[tray[i].type][1];slot.replaceChildren(img);}slot.setAttribute('aria-label',tray[i]?ITEMS[tray[i].type][1]:'空槽位');$('tray').append(slot)}for(const k of ['undo','shuffle','hint']){$(k+'Count').textContent=uses[k];$(k).disabled=!uses[k]||phase==='won'||(k==='undo'&&!history.length)||(k!=='undo'&&phase!=='playing')}}
-function undo(){if(!uses.undo||!history.length||phase==='won')return;const s=history.pop();({tiles,tray,cleared,solution}=s);uses.undo--;phase='playing';view3d?.restore(s.motion);closeModal();render();say('退回上一步，换个思路试试')}
+function pick(id,visibleHit=false){if(phase!=='playing')return;const t=tiles.find(t=>t.id===id);if(!t||(!visibleHit&&!available(t)))return;history.push(snapshot());tiles=tiles.filter(x=>x.id!==id);solution=solution.filter(x=>x!==id);tray.push(t);tray.sort((a,b)=>a.type-b.type);const match=tray.filter(x=>x.type===t.type).length===3;if(match){tray=tray.filter(x=>x.type!==t.type);cleared+=3;say(t.type===GOOSE?'嘎！大鹅被你找到了！':'凑齐一组'+ITEMS[t.type][1]+'！继续找找');}else say(tray.length>=5?'收纳槽快满了，优先凑齐已有的物品':'再找找相同的'+ITEMS[t.type][1]);tone(match);render();if(!tiles.length&&!tray.length){phase='won';caught++;const clean=uses.undo===3&&uses.shuffle===2&&uses.hint===3,rec=archive.records[level];rec.wins++;if(clean)rec.clean++;const next=(level+1)%LEVELS.length;archive.unlocked=Math.max(archive.unlocked,next===0?LEVELS.length-1:next);archive.level=next;persist();render();openModal('抓到大鹅啦！',level===2?'三筛好物全部收齐，三只大鹅也乖乖回家。\n歇一歇，或再挑战一次吧。':'这一筛收得干干净净。\n下一只鹅躲得更深了，去找找？',level===2?'再玩一轮':'去下一站',()=>start(next),'留在这里',closeModal)}else if(tray.length>=7){phase='lost';archive.records[level].losses++;persist();render();openLoss()}else persist()}
+function render(){view3d?.sync();const cfg=LEVELS[level];$('chapter').textContent=cfg.place;$('level').textContent=cfg.name;$('remaining').textContent='已收齐 '+cleared+' / '+total+' 件';$('caught').textContent='已抓到 '+caught+' 只鹅';$('bar').style.width=cleared/total*100+'%';$('capacity').textContent=tray.length+' / 7';$('trayWrap').classList.toggle('danger',tray.length>=5);$('board').querySelectorAll('.tile').forEach(b=>b.remove());for(const t of tiles){const b=document.createElement('button');const free=view3d?true:available(t);b.className='tile'+(free?'':' blocked');b.disabled=!free;b.dataset.id=t.id;b.style.cssText=`left:${t.x}%;top:${t.y}%;z-index:${t.z+1}`;b.textContent=ITEMS[t.type][0];b.setAttribute('aria-label',ITEMS[t.type][1]+(free?'':'（被遮挡）'));b.onclick=()=>view3d?view3d.pickVisible(t.id):pick(t.id);$('board').append(b)}$('tray').replaceChildren();for(let i=0;i<7;i++){const slot=document.createElement('div');slot.className='slot'+(tray[i]?' filled':'');slot.textContent=tray[i]?ITEMS[tray[i].type][0]:'';if(tray[i]&&view3d){const img=document.createElement('img');img.src=view3d.icons[tray[i].type];img.alt=ITEMS[tray[i].type][1];slot.replaceChildren(img);}slot.setAttribute('aria-label',tray[i]?ITEMS[tray[i].type][1]:'空槽位');$('tray').append(slot)}for(const k of ['undo','shuffle','hint']){$(k+'Count').textContent=uses[k];$(k).disabled=!uses[k]||phase==='won'||(k==='undo'&&!history.length)||(k!=='undo'&&phase!=='playing')}}
+function undo(){if(!uses.undo||!history.length||phase==='won')return;const s=history.pop();({tiles,tray,cleared,solution}=s);uses.undo--;phase='playing';view3d?.restore(s.motion);closeModal();render();persist();say('退回上一步，换个思路试试')}
 function openLoss(){openModal('哎呀，装满了','七个槽位都满了。\n先凑槽里已有的物品，会更容易抓到鹅。',uses.undo&&history.length?'撤回上一步':'重新挑战',uses.undo&&history.length?undo:()=>start(level),'重新挑战',()=>start(level))}
 function closeModal(){$('modal').hidden=true;focusReturn?.focus()}
-function openModal(title,text,primary,action,secondary,second){focusReturn=document.activeElement;$('dialogTitle').textContent=title;$('dialogText').textContent=text;$('dialogPrimary').textContent=primary;$('dialogPrimary').onclick=action;$('dialogSecondary').hidden=!secondary;$('dialogSecondary').textContent=secondary||'';$('dialogSecondary').onclick=second||closeModal;$('modal').hidden=false;$('dialogPrimary').focus()}
+function openModal(title,text,primary,action,secondary,second){$('archiveList').hidden=true;$('archiveList').replaceChildren();focusReturn=document.activeElement;$('dialogTitle').textContent=title;$('dialogText').textContent=text;$('dialogPrimary').textContent=primary;$('dialogPrimary').onclick=action;$('dialogSecondary').hidden=!secondary;$('dialogSecondary').textContent=secondary||'';$('dialogSecondary').onclick=second||closeModal;$('modal').hidden=false;$('dialogPrimary').focus()}
+/* 存档记录不是排行榜：一关最多只写"通关几次、有没有无道具通关"。
+   每关盘面是随机发的，比手数没有意义；能比的是"没用道具也能过"。 */
+function openArchive(){
+  openModal('关卡存档','已抓到 '+caught+' 只鹅 · 进度自动保存在这台设备上','接着玩',closeModal);
+  const list=$('archiveList');list.hidden=false;list.replaceChildren();
+  LEVELS.forEach((cfg,i)=>{
+    const rec=archive.records[i],open=i<=archive.unlocked,inProgress=i===level&&phase==='playing';
+    const state=!open?'未解锁':inProgress?'接着打':rec.clean?'★ 无道具通关':rec.wins?'已通关 ×'+rec.wins:rec.losses?'挑战中':'待挑战';
+    const row=document.createElement('button');
+    row.className='archive-row'+(i===level?' current':'');
+    row.disabled=!open;
+    row.innerHTML='<span class="mark">'+(open?['①','②','③'][i]:'🔒')+'</span><span><b>'+cfg.name+'</b><small>'+cfg.place+'</small></span><span class="state">'+state+'</span>';
+    row.setAttribute('aria-label',cfg.place+' '+cfg.name+'，'+state+(open?'，点这里继续':''));
+    // 点正在打的那一站只回到盘面 —— 否则会把人打到一半的进度直接洗掉
+    row.onclick=()=>inProgress?closeModal():start(i);
+    list.append(row);
+  });
+  const wipe=document.createElement('button');wipe.className='archive-reset';wipe.textContent='清空存档记录';
+  wipe.onclick=()=>openModal('清空存档记录？','三关的通关次数、已抓到的鹅数和这一筛没打完的盘面都会清掉，不能恢复。','清空',clearArchive,'算了',openArchive);
+  list.append(wipe);
+}
+function clearArchive(){Object.assign(archive,blankArchive());caught=0;start(0)}
 $('shake').onclick=()=>view3d?.shake();
-$('undo').onclick=undo;$('shuffle').onclick=()=>{if(phase!=='playing'||!uses.shuffle)return;uses.shuffle--;deal();history=[];render();say('物品重新排好啦！先凑收纳槽里已有的')};$('hint').onclick=()=>{
+$('undo').onclick=undo;$('shuffle').onclick=()=>{if(phase!=='playing'||!uses.shuffle)return;uses.shuffle--;deal();history=[];render();persist();say('物品重新排好啦！先凑收纳槽里已有的')};$('hint').onclick=()=>{
  if(phase!=='playing'||!uses.hint)return;
  const held=tray.map(t=>t.type),free=tiles.filter(t=>available(t));
  const next=view3d?view3d.findHint(held):(free.find(t=>held.includes(t.type))||free.find(t=>solution[0]===t.id)||free[0]);
  if(!next){say('先晃一晃或转动盘子，让物品露出来');return;}
- uses.hint--;render();document.querySelector(`[data-id="${next.id}"]`).classList.add('hint');view3d?.hint(next.id);
+ uses.hint--;render();persist();document.querySelector(`[data-id="${next.id}"]`).classList.add('hint');view3d?.hint(next.id);
  say('试试这件'+ITEMS[next.type][1]+'，优先凑已有的物品');
 };
 $('restart').onclick=()=>openModal('重开这一筛？','本关进度会清空，道具次数也会恢复。','重新开始',()=>start(level),'接着玩',closeModal);
-$('help').onclick=()=>openModal('三个一样，就收好','① 点击盘里的立体物品，放进收纳槽。\n② 三个相同的物品会自动消除。\n③ 露出来、能点到的物品都可以拿。\n拖动盘子可以转动视角；点「晃一晃」翻动物品。\n④ 七格装满就失败，清空物品盘抓到鹅！\n每关有 3 次撤回、2 次洗牌、3 次提示。','知道啦',closeModal);
+$('archive').onclick=openArchive;
+$('help').onclick=()=>openModal('三个一样，就收好','① 点击盘里的立体物品，放进收纳槽。\n② 三个相同的物品会自动消除。\n③ 露出来、能点到的物品都可以拿。\n拖动盘子可以转动视角；点「晃一晃」翻动物品。\n④ 七格装满就失败，清空物品盘抓到鹅！\n每关有 3 次撤回、2 次洗牌、3 次提示。\n⑤ 进度会自动存档，关掉页面再打开可以接着玩。','知道啦',closeModal);
 $('sound').onclick=()=>{sound=!sound;$('sound').setAttribute('aria-pressed',String(sound));$('sound').setAttribute('aria-label',sound?'关闭音效':'开启音效');$('sound').textContent=sound?'♫':'♪';tone()};
 $('modal').addEventListener('keydown',e=>{if(e.key==='Escape'&&phase==='playing')closeModal();if(e.key==='Tab'){const buttons=[...$('modal').querySelectorAll('button')].filter(b=>!b.hidden);if(e.shiftKey&&document.activeElement===buttons[0]){e.preventDefault();buttons.at(-1).focus()}else if(!e.shiftKey&&document.activeElement===buttons.at(-1)){e.preventDefault();buttons[0].focus()}}});
-start(0);
+caught=archive.caught;
+if(typeof addEventListener==='function')addEventListener('pagehide',persist);
+if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')persist()});
+if(archive.session)restoreSession(archive.session);else start(Math.min(archive.unlocked,archive.level));
 </script>
 <script src="../../assets/vendor/three.min.js"></script>
 <script src="../../assets/vendor/cannon.min.js"></script>
@@ -184,6 +251,52 @@ start(0);
         part(g, 'cone', '#fffbee', [0, .49, .65], [.19, .37, .19], [Math.PI / 3, 0, 0]);
         for (const x of [-.18, .18]) part(g, 'ball', '#e99b3f', [x, .055, -.05], [.14, .045, .23]);
         break;
+      case 9: // Broccoli: short stalk with a cluster of florets.
+        part(g, 'cylinder', '#7ba24b', [0, .25, 0], [.12, .5, .12]);
+        for (let i = 0; i < 6; i++) {
+          const a = i * Math.PI / 3;
+          part(g, 'ball', i % 2 ? '#4e7f36' : '#5f9540', [Math.cos(a) * .16, .6, Math.sin(a) * .16], [.2, .18, .2]);
+        }
+        part(g, 'ball', '#578c3b', [0, .72, 0], [.19, .16, .19]);
+        break;
+      case 10: // Strawberry with seeds and a leafy crown.
+        part(g, 'ball', '#e23f42', [0, .28, 0], [.36, .4, .36]);
+        part(g, 'cone', '#cf3539', [0, .04, 0], [.29, .3, .29], [Math.PI, 0, 0]);
+        for (const [x, z] of [[-.14, .14], [.13, .18], [-.05, -.2], [.18, -.1], [-.19, -.05]]) part(g, 'ball', '#ffe6a3', [x, .36, z], [.035, .025, .035]);
+        for (let i = 0; i < 5; i++) {
+          const a = i * Math.PI * 2 / 5;
+          leaf(g, [Math.cos(a) * .14, .57, Math.sin(a) * .14], [.14, .05, .19], a);
+        }
+        part(g, 'cylinder', '#4f7f3a', [0, .63, 0], [.04, .16, .04]);
+        break;
+      case 11: // Pear: narrow shoulders, wide base.
+        part(g, 'ball', '#c9cd5a', [0, .29, 0], [.34, .38, .34]);
+        part(g, 'ball', '#d7d96a', [0, .59, 0], [.2, .24, .2]);
+        part(g, 'cylinder', '#76592f', [0, .79, 0], [.04, .18, .04], [0, 0, .2]);
+        leaf(g, [.1, .8, 0], [.16, .035, .09], -.3);
+        break;
+      case 12: // Grape bunch with a stem and one leaf.
+        for (const [x, y, z] of [[0, .3, 0], [.16, .32, .08], [-.16, .32, .08], [.08, .22, .16], [-.08, .22, -.16], [.08, .44, -.08], [-.1, .44, .1], [0, .2, 0], [0, .5, 0]])
+          part(g, 'ball', '#7a4d9d', [x, y, z], [.16, .16, .16]);
+        part(g, 'cylinder', '#6b5230', [0, .68, 0], [.035, .16, .035]);
+        leaf(g, [.13, .7, 0], [.19, .04, .11], -.3);
+        break;
+      case 13: // Potato: lumpy brown ellipsoid with a few eyes.
+        part(g, 'ball', '#b68752', [0, .27, 0], [.42, .3, .34], [0, .3, .1]);
+        for (const [x, y, z] of [[-.2, .36, .18], [.18, .4, .1], [.05, .2, -.24], [-.12, .2, .2]]) part(g, 'ball', '#8d6238', [x, y, z], [.045, .03, .045]);
+        break;
+      case 14: // Chili: long body, pointed tip and a green stem.
+        part(g, 'ball', '#d93b2c', [0, .26, .08], [.22, .26, .5]);
+        part(g, 'cone', '#c22f24', [0, .26, .6], [.2, .4, .2], [Math.PI / 2, 0, 0]);
+        part(g, 'cylinder', '#4f7f3a', [0, .26, -.42], [.05, .2, .05], [Math.PI / 2, 0, 0]);
+        leaf(g, [0, .32, -.3], [.14, .04, .16]);
+        break;
+      case 15: // Peach: two soft lobes, a stem and a leaf.
+        part(g, 'ball', '#ef8f76', [-.13, .32, 0], [.3, .34, .32]);
+        part(g, 'ball', '#f6a287', [.13, .32, 0], [.3, .34, .32]);
+        part(g, 'cylinder', '#6b5230', [0, .7, 0], [.035, .16, .035], [0, 0, -.2]);
+        leaf(g, [.14, .71, 0], [.22, .04, .12], -.35);
+        break;
     }
     return g;
   }
@@ -234,10 +347,17 @@ start(0);
     [[0,.37,0,.44]], [[0,.22,0,.19],[0,.55,0,.44]],
     [[0,.34,0,.48]],
     [[0,.38,.12,.4],[0,.8,-.24,.18],[0,1.17,-.31,.24]],
+    [[0,.25,0,.18],[0,.6,0,.36]],
+    [[0,.28,0,.4],[0,.54,0,.16]],
+    [[0,.29,0,.4],[0,.59,0,.23]],
+    [[0,.25,0,.32],[0,.45,0,.24]],
+    [[0,.27,0,.42]],
+    [[0,.26,-.28,.25],[0,.26,.06,.26],[0,.26,.42,.23],[0,.26,.62,.16]],
+    [[0,.32,0,.42]],
   ];
   function makeBody(tile, object, previous) {
     const scale=level===0?1.28:1.08;
-    const body=new C.Body({mass:tile.type===8?1.1:.75,material:produceMaterial,linearDamping:.36,angularDamping:.52,allowSleep:true,sleepSpeedLimit:.17,sleepTimeLimit:.85});
+    const body=new C.Body({mass:tile.type===GOOSE?1.1:.75,material:produceMaterial,linearDamping:.36,angularDamping:.52,allowSleep:true,sleepSpeedLimit:.17,sleepTimeLimit:.85});
     for(const [x,y,z,r] of shapes[tile.type]) body.addShape(new C.Sphere(r*scale),new C.Vec3(x*scale,y*scale,z*scale));
     body.position.copy(previous?.position||object.position);
     body.quaternion.copy(previous?.quaternion||object.quaternion);
@@ -313,7 +433,7 @@ start(0);
         obj = model(tile.type); obj.userData = {id:tile.id, type:tile.type};
         obj.position.copy(position(tile));
         obj.scale.setScalar(level === 0 ? 1.28 : 1.08);
-        obj.rotation.y = (tile.type === 8 ? Math.PI : 0) + Math.sin(tile.id * 7.19 + tile.type) * .8;
+        obj.rotation.y = (tile.type === GOOSE ? Math.PI : 0) + Math.sin(tile.id * 7.19 + tile.type) * .8;
         obj.rotation.z = Math.sin(tile.id * 4.31) * .09;
         objects.set(tile.id, obj);world.add(obj);
         const body=makeBody(tile,obj,previous);obj.position.copy(body.position);obj.quaternion.copy(body.quaternion);changed=true;
@@ -420,7 +540,7 @@ start(0);
   previewCamera.position.set(1.4, 2.4, 3); previewCamera.lookAt(0, .45, 0);
   renderer.setSize(96, 96, false);
   const icons = ITEMS.map((_,type) => {
-    const item=model(type); if(type===8)item.rotation.y=Math.PI;
+    const item=model(type); if(type===GOOSE)item.rotation.y=Math.PI;
     previews.add(item); renderer.render(previews,previewCamera);
     const url=renderer.domElement.toDataURL(); previews.remove(item); return url;
   });
@@ -445,7 +565,10 @@ start(0);
   }};
   // Inspection surface for browser rendering and ray-picking regression checks.
   window.goose3d = {renderer, scene, camera, objects, world, physics, bodies, shake, get simulationTime(){return simulationTime;}};
-  resize(); render();
+  resize();
+  // 读档的盘面：等 3D 实体按 id 建好之后再灌回物理状态，否则会先掉一遍再归位。
+  if(resumeMotion){view3d.restore(resumeMotion);resumeMotion=null;}
+  render();
 })();
 
 </script>

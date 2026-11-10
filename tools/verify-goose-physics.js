@@ -14,6 +14,8 @@ let now=0,level=0,phase='playing';const T=THREE,reduced=false;
 const objects=new Map(),world=new T.Group(),nodes=new Map();
 const $=id=>{if(!nodes.has(id))nodes.set(id,{hidden:true,disabled:false});return nodes.get(id)};
 const performance={now:()=>now};function requestDraw(){}function say(){}
+const ITEMS=${source.match(/const ITEMS=(\[[^\n]*\]);/)[1]};
+const GOOSE=8;
 const LEVELS=${source.match(/const LEVELS=([^;]+);/)[1]};
 ${source.slice(start, end)}
 function advance(seconds){for(let i=0;i<seconds*60;i++){now+=1000/60;stepPhysics(now)}}
@@ -22,7 +24,7 @@ function spawn(id,type,x,y,z){const tile={id,type,z:0};const obj=new T.Group();o
 for(level=0;level<3;level++){
  clear();let id=0;
  for(const [z,[cols,rows]] of LEVELS[level].layers.entries())for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
-  const tile={id:id++,type:id%9,x:(100-cols*15.5)/2+c*15.5,y:(100-rows*18)/2+r*18,z};
+  const tile={id:id++,type:id%ITEMS.length,x:(100-cols*15.5)/2+c*15.5,y:(100-rows*18)/2+r*18,z};
   const obj=new T.Group();obj.position.copy(position(tile));objects.set(tile.id,obj);makeBody(tile,obj);
  }
  const initial=[...bodies.values()].map(b=>b.position.clone());advance(10);
@@ -41,6 +43,13 @@ const lower=new C.Body({mass:0,material:bowlMaterial});lower.addShape(new C.Box(
 const upper=spawn(101,2,0,1.2,0);upper.velocity.set(0,0,0);upper.angularVelocity.set(0,0,0);advance(6);
 const supportedHeight=upper.position.y;physics.removeBody(lower);bodies.delete(100);objects.delete(100);wakePile();advance(3);
 assert.ok(upper.position.y<supportedHeight-.4,'removing support makes the upper object fall');
+// 每种上架的物品都必须有碰撞体：漏一条 shapes[type] 会直接让页面在摆盘时抛异常。
+for(let type=0;type<ITEMS.length;type++){
+ clear();const body=spawn(200+type,type,0,1.3,0);body.velocity.set(.6,.2,.4);advance(6);
+ assert.ok([body.position.x,body.position.y,body.position.z].every(Number.isFinite),'type '+type+' stays finite');
+ assert.ok(Math.hypot(body.position.x,body.position.z)<=4.851,'type '+type+' stays in the bowl');
+ assert.ok(body.position.y>-.9&&body.position.y<4,'type '+type+' rests in the bowl');
+}
 clear();assert.equal(physics.bodies.length,33,'reset removes all dynamic bodies');
-console.log('PASS: opening gravity, three pile sizes, containment, shake, exact undo, support removal and body cleanup');
+console.log('PASS: opening gravity, three pile sizes, containment, shake, exact undo, support removal, ' + ITEMS.length + ' item colliders and body cleanup');
 `, ctx);

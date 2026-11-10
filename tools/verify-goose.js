@@ -50,6 +50,15 @@ for(let round=0;round<100;round++) for(let stage=0;stage<3;stage++){
  pick(solution[0]);if(round%2)pick(solution[1]);
  $('shuffle').onclick();checkInvariant();assert.equal(uses.shuffle,1);assert.equal(history.length,0);solve();
 }
+// 物品池：新增的模型要真的会出现在盘里，否则只是写了个没人见过的函数。
+const seen=new Set();
+for(let round=0;round<40;round++){
+ start(2);checkInvariant();
+ assert.equal(tiles.filter(t=>t.type===GOOSE).length,3,'每盘固定一组大鹅');
+ tiles.forEach(t=>seen.add(t.type));
+}
+assert.equal(PRODUCE.length,ITEMS.length-1);
+for(const type of PRODUCE)assert.ok(seen.has(type),'物品「'+ITEMS[type][1]+'」要能发到盘里');
 // Find a legal sequence that fills the tray, then verify loss recovery.
 let lost=false;
 for(let attempt=0;attempt<200&&!lost;attempt++){
