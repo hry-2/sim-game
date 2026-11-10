@@ -9,6 +9,8 @@
 
 | 名称 | 版本 | 许可证 | 来源 | 是否需署名 |
 |---|---|---|---|---|
+| Cannon.js | 0.6.2 | MIT | https://github.com/schteppe/cannon.js/tree/v0.6.2 | 是（本地物理引擎与完整许可证位于 `assets/vendor/`） |
+| Three.js | 0.158.0 | MIT | https://github.com/mrdoob/three.js/tree/r158 | 是（本地引擎与完整许可证位于 `assets/vendor/`，抓大鹅游戏内可访问） |
 | Phaser | 3.x | MIT | https://phaser.io | 是（保留版权声明） |
 | （示例）howler.js | 2.x | MIT | https://howlerjs.com | 是 |
 

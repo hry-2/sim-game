@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#dceade"><title>抓大鹅 · 3D 乡间三消</title>
+<style>
+:root{--ink:#284a3e;--green:#3e7453;--leaf:#b8cd90;--paper:#fafbf1;--orange:#e99346;--line:#b9cbb1;--water:#9ec9c2}*{box-sizing:border-box}body{margin:0;color:var(--ink);font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#dceade;background-image:radial-gradient(ellipse at 5% 90%,#aecbc0 0,transparent 45%),radial-gradient(ellipse at 100% 10%,#edf1d8 0,transparent 45%);min-height:100svh}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}button:focus-visible,a:focus-visible{outline:3px solid var(--orange);outline-offset:4px}button:disabled{cursor:default;opacity:.45}a{color:inherit}.layout{max-width:1040px;margin:auto;padding:28px 32px;display:grid;grid-template-columns:290px minmax(0,420px);justify-content:space-between;gap:40px;align-items:center;min-height:100svh}.back{text-decoration:none;font-size:13px;display:inline-block;margin-bottom:42px}.eyebrow{font-size:11px;letter-spacing:.25em;color:#65816a}.intro h1{font-family:"STKaiti","KaiTi",serif;font-size:74px;letter-spacing:-.07em;margin:14px 0 18px;line-height:1.1;transform:rotate(-3deg)}.intro h1 span{color:var(--orange)}.intro p{font-size:14px;line-height:2;color:#617565;max-width:245px}.pond{width:255px;height:190px;margin:32px 0 12px}.note{font-size:11px!important;letter-spacing:.08em}.game{width:100%;max-width:420px;position:relative}.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px}.label{font-size:11px;letter-spacing:.13em;color:#70806b}.level{font-family:"STKaiti","KaiTi",serif;font-size:25px;font-weight:bold;margin:5px 0}.smallbtn{background:#ffffff66;border:1px solid var(--line);border-radius:50%;height:39px;width:39px;font-size:18px}.top-actions{display:flex;gap:8px}.progress{height:6px;border-radius:8px;background:#bdcfb2;overflow:hidden}.progress div{height:100%;background:var(--green);transition:width .3s}.progress-label{display:flex;justify-content:space-between;font-size:11px;color:#73816c;margin:8px 2px 14px}.basket{position:relative;border:10px solid #c3a779;border-radius:42px;background-color:#e4d3a5;background-image:repeating-linear-gradient(0deg,transparent 0 7px,#bd9a5a20 7px 9px),repeating-linear-gradient(90deg,transparent 0 7px,#bd9a5a20 7px 9px);box-shadow:inset 0 0 0 3px #a78a5b,inset 0 0 30px #ae8e5260,0 10px 0 #7e69432b;aspect-ratio:1.08}.basket:before{content:"乡 间 好 物";position:absolute;left:0;right:0;bottom:15px;text-align:center;font-size:12px;letter-spacing:.3em;color:#9e895e}.board{position:absolute;inset:13px 10px 36px}.tile{position:absolute;width:15%;height:17.5%;padding:0;border:1px solid #d8d7b9;border-radius:15px;background:#fffff6;box-shadow:0 5px 0 #b0b68c,0 7px 7px #685b4530;display:flex;align-items:center;justify-content:center;transition:filter .2s,transform .15s,opacity .15s;font-size:clamp(25px,3.5vw,35px);line-height:1}.tile:not(:disabled):hover{transform:translateY(-4px) rotate(-3deg);background:#fff}.tile.blocked{filter:brightness(.74) saturate(.6);opacity:1}.tile.hint{outline:3px solid #ee9d41;animation:wiggle .7s infinite alternate}.status{min-height:42px;padding:15px 0 8px;text-align:center;font-size:12px;color:#5c735c}.tray-wrap{background:#f6f7e7;border:1px solid #c6cfb0;border-radius:19px;padding:13px 12px 10px;box-shadow:0 4px 0 #bfccaa}.tray-head{display:flex;justify-content:space-between;font-size:11px;color:#7a866d;margin:0 3px 10px}.tray{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.slot{aspect-ratio:1;background:#e4e9d2;border:1px solid #d1d9bc;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:inset 0 2px 3px #9eac8e24}.slot.filled{background:#fffff8;animation:pop .18s ease-out}.tray-wrap.danger{border-color:#d78861}.tools{display:flex;justify-content:center;gap:clamp(8px,3vw,22px);margin:23px 0 0}.tool{border:0;background:transparent;font-size:11px;display:flex;align-items:center;gap:6px;flex-direction:column;min-width:56px}.tool i{display:grid;place-items:center;border:1px solid #b8c9a5;border-radius:16px;width:48px;height:43px;font-size:21px;background:#edf1dc;box-shadow:0 3px 0 #b5c5a3;font-style:normal}.tool b{font-weight:normal}.modal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:#233e3580;backdrop-filter:blur(6px);padding:24px}.modal[hidden]{display:none}.dialog{width:min(360px,100%);background:var(--paper);border:2px solid #becdab;border-radius:28px;padding:30px;text-align:center;box-shadow:0 15px 50px #1e382f40}.dialog h2{font-family:"STKaiti","KaiTi",serif;font-size:32px;margin:12px 0}.dialog p{font-size:13px;line-height:1.9;color:#6c7c65;white-space:pre-line}.dialog .big-goose{font-size:65px}.primary,.secondary{width:100%;padding:13px;border-radius:13px;font-weight:600;margin-top:10px;border:0;background:var(--green);color:white}.secondary{background:#e6ecd9;color:var(--ink)}@keyframes pop{from{transform:scale(.6)}to{transform:scale(1)}}@keyframes wiggle{to{transform:translateY(-5px) rotate(5deg)}}@media(max-width:740px){.layout{display:block;padding:16px 17px 24px;max-width:480px;min-height:100svh}.intro{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}.back{margin:0;font-size:12px}.intro h1{font-size:32px;margin:0;letter-spacing:-.07em}.intro .eyebrow,.intro p,.pond{display:none}.top{margin-bottom:8px}.level{font-size:23px}.progress-label{margin-bottom:10px}.tile{font-size:30px;border-radius:12px}.tools{margin-top:18px}.slot{font-size:27px}.basket{border-width:8px}.board{inset:12px 6px 32px}.status{padding-top:12px;min-height:37px}}@media(prefers-reduced-motion:reduce){*,*:before{animation:none!important;transition:none!important}}
+/* The 3D scene replaces the flat tiles; semantic buttons remain for keyboard play. */
+.layout{max-width:1160px;grid-template-columns:290px minmax(0,460px)}
+.game{max-width:460px}.basket{border:0;border-radius:28px;background:radial-gradient(ellipse at 50% 65%,#cbd9bf,#e8edda 75%);box-shadow:inset 0 0 0 1px #c5d1b9;aspect-ratio:1.16;overflow:hidden}
+.basket:before{display:none}.board{inset:0}.board canvas{display:block;width:100%;height:100%;touch-action:none;outline:none}
+.view-tip{position:absolute;bottom:14px;left:0;right:0;text-align:center;font-size:11px;color:#72816b;pointer-events:none}
+.board .tile{width:1px;height:1px;clip-path:inset(50%);overflow:hidden;padding:0;border:0;box-shadow:none}
+.board .tile:focus-visible{clip-path:none;width:auto;height:auto;left:12px!important;top:12px!important;padding:8px 12px;z-index:99!important;font-size:23px;transform:none;box-shadow:0 3px 10px #0002}
+.webgl-error{position:absolute;inset:20%;font-size:14px;line-height:2;z-index:3}
+.slot img{width:100%;height:100%;object-fit:contain;pointer-events:none}.credits{display:block;text-align:center;font-size:10px;color:#7b8d76;margin-top:15px;text-underline-offset:3px}
+@media(max-width:740px){.layout{display:block}.basket{aspect-ratio:1.03}.game{max-width:none}.view-tip{bottom:12px}}
+</style>
+</head>
+<body>
+<main class="layout">
+<aside class="intro"><a class="back" href="../../index.html">← 回游戏柜</a><div class="eyebrow">A LITTLE 3D COUNTRYSIDE PUZZLE</div><h1>抓<span>大鹅</span></h1><p>转一转，找一找，<br>逮一只神气大鹅。<br>一盘立体好物，三个凑一组。</p>
+<svg class="pond" viewBox="0 0 270 200" aria-label="池塘边的大白鹅" role="img"><ellipse cx="136" cy="157" rx="122" ry="35" fill="#a7ccc1"/><g fill="none" stroke="#e1ede0" stroke-width="2"><ellipse cx="149" cy="157" rx="67" ry="16"/><path d="M26 156h36m153 9h24"/></g><g stroke="#688e68" stroke-width="3" fill="none"><path d="M39 146q5-31-9-49m11 47q-1-33 12-44M230 148q-6-26 5-41"/></g><g transform="rotate(-8 140 125)"><ellipse cx="137" cy="133" rx="43" ry="29" fill="#fffff4"/><path d="M151 128q17-22 12-54q-5-28 14-28q20 0 18 20q-2 8-9 11l-1 48q-6 24-34 15" fill="#fffff4"/><path d="m192 58 21 9-23 5" fill="#e99346"/><circle cx="184" cy="57" r="3" fill="#284a3e"/><path d="M115 124q6 24 33 15" fill="none" stroke="#dce6d5" stroke-width="3"/><path d="m102 128-17-12 6 23" fill="#fffff4"/></g><path d="m213 65 9-9m-5 20 12 2" stroke="#d99b50" stroke-width="2" stroke-linecap="round"/></svg><p class="note">不赶时间，慢慢凑齐。</p></aside>
+<section class="game" aria-label="3D 抓大鹅游戏"><header class="top"><div><div class="label" id="chapter">第一站 · 农家小院</div><div class="level" id="level">先来热热手</div></div><div class="top-actions"><button class="smallbtn" id="sound" aria-label="开启音效" aria-pressed="false">♪</button><button class="smallbtn" id="help" aria-label="玩法说明">?</button><button class="smallbtn" id="restart" aria-label="重新开始">↻</button></div></header>
+<div class="progress"><div id="bar"></div></div><div class="progress-label"><span id="remaining"></span><span id="caught">已抓到 0 只鹅</span></div>
+<div class="basket"><div class="board" id="board" aria-label="3D 物品盘"></div><span class="view-tip">⤾ 拖动转一转 · 点击拿起来</span></div><div class="status" id="status" role="status" aria-live="polite">点击收取 · 拖动转视角 · 晃一晃翻动好物</div>
+<div class="tray-wrap" id="trayWrap"><div class="tray-head"><span>收纳槽 · 三个相同自动消除</span><span id="capacity">0 / 7</span></div><div class="tray" id="tray" aria-label="收纳槽"></div></div>
+<div class="tools"><button class="tool" id="shake"><i>≈</i><b>晃一晃</b></button><button class="tool" id="undo"><i>↶</i><b>撤回 <span id="undoCount">3</span></b></button><button class="tool" id="shuffle"><i>⤨</i><b>洗牌 <span id="shuffleCount">2</span></b></button><button class="tool" id="hint"><i>☀</i><b>提示 <span id="hintCount">3</span></b></button></div><a class="credits" href="../../THIRD-PARTY-NOTICES.md" target="_blank" rel="noopener">3D · Three.js / Cannon.js · MIT</a></section></main>
+<div class="modal" id="modal" hidden><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle"><div class="big-goose" id="dialogIcon">🪿</div><h2 id="dialogTitle"></h2><p id="dialogText"></p><button class="primary" id="dialogPrimary"></button><button class="secondary" id="dialogSecondary" hidden></button></section></div>
+<script>
+'use strict';
+const ITEMS=[['🥕','胡萝卜'],['🌽','玉米'],['🍅','番茄'],['🥬','青菜'],['🍆','茄子'],['🍎','苹果'],['🍄','蘑菇'],['🎃','南瓜'],['🪿','大鹅']];
+const LEVELS=[{name:'先来热热手',place:'第一站 · 农家小院',layers:[[4,3],[3,2]],types:4},{name:'鹅躲到菜园啦',place:'第二站 · 田边菜园',layers:[[6,5],[5,4],[4,3],[1,1]],types:7},{name:'最后一筛，抓住它',place:'第三站 · 丰收集市',layers:[[6,5],[5,4],[4,3],[3,2],[3,2],[1,1]],types:8}];
+const $=id=>document.getElementById(id);let tiles=[],tray=[],history=[],level=0,total=0,cleared=0,caught=0,phase='playing',uses={},sound=false,audio,solution=[],focusReturn;
+let view3d = null;
+function randomize(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function overlaps(a,b){return Math.abs(a.x-b.x)<14.5&&Math.abs(a.y-b.y)<17}
+function available(tile,list=tiles){return !list.some(t=>t.z>tile.z&&overlaps(t,tile))}
+function removalOrder(){const pool=tiles.slice(),order=[];while(pool.length){const choices=pool.filter(t=>available(t,pool));const t=choices[Math.floor(Math.random()*choices.length)];order.push(t);pool.splice(pool.indexOf(t),1)}return order}
+function deal(){const order=removalOrder(),types=[];const counts=Array(ITEMS.length).fill(0);for(const t of [...tiles,...tray])counts[t.type]++;for(let k=0;k<counts.length;k++){const held=tray.filter(t=>t.type===k).length;if(held){for(let n=0;n<3-held;n++)types.push(k);counts[k]-=3}}
+const groups=[];for(let k=0;k<counts.length;k++)for(let n=0;n<counts[k]/3;n++)groups.push(k);const geese=groups.filter(k=>k===8);randomize(groups);for(const k of [...groups.filter(k=>k!==8),...geese])types.push(k,k,k);order.forEach((t,i)=>t.type=types[i]);solution=order.map(t=>t.id)}
+function start(index){view3d?.reset();level=index;phase='playing';tiles=[];tray=[];history=[];cleared=0;uses={undo:3,shuffle:2,hint:3};const cfg=LEVELS[level];cfg.layers.forEach(([cols,rows],z)=>{for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)tiles.push({id:tiles.length,x:(100-cols*15.5)/2+c*15.5,y:(100-rows*18)/2+r*18,z,type:0})});total=tiles.length;const groups=total/3;for(let i=0;i<total;i++)tiles[i].type=Math.floor(i/3)===groups-1?8:Math.floor(i/3)%cfg.types;deal();closeModal();say('点击收取 · 拖动转视角 · 晃一晃翻动好物');render()}
+function tone(match=false){if(!sound)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.resume();[0,...(match?[.09,.18]:[])].forEach((delay,i)=>{const o=audio.createOscillator(),g=audio.createGain(),t=audio.currentTime+delay;o.type='sine';o.frequency.setValueAtTime(match?[523,659,784][i]:420,t);g.gain.setValueAtTime(.07,t);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g);g.connect(audio.destination);o.start(t);o.stop(t+.15)})}catch{}}
+function say(text){$('status').textContent=text}
+function snapshot(){return {tiles:tiles.map(t=>({...t})),tray:tray.map(t=>({...t})),cleared,solution:solution.slice(),motion:view3d?.snapshot()}}
+// A ray-confirmed 3D hit is selectable even when the conservative deal grid overlaps.
+function pick(id,visibleHit=false){if(phase!=='playing')return;const t=tiles.find(t=>t.id===id);if(!t||(!visibleHit&&!available(t)))return;history.push(snapshot());tiles=tiles.filter(x=>x.id!==id);solution=solution.filter(x=>x!==id);tray.push(t);tray.sort((a,b)=>a.type-b.type);const match=tray.filter(x=>x.type===t.type).length===3;if(match){tray=tray.filter(x=>x.type!==t.type);cleared+=3;say(t.type===8?'嘎！大鹅被你找到了！':'凑齐一组'+ITEMS[t.type][1]+'！继续找找');}else say(tray.length>=5?'收纳槽快满了，优先凑齐已有的物品':'再找找相同的'+ITEMS[t.type][1]);tone(match);render();if(!tiles.length&&!tray.length){phase='won';render();caught++;$('caught').textContent='已抓到 '+caught+' 只鹅';openModal('抓到大鹅啦！',level===2?'三筛好物全部收齐，三只大鹅也乖乖回家。\n歇一歇，或再挑战一次吧。':'这一筛收得干干净净。\n下一只鹅躲得更深了，去找找？',level===2?'再玩一轮':'去下一站',()=>start((level+1)%LEVELS.length),'留在这里',closeModal)}else if(tray.length>=7){phase='lost';render();openLoss()}}
+function render(){view3d?.sync();const cfg=LEVELS[level];$('chapter').textContent=cfg.place;$('level').textContent=cfg.name;$('remaining').textContent='已收齐 '+cleared+' / '+total+' 件';$('bar').style.width=cleared/total*100+'%';$('capacity').textContent=tray.length+' / 7';$('trayWrap').classList.toggle('danger',tray.length>=5);$('board').querySelectorAll('.tile').forEach(b=>b.remove());for(const t of tiles){const b=document.createElement('button');const free=view3d?true:available(t);b.className='tile'+(free?'':' blocked');b.disabled=!free;b.dataset.id=t.id;b.style.cssText=`left:${t.x}%;top:${t.y}%;z-index:${t.z+1}`;b.textContent=ITEMS[t.type][0];b.setAttribute('aria-label',ITEMS[t.type][1]+(free?'':'（被遮挡）'));b.onclick=()=>view3d?view3d.pickVisible(t.id):pick(t.id);$('board').append(b)}$('tray').replaceChildren();for(let i=0;i<7;i++){const slot=document.createElement('div');slot.className='slot'+(tray[i]?' filled':'');slot.textContent=tray[i]?ITEMS[tray[i].type][0]:'';if(tray[i]&&view3d){const img=document.createElement('img');img.src=view3d.icons[tray[i].type];img.alt=ITEMS[tray[i].type][1];slot.replaceChildren(img);}slot.setAttribute('aria-label',tray[i]?ITEMS[tray[i].type][1]:'空槽位');$('tray').append(slot)}for(const k of ['undo','shuffle','hint']){$(k+'Count').textContent=uses[k];$(k).disabled=!uses[k]||phase==='won'||(k==='undo'&&!history.length)||(k!=='undo'&&phase!=='playing')}}
+function undo(){if(!uses.undo||!history.length||phase==='won')return;const s=history.pop();({tiles,tray,cleared,solution}=s);uses.undo--;phase='playing';view3d?.restore(s.motion);closeModal();render();say('退回上一步，换个思路试试')}
+function openLoss(){openModal('哎呀，装满了','七个槽位都满了。\n先凑槽里已有的物品，会更容易抓到鹅。',uses.undo&&history.length?'撤回上一步':'重新挑战',uses.undo&&history.length?undo:()=>start(level),'重新挑战',()=>start(level))}
+function closeModal(){$('modal').hidden=true;focusReturn?.focus()}
+function openModal(title,text,primary,action,secondary,second){focusReturn=document.activeElement;$('dialogTitle').textContent=title;$('dialogText').textContent=text;$('dialogPrimary').textContent=primary;$('dialogPrimary').onclick=action;$('dialogSecondary').hidden=!secondary;$('dialogSecondary').textContent=secondary||'';$('dialogSecondary').onclick=second||closeModal;$('modal').hidden=false;$('dialogPrimary').focus()}
+$('shake').onclick=()=>view3d?.shake();
+$('undo').onclick=undo;$('shuffle').onclick=()=>{if(phase!=='playing'||!uses.shuffle)return;uses.shuffle--;deal();history=[];render();say('物品重新排好啦！先凑收纳槽里已有的')};$('hint').onclick=()=>{
+ if(phase!=='playing'||!uses.hint)return;
+ const held=tray.map(t=>t.type),free=tiles.filter(t=>available(t));
+ const next=view3d?view3d.findHint(held):(free.find(t=>held.includes(t.type))||free.find(t=>solution[0]===t.id)||free[0]);
+ if(!next){say('先晃一晃或转动盘子，让物品露出来');return;}
+ uses.hint--;render();document.querySelector(`[data-id="${next.id}"]`).classList.add('hint');view3d?.hint(next.id);
+ say('试试这件'+ITEMS[next.type][1]+'，优先凑已有的物品');
+};
+$('restart').onclick=()=>openModal('重开这一筛？','本关进度会清空，道具次数也会恢复。','重新开始',()=>start(level),'接着玩',closeModal);
+$('help').onclick=()=>openModal('三个一样，就收好','① 点击盘里的立体物品，放进收纳槽。\n② 三个相同的物品会自动消除。\n③ 露出来、能点到的物品都可以拿。\n拖动盘子可以转动视角；点「晃一晃」翻动物品。\n④ 七格装满就失败，清空物品盘抓到鹅！\n每关有 3 次撤回、2 次洗牌、3 次提示。','知道啦',closeModal);
+$('sound').onclick=()=>{sound=!sound;$('sound').setAttribute('aria-pressed',String(sound));$('sound').setAttribute('aria-label',sound?'关闭音效':'开启音效');$('sound').textContent=sound?'♫':'♪';tone()};
+$('modal').addEventListener('keydown',e=>{if(e.key==='Escape'&&phase==='playing')closeModal();if(e.key==='Tab'){const buttons=[...$('modal').querySelectorAll('button')].filter(b=>!b.hidden);if(e.shiftKey&&document.activeElement===buttons[0]){e.preventDefault();buttons.at(-1).focus()}else if(!e.shiftKey&&document.activeElement===buttons.at(-1)){e.preventDefault();buttons[0].focus()}}});
+start(0);
+</script>
+<script src="../../assets/vendor/three.min.js"></script>
+<script src="../../assets/vendor/cannon.min.js"></script>
+<script>
+// Procedural models share geometry and materials; no remote models or textures.
+(() => {
+  const host = $('board');
+  if (!window.THREE || !window.CANNON) { say('3D 引擎未能加载，请刷新页面重试'); return; }
+  const T = THREE;
+  let renderer;
+  try {
+    renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
+  } catch (error) {
+    host.insertAdjacentHTML('beforeend', '<p class="webgl-error">此浏览器无法启动 3D 画面，请开启硬件加速后重试。</p>');
+    return;
+  }
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.8));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = T.PCFSoftShadowMap;
+  renderer.outputColorSpace = T.SRGBColorSpace;
+  renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.domElement.setAttribute('aria-label', '3D 物品盘，点击物品收取，拖动转动视角');
+  host.prepend(renderer.domElement);
+  const scene = new T.Scene();
+  const camera = new T.OrthographicCamera(-7, 7, 7, -7, .1, 100);
+  camera.position.set(0, 14, 14);
+  camera.lookAt(0, .8, 0);
+  const world = new T.Group();
+  scene.add(world);
+  scene.add(new T.HemisphereLight(0xffffed, 0x647c70, 2.1));
+  const sun = new T.DirectionalLight(0xfff3d9, 3.2);
+  sun.position.set(-6, 15, 8);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 35 });
+  sun.shadow.normalBias = .035;
+  sun.shadow.bias = -.0003;
+  scene.add(sun);
+  const geometries = {
+    ball: new T.SphereGeometry(1, 20, 14),
+    cone: new T.ConeGeometry(1, 1, 16),
+    cylinder: new T.CylinderGeometry(1, 1, 1, 20),
+    cap: new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+  };
+  const materials = new Map();
+  function material(color, roughness = .42) {
+    const key = color + ':' + roughness;
+    if (!materials.has(key)) materials.set(key, new T.MeshStandardMaterial({ color, roughness }));
+    return materials.get(key);
+  }
+  function part(group, shape, color, position, scale, rotation = [0, 0, 0]) {
+    const mesh = new T.Mesh(geometries[shape], material(color));
+    mesh.position.set(...position); mesh.scale.set(...scale); mesh.rotation.set(...rotation);
+    mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh); return mesh;
+  }
+  const leaf = (g, p, s, angle = 0) => part(g, 'ball', '#548e36', p, s, [0, angle, .35]);
+  function crown(g, y, radius = .3) {
+    for (let i = 0; i < 5; i++) {
+      const a = i * Math.PI * 2 / 5;
+      leaf(g, [Math.sin(a) * radius * .6, y, Math.cos(a) * radius * .6], [.09, .045, radius], a);
+    }
+    part(g, 'cylinder', '#447638', [0, y + .12, 0], [.055, .3, .055], [0, 0, -.25]);
+  }
+  function model(type) {
+    const g = new T.Group();
+    switch (type) {
+      case 0: // Carrot, lying on its side.
+        part(g, 'cone', '#f18c29', [0, .23, .04], [.27, 1.15, .27], [Math.PI / 2, 0, .15]);
+        for (let i = -1; i <= 1; i++) leaf(g, [i * .15, .32, -.65], [.11, .055, .4], i * .5);
+        break;
+      case 1: // Corn cob and a visible husk.
+        part(g, 'ball', '#f3bc37', [0, .26, 0], [.28, .28, .65]);
+        for (let r = 0; r < 7; r++) for (let c = 0; c < 5; c++) {
+          const a = c * Math.PI * 2 / 5;
+          part(g, 'ball', (r + c) % 2 ? '#ffda55' : '#efbc34', [Math.cos(a) * .23, .28 + Math.sin(a) * .23, -.45 + r * .15], [.105, .095, .095]);
+        }
+        leaf(g, [-.23, .11, .05], [.12, .10, .73], -.2);
+        leaf(g, [.23, .11, .05], [.12, .10, .73], .2);
+        break;
+      case 2:
+        part(g, 'ball', '#e94d32', [0, .34, 0], [.48, .37, .45]); crown(g, .67); break;
+      case 3:
+        for (let i = 0; i < 5; i++) {
+          const a = i * Math.PI * 2 / 5;
+          part(g, 'ball', i % 2 ? '#70a843' : '#87bc55', [Math.cos(a) * .21, .26, Math.sin(a) * .21], [.28, .36, .25], [Math.sin(a) * .35, a, .2]);
+        }
+        part(g, 'ball', '#bfd56b', [0, .44, 0], [.22, .24, .23]); break;
+      case 4:
+        part(g, 'ball', '#774397', [0, .26, .10], [.28, .27, .63], [0, -.2, 0]);
+        part(g, 'ball', '#9a60b5', [-.1, .4, .10], [.07, .045, .3], [0, -.2, 0]);
+        leaf(g, [.07, .28, -.45], [.23, .18, .23]);
+        part(g, 'cylinder', '#548e36', [.08, .29, -.65], [.06, .3, .06], [Math.PI / 2, 0, 0]); break;
+      case 5:
+        part(g, 'ball', '#d64232', [-.17, .34, 0], [.33, .38, .4]);
+        part(g, 'ball', '#ea5741', [.17, .34, 0], [.33, .38, .4]);
+        part(g, 'cylinder', '#725337', [0, .73, 0], [.045, .28, .045], [0, 0, -.2]);
+        leaf(g, [.18, .74, 0], [.24, .04, .12], -.3); break;
+      case 6:
+        part(g, 'cylinder', '#f3e5b9', [0, .26, 0], [.18, .52, .18]);
+        part(g, 'cap', '#cd5542', [0, .4, 0], [.53, .35, .53]);
+        for (const [x,z] of [[-.25,.14],[.18,.27],[.1,-.22]]) part(g, 'ball', '#ffe9be', [x, .68, z], [.075, .03, .075]);
+        break;
+      case 7:
+        for (let i = 0; i < 8; i++) {
+          const a = i * Math.PI / 4;
+          part(g, 'ball', i % 2 ? '#de7d2a' : '#eb9338', [Math.cos(a) * .22, .32, Math.sin(a) * .22], [.29, .34, .29]);
+        }
+        part(g, 'cylinder', '#64733b', [0, .7, 0], [.08, .27, .08], [0, 0, .3]); break;
+      case 8: // Goose with a long neck, orange bill, wings and feet.
+        part(g, 'ball', '#fffbee', [0, .37, .14], [.38, .34, .55]);
+        part(g, 'ball', '#fffdf4', [0, .69, -.24], [.17, .58, .18], [-.16, 0, 0]);
+        part(g, 'ball', '#fffdf4', [0, 1.18, -.31], [.23, .23, .27]);
+        part(g, 'cone', '#ec9636', [0, 1.13, -.67], [.14, .38, .1], [-Math.PI / 2, 0, 0]);
+        for (const x of [-.19, .19]) part(g, 'ball', '#263b31', [x, 1.24, -.43], [.037, .037, .037]);
+        part(g, 'ball', '#e3e8d8', [-.31, .4, .16], [.1, .22, .33], [-.15, 0, -.2]);
+        part(g, 'ball', '#f7f4e6', [.31, .4, .16], [.1, .22, .33], [-.15, 0, .2]);
+        part(g, 'cone', '#fffbee', [0, .49, .65], [.19, .37, .19], [Math.PI / 3, 0, 0]);
+        for (const x of [-.18, .18]) part(g, 'ball', '#e99b3f', [x, .055, -.05], [.14, .045, .23]);
+        break;
+    }
+    return g;
+  }
+  // Enamel basin: a solid interior, gently flared sides, double rolled rim.
+  const bowl = new T.Group(); world.add(bowl);
+  const profile = [[0,-.28],[4.5,-.28],[4.9,-.1],[5.22,.3],[5.42,.65],[5.5,.7],[5.58,.63],[5.38,.16],[5,-.38],[4.5,-.48],[0,-.48]].map(p=>new T.Vector2(...p));
+  const basin = new T.Mesh(new T.LatheGeometry(profile, 80), material('#ebeddb', .28));
+  basin.receiveShadow = true; basin.castShadow = true; bowl.add(basin);
+  const rim = new T.Mesh(new T.TorusGeometry(5.5, .1, 12, 80), material('#548b80', .3));
+  rim.rotation.x = Math.PI / 2; rim.position.y = .7; rim.castShadow = true; bowl.add(rim);
+  const ring = new T.Mesh(new T.TorusGeometry(4.55, .027, 8, 80), material('#c2cfb6'));
+  ring.rotation.x = Math.PI/2; ring.position.y = -.24; bowl.add(ring);
+  const ground = new T.Mesh(new T.PlaneGeometry(200, 200), new T.ShadowMaterial({ opacity: .16 }));
+  ground.rotation.x = -Math.PI / 2; ground.position.y = -.5; ground.receiveShadow = true; scene.add(ground);
+  const objects = new Map(), raycaster = new T.Raycaster(), pointer = new T.Vector2();
+  let hovered = null, hinted = null, targetAngle = -.12, frame = 0, flights = [], down = null;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Rigid bodies use compact compound sphere colliders for the irregular produce.
+  const C = CANNON, physics = new C.World();
+  physics.gravity.set(0, -18, 0); physics.allowSleep = true;
+  physics.broadphase = new C.SAPBroadphase(physics);
+  physics.solver.iterations = 12;
+  physics.solver.tolerance = .001;
+  const produceMaterial = new C.Material('produce'), bowlMaterial = new C.Material('bowl');
+  physics.addContactMaterial(new C.ContactMaterial(produceMaterial, bowlMaterial, { friction: .6, restitution: .15 }));
+  physics.addContactMaterial(new C.ContactMaterial(produceMaterial, produceMaterial, { friction: .5, restitution: .12 }));
+  const floor = new C.Body({mass:0, material:bowlMaterial});
+  floor.addShape(new C.Plane());floor.quaternion.setFromEuler(-Math.PI/2,0,0);floor.position.y=-.23;
+  physics.addBody(floor);
+  // A ring of sloping surfaces follows the enamel basin's rising inner wall.
+  for(let i=0;i<32;i++){
+    const a=i*Math.PI/16;
+    const side=new C.Body({mass:0,material:bowlMaterial});
+    side.addShape(new C.Box(new C.Vec3(.57,.09,.73)));
+    side.position.set(Math.sin(a)*4.94,.12,Math.cos(a)*4.94);
+    const yaw=new C.Quaternion(),tilt=new C.Quaternion();
+    yaw.setFromAxisAngle(new C.Vec3(0,1,0),a);tilt.setFromAxisAngle(new C.Vec3(1,0,0),-.72);
+    yaw.mult(tilt,side.quaternion);physics.addBody(side);
+  }
+  const bodies=new Map();
+  let pendingMotion=null, previousTime=0, accumulator=0, shakeStarted=-Infinity, shakeEnds=0;
+  let shakeCooldown=0, resetPending=true, simulationTime=0;
+  const shapes=[
+    [[0,.23,-.32,.27],[0,.23,.04,.22],[0,.23,.37,.13]],
+    [[0,.28,-.36,.29],[0,.28,0,.3],[0,.28,.36,.29]],
+    [[0,.36,0,.46]], [[0,.35,0,.44]],
+    [[0,.27,-.27,.27],[0,.27,.13,.29],[0,.27,.43,.22]],
+    [[0,.37,0,.44]], [[0,.22,0,.19],[0,.55,0,.44]],
+    [[0,.34,0,.48]],
+    [[0,.38,.12,.4],[0,.8,-.24,.18],[0,1.17,-.31,.24]],
+  ];
+  function makeBody(tile, object, previous) {
+    const scale=level===0?1.28:1.08;
+    const body=new C.Body({mass:tile.type===8?1.1:.75,material:produceMaterial,linearDamping:.36,angularDamping:.52,allowSleep:true,sleepSpeedLimit:.17,sleepTimeLimit:.85});
+    for(const [x,y,z,r] of shapes[tile.type]) body.addShape(new C.Sphere(r*scale),new C.Vec3(x*scale,y*scale,z*scale));
+    body.position.copy(previous?.position||object.position);
+    body.quaternion.copy(previous?.quaternion||object.quaternion);
+    if(previous){body.velocity.copy(previous.velocity);body.angularVelocity.copy(previous.angularVelocity);}
+    else if(!pendingMotion){
+      // Drop a loose handful into the basin rather than displaying a static stack.
+      body.position.y+=reduced?.15:1.5+tile.z*.35;
+      if(!reduced){body.velocity.set(Math.sin(tile.id*8.1)*.7,-.25,Math.cos(tile.id*5.2)*.7);body.angularVelocity.set(Math.sin(tile.id)*1.1,.3,Math.cos(tile.id)*1.1);}
+    }
+    physics.addBody(body); bodies.set(tile.id,body);
+    return body;
+  }
+  function wakePile(){for(const body of bodies.values())body.wakeUp();requestDraw();}
+  function shake(){
+    if(phase!=='playing'||!$('modal').hidden||performance.now()<shakeCooldown)return;
+    $('shake').disabled=true;
+    const now=performance.now();shakeStarted=now;shakeEnds=now+(reduced?180:1250);shakeCooldown=now+1600;
+    for(const body of bodies.values()){
+      body.wakeUp();
+      body.velocity.x+=Math.sin(body.position.z*1.7+now)*1.5;
+      body.velocity.z+=Math.cos(body.position.x*1.3+now)*1.5;
+      body.velocity.y+=reduced?.35:1.5+Math.random()*.8;
+      body.angularVelocity.x+=(Math.random()-.5)*2;
+      body.angularVelocity.z+=(Math.random()-.5)*2;
+    }
+    say('晃一晃，让藏在下面的好物翻出来');requestDraw();
+  }
+  function motionSnapshot(){return [...bodies].map(([id,b])=>({id,p:[b.position.x,b.position.y,b.position.z],q:[b.quaternion.x,b.quaternion.y,b.quaternion.z,b.quaternion.w],v:[b.velocity.x,b.velocity.y,b.velocity.z],w:[b.angularVelocity.x,b.angularVelocity.y,b.angularVelocity.z]}));}
+  function applyMotion(){
+    if(!pendingMotion)return;
+    for(const state of pendingMotion){const b=bodies.get(state.id);if(!b)continue;b.position.set(...state.p);b.quaternion.set(...state.q);b.velocity.set(...state.v);b.angularVelocity.set(...state.w);b.wakeUp();b.aabbNeedsUpdate=true;}
+    pendingMotion=null;
+  }
+  function stepPhysics(now){
+    const dt=previousTime?Math.min((now-previousTime)/1000,.05):1/60;previousTime=now;
+    const t=Number.isFinite(shakeStarted)?(now-shakeStarted)/1000:0, envelope=now<shakeEnds?Math.pow(1-(now-shakeStarted)/(shakeEnds-shakeStarted),2):0;
+    const tilt=reduced?0:Math.sin(t*17)*.075*envelope;
+    world.rotation.x=tilt;world.rotation.z=Math.cos(t*20)*.06*envelope;
+    world.position.x=reduced?0:Math.sin(t*22)*.09*envelope;
+    physics.gravity.set(Math.sin(t*17)*10*envelope,-18,Math.cos(t*20)*8*envelope);
+    accumulator=Math.min(accumulator+dt,.1);
+    while(accumulator>=1/60){physics.step(1/60);simulationTime+=1/60;accumulator-=1/60;}
+    for(const [id,b] of bodies){
+      // Keep vigorous shakes inside the bowl, including on low frame-rate devices.
+      const radius=Math.hypot(b.position.x,b.position.z),limit=4.85;
+      if(radius>limit){const nx=b.position.x/radius,nz=b.position.z/radius;b.position.x=nx*limit;b.position.z=nz*limit;const outward=b.velocity.x*nx+b.velocity.z*nz;if(outward>0){b.velocity.x-=1.3*outward*nx;b.velocity.z-=1.3*outward*nz;}}
+      const obj=objects.get(id);if(obj){obj.position.copy(b.position);obj.quaternion.copy(b.quaternion);}
+    }
+    $('shake').disabled=phase!=='playing'||now<shakeCooldown;
+    return now<shakeCooldown||[...bodies.values()].some(b=>b.sleepState!==C.Body.SLEEPING);
+  }
+
+  function position(tile) {
+    // Deterministic small offsets keep undo stable while avoiding a card-grid appearance.
+    const noise = Math.sin(tile.id * 37.7 + tile.z * 13.4);
+    const spacing = level === 0 ? .125 : .095;
+    return new T.Vector3((tile.x + 7.5 - 50) * spacing + noise * .09, tile.z * .63 + .06, (tile.y + 8.75 - 50) * spacing + Math.cos(tile.id * 9.3) * .09);
+  }
+  function sync() {
+    const ids = new Set(tiles.map(t=>t.id));
+    let changed=false;
+    for (const [id, obj] of objects) if (!ids.has(id)) {
+      physics.removeBody(bodies.get(id));bodies.delete(id);changed=true;
+      if (!reduced && phase === 'playing') flights.push({obj, time:performance.now(), from:obj.position.clone()});
+      else world.remove(obj);
+      objects.delete(id);
+    }
+    for (const tile of tiles) {
+      let obj = objects.get(tile.id);
+      let previous=null;
+      if (obj && obj.userData.type !== tile.type) { previous=bodies.get(tile.id);physics.removeBody(previous);bodies.delete(tile.id);world.remove(obj);objects.delete(tile.id);obj=null;changed=true; }
+      if (!obj) {
+        obj = model(tile.type); obj.userData = {id:tile.id, type:tile.type};
+        obj.position.copy(position(tile));
+        obj.scale.setScalar(level === 0 ? 1.28 : 1.08);
+        obj.rotation.y = (tile.type === 8 ? Math.PI : 0) + Math.sin(tile.id * 7.19 + tile.type) * .8;
+        obj.rotation.z = Math.sin(tile.id * 4.31) * .09;
+        objects.set(tile.id, obj);world.add(obj);
+        const body=makeBody(tile,obj,previous);obj.position.copy(body.position);obj.quaternion.copy(body.quaternion);changed=true;
+      }
+    }
+    applyMotion();
+    for(const [id,b] of bodies){const obj=objects.get(id);obj.position.copy(b.position);obj.quaternion.copy(b.quaternion);}
+    if(changed)wakePile();
+    if(resetPending){resetPending=false;shakeStarted=performance.now();shakeEnds=shakeStarted+(reduced?0:1500);}
+    hinted = null; requestDraw();
+  }
+  function requestDraw() { if (!frame) frame = requestAnimationFrame(draw); }
+  const highlightMaterials = new Map();
+  function highlight(obj, selected) {
+    obj.traverse(mesh => {
+      if (!mesh.isMesh) return;
+      const base = mesh.userData.baseMaterial ??= mesh.material;
+      if (selected && !highlightMaterials.has(base.uuid)) {
+        const lit = base.clone(); lit.emissive.set('#a16e16'); lit.emissiveIntensity = .3;
+        highlightMaterials.set(base.uuid, lit);
+      }
+      mesh.material = selected ? highlightMaterials.get(base.uuid) : base;
+    });
+  }
+  function draw(now) {
+    frame = 0;
+    const active=stepPhysics(now);
+    const difference = targetAngle - world.rotation.y;
+    world.rotation.y += reduced ? difference : difference * .17;
+    for (const [id, obj] of objects) {
+      const selected = id === hovered || id === hinted;
+      obj.scale.setScalar(level === 0 ? 1.28 : 1.08);
+      highlight(obj, selected);
+    }
+    flights = flights.filter(f => {
+      const p = Math.min(1, (now - f.time) / 330);
+      f.obj.position.set(f.from.x * (1 - p * .65), f.from.y + Math.sin(p * Math.PI) * 2 - p * 2, f.from.z + p * 6);
+      f.obj.scale.setScalar(1-p); f.obj.rotation.y += .15;
+      if (p === 1) world.remove(f.obj);
+      return p < 1;
+    });
+    renderer.render(scene, camera);
+    if(active||flights.length||Math.abs(difference)>.001)requestDraw();else previousTime=0;
+  }
+  function hit(event) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
+    scene.updateMatrixWorld(true); raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects([...objects.values(), bowl], true);
+    if (!hits.length) return null;
+    let obj = hits[0].object;
+    while (obj && obj.userData.id === undefined) obj = obj.parent;
+    return obj?.userData.id ?? null;
+  }
+  const canvas = renderer.domElement;
+  canvas.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || down) return;
+    // Stop camera inertia while pressing, so the target stays beneath the pointer.
+    targetAngle = world.rotation.y;
+    down = {x:event.clientX, y:event.clientY, angle:targetAngle, id:hit(event), pointerId:event.pointerId, dragged:false};
+    if (event.isTrusted) canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener('pointermove', event => {
+    if (down && event.pointerId !== down.pointerId) return;
+    if (down) {
+      down.dragged ||= Math.hypot(event.clientX-down.x,event.clientY-down.y)>8;
+      if (down.dragged) {
+        targetAngle = down.angle + (event.clientX - down.x) * .009;
+        hovered = null; requestDraw(); return;
+      }
+    }
+    hovered = hit(event);
+    canvas.style.cursor = hovered === null ? 'grab' : 'pointer'; requestDraw();
+  });
+  canvas.addEventListener('pointerup', event => {
+    if (!down || event.pointerId !== down.pointerId) return;
+    const gesture = down;
+    const tap = !gesture.dragged && Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)<=8;
+    down = null;
+    if (!tap || phase !== 'playing' || !$('modal').hidden) return;
+    // The press hit the visible front surface. Small finger movement should not lose it.
+    if (gesture.id === null) return;
+    hovered = null; pick(gesture.id, true);
+  });
+  canvas.addEventListener('pointercancel', event => { if(down?.pointerId===event.pointerId)down=null; });
+  canvas.addEventListener('lostpointercapture', event => { if(down?.pointerId===event.pointerId)down=null; });
+  canvas.addEventListener('pointerleave', () => { hovered = null; requestDraw(); });
+  host.addEventListener('focusin', event => { const id = Number(event.target.dataset.id); if (objects.has(id)) { hovered=id; requestDraw(); } });
+  host.addEventListener('focusout', () => { hovered=null; requestDraw(); });
+  function resize() {
+    const w=host.clientWidth, h=host.clientHeight;
+    renderer.setSize(w,h,false);
+    const half=6.25;
+    camera.left=-half*w/h;camera.right=half*w/h;camera.top=half;camera.bottom=-half;
+    camera.updateProjectionMatrix(); requestDraw();
+  }
+  new ResizeObserver(resize).observe(host);
+  // Reuse this renderer to create matching 3D thumbnails for the seven slots.
+  const previews = new T.Scene();
+  previews.add(new T.HemisphereLight(0xffffed, 0x647c70, 2.1));
+  const previewSun = new T.DirectionalLight(0xfff3d9, 3.2);
+  previewSun.position.set(-3, 6, 5); previews.add(previewSun);
+  const previewCamera = new T.OrthographicCamera(-.95, .95, .95, -.95, .1, 20);
+  previewCamera.position.set(1.4, 2.4, 3); previewCamera.lookAt(0, .45, 0);
+  renderer.setSize(96, 96, false);
+  const icons = ITEMS.map((_,type) => {
+    const item=model(type); if(type===8)item.rotation.y=Math.PI;
+    previews.add(item); renderer.render(previews,previewCamera);
+    const url=renderer.domElement.toDataURL(); previews.remove(item); return url;
+  });
+  function isExposed(id) {
+    const obj = objects.get(id);
+    if (!obj) return false;
+    scene.updateMatrixWorld(true);
+    const center = new T.Box3().setFromObject(obj).getCenter(new T.Vector3()).project(camera);
+    const rect = canvas.getBoundingClientRect();
+    for (const dx of [0, -.025, .025, -.05, .05]) for (const dy of [0, -.025, .025, -.05, .05]) {
+      if (hit({clientX:rect.left+(center.x+dx+1)*rect.width/2, clientY:rect.top+(1-center.y-dy)*rect.height/2}) === id) {
+        return true;
+      }
+    }
+    return false;
+  }
+  function pickVisible(id){if(phase!=='playing')return;if(isExposed(id))pick(id,true);else say('这件还没露出来，晃一晃或转动盘子再找找');}
+  view3d = {sync, icons, pickVisible, shake, findHint(held){return tiles.slice().sort((a,b)=>Number(held.includes(b.type))-Number(held.includes(a.type))||b.z-a.z).find(t=>isExposed(t.id));}, snapshot:motionSnapshot, restore(state){pendingMotion=state;}, hint(id){hinted=id;requestDraw()}, reset(){
+    for(const body of bodies.values())physics.removeBody(body);bodies.clear();pendingMotion=null;previousTime=0;accumulator=0;shakeStarted=-Infinity;shakeEnds=0;shakeCooldown=0;resetPending=true;world.rotation.x=world.rotation.z=0;world.position.x=0;
+    for(const f of flights) world.remove(f.obj); flights=[];
+    for(const obj of objects.values())world.remove(obj);objects.clear();hovered=null;hinted=null;targetAngle=-.12;world.rotation.y=targetAngle;
+  }};
+  // Inspection surface for browser rendering and ray-picking regression checks.
+  window.goose3d = {renderer, scene, camera, objects, world, physics, bodies, shake, get simulationTime(){return simulationTime;}};
+  resize(); render();
+})();
+
+</script>
+</body></html>

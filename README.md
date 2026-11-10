@@ -1,6 +1,6 @@
 # 游戏柜
 
-八个自己写的网页游戏。都是**单个 HTML 文件**——没有构建步骤、没有 npm 依赖，
+九个自己写的网页游戏。主逻辑都放在**单个 HTML 文件**中——没有构建步骤、没有 npm 运行时依赖，
 美术与音效全部由代码生成或内嵌，双击即可运行，也能直接扔到任意静态托管上。
 
 首页 [`index.html`](index.html) 是合集入口。
@@ -11,6 +11,7 @@
 | 霓虹废钢线 | 生存射击 · Roguelite | [`games/neon-scrapline/`](games/neon-scrapline/) | [文档](games/neon-scrapline/README.md) |
 | 夜港（原型） | 赛博朋克潜入 · 剧情 | [`games/nightharbor/`](games/nightharbor/) | [文档](games/nightharbor/README.md) · [策划](docs/夜港策划拆解.md) · [剧本](docs/夜港剧本.md) |
 | 静街（在做） | 疫后小镇生存日志 | [`games/quiet-street/`](games/quiet-street/) | [策划](docs/静街策划.md) · [拆解](docs/静街任务拆解.md) · [数据规格](docs/静街数据规格.md) —— 进度 T1（镇子生成器）|
+| 抓大鹅 | 3D 三消 · 休闲益智 | [`games/goose/`](games/goose/) | Three.js + Cannon.js 本地引擎 · 真实重力 / 碰撞 / 翻滚 · 开场落盘 / 晃一晃 · 拖动旋转 · 三关递进 · 七格收纳槽 · 撤回 / 洗牌 / 提示 · 离线可玩 |
 | 点头 | 面对面猜词 · 翻转判定 | [`games/nod/`](games/nod/) | 两个人玩 · 十六个词包 4547 词 · [ADR-0004](docs/adr/0004-tilt-is-an-input-not-the-verdict.md) · [ADR-0006](docs/adr/0006-one-rule-for-every-pack.md) |
 | 聚宝盆 | 3D 推币机 · 街机物理 | [`games/coin-pusher/`](games/coin-pusher/) | Three.js 真 3D（联网加载）· 立体金币 · 连锁掉落 · 电子屏开奖 · 永久机台存档 |
 | 捕鱼达人 | 3D 捕鱼 · 街机射击 | [`games/fish-hunter/`](games/fish-hunter/) | Three.js · 炮倍 / 锁定 / 自动开炮 · 四条龙鱼 · 网口三级与网衣 · 潮汐与鱼王 · 和聚宝盆共用币袋 |
@@ -25,6 +26,8 @@ npm run dev          # 或起服务：http://localhost:5173
 
 单独玩某一款也可以直接双击 `games/<游戏>/index.html`。
 
+抓大鹅使用 `assets/vendor/` 中的本地 Three.js 和 Cannon.js 引擎，离线可玩；单独分发时需保留游戏文件与该目录的相对路径。
+
 ## 部署到 GitHub Pages
 
 仓库根目录已经是可发布的静态站点，不需要 Actions、不需要构建：
@@ -32,8 +35,8 @@ npm run dev          # 或起服务：http://localhost:5173
 **Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `/ (root)`**
 
 保存约一分钟后访问 `https://<用户名>.github.io/sim-game/`，
-八款分别在 `/games/sim/`、`/games/neon-scrapline/`、`/games/nightharbor/`、`/games/quiet-street/`、
-`/games/nod/`、`/games/coin-pusher/`、`/games/fish-hunter/` 和 `/games/ai-story/`。
+九款分别在 `/games/sim/`、`/games/neon-scrapline/`、`/games/nightharbor/`、`/games/quiet-street/`、
+`/games/nod/`、`/games/coin-pusher/`、`/games/fish-hunter/`、`/games/goose/` 和 `/games/ai-story/`。
 
 > **点头必须走 HTTPS**：iOS 13+ 只在安全上下文里给陀螺仪，而且要在用户手势里申请权限。
 > `npm run dev` 起的局域网 http 上，它会静默退到点击兜底 —— 能玩，但翻不了。
@@ -68,6 +71,8 @@ npm run check:neon   # 霓虹废钢线：离线验收（精灵 / 武器 / 初始
 npm run check:street # 静街：离线验收（100 条断言，零依赖）
 npm run probe:street # 静街：生存探针（死因分布 / 存活天数 / 守恒 / 卡死）
 npm run survivors    # 静街：重新生成幸存者精灵与贴花并嵌回
+node tools/verify-goose-physics.js # 抓大鹅：重力、碰撞边界、晃动、物理撤回和移除支撑
+node tools/verify-goose.js # 抓大鹅：300 局随机关卡、洗牌可解性、撤回、失败与通关
 npm run check:nod    # 点头：离线验收（60 条断言，零依赖）——【验不到传感器，见脚本头部】
 ```
 
