@@ -31,22 +31,22 @@ const STATE = () => ({
   assert.equal(first.level, 0);
   assert.equal(first.phase, 'playing');
   assert.equal(first.board, first.total);
-  assert.equal(first.tiles.split(',').length, 18, '第一站 18 件');
+  const stageSizes = await p.evaluate(() => LEVELS.map(c => c.layers.reduce((n, [a, b]) => n + a * b, 0)));
+  assert.equal(first.tiles.split(',').length, stageSizes[0], '第一站的件数要和关卡表一致');
   const seal = await p.evaluate(() => JSON.parse(localStorage.getItem('goose.archive.v1')));
   assert.equal(seal.v, 1);
   assert.equal(seal.level, 0);
   assert.equal(seal.unlocked, 0);
-  assert.ok(seal.session && seal.session.tiles.length === 18, '开局盘面就落盘');
+  assert.ok(seal.session && seal.session.tiles.length === stageSizes[0], '开局盘面就落盘');
 
   // 存档面板：只有第一站能点
   await p.click('#archive');
   const rows = await p.evaluate(() => [...document.querySelectorAll('.archive-row')].map(r => ({
     disabled: r.disabled, text: r.textContent,
   })));
-  assert.equal(rows.length, 3);
+  assert.equal(rows.length, stageSizes.length, '存档面板列出所有关卡');
   assert.equal(rows[0].disabled, false);
-  assert.equal(rows[1].disabled, true);
-  assert.equal(rows[2].disabled, true);
+  assert.ok(rows.slice(1).every(r => r.disabled), '后面几站一开始都锁着');
   assert.ok(rows[0].text.includes('接着打'), '正在打的那一站标成接着打');
   await p.evaluate(() => document.querySelector('.archive-row').click());
   const stillOpenBoard = await p.evaluate(`(${STATE.toString()})()`);
@@ -89,7 +89,7 @@ const STATE = () => ({
   const second = await p2.evaluate(`(${STATE.toString()})()`);
   assert.equal(second.level, 1);
   assert.equal(second.board, second.total);
-  assert.equal(second.board, 63, '第二站 63 件');
+  assert.equal(second.board, stageSizes[1], '第二站件数要和关卡表一致');
 
   await p2.click('#archive');
   const rows2 = await p2.evaluate(() => [...document.querySelectorAll('.archive-row')].map(r => ({
@@ -98,7 +98,7 @@ const STATE = () => ({
   assert.equal(rows2[0].disabled, false);
   assert.ok(rows2[0].text.includes('★ 无道具通关'));
   assert.equal(rows2[1].disabled, false);
-  assert.equal(rows2[2].disabled, true, '第三站仍未解锁');
+  assert.ok(rows2.slice(2).every(r => r.disabled), '后面的站仍未解锁');
   await p2.click('#dialogPrimary');
 
   // ---- 第二站打一半后刷新：多关存档互不串台 ----
@@ -132,7 +132,7 @@ const STATE = () => ({
   assert.equal(broken.phase, 'playing');
   assert.equal(errs.length, 0, '页面不能报错：' + errs.join(' | '));
 
-  // 体积：75 件的盘面也不能把 localStorage 写爆
+  // 体积：最满那一站的盘面也不能把 localStorage 写爆
   const kb = await p3.evaluate(() => Math.round(localStorage.getItem('goose.archive.v1').length / 1024));
   assert.ok(kb < 256, '存档体积 ' + kb + 'KB');
 
@@ -144,12 +144,50 @@ const STATE = () => ({
   assert.equal(wiped.level, 0);
   assert.equal(wiped.caught, 0);
   const afterWipe = await p3.evaluate(() => JSON.parse(localStorage.getItem('goose.archive.v1')));
-  assert.deepEqual(afterWipe.records, [
-    { wins: 0, losses: 0, clean: 0 },
-    { wins: 0, losses: 0, clean: 0 },
-    { wins: 0, losses: 0, clean: 0 },
-  ]);
+  assert.deepEqual(afterWipe.records, stageSizes.map(() => ({ wins: 0, losses: 0, clean: 0 })));
   assert.equal(afterWipe.unlocked, 0);
+
+  // ---- 最满那一站：一百多件在真实页面里也要建得起来、点得动、清得掉 ----
+  await p3.evaluate(() => {
+    // 直接改内存里的存档再落盘：只写 localStorage 的话，reload 前的 pagehide 会用旧状态盖回去。
+    archive.unlocked = LEVELS.length - 1;
+    archive.level = LEVELS.length - 1;
+    archive.session = null;
+    phase = 'won';
+    persist();
+  });
+  await p3.reload();
+  await p3.waitForFunction(() => window.goose3d && window.goose3d.bodies.size > 0);
+  const deep = await p3.evaluate(() => ({
+    level, tiles: tiles.length, bodies: window.goose3d.bodies.size,
+    layers: Math.max(...tiles.map(t => t.z)) + 1,
+  }));
+  assert.equal(deep.level, stageSizes.length - 1, '从存档直接进最后一站');
+  assert.equal(deep.tiles, stageSizes.at(-1));
+  assert.equal(deep.bodies, deep.tiles, '最满那一站的 3D 实体要建齐');
+  assert.ok(deep.layers >= 8, '最后一站至少 8 层，现在 ' + deep.layers);
+  await p3.evaluate(() => { for (const id of solution.slice()) pick(id); });
+  const finished = await p3.evaluate(() => ({
+    phase, tiles: tiles.length, tray: tray.length,
+    title: document.getElementById('dialogTitle').textContent,
+    primary: document.getElementById('dialogPrimary').textContent,
+  }));
+  assert.equal(finished.phase, 'won', '最满那一站必须真的清得完');
+  assert.equal(finished.tiles + finished.tray, 0);
+  assert.equal(finished.title, '抓到大鹅啦！');
+  assert.equal(finished.primary, '再玩一轮', '打通最后一站就回到第一站重来');
+
+  // 真实点击路径：露出来的那件点了就得收进收纳槽
+  await p3.evaluate(() => start(LEVELS.length - 1));
+  await p3.waitForTimeout(600);
+  const tap = await p3.evaluate(() => {
+    const t = tiles.find(x => window.goose3d.isExposed(x.id));
+    const before = tiles.length;
+    view3d.pickVisible(t.id);
+    return { before, after: tiles.length, tray: tray.length };
+  });
+  assert.equal(tap.after, tap.before - 1, '点得到的物品要能收走');
+  assert.equal(tap.tray, 1);
 
   await browser.close();
   assert.equal(errs.length, 0);

@@ -42,7 +42,14 @@ pick(exposed3D.id,true);
 assert.ok(!tiles.some(t=>t.id===exposed3D.id));
 assert.equal(tray[0].id,exposed3D.id);
 undo();assert.equal(JSON.stringify(snapshot()),gridState);
-for(let round=0;round<100;round++) for(let stage=0;stage<3;stage++){
+// 关卡递进：越往后越满、层数越多，最后一站要堆到冒尖。
+assert.ok(LEVELS.length>=6,'关卡不能太少');
+const sizes=LEVELS.map(cfg=>cfg.layers.reduce((n,[c,r])=>n+c*r,0));
+sizes.forEach((n,i)=>{assert.equal(n%3,0,'第'+(i+1)+'站件数要能被 3 整除');if(i)assert.ok(n>sizes[i-1],'盘面要越铺越大')});
+sizes.forEach((n,i)=>assert.ok(LEVELS[i].types<=PRODUCE.length&&LEVELS[i].types>0,'种类数要落在物品池里'));
+assert.ok(sizes.at(-1)>=100,'最后一站要很满');
+assert.ok(LEVELS.at(-1).layers.length>=8,'最后一站要很深');
+for(let round=0;round<100;round++) for(let stage=0;stage<LEVELS.length;stage++){
  start(stage);checkInvariant();
  const blocked=tiles.find(t=>!available(t));const before=JSON.stringify(snapshot());pick(blocked.id);assert.equal(JSON.stringify(snapshot()),before);
  const first=solution[0];pick(first);assert.equal(tray.length,1);undo();assert.equal(tray.length,0);assert.equal(uses.undo,2);assert.equal(tiles.length,total);
@@ -53,7 +60,7 @@ for(let round=0;round<100;round++) for(let stage=0;stage<3;stage++){
 // 物品池：新增的模型要真的会出现在盘里，否则只是写了个没人见过的函数。
 const seen=new Set();
 for(let round=0;round<40;round++){
- start(2);checkInvariant();
+ start(LEVELS.length-1);checkInvariant();
  assert.equal(tiles.filter(t=>t.type===GOOSE).length,3,'每盘固定一组大鹅');
  tiles.forEach(t=>seen.add(t.type));
 }
@@ -62,7 +69,7 @@ for(const type of PRODUCE)assert.ok(seen.has(type),'物品「'+ITEMS[type][1]+'�
 // Find a legal sequence that fills the tray, then verify loss recovery.
 let lost=false;
 for(let attempt=0;attempt<200&&!lost;attempt++){
- start(2);
+ start(LEVELS.length-1);
  while(phase==='playing'){
   const free=tiles.filter(t=>available(t));
   free.sort((a,b)=>tray.filter(t=>t.type===a.type).length-tray.filter(t=>t.type===b.type).length);
@@ -71,5 +78,5 @@ for(let attempt=0;attempt<200&&!lost;attempt++){
  if(phase==='lost'){lost=true;assert.equal(tray.length,7);undo();assert.equal(phase,'playing');assert.ok(tray.length<7);checkInvariant();}
 }
 assert.ok(lost,'loss state must be reachable');
-console.log('PASS: 300 generated levels, blocking, visible 3D hits, triples, solvable shuffles, undo, victory and loss recovery');
+console.log('PASS: '+100*LEVELS.length+' generated levels across '+LEVELS.length+' stages (max '+sizes.at(-1)+' items / '+LEVELS.at(-1).layers.length+' layers), blocking, visible 3D hits, triples, solvable shuffles, undo, victory and loss recovery');
 `, ctx);

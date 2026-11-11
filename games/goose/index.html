@@ -33,9 +33,18 @@
 const ITEMS=[['🥕','胡萝卜'],['🌽','玉米'],['🍅','番茄'],['🥬','青菜'],['🍆','茄子'],['🍎','苹果'],['🍄','蘑菇'],['🎃','南瓜'],['🪿','大鹅'],['🥦','西兰花'],['🍓','草莓'],['🍐','梨'],['🍇','葡萄'],['🥔','土豆'],['🌶️','辣椒'],['🍑','桃子']];
 // 大鹅固定是第 9 类：关卡里最后一组永远是鹅，其余种类从 PRODUCE 里抽。
 const GOOSE=8,PRODUCE=ITEMS.map((_,i)=>i).filter(i=>i!==GOOSE);
-const LEVELS=[{name:'先来热热手',place:'第一站 · 农家小院',layers:[[4,3],[3,2]],types:5},{name:'鹅躲到菜园啦',place:'第二站 · 田边菜园',layers:[[6,5],[5,4],[4,3],[1,1]],types:9},{name:'最后一筛，抓住它',place:'第三站 · 丰收集市',layers:[[6,5],[5,4],[4,3],[3,2],[3,2],[1,1]],types:12}];
+// 越往后盘面越满、层数越多：最后一站 8 层 117 件，一个碗里堆到冒尖，
+// 才像抓大鹅小游戏那种"翻了半天还翻不到底"的手感。
+const LEVELS=[
+  {name:'先来热热手',place:'第一站 · 农家小院',layers:[[4,3],[3,2]],types:5},
+  {name:'鹅躲到菜园啦',place:'第二站 · 田边菜园',layers:[[5,3],[4,3],[3,2]],types:7},
+  {name:'钻进瓜棚里',place:'第三站 · 瓜棚底下',layers:[[5,4],[5,3],[4,3],[2,2]],types:9},
+  {name:'一堆好物等你翻',place:'第四站 · 谷仓深处',layers:[[6,4],[5,4],[4,4],[3,2],[3,2]],types:11,pen:.95},
+  {name:'越翻越深',place:'第五站 · 地窖口',layers:[[6,5],[6,4],[5,4],[4,3],[3,2],[1,1]],types:13,pen:.86},
+  {name:'最后一筛，抓住它',place:'第六站 · 丰收集市',layers:[[6,5],[6,4],[5,4],[5,3],[4,3],[4,2],[3,2],[2,1]],types:15,pen:.74},
+];
 const $=id=>document.getElementById(id);let tiles=[],tray=[],history=[],level=0,total=0,cleared=0,caught=0,phase='playing',uses={},sound=false,audio,solution=[],focusReturn,resumeMotion=null;
-/* 关卡存档：三关的进度、每关的通关次数，以及【这一筛没打完的盘面】都存在浏览器里。
+/* 关卡存档：各关的进度、每关的通关次数，以及【这一筛没打完的盘面】都存在浏览器里。
    只存"打到第几关"不够——这类游戏一局十分钟上下，刷新一下从头来最伤人。
    物理位置（view3d.snapshot）也一起存，读档后好物还躺在原处。 */
 const SAVE_KEY='goose.archive.v1';
@@ -85,7 +94,7 @@ function tone(match=false){if(!sound)return;try{audio??=new(window.AudioContext|
 function say(text){$('status').textContent=text}
 function snapshot(){return {tiles:tiles.map(t=>({...t})),tray:tray.map(t=>({...t})),cleared,solution:solution.slice(),motion:view3d?.snapshot()}}
 // A ray-confirmed 3D hit is selectable even when the conservative deal grid overlaps.
-function pick(id,visibleHit=false){if(phase!=='playing')return;const t=tiles.find(t=>t.id===id);if(!t||(!visibleHit&&!available(t)))return;history.push(snapshot());tiles=tiles.filter(x=>x.id!==id);solution=solution.filter(x=>x!==id);tray.push(t);tray.sort((a,b)=>a.type-b.type);const match=tray.filter(x=>x.type===t.type).length===3;if(match){tray=tray.filter(x=>x.type!==t.type);cleared+=3;say(t.type===GOOSE?'嘎！大鹅被你找到了！':'凑齐一组'+ITEMS[t.type][1]+'！继续找找');}else say(tray.length>=5?'收纳槽快满了，优先凑齐已有的物品':'再找找相同的'+ITEMS[t.type][1]);tone(match);render();if(!tiles.length&&!tray.length){phase='won';caught++;const clean=uses.undo===3&&uses.shuffle===2&&uses.hint===3,rec=archive.records[level];rec.wins++;if(clean)rec.clean++;const next=(level+1)%LEVELS.length;archive.unlocked=Math.max(archive.unlocked,next===0?LEVELS.length-1:next);archive.level=next;persist();render();openModal('抓到大鹅啦！',level===2?'三筛好物全部收齐，三只大鹅也乖乖回家。\n歇一歇，或再挑战一次吧。':'这一筛收得干干净净。\n下一只鹅躲得更深了，去找找？',level===2?'再玩一轮':'去下一站',()=>start(next),'留在这里',closeModal)}else if(tray.length>=7){phase='lost';archive.records[level].losses++;persist();render();openLoss()}else persist()}
+function pick(id,visibleHit=false){if(phase!=='playing')return;const t=tiles.find(t=>t.id===id);if(!t||(!visibleHit&&!available(t)))return;history.push(snapshot());tiles=tiles.filter(x=>x.id!==id);solution=solution.filter(x=>x!==id);tray.push(t);tray.sort((a,b)=>a.type-b.type);const match=tray.filter(x=>x.type===t.type).length===3;if(match){tray=tray.filter(x=>x.type!==t.type);cleared+=3;say(t.type===GOOSE?'嘎！大鹅被你找到了！':'凑齐一组'+ITEMS[t.type][1]+'！继续找找');}else say(tray.length>=5?'收纳槽快满了，优先凑齐已有的物品':'再找找相同的'+ITEMS[t.type][1]);tone(match);render();if(!tiles.length&&!tray.length){phase='won';caught++;const clean=uses.undo===3&&uses.shuffle===2&&uses.hint===3,rec=archive.records[level];rec.wins++;if(clean)rec.clean++;const next=(level+1)%LEVELS.length;archive.unlocked=Math.max(archive.unlocked,next===0?LEVELS.length-1:next);archive.level=next;persist();render();const last=level===LEVELS.length-1;openModal('抓到大鹅啦！',last?'所有筛子的好物都收齐了，大鹅也全都乖乖回家。\n歇一歇，或再挑战一次吧。':'这一筛收得干干净净。\n下一只鹅躲得更深了，去找找？',last?'再玩一轮':'去下一站',()=>start(next),'留在这里',closeModal)}else if(tray.length>=7){phase='lost';archive.records[level].losses++;persist();render();openLoss()}else persist()}
 function render(){view3d?.sync();const cfg=LEVELS[level];$('chapter').textContent=cfg.place;$('level').textContent=cfg.name;$('remaining').textContent='已收齐 '+cleared+' / '+total+' 件';$('caught').textContent='已抓到 '+caught+' 只鹅';$('bar').style.width=cleared/total*100+'%';$('capacity').textContent=tray.length+' / 7';$('trayWrap').classList.toggle('danger',tray.length>=5);$('board').querySelectorAll('.tile').forEach(b=>b.remove());for(const t of tiles){const b=document.createElement('button');const free=view3d?true:available(t);b.className='tile'+(free?'':' blocked');b.disabled=!free;b.dataset.id=t.id;b.style.cssText=`left:${t.x}%;top:${t.y}%;z-index:${t.z+1}`;b.textContent=ITEMS[t.type][0];b.setAttribute('aria-label',ITEMS[t.type][1]+(free?'':'（被遮挡）'));b.onclick=()=>view3d?view3d.pickVisible(t.id):pick(t.id);$('board').append(b)}$('tray').replaceChildren();for(let i=0;i<7;i++){const slot=document.createElement('div');slot.className='slot'+(tray[i]?' filled':'');slot.textContent=tray[i]?ITEMS[tray[i].type][0]:'';if(tray[i]&&view3d){const img=document.createElement('img');img.src=view3d.icons[tray[i].type];img.alt=ITEMS[tray[i].type][1];slot.replaceChildren(img);}slot.setAttribute('aria-label',tray[i]?ITEMS[tray[i].type][1]:'空槽位');$('tray').append(slot)}for(const k of ['undo','shuffle','hint']){$(k+'Count').textContent=uses[k];$(k).disabled=!uses[k]||phase==='won'||(k==='undo'&&!history.length)||(k!=='undo'&&phase!=='playing')}}
 function undo(){if(!uses.undo||!history.length||phase==='won')return;const s=history.pop();({tiles,tray,cleared,solution}=s);uses.undo--;phase='playing';view3d?.restore(s.motion);closeModal();render();persist();say('退回上一步，换个思路试试')}
 function openLoss(){openModal('哎呀，装满了','七个槽位都满了。\n先凑槽里已有的物品，会更容易抓到鹅。',uses.undo&&history.length?'撤回上一步':'重新挑战',uses.undo&&history.length?undo:()=>start(level),'重新挑战',()=>start(level))}
@@ -102,14 +111,14 @@ function openArchive(){
     const row=document.createElement('button');
     row.className='archive-row'+(i===level?' current':'');
     row.disabled=!open;
-    row.innerHTML='<span class="mark">'+(open?['①','②','③'][i]:'🔒')+'</span><span><b>'+cfg.name+'</b><small>'+cfg.place+'</small></span><span class="state">'+state+'</span>';
+    row.innerHTML='<span class="mark">'+(open?'①②③④⑤⑥⑦⑧'[i]:'🔒')+'</span><span><b>'+cfg.name+'</b><small>'+cfg.place+'</small></span><span class="state">'+state+'</span>';
     row.setAttribute('aria-label',cfg.place+' '+cfg.name+'，'+state+(open?'，点这里继续':''));
     // 点正在打的那一站只回到盘面 —— 否则会把人打到一半的进度直接洗掉
     row.onclick=()=>inProgress?closeModal():start(i);
     list.append(row);
   });
   const wipe=document.createElement('button');wipe.className='archive-reset';wipe.textContent='清空存档记录';
-  wipe.onclick=()=>openModal('清空存档记录？','三关的通关次数、已抓到的鹅数和这一筛没打完的盘面都会清掉，不能恢复。','清空',clearArchive,'算了',openArchive);
+  wipe.onclick=()=>openModal('清空存档记录？','每一关的通关次数、已抓到的鹅数和这一筛没打完的盘面都会清掉，不能恢复。','清空',clearArchive,'算了',openArchive);
   list.append(wipe);
 }
 function clearArchive(){Object.assign(archive,blankArchive());caught=0;start(0)}
@@ -298,6 +307,11 @@ if(archive.session)restoreSession(archive.session);else start(Math.min(archive.u
         leaf(g, [.14, .71, 0], [.22, .04, .12], -.35);
         break;
     }
+    // 每件只让最"实"的那几块投阴影：一块影子和整件投影看着没差，
+    // 但盘里上百件时能省掉一大半绘制调用（阴影是额外一遍 pass）。
+    const volumes = g.children.map(m => m.scale.x * m.scale.y * m.scale.z);
+    const heaviest = Math.max(...volumes);
+    g.children.forEach((m, i) => { m.castShadow = volumes[i] >= heaviest * .3; });
     return g;
   }
   // Enamel basin: a solid interior, gently flared sides, double rolled rim.
@@ -323,6 +337,12 @@ if(archive.session)restoreSession(archive.session);else start(Math.min(archive.u
   const produceMaterial = new C.Material('produce'), bowlMaterial = new C.Material('bowl');
   physics.addContactMaterial(new C.ContactMaterial(produceMaterial, bowlMaterial, { friction: .6, restitution: .15 }));
   physics.addContactMaterial(new C.ContactMaterial(produceMaterial, produceMaterial, { friction: .5, restitution: .12 }));
+  // pen 是"碗里真正能堆东西的那一圈"：越深的盘收得越窄。
+  // 100 多件摊在整只碗底只是一张平铺的桌面，收窄之后才会一层压一层摞起来。
+  const pen = () => LEVELS[level].pen || 1;
+  const itemScale = () => level === 0 ? 1.28 : 1.08;
+  // 层数越多，层间距压得越薄 —— 深盘要的是"很多层"，不是"很高一摞"。
+  const layerLift = () => Math.min(.63, 2.6 / LEVELS[level].layers.length);
   const floor = new C.Body({mass:0, material:bowlMaterial});
   floor.addShape(new C.Plane());floor.quaternion.setFromEuler(-Math.PI/2,0,0);floor.position.y=-.23;
   physics.addBody(floor);
@@ -330,8 +350,8 @@ if(archive.session)restoreSession(archive.session);else start(Math.min(archive.u
   for(let i=0;i<32;i++){
     const a=i*Math.PI/16;
     const side=new C.Body({mass:0,material:bowlMaterial});
-    side.addShape(new C.Box(new C.Vec3(.57,.09,.73)));
-    side.position.set(Math.sin(a)*4.94,.12,Math.cos(a)*4.94);
+    side.addShape(new C.Box(new C.Vec3(.57*pen(),.09,.73*pen())));
+    side.position.set(Math.sin(a)*4.94*pen(),.12,Math.cos(a)*4.94*pen());
     const yaw=new C.Quaternion(),tilt=new C.Quaternion();
     yaw.setFromAxisAngle(new C.Vec3(0,1,0),a);tilt.setFromAxisAngle(new C.Vec3(1,0,0),-.72);
     yaw.mult(tilt,side.quaternion);physics.addBody(side);
@@ -356,15 +376,15 @@ if(archive.session)restoreSession(archive.session);else start(Math.min(archive.u
     [[0,.32,0,.42]],
   ];
   function makeBody(tile, object, previous) {
-    const scale=level===0?1.28:1.08;
-    const body=new C.Body({mass:tile.type===GOOSE?1.1:.75,material:produceMaterial,linearDamping:.36,angularDamping:.52,allowSleep:true,sleepSpeedLimit:.17,sleepTimeLimit:.85});
+    const scale=itemScale();
+    const body=new C.Body({mass:tile.type===GOOSE?1.1:.75,material:produceMaterial,linearDamping:.36,angularDamping:.52,allowSleep:true,sleepSpeedLimit:.3,sleepTimeLimit:.6});
     for(const [x,y,z,r] of shapes[tile.type]) body.addShape(new C.Sphere(r*scale),new C.Vec3(x*scale,y*scale,z*scale));
     body.position.copy(previous?.position||object.position);
     body.quaternion.copy(previous?.quaternion||object.quaternion);
     if(previous){body.velocity.copy(previous.velocity);body.angularVelocity.copy(previous.angularVelocity);}
     else if(!pendingMotion){
       // Drop a loose handful into the basin rather than displaying a static stack.
-      body.position.y+=reduced?.15:1.5+tile.z*.35;
+      body.position.y+=reduced?.15:1.15+Math.min(.35,.9/LEVELS[level].layers.length)*tile.z;
       if(!reduced){body.velocity.set(Math.sin(tile.id*8.1)*.7,-.25,Math.cos(tile.id*5.2)*.7);body.angularVelocity.set(Math.sin(tile.id)*1.1,.3,Math.cos(tile.id)*1.1);}
     }
     physics.addBody(body); bodies.set(tile.id,body);
@@ -402,7 +422,7 @@ if(archive.session)restoreSession(archive.session);else start(Math.min(archive.u
     while(accumulator>=1/60){physics.step(1/60);simulationTime+=1/60;accumulator-=1/60;}
     for(const [id,b] of bodies){
       // Keep vigorous shakes inside the bowl, including on low frame-rate devices.
-      const radius=Math.hypot(b.position.x,b.position.z),limit=4.85;
+      const radius=Math.hypot(b.position.x,b.position.z),limit=4.85*pen();
       if(radius>limit){const nx=b.position.x/radius,nz=b.position.z/radius;b.position.x=nx*limit;b.position.z=nz*limit;const outward=b.velocity.x*nx+b.velocity.z*nz;if(outward>0){b.velocity.x-=1.3*outward*nx;b.velocity.z-=1.3*outward*nz;}}
       const obj=objects.get(id);if(obj){obj.position.copy(b.position);obj.quaternion.copy(b.quaternion);}
     }
@@ -413,8 +433,8 @@ if(archive.session)restoreSession(archive.session);else start(Math.min(archive.u
   function position(tile) {
     // Deterministic small offsets keep undo stable while avoiding a card-grid appearance.
     const noise = Math.sin(tile.id * 37.7 + tile.z * 13.4);
-    const spacing = level === 0 ? .125 : .095;
-    return new T.Vector3((tile.x + 7.5 - 50) * spacing + noise * .09, tile.z * .63 + .06, (tile.y + 8.75 - 50) * spacing + Math.cos(tile.id * 9.3) * .09);
+    const spacing = (level === 0 ? .125 : .095) * pen();
+    return new T.Vector3((tile.x + 7.5 - 50) * spacing + noise * .09*pen(), tile.z * layerLift() + .06, (tile.y + 8.75 - 50) * spacing + Math.cos(tile.id * 9.3) * .09*pen());
   }
   function sync() {
     const ids = new Set(tiles.map(t=>t.id));
@@ -432,7 +452,7 @@ if(archive.session)restoreSession(archive.session);else start(Math.min(archive.u
       if (!obj) {
         obj = model(tile.type); obj.userData = {id:tile.id, type:tile.type};
         obj.position.copy(position(tile));
-        obj.scale.setScalar(level === 0 ? 1.28 : 1.08);
+        obj.scale.setScalar(itemScale());
         obj.rotation.y = (tile.type === GOOSE ? Math.PI : 0) + Math.sin(tile.id * 7.19 + tile.type) * .8;
         obj.rotation.z = Math.sin(tile.id * 4.31) * .09;
         objects.set(tile.id, obj);world.add(obj);
@@ -465,8 +485,8 @@ if(archive.session)restoreSession(archive.session);else start(Math.min(archive.u
     world.rotation.y += reduced ? difference : difference * .17;
     for (const [id, obj] of objects) {
       const selected = id === hovered || id === hinted;
-      obj.scale.setScalar(level === 0 ? 1.28 : 1.08);
-      highlight(obj, selected);
+      // 盘里上百件时，逐帧遍历每个模型的所有网格太贵：只在选中状态真的变了才换材质。
+      if (obj.userData.lit !== selected) { obj.userData.lit = selected; highlight(obj, selected); }
     }
     flights = flights.filter(f => {
       const p = Math.min(1, (now - f.time) / 330);
@@ -564,7 +584,7 @@ if(archive.session)restoreSession(archive.session);else start(Math.min(archive.u
     for(const obj of objects.values())world.remove(obj);objects.clear();hovered=null;hinted=null;targetAngle=-.12;world.rotation.y=targetAngle;
   }};
   // Inspection surface for browser rendering and ray-picking regression checks.
-  window.goose3d = {renderer, scene, camera, objects, world, physics, bodies, shake, get simulationTime(){return simulationTime;}};
+  window.goose3d = {renderer, scene, camera, objects, world, physics, bodies, shake, isExposed, get simulationTime(){return simulationTime;}};
   resize();
   // 读档的盘面：等 3D 实体按 id 建好之后再灌回物理状态，否则会先掉一遍再归位。
   if(resumeMotion){view3d.restore(resumeMotion);resumeMotion=null;}

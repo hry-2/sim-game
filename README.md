@@ -11,7 +11,7 @@
 | 霓虹废钢线 | 生存射击 · Roguelite | [`games/neon-scrapline/`](games/neon-scrapline/) | [文档](games/neon-scrapline/README.md) |
 | 夜港（原型） | 赛博朋克潜入 · 剧情 | [`games/nightharbor/`](games/nightharbor/) | [文档](games/nightharbor/README.md) · [策划](docs/夜港策划拆解.md) · [剧本](docs/夜港剧本.md) |
 | 静街（在做） | 疫后小镇生存日志 | [`games/quiet-street/`](games/quiet-street/) | [策划](docs/静街策划.md) · [拆解](docs/静街任务拆解.md) · [数据规格](docs/静街数据规格.md) —— 进度 T1（镇子生成器）|
-| 抓大鹅 | 3D 三消 · 休闲益智 | [`games/goose/`](games/goose/) | Three.js + Cannon.js 本地引擎 · 真实重力 / 碰撞 / 翻滚 · 开场落盘 / 晃一晃 · 拖动旋转 · 三关递进 · 16 种乡间物品 · 关卡存档（自动续玩 / 通关记录）· 七格收纳槽 · 撤回 / 洗牌 / 提示 · 离线可玩 |
+| 抓大鹅 | 3D 三消 · 休闲益智 | [`games/goose/`](games/goose/) | Three.js + Cannon.js 本地引擎 · 真实重力 / 碰撞 / 翻滚 · 开场落盘 / 晃一晃 · 拖动旋转 · 六关递进（末关 117 件 / 8 层）· 16 种乡间物品 · 关卡存档（自动续玩 / 通关记录）· 七格收纳槽 · 撤回 / 洗牌 / 提示 · 离线可玩 |
 | 点头 | 面对面猜词 · 翻转判定 | [`games/nod/`](games/nod/) | 两个人玩 · 十六个词包 4547 词 · [ADR-0004](docs/adr/0004-tilt-is-an-input-not-the-verdict.md) · [ADR-0006](docs/adr/0006-one-rule-for-every-pack.md) |
 | 聚宝盆 | 3D 推币机 · 街机物理 | [`games/coin-pusher/`](games/coin-pusher/) | Three.js 真 3D（联网加载）· 立体金币 · 连锁掉落 · 电子屏开奖 · 永久机台存档 |
 | 捕鱼达人 | 3D 捕鱼 · 街机射击 | [`games/fish-hunter/`](games/fish-hunter/) | Three.js · 炮倍 / 锁定 / 自动开炮 · 四条龙鱼 · 网口三级与网衣 · 潮汐与鱼王 · 和聚宝盆共用币袋 |
