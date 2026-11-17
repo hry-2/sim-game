@@ -1,6 +1,6 @@
 # 游戏柜
 
-九个自己写的网页游戏。主逻辑都放在**单个 HTML 文件**中——没有构建步骤、没有 npm 运行时依赖，
+十个自己写的网页游戏。主逻辑都放在**单个 HTML 文件**中——没有构建步骤、没有 npm 运行时依赖，
 美术与音效全部由代码生成或内嵌，双击即可运行，也能直接扔到任意静态托管上。
 
 首页 [`index.html`](index.html) 是合集入口。
@@ -15,6 +15,7 @@
 | 点头 | 面对面猜词 · 翻转判定 | [`games/nod/`](games/nod/) | 两个人玩 · 十六个词包 4547 词 · [ADR-0004](docs/adr/0004-tilt-is-an-input-not-the-verdict.md) · [ADR-0006](docs/adr/0006-one-rule-for-every-pack.md) |
 | 聚宝盆 | 3D 推币机 · 街机物理 | [`games/coin-pusher/`](games/coin-pusher/) | Three.js 真 3D（联网加载）· 立体金币 · 连锁掉落 · 电子屏开奖 · 永久机台存档 |
 | 捕鱼达人 | 3D 捕鱼 · 街机射击 | [`games/fish-hunter/`](games/fish-hunter/) | Three.js · 炮倍 / 锁定 / 自动开炮 · 四条龙鱼 · 网口三级与网衣 · 潮汐与鱼王 · 和聚宝盆共用币袋 |
+| 六爻 | 易经占卜 · 金钱卦 | [`games/liuy/`](games/liuy/) | 三枚铜钱掷六次 · 六十四卦全文内置 · 本卦 / 动爻 / 变卦 · 卜册只存本机 |
 | 说书人 | AI 文字冒险 | [`games/ai-story/`](games/ai-story/) | 大模型当主持人 · 自带 API Key（默认 Agnes 国内，OpenAI 兼容都能接）· 二十五个开局剧本（含恋爱、百合、ABO、耽美、霸总、快穿等十三个攻略向）· 属性 / 技能 / 装备 / 任务 / 势力 · d20 检定 · 对话框 / 回忆相册 / 结局图鉴 / 人物关系图 / 随机事件 · 前情提要自动压缩 |
 
 ## 快速开始
@@ -35,8 +36,9 @@ npm run dev          # 或起服务：http://localhost:5173
 **Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `/ (root)`**
 
 保存约一分钟后访问 `https://<用户名>.github.io/sim-game/`，
-九款分别在 `/games/sim/`、`/games/neon-scrapline/`、`/games/nightharbor/`、`/games/quiet-street/`、
-`/games/nod/`、`/games/coin-pusher/`、`/games/fish-hunter/`、`/games/goose/` 和 `/games/ai-story/`。
+十款分别在 `/games/sim/`、`/games/neon-scrapline/`、`/games/nightharbor/`、`/games/quiet-street/`、
+`/games/nod/`、`/games/coin-pusher/`、`/games/fish-hunter/`、`/games/goose/`、`/games/ai-story/` 和
+`/games/liuy/`。
 
 > **点头必须走 HTTPS**：iOS 13+ 只在安全上下文里给陀螺仪，而且要在用户手势里申请权限。
 > `npm run dev` 起的局域网 http 上，它会静默退到点击兜底 —— 能玩，但翻不了。
@@ -53,7 +55,8 @@ npm run dev          # 或起服务：http://localhost:5173
 │   ├── nod/index.html            点头（两个人：屏幕朝外，翻手机判定）
 │   ├── coin-pusher/index.html    聚宝盆（Three.js 真 3D 推币机 + 连锁碰撞）
 │   ├── fish-hunter/index.html    捕鱼达人（Three.js 3D 捕鱼 + 全柜通用币袋）
-│   └── ai-story/index.html       说书人（AI 文字冒险，Key 填在页面里，只存本机）
+│   ├── ai-story/index.html       说书人（AI 文字冒险，Key 填在页面里，只存本机）
+│   └── liuy/index.html           六爻（金钱卦，六十四卦全文内置）
 ├── tools/                        sim 的美术生成脚本与自动化测试
 ├── assets/sprites/               sim 的精灵图产出
 └── docs/                         设计与授权文档

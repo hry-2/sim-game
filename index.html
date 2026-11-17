@@ -22,6 +22,7 @@
     --coin:#ffcf4d;
     --fish:#3fd8e0;
     --tale:#e0a85a;
+    --divine:#c8553d;
     --cjk:'Noto Sans SC',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
     --disp:'Chakra Petch','Noto Sans SC',system-ui,sans-serif;
     --pix:'Silkscreen','Chakra Petch',ui-monospace,monospace;
@@ -177,20 +178,21 @@
   <header>
     <div class="marquee">
       <h1>游戏柜</h1>
-      <span class="en">arcade cabinet / 7 titles</span>
+      <span class="en">arcade cabinet / 8 titles</span>
       <a class="purse" href="games/coin-pusher/index.html" title="币袋：全柜通用，街机里赢">
         <span class="k">币袋</span><b id="purseNum">300</b><span class="u">币</span>
       </a>
     </div>
     <div class="rule"></div>
     <div class="rule"></div>
-    <p class="lede">七个单文件网页游戏，点开就玩。街机赢的币存进<b>币袋</b>，全柜通用。</p>
+    <p class="lede">八个单文件网页游戏，点开就玩。街机赢的币存进<b>币袋</b>，全柜通用。</p>
     <nav class="jump" aria-label="分类">
       <a href="#arcade" style="--accent:var(--coin)">街机<i>2</i></a>
       <a href="#puzzle" style="--accent:#b8cd90">益智<i>1</i></a>
       <a href="#party" style="--accent:var(--nod)">聚会<i>1</i></a>
       <a href="#action" style="--accent:var(--neon)">动作<i>2</i></a>
       <a href="#tale" style="--accent:var(--tale)">文字冒险<i>1</i></a>
+      <a href="#divine" style="--accent:var(--divine)">占卜<i>1</i></a>
     </nav>
   </header>
 
@@ -274,6 +276,18 @@
       </div>
     </a>
 
+  </div>
+
+  <h2 class="sec" id="divine">占卜<span>六爻 · 三钱六掷</span></h2>
+  <div class="rack">
+    <a class="cart" href="games/liuy/index.html" style="--accent:var(--divine)">
+      <canvas class="shot" id="shotDivine" width="192" height="108"></canvas>
+      <div class="body">
+        <div class="kicker">金钱卦 · 易经六十四卦</div>
+        <h3>六爻<span class="sub">COIN DIVINATION</span></h3>
+        <p>三枚铜钱 3D 翻滚掷六次成一卦，看卦辞、动爻与变卦，句句配白话。所问之事只作记录，不参与起卦。</p>
+      </div>
+    </a>
   </div>
 
   <footer>
@@ -612,10 +626,51 @@
     for (let yy = 0; yy < H; yy += 2) ta.fillRect(0, yy, W, 1);
   }
 
+  // 9) 六爻：三枚铜钱逐爻落定，底下六行卦象一行行长出来
+  const dvCv = document.getElementById('shotDivine'), dv = dvCv.getContext('2d');
+  const dvSums = [7, 8, 9, 7, 6, 8];
+  function drawDivine(t) {
+    dv.fillStyle = '#0d0a07'; dv.fillRect(0, 0, W, H);
+    const glow = dv.createRadialGradient(W/2, 30, 2, W/2, 30, 80);
+    glow.addColorStop(0, 'rgba(212,169,79,.16)'); glow.addColorStop(1, 'rgba(212,169,79,0)');
+    dv.fillStyle = glow; dv.fillRect(0, 0, W, H);
+    // 六爻逐行：一轮 6.4 秒
+    const p = (t % 6.4) / 6.4, step = Math.min(6, Math.floor(p * 6));
+    const frac = (p * 6) % 1;
+    for (let i = 0; i < 6; i++) {
+      if (i >= step) break;
+      const sum = dvSums[i], yang = (sum === 7 || sum === 9);
+      const y = 62 + i * 7, k = Math.min(1, frac * 3 + (i < step - 1 ? 3 : 0));
+      dv.fillStyle = '#d4a94f';
+      if (yang) dv.fillRect(66, y, 60 * k, 3.4);
+      else { dv.fillRect(66, y, 27 * k, 3.4); dv.fillRect(99, y, 27 * k, 3.4); }
+      if (sum === 9) { dv.fillStyle = '#c8553d'; dv.beginPath(); dv.arc(96, y + 1.7, 2.4, 0, Math.PI*2); dv.fill(); }
+      if (sum === 6) { dv.strokeStyle = '#c8553d'; dv.lineWidth = 1.4; dv.beginPath(); dv.moveTo(93, y-1); dv.lineTo(99, y+4.4); dv.moveTo(99, y-1); dv.lineTo(93, y+4.4); dv.stroke(); }
+    }
+    // 三钱：随本爻转，落定时露出字面/背面
+    const cur = step === 0 ? 0 : dvSums[Math.min(5, step - 1)];
+    const yangCount = (cur - 6) / 2;
+    const spin = frac < .62 ? frac / .62 : 1;
+    for (let i = 0; i < 3; i++) {
+      const cx = 56 + i * 40, cy = 30;
+      const ang = spin < 1 ? spin * Math.PI * 5 + i : (i < yangCount ? Math.PI : 0);
+      const cw = Math.max(1.5, Math.abs(Math.cos(ang)));
+      const back = Math.cos(ang) < 0;
+      dv.fillStyle = back ? '#a67c2c' : '#e2bb66';
+      dv.beginPath(); dv.ellipse(cx, cy, 11 * cw, 11, 0, 0, Math.PI*2); dv.fill();
+      dv.strokeStyle = 'rgba(90,60,15,.7)'; dv.lineWidth = 1;
+      dv.beginPath(); dv.ellipse(cx, cy, 8 * cw, 8, 0, 0, Math.PI*2); dv.stroke();
+      if (cw > .55) { dv.fillStyle = '#1b1309'; dv.fillRect(cx - 2.6*cw, cy - 2.6, 5.2*cw, 5.2); }
+    }
+    // 扫描线
+    dv.fillStyle = 'rgba(0,0,0,.20)';
+    for (let yy = 0; yy < H; yy += 2) dv.fillRect(0, yy, W, 1);
+  }
+
   let t0 = performance.now();
   function frame(now) {
     const t = (now - t0) / 1000;
-    drawNeon(t); drawNod(t); drawCoinThumb(t); drawFishThumb(t); drawTale(t);
+    drawNeon(t); drawNod(t); drawCoinThumb(t); drawFishThumb(t); drawTale(t); drawDivine(t);
     if (!reduce) requestAnimationFrame(frame);
   }
   // 首帧【同步】画一次，别等 rAF：页面在后台标签里打开时浏览器根本不触发 rAF，
