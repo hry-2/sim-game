@@ -116,7 +116,7 @@
   /* ---------- 铜钱：真 3D 翻滚（多轴旋转 + 厚度边 + 落地投影） ---------- */
   .coin-stage{
     display:flex;justify-content:center;gap:clamp(14px,5vw,34px);
-    margin:30px 0 6px;perspective:900px;perspective-origin:50% 42%;
+    margin:30px 0 16px;perspective:900px;perspective-origin:50% 42%;
   }
   .coin-slot{
     position:relative;width:86px;height:86px;transform-style:preserve-3d;
@@ -127,7 +127,7 @@
     transform:translateX(-50%);opacity:.4;filter:blur(3px);pointer-events:none;
   }
   .coin3d{
-    position:absolute;inset:0;transform-style:preserve-3d;will-change:transform,filter;
+    position:absolute;inset:0;transform-style:preserve-3d;will-change:transform;
     transform:translate3d(0,0,0) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
   }
   .coin-body{position:absolute;inset:0;transform-style:preserve-3d}
@@ -138,13 +138,14 @@
     /* 打光与动态模糊只加在叶子节点上——绝不放在 preserve-3d 容器上，否则会压平厚度 */
     filter:brightness(var(--bright,1)) blur(var(--blur,0px));
   }
+  /* 字面：暗金底 + 朱红大字；背面：亮银底 + 「背」一字——颜色和图案都拉开 */
   .coin .front{
     transform:translateZ(5px);
-    background:radial-gradient(circle at 34% 28%,#f7d98a,#c19438 58%,#7a5a22);
+    background:radial-gradient(circle at 36% 28%,#e8c470,#b8862b 56%,#6f4c17);
   }
   .coin .back{
     transform:rotateY(180deg) translateZ(5px);
-    background:radial-gradient(circle at 34% 28%,#ecc977,#a67c2c 58%,#6f501e);
+    background:radial-gradient(circle at 36% 28%,#f2ede0,#cfc6ac 55%,#8c8168);
   }
   /* 厚度：沿圆周排一圈窄面，构成真正的圆柱边 */
   .coin .edge{position:absolute;inset:4px;transform-style:preserve-3d;pointer-events:none}
@@ -156,19 +157,34 @@
     filter:brightness(var(--bright,1));
   }
   .coin .hole{
-    width:18px;height:18px;background:#171009;border:1px solid rgba(0,0,0,.6);
-    box-shadow:inset 0 0 0 1px rgba(255,225,150,.35);
+    width:17px;height:17px;background:#171009;border:1px solid rgba(0,0,0,.65);
+    box-shadow:inset 0 0 0 1px rgba(255,225,150,.3);
   }
   .coin .glyph{
-    position:absolute;font-family:var(--serif);font-size:11px;font-weight:700;
-    color:rgba(60,40,12,.82);line-height:1;
+    position:absolute;font-family:var(--serif);font-weight:700;line-height:1;
   }
+  .coin .front .glyph{font-size:14px;color:#8e1f14;text-shadow:0 1px 0 rgba(255,225,150,.4)}
   .coin .g1{top:7px}.coin .g2{bottom:7px}.coin .g3{left:7px}.coin .g4{right:7px}
   .coin .backmark{
-    position:absolute;width:30px;height:30px;border:1px solid rgba(80,55,15,.38);
-    border-radius:50%;
+    position:absolute;width:44px;height:44px;border-radius:50%;
+    border:3px solid rgba(70,60,40,.45);
+    box-shadow:inset 0 0 0 2px rgba(255,255,255,.55),0 1px 0 rgba(255,255,255,.45);
   }
+  .coin .backmark::before,.coin .backmark::after{
+    content:"";position:absolute;background:rgba(70,60,40,.4);
+  }
+  .coin .backmark::before{left:50%;top:-9px;width:2px;height:8px;transform:translateX(-50%);box-shadow:0 50px 0 rgba(70,60,40,.4)}
+  .coin .backmark::after{top:50%;left:-9px;height:2px;width:8px;transform:translateY(-50%);box-shadow:50px 0 0 rgba(70,60,40,.4)}
   .coinlabel{text-align:center;color:var(--dim);font-family:var(--pix);font-size:11px;letter-spacing:.14em;margin-top:4px}
+  /* 落定后每枚钱下方的小标签：字 / 背 */
+  .coin-slot .face-tag{
+    position:absolute;left:50%;bottom:-17px;transform:translateX(-50%);
+    font-family:var(--pix);font-size:10px;line-height:1;letter-spacing:.08em;
+    padding:2px 7px;border:1px solid var(--line);border-radius:2px;
+    background:#0e0b08;color:var(--dim);white-space:nowrap;
+  }
+  .coin-slot .face-tag.yin{color:#e8c470;border-color:#7a5a22;background:#1c150a}
+  .coin-slot .face-tag.yang{color:#ece4d0;border-color:#8c8168;background:#1a1815}
 
   /* ---------- 一爻结果 ---------- */
   .tossresult{
@@ -461,6 +477,7 @@
           <div class="face front"><span class="hole"></span><span class="glyph g1">乾</span><span class="glyph g2">元</span><span class="glyph g3">亨</span><span class="glyph g4">利</span></div>
           <div class="face back"><span class="hole"></span><span class="backmark"></span></div>
         </div></div>
+        <span class="face-tag">字</span>
       </div>
       <div class="coin-slot coin">
         <div class="shadow"></div>
@@ -469,6 +486,7 @@
           <div class="face front"><span class="hole"></span><span class="glyph g1">乾</span><span class="glyph g2">元</span><span class="glyph g3">亨</span><span class="glyph g4">利</span></div>
           <div class="face back"><span class="hole"></span><span class="backmark"></span></div>
         </div></div>
+        <span class="face-tag">字</span>
       </div>
       <div class="coin-slot coin">
         <div class="shadow"></div>
@@ -477,6 +495,7 @@
           <div class="face front"><span class="hole"></span><span class="glyph g1">乾</span><span class="glyph g2">元</span><span class="glyph g3">亨</span><span class="glyph g4">利</span></div>
           <div class="face back"><span class="hole"></span><span class="backmark"></span></div>
         </div></div>
+        <span class="face-tag">字</span>
       </div>
     </div>
     <div class="coin-meta">
@@ -1209,6 +1228,7 @@
     slots:$('slots'), count:$('progressCount'),
     coins:[...document.querySelectorAll('.coin3d')],
     shadows:[...document.querySelectorAll('.coin-slot .shadow')],
+    faceTags:[...document.querySelectorAll('.coin-slot .face-tag')],
     reading:$('reading'), askEcho:$('askEcho'),
     benSvg:$('benSvg'), bianSvg:$('bianSvg'), benName:$('benName'), benFull:$('benFull'),
     bianName:$('bianName'), bianFull:$('bianFull'), ciText:$('ciText'),
@@ -1300,6 +1320,14 @@
     }
   }
 
+  function setFaceTags(faces){
+    el.faceTags.forEach((tag,i)=>{
+      const yang = faces ? faces[i] : false;
+      tag.textContent = yang ? '背 · 阳' : '字 · 阴';
+      tag.className = 'face-tag ' + (yang ? 'yang' : 'yin');
+    });
+  }
+
   function settleCoins(faces){
     cancelAnimationFrame(coinRaf);
     el.coins.forEach((c,i)=>{
@@ -1307,6 +1335,7 @@
       applyCoin(c, el.shadows[i], 0, 0, ry, 0, 1, 0);
       if (el.shadows[i]) el.shadows[i].style.left = '50%';
     });
+    setFaceTags(faces);
   }
 
   function animateCoins(faces, done){
@@ -1337,7 +1366,11 @@
         applyCoin(el.coins[i], s, h, rx, ry, rz, Math.max(.72,bright), Math.max(0,blur));
       });
       if (p < 1) coinRaf = requestAnimationFrame(step);
-      else { plans.forEach((pl,i)=>applyCoin(el.coins[i], el.shadows[i], 0, 0, pl.target, 0, 1, 0)); done(); }
+      else {
+        plans.forEach((pl,i)=>applyCoin(el.coins[i], el.shadows[i], 0, 0, pl.target, 0, 1, 0));
+        setFaceTags(faces);
+        done();
+      }
     }
     coinRaf = requestAnimationFrame(step);
   }
@@ -1362,6 +1395,7 @@
 
     // 三钱 3D 翻滚，落定后才记这一爻
     el.coinLabel.textContent = '掷钱中…';
+    el.faceTags.forEach(t=>{ t.textContent = '· · ·'; t.className = 'face-tag'; });
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     animateCoins(faces, ()=>{
       if (myGen !== gen) return;   // 中途重起：这一次作废
