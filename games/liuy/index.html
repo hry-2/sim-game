@@ -208,17 +208,16 @@
   .progress{margin-top:26px;border-top:1px solid var(--line);padding-top:18px}
   .progress-head{display:flex;justify-content:space-between;align-items:baseline}
   .slots{display:flex;flex-direction:column-reverse;gap:5px;align-items:center;margin-top:12px}
-  .slot{display:flex;align-items:center;gap:12px;height:20px}
-  .slot .nm{font-family:var(--serif);font-size:12px;color:var(--dim);width:34px;text-align:right}
-  .slot .mark{width:110px;height:9px;display:flex;gap:4px;align-items:center}
+  /* 三列固定网格：爻名 / 卦线 / 动爻标记。标记独立成列，绝不挤压卦线宽度 */
+  .slot{display:grid;grid-template-columns:34px 110px 16px;align-items:center;gap:10px;height:20px}
+  .slot .nm{font-family:var(--serif);font-size:12px;color:var(--dim);text-align:right}
+  .slot .mark{width:110px;height:9px;display:flex;gap:12px;align-items:center}
   .slot.filled .nm{color:var(--muted)}
-  .bar{height:9px;background:var(--gold);border-radius:1px;box-shadow:0 0 8px rgba(212,169,79,.25)}
-  .bar.wide{flex:1}
-  .bar.half{width:48px}
-  .gap{width:10px}
-  .mvdot{width:8px;height:8px;border:1.5px solid var(--cinnabar);border-radius:50%;margin-left:6px}
-  .mvx{width:9px;height:9px;position:relative;margin-left:6px}
-  .mvx::before,.mvx::after{content:"";position:absolute;top:4px;left:0;width:9px;height:1.5px;background:var(--cinnabar)}
+  .bar{height:9px;background:var(--gold);border-radius:1px;box-shadow:0 0 8px rgba(212,169,79,.25);flex:1}
+  .mv-ind{width:16px;display:flex;justify-content:center}
+  .mvdot{width:9px;height:9px;border:1.5px solid var(--cinnabar);background:#1b1610;border-radius:50%}
+  .mvx{width:9px;height:9px;position:relative}
+  .mvx::before,.mvx::after{content:"";position:absolute;top:3.75px;left:0;width:9px;height:1.5px;background:var(--cinnabar)}
   .mvx::before{transform:rotate(45deg)}.mvx::after{transform:rotate(-45deg)}
 
   /* ---------- 解卦 ---------- */
@@ -1301,15 +1300,18 @@
       let mark = '<span class="nm">' + POS[i] + '爻</span><span class="mark">';
       if (t){
         const y = YAO[t.sum];
-        if (y.yang) mark += '<span class="bar wide"></span>';
-        else mark += '<span class="bar half"></span><span class="gap"></span><span class="bar half"></span>';
-        if (t.sum===9) mark += '<span class="mvdot"></span>';
-        if (t.sum===6) mark += '<span class="mvx"></span>';
+        if (y.yang) mark += '<span class="bar"></span>';
+        else mark += '<span class="bar"></span><span class="bar"></span>';
       } else {
-        mark += '<span style="color:var(--dim);font-family:var(--pix);font-size:10px">—</span>';
+        mark += '<span style="color:var(--dim);font-family:var(--pix);font-size:10px;margin:auto">—</span>';
       }
       mark += '</span>';
-      d.innerHTML = mark;
+      // 动爻标记放进独立列，宽度固定，不影响卦线对齐
+      let ind = '<span class="mv-ind">';
+      if (t && t.sum===9) ind += '<span class="mvdot"></span>';
+      if (t && t.sum===6) ind += '<span class="mvx"></span>';
+      ind += '</span>';
+      d.innerHTML = mark + ind;
       el.slots.appendChild(d);
     }
     el.count.textContent = tosses.length + ' / 6';
