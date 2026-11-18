@@ -253,6 +253,27 @@
   .ac-state{font-family:var(--pix);font-size:10px;color:var(--dim)}
   .ac-state.mv{color:var(--cinnabar)}
 
+  /* 旁卦：互 / 错 / 综 */
+  .sidehex{margin-top:18px}
+  .sidehex .sh-title{font-family:var(--pix);font-size:10px;letter-spacing:.16em;color:var(--jade);margin-bottom:9px}
+  .sidehex-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .sh-card{
+    background:var(--panel-2);border:1px solid var(--line);border-top:2px solid var(--jade);
+    padding:12px;text-align:center;
+  }
+  .sh-card svg{width:74px;height:auto;display:block;margin:0 auto 8px}
+  .sh-card .lab{font-family:var(--pix);font-size:10px;letter-spacing:.12em;color:var(--jade)}
+  .sh-card .nm{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--gold-hi);margin:2px 0}
+  .sh-card .df{font-family:var(--serif);font-size:12px;color:var(--muted);line-height:1.6;min-height:38px}
+  .sh-card .yi{font-family:var(--serif);font-size:11px;color:#9fc2a9;margin-top:7px;line-height:1.6;text-align:left}
+  .sh-card.same{border-top-color:var(--gold)}
+  .sh-card.same .lab{color:var(--gold)}
+  @media(max-width:560px){
+    .sidehex-grid{grid-template-columns:1fr}
+    .sh-card .df{min-height:0}
+    .sh-card svg{width:66px}
+  }
+
   /* 白话层：今人解读，和经文分栏，绝不混排 */
   .plain-card{
     margin-top:18px;padding:16px 18px;background:#141a16;
@@ -559,6 +580,11 @@
       <div id="allCastRows"></div>
     </div>
 
+    <div class="sidehex">
+      <div class="sh-title">旁卦 · 换个角度看这一卦</div>
+      <div class="sidehex-grid" id="sideHexGrid"></div>
+    </div>
+
     <div class="plain-card">
       <div class="tag">白话 · 这卦在说什么</div>
       <div class="plain-row"><span class="pk">卦象</span><span class="pv" id="plainXiang"></span></div>
@@ -613,6 +639,8 @@
       <p><b>为什么会动</b>　因为「老」就是到头了。三枚钱全是阳（9）已经是阳的极限，再往前只能转成阴；三枚全是阴（6）是阴的极限，再往前只能转成阳——这就是老话讲的「物极必反」。7（少阳）和 8（少阴）还在半路上，没到头，所以不动。会动的线翻成相反的阴阳，就得到变卦。</p>
 
       <p><b>怎么看结果</b>　<b>卦辞</b>讲这一卦整体在说什么；<b>爻辞</b>只讲动的那一条，也就是最该留意的地方；<b>变卦</b>是之后的走向。动爻多的时候，重点看爻辞。</p>
+
+      <p><b>旁边那三个卦是什么</b>　解卦页还列了三个「旁卦」，帮你从不同角度看同一件事：<b>互卦</b>取中间四爻，看事情内部的底子；<b>错卦</b>六爻阴阳全翻，看这件事的对立面；<b>综卦</b>六爻上下倒转，看换个位置怎么想。它们只是参考，不必都讲——主看的还是本卦、动爻和变卦。</p>
 
       <p><b>看不懂古文怎么办</b>　每一卦、每一爻都配了<b style="color:var(--jade)">白话</b>，放在绿色卡片里，是用现在的话解释给你听。经文是原文，<b>一个字都没改</b>；白话只是帮你读懂，不能替经文。</p>
 
@@ -1204,6 +1232,20 @@
     return BY_PAIR[bitToTrig[upBits] + '|' + bitToTrig[loBits]];
   }
 
+  // 旁卦：互卦（取中四爻）、错卦（六爻全反）、综卦（六爻倒转）
+  // bits 自下而上，索引 0=初 … 5=上
+  function deriveHexes(bits){
+    const huBits = [bits[1], bits[2], bits[3], bits[2], bits[3], bits[4]]; // 下=2,3,4 上=3,4,5
+    const cuoBits = bits.map(b => 1 - b);
+    const zongBits = bits.slice().reverse();
+    return {
+      hu:  hexFromBits(huBits),
+      cuo: hexFromBits(cuoBits),
+      zong:hexFromBits(zongBits),
+      huBits, cuoBits, zongBits
+    };
+  }
+
   /* =========================================================
      一爻：三钱之和 6/7/8/9
      ========================================================= */
@@ -1240,7 +1282,7 @@
     benSvg:$('benSvg'), bianSvg:$('bianSvg'), benName:$('benName'), benFull:$('benFull'),
     bianName:$('bianName'), bianFull:$('bianFull'), ciText:$('ciText'),
     plainXiang:$('plainXiang'), plainYi:$('plainYi'),
-    yaoList:$('yaoList'), allCastRows:$('allCastRows'), readingNote:$('readingNote'),
+    yaoList:$('yaoList'), allCastRows:$('allCastRows'), sideHexGrid:$('sideHexGrid'), readingNote:$('readingNote'),
     btnAI:$('btnAI'), btnCopy:$('btnCopy'), btnAgain:$('btnAgain'),
     recList:$('recList'), toast:$('toast'),
     btnDict:$('btnDict'), dict:$('dict'), dictClose:$('dictClose'),
@@ -1448,6 +1490,25 @@
     return s;
   }
 
+  // 旁卦三卡：互（事情内部）/ 错（对立面）/ 综（反过来想）
+  function renderSideHexes(bits, ben){
+    const d = deriveHexes(bits);
+    const cards = [
+      {k:'hu',  key:'互卦', h:d.hu,  bits:d.huBits,  df:'取中四爻而成，看事情内部的底子。', same:d.hu.n===ben.n},
+      {k:'cuo', key:'错卦', h:d.cuo, bits:d.cuoBits, df:'六爻阴阳全翻，看这件事的对立面。', same:d.cuo.n===ben.n},
+      {k:'zong',key:'综卦', h:d.zong,bits:d.zongBits,df:'六爻上下倒转，看换个位置怎么想。', same:d.zong.n===ben.n}
+    ];
+    el.sideHexGrid.innerHTML = cards.map(c=>
+      '<div class="sh-card'+(c.same?' same':'')+'">'+
+        hexSVG(c.bits,null)+
+        '<div class="lab">'+c.key+'</div>'+
+        '<div class="nm">'+c.h.name+'</div>'+
+        '<div class="df">'+c.df+'</div>'+
+        '<div class="yi">'+escapeHtml(plainOf(c.h).yi)+'</div>'+
+      '</div>').join('');
+    return d;
+  }
+
   function showReading(){
     const bits = tosses.map(t=>YAO[t.sum].yang);
     const sums = tosses.map(t=>t.sum);
@@ -1471,6 +1532,9 @@
     el.plainXiang.textContent = '上卦 ' + ben.up + '（' + T[ben.up].xiang + '），下卦 ' + ben.lo +
       '（' + T[ben.lo].xiang + '）——' + fullName(ben) + '。';
     el.plainYi.textContent = pb.yi;
+
+    // 旁卦：互 / 错 / 综
+    const derived = renderSideHexes(bits, ben);
 
     // 六爻一览：每一爻是什么、几字几背、动还是静
     el.allCastRows.innerHTML = tosses.map((t,i)=>{
@@ -1534,8 +1598,8 @@
     el.reading.scrollIntoView({behavior:'smooth', block:'start'});
 
     saveRec({ t:Date.now(), q, h:fullName(ben)+(moving.length?' → '+fullName(bian):''),
-      copy:buildCopy(ben, bian, moving, q, yongLine),
-      ai:buildAIPrompt(ben, bian, moving, q, yongLine) });
+      copy:buildCopy(ben, bian, moving, q, yongLine, derived),
+      ai:buildAIPrompt(ben, bian, moving, q, yongLine, derived) });
   }
 
   // 六爻一览的纯文本版：爻题 + 类型 + 几字几背 + 动/静
@@ -1547,7 +1611,17 @@
     }).join('、');
   }
 
-  function buildCopy(ben, bian, moving, q, yongLine){
+  // 旁卦纯文本：互 / 错 / 综
+  function sideHexSummary(ben, derived){
+    if (!derived) return '';
+    return [
+      '互卦 ' + fullName(derived.hu)  + '（第'+derived.hu.n+'卦）— 看事情内部：' + plainOf(derived.hu).yi,
+      '错卦 ' + fullName(derived.cuo) + '（第'+derived.cuo.n+'卦）— 看对立面：' + plainOf(derived.cuo).yi,
+      '综卦 ' + fullName(derived.zong)+ '（第'+derived.zong.n+'卦）— 换个位置想：' + plainOf(derived.zong).yi
+    ].join('\n');
+  }
+
+  function buildCopy(ben, bian, moving, q, yongLine, derived){
     const lines = [];
     const pb = plainOf(ben);
     lines.push('【六爻 · 金钱卦】' + (q ? '所问：'+q : ''));
@@ -1568,12 +1642,16 @@
       lines.push('变卦：' + fullName(bian) + '（第'+bian.n+'卦）');
       lines.push('  白话：' + plainOf(bian).yi);
     }
+    if (derived){
+      lines.push('旁卦（换个角度看）：');
+      lines.push(sideHexSummary(ben, derived));
+    }
     lines.push('—— 白话为今人解读，经文一字未改。卦为镜，不是令。');
     return lines.join('\n');
   }
 
   // 打包成一段自洽的提示词：所问之事 + 卦象 + 经文 + 白话 + 回答结构
-  function buildAIPrompt(ben, bian, moving, q, yongLine){
+  function buildAIPrompt(ben, bian, moving, q, yongLine, derived){
     const pb = plainOf(ben), L = [];
     L.push('我在用《周易》六爻（金钱卦）问一件事，想请你结合所问之事，帮我解这一卦。');
     L.push('请只依据下面给出的卦象与经文来解读，不要另起一卦，也不要编造额外的内容。');
@@ -1604,12 +1682,18 @@
       L.push('');
       L.push('【变卦】' + fullName(bian) + '（第' + bian.n + '卦）｜卦意：' + plainOf(bian).yi);
     }
+    if (derived){
+      L.push('');
+      L.push('【旁卦 · 换个角度看】');
+      L.push(sideHexSummary(ben, derived));
+    }
     L.push('');
     L.push('【请你这样回答】');
     L.push('1. 总体判断：这卦对我所问之事，大体在说什么；');
     L.push('2. 关键所在：动爻指出的问题或转机在哪（无动爻则说卦辞的重点）；');
     L.push('3. 具体建议：我可以怎么做，越具体越好；');
     L.push('4. 需要留意：有什么风险或误区。');
+    L.push('旁卦（互/错/综）供你参考：互卦看事情内部，错卦看对立面，综卦看换个位置的想法——可酌情纳入分析，不必都讲。');
     L.push('请用通俗中文，少用术语；引用经文时顺带解释。以上信息仅供参详，最终决断在我。');
     return L.join('\n');
   }
@@ -1672,6 +1756,9 @@
       '</div></div>'+
       '<div class="dd-block bai"><div class="tag">卦意 · 白话</div><div class="txt">'+escapeHtml(p.yi)+'</div></div>'+
       '<div class="dd-block"><div class="tag">卦辞 · 经文</div><div class="txt">'+h.ci+'</div></div>'+
+      (()=>{ const d = deriveHexes(bits); return '<div class="dd-block"><div class="tag">旁卦 · 换个角度看</div><div class="txt">'+
+        '互卦 '+d.hu.name+'（内部）　错卦 '+d.cuo.name+'（对立面）　综卦 '+d.zong.name+'（反过来想）'+
+        '</div></div>'; })()+
       '<div class="dd-yaos"><div class="kicker" style="margin-bottom:4px">六爻 · 初至上</div>'+
       h.yao.map((txt,i)=>'<div class="dd-yao"><span class="lab">'+yaoLabel(i, bits[i]===1)+'</span>'+
         '<span class="txt">'+txt+'<span class="bai">白话：'+escapeHtml(p.yao[i]||'')+'</span></span></div>').join('')+
