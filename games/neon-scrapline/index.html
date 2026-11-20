@@ -53,6 +53,20 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   /* ---------- 义体档案（标题页上的成长面板） ---------- */
   #prof{margin:10px auto 2px;max-width:520px;display:flex;flex-direction:column;gap:5px;
     font:500 11px/1.5 var(--mono,monospace);letter-spacing:.04em}
+  /* 据点里的补给/身体状态：跟 HUD 同一套读法，但放在配装下面 */
+  #hqSurv{max-width:520px;margin:8px auto 2px;display:flex;flex-direction:column;gap:5px;align-items:center}
+  #hqSurv .hqs-title{font-size:9px;letter-spacing:.2em;color:#6b7ca3}
+  #hqSurv .hqs-row{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+  #hqSurv .sv{position:relative;width:60px;height:13px;background:#0b1224;border:1px solid #1d2b4a}
+  #hqSurv .sv b{position:absolute;left:3px;top:1px;font-size:9px;font-weight:400;color:#6b7ca3}
+  #hqSurv .sv .bar{position:absolute;left:15px;right:21px;top:3px;bottom:3px}
+  #hqSurv .sv .bar > i{position:absolute;inset:0;width:100%;display:block;transform-origin:left;transition:transform .12s linear}
+  #hqSurv .sv em{position:absolute;right:3px;top:1px;font-size:10px;font-style:normal;color:#c9d6f0;font-variant-numeric:tabular-nums}
+  #hqSurv .sv.f .bar > i{background:#7cff4f} #hqSurv .sv.w .bar > i{background:#45f0ff}
+  #hqSurv .sv.r .bar > i{background:#a45cff} #hqSurv .sv.m .bar > i{background:#ff6b6b}
+  #hqSurv .sv .bar > i.low{background:#ff3b5c;box-shadow:0 0 7px rgba(255,59,92,.9)}
+  #hqSurv .hqs-inv{font-size:10px;color:#6b7ca3;gap:14px}
+  #hqSurv .hqs-inv b{color:#cfe8ff;font-weight:600}
   #prof .prow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center}
   #prof .plbl{color:#5d7392;letter-spacing:.16em;margin-right:2px}
   #prof b{color:#45f0ff;font-weight:600;margin-right:8px}
@@ -1023,6 +1037,21 @@ img{max-width:100%}[hidden]{display:none!important}</style>
       <button class="chip refine" id="hqRefine">精 炼</button>
     </div>
     <div id="prof"></div>
+    <div id="hqSurv">
+      <div class="hqs-title">补 给 · 身 体 状 态</div>
+      <div class="hqs-row" id="hqSvBars">
+        <span class="sv f"><b>饱</b><span class="bar"><i id="hqSvFood"></i></span><em id="hqSvFoodNum">100</em></span>
+        <span class="sv w"><b>水</b><span class="bar"><i id="hqSvWater"></i></span><em id="hqSvWaterNum">100</em></span>
+        <span class="sv r"><b>辐</b><span class="bar"><i id="hqSvRad"></i></span><em id="hqSvRadNum">0</em></span>
+        <span class="sv m"><b>医</b><span class="bar"><i id="hqSvMed"></i></span><em id="hqSvMedNum">0</em></span>
+      </div>
+      <div class="hqs-row hqs-inv">
+        <span>口粮 <b id="hqInvFood">0</b></span>
+        <span>净水 <b id="hqInvWater">0</b></span>
+        <span>抗辐药 <b id="hqInvRad">0</b></span>
+        <span>医疗包 <b id="hqInvMed">0</b></span>
+      </div>
+    </div>
     <div class="hqstreet" id="hqStreet"><div class="hqsw"><canvas id="hqView" width="400" height="130"></canvas><div id="hqTags"></div></div></div>
     <div class="chain" id="hqChain"></div>
     <div id="hqPanel">
@@ -9363,7 +9392,7 @@ function togglePity(id) {
 function showHQ(on) {
   const b = el('hqBox');
   if (!b) return;
-  if (on) { const gone = syncOrders(); DAY = null; syncHQ(); syncProf(); syncPity(); syncPet(); syncStore(); syncOrd(gone); syncKit(); syncDeal(); const c = el('hqChain'); if (c) c.innerHTML = chainText(); }
+  if (on) { const gone = syncOrders(); DAY = null; syncHQ(); syncProf(); syncHQSurvival(); syncPity(); syncPet(); syncStore(); syncOrd(gone); syncKit(); syncDeal(); const c = el('hqChain'); if (c) c.innerHTML = chainText(); }
   else { stopStore(); stopView(); }                    // 关了据点就别让那个 rAF 循环一直跑
   b.classList.toggle('show', !!on);
   el('title').classList.toggle('show', !on);
@@ -9490,6 +9519,25 @@ el('saveList').addEventListener('click', e => {
 });
 el('saveBack').onclick = closeSaves;
 
+function syncHQSurvival() {
+  const set = (barId, numId, v, low) => {
+    const bar = el(barId); if (bar) {
+      bar.style.transform = 'scaleX(' + (clamp(v, 0, 100) / 100).toFixed(3) + ')';
+      bar.classList.toggle('low', low);
+    }
+    const n = el(numId); if (n) n.textContent = Math.ceil(v);
+  };
+  set('hqSvFood', 'hqSvFoodNum', G.hunger, G.hunger <= 25);
+  set('hqSvWater', 'hqSvWaterNum', G.thirst, G.thirst <= 25);
+  set('hqSvRad', 'hqSvRadNum', G.rad, G.rad >= 75);
+  const inv = G.inv || {};
+  const m = el('hqSvMed');
+  if (m) m.style.transform = 'scaleX(' + (clamp(inv.med | 0, 0, 3) / 3).toFixed(3) + ')';
+  const mn = el('hqSvMedNum'); if (mn) mn.textContent = inv.med | 0;
+  const put = (id, v) => { const e = el(id); if (e) e.textContent = v; };
+  put('hqInvFood', inv.food | 0); put('hqInvWater', inv.water | 0);
+  put('hqInvRad', inv.radkit | 0); put('hqInvMed', inv.med | 0);
+}
 function openLaunchHQ() {
   const b = el('hqLaunch'); if (b) b.hidden = false;
   el('over').classList.remove('show');                    // 从结算屏重开时别让结算页盖在据点上
