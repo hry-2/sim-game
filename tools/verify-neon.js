@@ -183,6 +183,7 @@ ok(!!b1 && b1.wave === 7, `最好成绩落盘了（第 ${b1 && b1.wave} 波）`)
 ok(!!b1 && b1.build === '磁轨枪 + 穿甲钨芯 + 暴击回路', '记录里带着那一局的打法');
 // 打得更差不该覆盖
 NS.start(); NS.G.wave = 2; NS.G.score = 1; NS.G.wepDmg = { pulse: 1 }; NS.G.stacks = {};
+NS.G.phase = 'wave';                    // 这段验的是旧流程的波次比较，别让新流程的夜数接管
 NS.gameOver();
 ok(NS.loadBest()[NS.dangerIdx()].wave === 7, '打得更差不会把记录覆盖掉');
 
@@ -935,11 +936,12 @@ console.log('铺满屏幕');
 {
   const setVP = (w, h) => { global.innerWidth = w; global.innerHeight = h; };
   const px = v => Math.round(parseFloat(v));
-  // 桌面 16:9：一个像素都不该变
-  // 桌面钉死 320×180：机台观感不变，视野也不该跟着窗口形状漂
-  for (const [w, h] of [[1280, 720], [1920, 800], [900, 900]]) {
+  // 桌面也按视口比例走：窗口是竖的就把逻辑分辨率变成竖的，画布铺满、不留黑边
+  for (const [w, h] of [[1280, 720], [1920, 800], [900, 900], [390, 844]]) {
     setVP(w, h); NS.fit();
-    ok(NS.VW === 320 && NS.VH === 180, `桌面窗口 ${w}×${h} 下视野仍是 ${NS.VW}×${NS.VH}`);
+    const cw = px(NS.cv.style.width), ch = px(NS.cv.style.height);
+    ok(Math.abs(cw - w) <= 2 && Math.abs(ch - h) <= 2,
+      `桌面窗口 ${w}×${h}：画布铺到 ${cw}×${ch}，逻辑分辨率 ${NS.VW}×${NS.VH}`);
   }
 
   // 手机用触屏那份（pad=0，要求严丝合缝）
@@ -1268,7 +1270,7 @@ console.log('危险等级');
 // ---- 24) 里程碑的描述和判定要对得上 ----
 console.log('里程碑');
 {
-  ok(NS.MILES.some(m => /打穿/.test(m.d)), '有一条是给通关的 —— 游戏里最大的成就原来什么都不解锁');
+  ok(NS.MILES.some(m => /活过 \d+ 夜/.test(m.d)), '有一条是给存活夜数的 —— 无限局里最大的成就原来什么都不解锁');
   // bossKills 在加了三种 BOSS 之后变成通用计数，写「母体核心」的那条得单独记
   const core = NS.MILES.find(m => /母体核心/.test(m.d));
   ok(!!core, '还有一条专认母体核心');
@@ -1395,7 +1397,7 @@ console.log('放弃这局');
   ok(QG.state === 'over', '按第二下才真的结束');
   ok(NS.PROF.runs === runs0 + 1 && NS.PROF.scrap > scrap0,
     `放弃照样结算（局数 ${runs0}→${NS.PROF.runs}，废钢 +${NS.PROF.scrap - scrap0}）—— 否则玩家会为了不丢进度硬耗到死`);
-  ok(byId('overSub').textContent.indexOf('主动断开') >= 0, `结算文案分得清（「${byId('overSub').textContent}」）`);
+  ok(/主动断开|主动收了工/.test(byId('overSub').textContent), `结算文案分得清（「${byId('overSub').textContent}」）`);
   ok(byId('overSub').textContent.indexOf('拆解') < 0, '放弃不写「被拆解」');
   ok(!byId('pauseBox').classList.contains('show'), '暂停层收掉了');
   // 确认态不能跨次残留
@@ -2710,7 +2712,7 @@ console.log('首页文案');
   };
   rnum(/## ([零一二三四五六七八九十\d]+)把武器/, wep, '武器');
   rnum(/敌人 ([零一二三四五六七八九十\d]+) 种/, mob, '敌人');
-  rnum(/一局 ([零一二三四五六七八九十\d]+) 波/, NS.LAST_WAVE, '一局多少波');
+  rnum(/白天 ([零一二三四五六七八九十\d]+)s/, 100, '白天时长');
   rnum(/([零一二三四五六七八九十\d]+) 条改装词条/, NS.UPGRADES.filter(u => u.id.indexOf('w_') !== 0).length, '改装词条');
   // 「现在有几档危险等级」这种也会掉队
   rnum(/([零一二三四五六七八九十\d]+)档危险等级/, NS.DANGER.length, '危险等级档数');
@@ -2968,7 +2970,7 @@ console.log('玩法说明');
     const m = txt.match(re);
     ok(!!m && +m[1] === real, `说明里${what}写的是 ${m ? m[1] : '没写'}，实际 ${real}`);
   };
-  n(/打穿 (\d+) 波/, NS.LAST_WAVE, '一局多少波');
+  n(/每 (\d+) 夜来一只 BOSS/, 5, 'BOSS 频率');
   n(/一共 (\d+) 张牌/, NS.UPGRADES.filter(u => !/^w_/.test(u.id)).length, '词条张数');
   n(/一共 (\d+) 把/, NS.WEP_ORDER.length, '武器把数');
   n(/敌人 (\d+) 种/, Object.keys(NS.MOB).filter(k => !NS.MOB[k].boss).length, '敌人种数');
@@ -3024,7 +3026,10 @@ console.log('结算出口');
   ok(NS.G.state === 'menu' && !NS.G.paused, '状态回到菜单，暂停也解掉');
   // 回来之后档案面板那些入口必须真的能用 —— 这才是回来的目的
   ok(byId('prof').innerHTML.length > 100, '档案面板重新画了（模式 / 危险档 / 起手 / 涂装）');
-  ok(!!byId('hqBtn') && !!byId('howBtn'), '据点和怎么玩够得着');
+  ok(!!byId('howBtn'), '「怎么玩」够得着');
+  ok(!/id="hqBtn"/.test(html), '标题页没有「据点」按钮 —— 据点从「开始新游戏」进');
+  ok(html.indexOf('id="hqBox"') < html.indexOf('id="prof"') && html.indexOf('id="title"') < html.indexOf('id="hqBox"'),
+    '配装面板挪进据点：标题页不选武器，开局才看得到');
   // 从暂停页放弃走一遍完整路径
   NS.start(92);
   NS.setPaused(true);
@@ -3236,7 +3241,8 @@ console.log('换场地前自动回收');
   const a0 = NS.ARENA_I;
   nextW();
   ok(NS.ARENA_I !== a0, '第 6 波确实换了场地');
-  ok(G3.scrap === 25 && G3.loot.core === 1, '换之前收走了，没跟着 drops 一起被清掉');
+  // 路线有平路/险路两种，险路会让废钢翻倍 —— 这里只验「换场地前收走了」，不锁具体数额
+  ok(G3.scrap > 0 && G3.loot.core === 1, '换之前收走了，没跟着 drops 一起被清掉');
 
   // 四、收了什么要说出来，否则玩家只看到「东西没了」。
   // banner() 是覆盖式的 —— 直接弹会被 nextWave 末尾的波次横幅盖掉，所以走提示队列。
@@ -3247,7 +3253,7 @@ console.log('换场地前自动回收');
     const t = byId('banner').innerHTML;
     if (t.indexOf('回 收') > -1) { seen = t; break; }
   }
-  ok(/25/.test(seen) && /核心碎片/.test(seen), `横幅写明收到了什么（${seen.replace(/<[^>]+>/g, ' ')}）`);
+  ok(/\d+ 废钢/.test(seen) && /核心碎片/.test(seen), `横幅写明收到了什么（${seen.replace(/<[^>]+>/g, ' ')}）`);
   // 顺带修好的：场地横幅一直以来都在换场地那一波被波次横幅盖掉，从没人见过
   ok(NS.G.tipQ.some(t => typeof t === 'object' && /场 地/.test(t.n))
      || /场 地/.test(byId('banner').innerHTML) || seen.indexOf('回 收') > -1,
@@ -3856,19 +3862,26 @@ console.log('中途存档');
   localStorage.setItem(NS.RUN_KEY, JSON.stringify(ls));
   ok(NS.loadRun() === null, '昨天的每日局存档不给续 —— 今天是另一个种子');
 
-  // 标题页：有存档才有「继续」，「新开一局」要按两次
+  // 标题页两个主动作：开始新游戏 / 选择存档（列全部槽，互不覆盖）
+  try { localStorage.removeItem(NS.SAVES_KEY); localStorage.removeItem(NS.RUN_KEY); } catch (e) {}
   NS.start(4242); NS.G.wave = 8; NS.saveRun();
+  const activeId = NS.G.saveId;
   NS.syncCont();
-  ok(!byId('contBtn').hidden && /第 9 波/.test(byId('contBtn').textContent),
-    `有存档时标题页有「继续」，写着接第几波（${byId('contBtn').textContent}）`);
+  ok(!byId('contBtn').hidden && /1 份/.test(byId('contBtn').textContent),
+    `有存档时标题页显示份数（${byId('contBtn').textContent}）`);
+  byId('contBtn').onclick();
+  ok(byId('saveBox').classList.contains('show') && /第 1 天/.test(byId('saveList').innerHTML),
+    '点「选择存档」把那份列出来，写着第几天');
+  byId('saveBack').onclick();
+  // 新游戏进据点，但不覆盖旧存档
   byId('startBtn').onclick();
-  ok(NS.loadRun() !== null && /再 按 一 次/.test(byId('startBtn').textContent),
-    '有存档时「新开一局」第一下只提醒，不作废');
-  byId('startBtn').onclick();
-  // （按钮挂的是最后一次 run() 那份构建，所以这里只看存档，不看 NS.G）
-  ok(NS.loadRun() === null, '第二下才开新局，存档作废');
-  NS.syncCont();
-  ok(byId('contBtn').hidden, '没有存档时不显示「继续」');
+  ok(byId('hqBox').classList.contains('show') && !byId('hqLaunch').hidden, '开始新游戏先进据点');
+  ok(NS.loadSaves().length === 1 && NS.loadSaves()[0].saveId === activeId, '新游戏没有覆盖旧存档');
+  // 按钮 onclick 挂在最后一次 run() 那份构建上（见上面注释），这里直接用 NS 验存储层
+  NS.start(); NS.G.wave = 2; NS.saveRun();
+  ok(NS.loadSaves().length === 2 && NS.loadRun(activeId) !== null, '新局存到另一个槽，两份并存且都能读回');
+  NS.clearRun();
+  ok(NS.loadSaves().length === 1, '结束新局只清掉它自己那份');
 
   // 原来 onclick = start 会把点击事件当种子传进去，每一局都是种子 0
   ok(!/onclick = start;/.test(html), '开始按钮不把点击事件当成种子传给 start');
@@ -4317,7 +4330,8 @@ console.log('存档退出');
   ok(NS.loadRun() && NS.loadRun().G.wave === 3, '存档还在，是这一波开打前那份');
   ok(NS.PROF.runs === runs0, '退出不结算 —— 这一局还没完');
   NS.syncCont();
-  ok(!byId('contBtn').hidden && /第 4 波/.test(byId('contBtn').textContent), '标题页上就是「继续 · 第 4 波」');
+  ok(!byId('contBtn').hidden && NS.loadSaves().some(r => r.G.wave === 3),
+    '存档退出后，「选择存档」列表里有那份（第 3 波打完）');
   // 二、在商店里退：现在就是存档点，刚买的也算
   NS.start(516);
   G.wave = 6; G.phase = 'shop'; G.scrap = 77; G.mobs.length = 0;
@@ -4611,6 +4625,158 @@ console.log('据点：委托、接客、工坊、全景');
   NS.selectHQ('stall');
   fresh(); NS.showHQ(true); NS.drawView(); NS.showHQ(false);
   ok(NS.VIEW.raf === 0, '关了据点，全景的循环也停');
+}
+
+// ---- 昼夜与守核心（P2）----
+console.log('昼夜与守核心');
+{
+  NS.setMode('free'); NS.start(7);
+  const G = NS.G, P = NS.P;
+  ok(G.phase === 'dawn' && G.day === 1 && G.nights === 0, '开局是第 1 天 · 白天，没有终点');
+  P.hp = 1e9; P.maxhp = 1e9;
+  G.dayT = .01; NS.update(1 / 60);
+  ok(G.phase === 'dusk', '白天走完进黄昏');
+  NS.closeBench();                       // P3：黄昏会开工作台，关掉才继续入夜
+  G.dayT = .01; NS.update(1 / 60);
+  ok(G.phase === 'night' && G.core && G.core.hp > 0, '黄昏走完进夜晚，核心有血');
+  // 敌人夜晚追核心而不是玩家：玩家挪远，怪仍朝核心走过来
+  P.x = 20; P.y = 20;
+  G.mobs.length = 0;
+  NS.spawn('grunt');
+  const m = G.mobs[G.mobs.length - 1];
+  m.x = G.core.x + 150; m.y = G.core.y;
+  const d0 = Math.hypot(m.x - G.core.x, m.y - G.core.y);
+  for (let i = 0; i < 30; i++) NS.update(1 / 60);
+  ok(Math.hypot(m.x - G.core.x, m.y - G.core.y) < d0 - 5, '夜晚敌人朝核心走，不是朝远处的玩家走');
+  // 怪贴到核心上要让核心掉血（接触伤害按离玩家算，不能隔空扣玩家血）
+  const hp0 = G.core.hp, php0 = P.hp;
+  m.x = G.core.x + 1; m.y = G.core.y; m.coreT = 0;
+  for (let i = 0; i < 10; i++) NS.update(1 / 60);
+  ok(G.core.hp < hp0, '怪碰到核心会扣核心的血');
+  ok(P.hp === php0, '怪撞核心不会隔空扣玩家血');
+  // 撑到天亮：天数 +1，存活夜数 +1，然后无限循环
+  G.dayT = .01; G.mobs.length = 0;
+  NS.update(1 / 60);
+  ok(G.phase === 'dawn' && G.day === 2 && G.nights === 1, '守到天亮，天数 +1、存活夜数 +1');
+  // 存档带得走昼夜状态
+  ok(NS.saveRun() && NS.loadRun().v === 2 && NS.loadRun().G.day === 2, '存档是 v2，天数写得进去');
+}
+
+// ---- 搜刮与工作台（P3）----
+console.log('搜刮与工作台');
+{
+  NS.setMode('free'); NS.start(9);
+  const G = NS.G, P = NS.P;
+  const caches = NS.PROPS.filter(p => p.k === 'cache');
+  ok(caches.length === NS.ARENAS[0].cacheN && caches.every(p => !p.opened), '城区里摆着一批没搜过的容器');
+  // 按住 E 站到箱子边上 1.2 秒，箱子开、物资进账，还会招来两只怪
+  const c = caches[0];
+  P.x = c.x; P.y = c.y; NS.keys.KeyE = true;
+  const before = G.mobs.length;
+  for (let i = 0; i < 75; i++) NS.update(1 / 60);
+  NS.keys.KeyE = false;
+  ok(c.opened === 1, '按住 E 搜一会儿，箱子开了');
+  ok(G.mobs.length >= before + 2, '搜刮出声，招来了怪');
+  // 物资能用：吃 / 喝 / 抗辐 / 医疗
+  G.inv.food = 1; G.inv.water = 1; G.inv.radkit = 1; G.inv.med = 1;
+  G.hunger = 10; G.thirst = 10; G.rad = 80; P.hp = 10;
+  ok(NS.useItem('food') && G.hunger === 40 && G.inv.food === 0, '吃掉口粮回 30 饱食');
+  ok(NS.useItem('water') && G.thirst === 45 && G.inv.water === 0, '喝掉净水回 35 水分');
+  ok(NS.useItem('radkit') && G.rad === 40 && G.inv.radkit === 0, '抗辐药降 40 辐射');
+  ok(NS.useItem('med') && P.hp === 50 && G.inv.med === 0, '医疗包回 40 血');
+  ok(!NS.useItem('food'), '没有物资时用不了，不会凭空回血');
+  // 工作台：黄昏开、扣费、做出物资；黄昏开着不走计时
+  G.scrap = 100; G.inv.parts = 10;
+  ok(NS.benchCan('water') && NS.benchMake('water') && G.inv.water === 1 && G.scrap === 97, '工作台做净水，废钢扣对了');
+  ok(NS.benchMake('med') && G.inv.med === 1 && G.inv.parts === 8, '工作台做医疗包，零件扣对了');
+  G.dayT = .01; NS.update(1 / 60);
+  ok(G.phase === 'dusk' && G.benchOpen, '黄昏自动开工作台');
+  const t0 = G.dayT;
+  for (let i = 0; i < 60; i++) NS.update(1 / 60);
+  ok(G.dayT === t0, '工作台开着时不催人，黄昏不计时');
+  NS.closeBench();
+  // 波末自动回收取消：白天地上的东西不会自己没
+  NS.closeBench(); G.phase = 'dawn'; G.drops.length = 0;
+  G.drops.push({ x: P.x + 200, y: P.y, vx: 0, vy: 0, t: 0, kind: 'coin', v: 9 });
+  for (let i = 0; i < 60; i++) NS.update(1 / 60);
+  ok(G.drops.length === 1, '白天搜刮时地上的东西不再自动收走');
+}
+
+// ---- 结算经济与夜数记录（P4）----
+console.log('结算经济与夜数记录');
+{
+  const fresh = () => {
+    for (const k in NS.PROF) delete NS.PROF[k];
+    Object.assign(NS.PROF, JSON.parse(JSON.stringify(NS.PROF_DEF))); NS.syncProf();
+  };
+  NS.setMode('free');
+  fresh(); NS.start(11);
+  let G = NS.G, P = NS.P;
+  P.hp = 1e9; P.maxhp = 1e9;
+  G.scrap = 100; G.nights = 3; G.day = 4; G.wave = 3;
+  NS.endRun();
+  ok(G.state === 'over' && /收 工/.test(byId('overTitle').textContent), '黄昏收工走独立结算');
+  ok(NS.PROF.bestDays[0] === 3 && NS.PROF.bestNights === 3, '存活夜数按档写进档案');
+  ok(NS.PROF.scrap === 176, `收工不打折 · 连夜 +30%（100+36 底 ×1.3 = ${NS.PROF.scrap}）`);
+  ok(/活过 3 夜/.test(byId('overGain').textContent), '结算页写明活过几夜');
+  // 核心失守：同样底子打七折
+  fresh(); NS.start(11);
+  G = NS.G; P = NS.P; P.hp = 1e9; P.maxhp = 1e9;
+  G.scrap = 100; G.nights = 3; G.wave = 3; G.endReason = 'core'; NS.gameOver(false);
+  ok(NS.PROF.scrap === 123, `核心失守本趟打七折（${NS.PROF.scrap}）`);
+  ok(/核 心 失 守/.test(byId('overTitle').textContent), '核心失守有独立标题');
+  // 封顶 +50%
+  fresh(); NS.start(11);
+  G = NS.G; G.scrap = 100; G.nights = 20; G.wave = 20; NS.gameOver();
+  ok(NS.PROF.scrap === 510, `连夜奖励封顶 +50%（${NS.PROF.scrap}）`);
+  // 危险档按夜数解锁
+  fresh();
+  NS.PROF.bestNights = 5; NS.checkMiles();
+  ok(NS.PROF.dangerMax >= 1, '活过 5 夜解锁高危');
+  NS.PROF.bestHighNights = 10; NS.checkMiles();
+  ok(NS.PROF.dangerMax === 3, '高危活过 10 夜解锁熔毁与归零');
+}
+
+// ---- 风暴与容器每日刷新 ----
+console.log('风暴与每日刷新');
+{
+  NS.setMode('free'); NS.start(12);
+  const G = NS.G, P = NS.P;
+  P.hp = 1e9; P.maxhp = 1e9;
+  // 箱子每天刷新，不用等换城区
+  const cache = NS.PROPS.find(p => p.k === 'cache');
+  cache.opened = 1; cache.prog = .5;
+  NS.enterDawn();
+  ok(!cache.opened && cache.prog === 0, '天亮后箱子重新可搜');
+  // 每 3 夜一轮：酸雨 → 辐射昼 → 铁潮
+  G.day = 0; NS.enterDawn();
+  ok(G.storm === null, '普通夜没有风暴');
+  NS.enterDawn(); NS.enterDawn();
+  ok(G.storm === 'acid', '第 3 夜是酸雨');
+  NS.enterDawn(); NS.enterDawn(); NS.enterDawn();
+  ok(G.storm === 'rad', '第 6 夜是辐射昼');
+  NS.enterDawn(); NS.enterDawn(); NS.enterDawn();
+  ok(G.storm === 'iron', '第 9 夜是铁潮');
+  // 酸雨：核心和玩家都持续掉血，且不会每帧震屏
+  G.storm = 'acid';
+  NS.enterNight(); G.mobs.length = 0; G.budget = 0;
+  const coreHp = G.core.hp, hp = P.hp;
+  for (let i = 0; i < 60; i++) NS.update(1 / 60);
+  ok(G.core.hp < coreHp - 2 && P.hp < hp - .5, '酸雨夜核心和义体一起腐蚀');
+  ok(G.phase === 'night', '酸雨没有把夜晚提前结束');
+  // 铁潮：精英率翻倍
+  G.phase = 'night'; G.wave = 9; G.storm = 'iron';
+  const withStorm = NS.eliteChance();
+  G.storm = null;
+  const without = NS.eliteChance();
+  ok(withStorm > without && withStorm <= .8, `铁潮夜精英更多（${(without * 100).toFixed(0)}% → ${(withStorm * 100).toFixed(0)}%）`);
+  // 辐射昼：白天辐射涨三倍
+  G.phase = 'dawn'; G.storm = 'rad'; G.rad = 0;
+  for (let i = 0; i < 600; i++) NS.update(1 / 60);
+  const fast = G.rad;
+  G.rad = 0; G.storm = null;
+  for (let i = 0; i < 600; i++) NS.update(1 / 60);
+  ok(fast > G.rad * 2.5, `辐射昼涨得更快（10 秒 ${fast.toFixed(1)} 对 ${G.rad.toFixed(1)}）`);
 }
 
 console.log(fail ? `\n${fail} 项没通过` : '\n全部通过');

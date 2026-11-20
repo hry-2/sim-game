@@ -8,7 +8,7 @@
 | 游戏 | 类型 | 入口 | 说明 |
 | --- | --- | --- | --- |
 | 市井 | 生活模拟 · 效用 AI | [`games/sim/`](games/sim/) | [文档](games/sim/README.md) |
-| 霓虹废钢线 | 生存射击 · Roguelite | [`games/neon-scrapline/`](games/neon-scrapline/) | [文档](games/neon-scrapline/README.md) |
+| 霓虹废钢线 | 赛博朋克末日求生 · 无限夜 | [`games/neon-scrapline/`](games/neon-scrapline/) | [文档](games/neon-scrapline/README.md) · [设计](docs/赛博朋克末日求生设计.md) |
 | 夜港（原型） | 赛博朋克潜入 · 剧情 | [`games/nightharbor/`](games/nightharbor/) | [文档](games/nightharbor/README.md) · [策划](docs/夜港策划拆解.md) · [剧本](docs/夜港剧本.md) |
 | 静街（在做） | 疫后小镇生存日志 | [`games/quiet-street/`](games/quiet-street/) | [策划](docs/静街策划.md) · [拆解](docs/静街任务拆解.md) · [数据规格](docs/静街数据规格.md) —— 进度 T1（镇子生成器）|
 | 抓大鹅 | 3D 三消 · 休闲益智 | [`games/goose/`](games/goose/) | Three.js + Cannon.js 本地引擎 · 真实重力 / 碰撞 / 翻滚 · 开场落盘 / 晃一晃 · 拖动旋转 · 六关递进（末关 117 件 / 8 层）· 16 种乡间物品 · 关卡存档（自动续玩 / 通关记录）· 七格收纳槽 · 撤回 / 洗牌 / 提示 · 离线可玩 |
@@ -49,7 +49,7 @@ npm run dev          # 或起服务：http://localhost:5173
 ├── index.html                    合集首页（卡带架，缩略图为程序化动画）
 ├── games/
 │   ├── sim/index.html            市井（精灵内嵌）
-│   ├── neon-scrapline/index.html 霓虹废钢线（音效实时合成）
+│   ├── neon-scrapline/index.html 霓虹废钢线（赛博朋克末日求生 · 无限夜 · 音效实时合成）
 │   ├── nightharbor/index.html    夜港（原型：潜入关卡 + 剧本驱动的对话）
 │   ├── quiet-street/index.html   静街（在做：镇子生成器 + 噪音存量模型）
 │   ├── nod/index.html            点头（两个人：屏幕朝外，翻手机判定）

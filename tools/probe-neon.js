@@ -2,16 +2,17 @@
 // 霓虹废钢线 · 实战探针
 // ==================================================================
 // verify-neon 查的是「每个零件对不对」。这个查的是「凑在一起能不能玩」：
-// 用假手柄驱动一个笨机器人真的把局打下去，看它死在第几波。
-// 机器人只会：瞄最近的、边打边退、退的时候朝场地中间靠、冲刺一冷却好就用、
-// 拿牌按一个固定优先级。它不会绕后打盾、不会先杀中继、不会攒冲刺躲爆囊，
-// 所以它到的波数是这条曲线的【下限】—— 人应该打得比它远。
+// 用假手柄驱动一个笨机器人真的把局打下去，看它活过第几夜。
+// 机器人只会：瞄最近的、边打边退、站在核心旁边、白天按住 E 搜箱子、
+// 饿了吃渴了喝、拿牌按一个固定优先级。它不会绕后打盾、不会先杀中继、
+// 不会攒冲刺躲爆囊，所以它是这条曲线的【下限】—— 人应该活得比它久。
 'use strict';
 const { run, pad, padOff } = require('./neon-stub');
 const NS = run(false);
 const D = 1 / 60;
 
 const len = (x, y) => Math.sqrt(x * x + y * y);
+const invCount = id => (NS.G.inv && NS.G.inv[id]) || 0;
 
 // 每个种子都从零号档案开始。不清的话里程碑奖励会跨局累积，
 // 后跑的种子自带一身加成 —— 那比的是跑的顺序，不是这一局的难度。
@@ -35,21 +36,21 @@ function freshProf(hq) {
   NS.syncProf();
 }
 
-function play(seed, maxWave, dg, hq) {
+function play(seed, maxNights, dg, hq) {
   freshProf(hq);
   if (dg) { NS.PROF.dangerMax = dg; NS.pickDanger(dg); }   // 档位要在 start 之前定
   NS.setMode('free'); NS.start(seed);            // 种子必须传给 start —— 它自己会重新播种
   const G = NS.G, P = NS.P;
   const log = [];
   let mods = [], elites = 0, buffs = 0, seenElite = new Set(), t = 0, w = 1, hpLow = 100;
-  let lastWave = 1;
+  let lastWave = 1, prevN = 0;
   // 卡死的判据是「没有进展」，不是「波次号没变」。
   // 只看波次号的话，一场打满三分钟的 BOSS 波会被误报成卡死 ——
   // 实测抓到过一次：phase=break、场上空、waveT 还是正的，
   // 那其实是这一波【刚打完】的瞬间，根本没卡。
   let stall = 0, prevW = 1, prevK = 0;
   // 时间上限 45 分钟：加了撤离战之后整局多一分钟左右，40 分钟会把守到 39 秒的局截成「还活着」
-  while (G.state !== 'over' && G.wave <= maxWave && t < 60 * 45) {
+  while (G.state !== 'over' && G.nights < maxNights && t < 60 * 45) {
     // 商店：一个笨买家。优先级是「回血 → 新枪 → 重摇 → 增益」，
     // 并且刻意留一半废钢不花 —— 全花光的话就量不出「留到下一局」这条路了。
     if (G.phase === 'shop') {
@@ -90,6 +91,17 @@ function play(seed, maxWave, dg, hq) {
       NS.takeUpgrade(pick);
       continue;
     }
+    // 黄昏：工作台开着就不计时。先做两份应急物资再关掉，有存货就吃喝药用掉
+    if (G.phase === 'dusk' && G.benchOpen) {
+      for (const id of ['med', 'water', 'food', 'radkit'])
+        while (NS.benchCan(id) && (invCount(id) < 2) && NS.benchMake(id)) { /* 做两份 */ }
+      NS.closeBench();
+    }
+    const inv = G.inv || {};
+    if (inv.food && G.hunger < 60) NS.useItem('food');
+    if (inv.water && G.thirst < 60) NS.useItem('water');
+    if (inv.radkit && G.rad > 40) NS.useItem('radkit');
+    if (inv.med && P.hp < P.maxhp * .5) NS.useItem('med');
     // 目标：最近的活怪
     // 目标：默认最近的，但【BOSS 在射程内就集火 BOSS】。
     // 只打最近的话，第 30 波 BOSS 周围围着一圈杂兵，最后一击永远轮不到它 ——
@@ -175,6 +187,20 @@ function play(seed, maxWave, dg, hq) {
       if (ed > e.r * .6) { mx = ex / ed; my = ey / ed; }
       else { mx *= .3; my *= .3; }
     }
+    // 白天：场上没怪就按住 E 搜最近的箱子（触屏是站着别动，机器人直接按键）
+    let cache = null, cacheD = 1e9;
+    for (const p of NS.PROPS) if (p.k === 'cache' && !p.opened) {
+      const d = len(p.x - P.x, p.y - P.y);
+      if (d < cacheD) { cacheD = d; cache = p; }
+    }
+    const searching = G.phase === 'dawn' && !tg && cache && cacheD < 26;
+    NS.keys.KeyE = !!searching;
+    if (searching) { mx = 0; my = 0; }
+    // 夜晚：怪都冲核心，机器人别追着怪跑远，站到核心边上守
+    if (G.phase === 'night' && G.core) {
+      const ax0 = G.core.x - P.x, ay0 = G.core.y - P.y, ad0 = len(ax0, ay0) || 1;
+      if (ad0 > 70) { mx = ax0 / ad0; my = ay0 / ad0; }
+    }
     const ml = len(mx, my); if (ml > 1) { mx /= ml; my /= ml; }
     // 打提前量。原来瞄的是目标【当前】位置，而子弹飞 100px 要 0.37 秒，
     // 期间怪走了 9px —— 而怪的半径只有 5px，于是一直擦过去。
@@ -193,9 +219,9 @@ function play(seed, maxWave, dg, hq) {
     NS.update(D);
     t += D;
     hpLow = Math.min(hpLow, P.hp / P.maxhp);
-    const progress = G.wave !== prevW || G.kills !== prevK;
+    const progress = G.day !== prevW || G.nights !== prevN || G.kills !== prevK;
     stall = progress ? 0 : stall + D;
-    prevW = G.wave; prevK = G.kills;
+    prevW = G.day; prevK = G.kills; prevN = G.nights;
     if (stall > 180) {
       // 卡住的时候必须说清是【为什么】卡住，否则「卡了」这个结论没法用
       const boss = G.mobs.find(m => NS.isBoss(m));
@@ -204,31 +230,31 @@ function play(seed, maxWave, dg, hq) {
       const why = `phase=${G.phase} state=${G.state} 预算剩 ${G.budget}，场上 ${Object.entries(comp).map(([k, v]) => k + '×' + v).join(' ') || '空'}`
         + `（数组里含死的 ${G.mobs.length}）`
         + (boss ? `，${NS.MOB[boss.type].nm} 还有 ${Math.round(boss.hp / boss.max * 100)}% 血` : '，没有 BOSS')
-        + `，加时 ${(-G.waveT).toFixed(0)}s，过热=${G.overheat}`
+        + `，阶段 ${G.phase} 剩 ${G.dayT.toFixed(0)}s，过热=${G.overheat}`
         + `，最近的距离 ${Math.round(Math.min(...G.mobs.filter(m => !m.dead).map(m => len(m.x - P.x, m.y - P.y))))}px`;
-      return { seed, wave: G.wave, stalled: true, why, dead: false, t: Math.round(t),
+      return { seed, nights: G.nights | 0, day: G.day, stalled: true, why, dead: false, t: Math.round(t),
         lv: P.lv, elites, mods, log, hpLow: Math.round(hpLow * 100) };
     }
-    if (G.wave !== lastWave) {
+    if (G.nights !== lastWave) {
       log.push({ w: lastWave, hp: Math.round(P.hp / P.maxhp * 100), mod: G.mod ? G.mod.id : '' });
-      lastWave = G.wave;
-      if (G.mod) mods.push(G.wave + ':' + G.mod.id);
+      lastWave = G.nights;
+      if (G.mod) mods.push(G.nights + ':' + G.mod.id);
     }
   }
   padOff();
   const picked = Object.keys(G.buffs).length;
-  return { seed, wave: G.wave, dead: G.state === 'over' && !G.won, won: !!G.won, by: G.deathBy, t: Math.round(t),
+  return { seed, nights: G.nights | 0, day: G.day, dead: G.state === 'over' && !G.won, won: !!G.won, by: G.deathBy, t: Math.round(t),
     lv: P.lv, elites, mods, log, hpLow: Math.round(hpLow * 100), picked,
     scrapGot: G.scrapGot, scrapLeft: G.scrap, bought: G.bought };
 }
 
-const MAXW = Number(process.argv[2] || 31);
+const MAXN = Number(process.argv[2] || 12);          // 最多活几夜（无限局没有通关线，这里是探针的上限）
 const DG = Number(process.argv[3] || 0);
 // hq = 据点全满；full = 据点全满 + 里程碑全开（九把枪都在卡池里）
 const HQ = process.argv[4] === 'full' ? 'full' : process.argv[4] === 'hq';
 // SEEDS=1,2,3 可以换一批 / 多跑几个种子 —— 五局分不开相邻两档的时候用
 const seeds = (process.env.SEEDS || '1,20260910,777,424242,9').split(',').map(Number);
-console.log(`每个种子最多打 ${MAXW} 波 · 危险等级 ${NS.DANGER[DG].n.replace(/ /g, '')}${HQ === 'full' ? ' · 多周目档案（九把枪全解锁）' : HQ ? ' · 据点全满' : ' · 新档案'}`);
+console.log(`每个种子最多活 ${MAXN} 夜 · 危险等级 ${NS.DANGER[DG].n.replace(/ /g, '')}${HQ === 'full' ? ' · 多周目档案（九把枪全解锁）' : HQ ? ' · 据点全满' : ' · 新档案'}`);
 if (HQ === 'full') {
   // 量具的能力边界，必须印出来 —— 不印的话「多周目平均只到 7 波」
   // 会被当成平衡结论读，而它其实是机器人塌了。
@@ -236,34 +262,31 @@ if (HQ === 'full') {
   console.log('  九把枪全进卡池之后它经常抽不到会用的，还会换上振动刀这种它不会用的近战。');
   console.log('  这一档只看【卡住几局】—— 那是「这一波收不收得掉」，跟它会不会用枪无关。');
 }
-console.log('机器人只会瞄最近的 + 边打边退，它到的波数是这条曲线的下限\n');
+console.log('机器人只会瞄最近的 + 边打边退 + 站在核心旁，活过的夜数是这条曲线的下限\n');
 let reached = [], results = [];
 for (const s of seeds) {
-  const r = play(s, MAXW, DG, HQ);
-  reached.push(r.wave); results.push(r);
-  console.log(`种子 ${String(s).padEnd(9)} → 第 ${String(r.wave).padStart(2)} 波${r.won ? ' 撤离成功' : r.dead ? ` 死了（${r.by || '?'}）` : r.stalled ? ' 卡住了（三分钟没推进）' : ' 还活着'}`
+  const r = play(s, MAXN, DG, HQ);
+  reached.push(r.nights); results.push(r);
+  const whyEnd = r.by === 'core' ? '核心失守' : (r.by || '?');
+  console.log(`种子 ${String(s).padEnd(9)} → 活过 ${String(r.nights).padStart(2)} 夜（第 ${r.day} 天）${r.dead ? ` 结束了（${whyEnd}）` : r.stalled ? ' 卡住了（三分钟没推进）' : ' 还活着'}`
     + `  等级 ${String(r.lv).padStart(2)}  用了 ${String(r.t).padStart(3)}s  见过 ${String(r.elites).padStart(2)} 个精英  血最低 ${r.hpLow}%`);
   if (r.scrapGot != null) console.log(`             捡到 ${r.scrapGot} 废钢，在商店买了 ${r.bought} 次，剩 ${r.scrapLeft} 存进档案`);
   if (r.stalled) console.log(`             卡住原因：${r.why}`);
-  if (r.mods.length) console.log(`             修饰波：${r.mods.join('  ')}`);
+  if (r.mods.length) console.log(`             修饰夜：${r.mods.join('  ')}`);
 }
 const avg = reached.reduce((a, b) => a + b, 0) / reached.length;
-// 「到第 5 波」是撞上 BOSS，不是打过 BOSS —— 要 > 5 才算过
-const early = reached.filter(w => w <= 5).length, far = reached.filter(w => w > MAXW).length;
-console.log(`\n平均到第 ${avg.toFixed(1)} 波（最差 ${Math.min(...reached)}，最好 ${Math.max(...reached)}）。`);
-// 结论写成比例，不写成「全都」/「有一个」—— 五个种子里有一个翻车是正常方差，
-// 一半翻车才是曲线有问题。
-console.log(early <= 1 ? `✓ ${seeds.length} 局里只有 ${early} 局没过第一个 BOSS —— 开局是能学的`
-  : `✗ ${seeds.length} 局里有 ${early} 局连第 5 波都没过，开局太陡`);
-// 这里只报事实，不设合格线 —— 「笨机器人该有多高通关率」是个主观取舍，
+const early = reached.filter(n => n < 1).length;
+console.log(`\n平均活过 ${avg.toFixed(1)} 夜（最差 ${Math.min(...reached)}，最好 ${Math.max(...reached)}）。`);
+console.log(early <= 1 ? `✓ ${seeds.length} 局里只有 ${early} 局第一夜就失守 —— 开局是能学的`
+  : `✗ ${seeds.length} 局里有 ${early} 局第一夜就失守，开局太陡`);
+// 这里只报事实，不设合格线 —— 「笨机器人该活几夜」是个主观取舍，
 // 得靠人试玩来定，不该由我在这里编一个数字然后自己对着它调。
 // 机器人的作用是：给出一个可复现的下限，以及在改动前后做对比。
-const wins = results.filter(r => r.won).length;
 const deaths = results.filter(r => r.dead);
 const stalls = results.filter(r => r.stalled);
-console.log(`撤离成功 ${wins} 局，死亡 ${deaths.length} 局，卡住 ${stalls.length} 局。`);
-if (deaths.length) console.log(`  死在：${deaths.map(r => `第 ${r.wave} 波（${r.by || '?'}）`).join('，')}`);
+console.log(`收工 ${results.filter(r => r.won).length} 局，核心失守/死亡 ${deaths.length} 局，卡住 ${stalls.length} 局。`);
+if (deaths.length) console.log(`  结束在：第 ${deaths.map(r => r.day).join('、')} 天（${deaths.map(r => r.by === 'core' ? '核心失守' : r.by || '?').join('、')}）`);
 const floors = results.map(r => r.hpLow);
 console.log(`血量最低点：${floors.map(f => f + '%').join(' / ')} —— 越接近 0 说明真的被逼到了`);
 console.log(stalls.length ? '✗ 有局卡住了，上面写了原因 —— 这是 bug，不是难度'
-  : '✓ 没有卡住的局：每一波都收得掉');
+  : '✓ 没有卡住的局：每一夜都收得掉');
