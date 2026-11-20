@@ -183,15 +183,19 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   #scoreTxt{font-size:15px;color:#eaf6ff;text-shadow:0 0 10px rgba(69,240,255,.45)}
   #scrapTxt{color:var(--amber)}
   #waveLeft{min-width:18px;text-align:right}
-  /* 生存值：三条定宽细条，标饱/水/辐。定宽是为了竖屏不随数字换行互相压住（见 L158 的旧坑） */
-  #survBars{gap:4px}
-  #survBars .sv{position:relative;display:block;width:30px;height:5px;background:#0b1224;border:1px solid #1d2b4a}
-  #survBars .sv > i{position:absolute;inset:0;width:100%;display:block;transform-origin:left;transition:transform .12s linear}
-  #survBars .sv.f > i{background:#7cff4f}
-  #survBars .sv.w > i{background:#45f0ff}
-  #survBars .sv.r > i{background:#a45cff}
-  #survBars .sv.m > i{background:#ff6b6b}
-  #survBars .sv > i.low{background:#ff3b5c;box-shadow:0 0 6px rgba(255,59,92,.9)}
+  /* 生存值：每条一行内放「标签 + 条 + 数字」，跟血条同高、定宽不换行（竖屏不互相压） */
+  #survBars{gap:3px}
+  #survBars .sv{position:relative;width:44px;height:11px;background:#0b1224;border:1px solid #1d2b4a;cursor:pointer}
+  #survBars .sv b{position:absolute;left:2px;top:1px;font-size:8px;line-height:1;font-weight:400;color:#6b7ca3}
+  #survBars .sv .bar{position:absolute;left:13px;right:19px;top:2px;bottom:2px}
+  #survBars .sv .bar > i{position:absolute;inset:0;width:100%;display:block;transform-origin:left;transition:transform .12s linear}
+  #survBars .sv em{position:absolute;right:2px;top:1px;font-size:9px;line-height:1;font-style:normal;color:#c9d6f0;
+    font-variant-numeric:tabular-nums;min-width:17px;text-align:right}
+  #survBars .sv.f .bar > i{background:#7cff4f}
+  #survBars .sv.w .bar > i{background:#45f0ff}
+  #survBars .sv.r .bar > i{background:#a45cff}
+  #survBars .sv.m .bar > i{background:#ff6b6b}
+  #survBars .sv .bar > i.low{background:#ff3b5c;box-shadow:0 0 7px rgba(255,59,92,.9);animation:hpPulse .7s ease-in-out infinite alternate}
   /* 武器栏：六格都画出来，空的是虚线 —— 「还能带几把」一眼看得出。
      每格写两字简称、染武器本色，底下一条是冷却：满了就是这一把待发。 */
   #wepSlots{gap:3px}
@@ -213,7 +217,7 @@ img{max-width:100%}[hidden]{display:none!important}</style>
   /* 窄屏（竖着拿手机）两块要并排挤在 390 宽里 */
   @media (max-width:430px){
     .bar.hp{width:96px} .bar.xp{width:70px}
-    #survBars .sv{width:24px}
+    #survBars .sv{width:40px}
     #wepSlots .ws{min-width:21px;font-size:8px}
     #scoreTxt{font-size:13px}
   }
@@ -940,11 +944,11 @@ img{max-width:100%}[hidden]{display:none!important}</style>
       <div class="hr"><span class="bar hp"><i id="hpFill"></i></span><span class="num" id="hpTxt">100</span></div>
       <div class="hr"><span class="lv">LV<b class="num" id="lvTxt">1</b></span><span class="bar xp"><i id="xpFill"></i></span><span id="dashPip" title="冲刺"><span></span></span></div>
       <div class="hr" id="wepSlots"></div>
-      <div class="hr" id="survBars" title="饱食 / 水分 / 辐射">
-        <span class="sv f" title="饱食"><i id="svFood"></i></span>
-        <span class="sv w" title="水分"><i id="svWater"></i></span>
-        <span class="sv r" title="辐射"><i id="svRad"></i></span>
-        <span class="sv m" title="医疗包"><i id="svMed"></i></span>
+      <div class="hr" id="survBars" title="饱食 / 水分 / 辐射 / 医疗包 · 点一下用一份">
+        <span class="sv f" title="饱食 · 点一下吃口粮"><b>饱</b><span class="bar"><i id="svFood"></i></span><em id="svFoodNum">100</em></span>
+        <span class="sv w" title="水分 · 点一下喝净水"><b>水</b><span class="bar"><i id="svWater"></i></span><em id="svWaterNum">100</em></span>
+        <span class="sv r" title="辐射 · 点一下用抗辐药"><b>辐</b><span class="bar"><i id="svRad"></i></span><em id="svRadNum">0</em></span>
+        <span class="sv m" title="医疗包 · 点一下回 40 血"><b>医</b><span class="bar"><i id="svMed"></i></span><em id="svMedNum">0</em></span>
       </div>
     </div>
     <div class="hb" id="hudR">
@@ -6458,23 +6462,26 @@ function useItem(kind) {
   return true;
 }
 function syncSurvivalHud() {
-  const set = (id, v, low) => {
-    const bar = el(id); if (!bar) return;
-    bar.style.transform = 'scaleX(' + (clamp(v, 0, 100) / 100).toFixed(3) + ')';
-    bar.classList.toggle('low', low);
+  // 饱食 / 水分是「越低越危险」，辐射反过来是「越高越危险」；低于 25% 或高于 75% 就发光提醒
+  const set = (id, numId, v, low, shown) => {
+    const bar = el(id); if (bar) {
+      bar.style.transform = 'scaleX(' + (clamp(v, 0, 100) / 100).toFixed(3) + ')';
+      bar.classList.toggle('low', low);
+    }
+    const n = el(numId); if (n) n.textContent = shown;
   };
-  set('svFood', G.hunger, G.hunger <= 0);
-  set('svWater', G.thirst, G.thirst <= 0);
-  set('svRad', G.rad, G.rad >= 100);
+  const f = Math.ceil(G.hunger), w = Math.ceil(G.thirst), r = Math.ceil(G.rad);
+  set('svFood', 'svFoodNum', G.hunger, G.hunger <= 25, f);
+  set('svWater', 'svWaterNum', G.thirst, G.thirst <= 25, w);
+  set('svRad', 'svRadNum', G.rad, G.rad >= 75, r);
   const v = G.inv || {};
-  const f = el('svFood'); if (f) f.title = '饱食 · 口粮 ×' + (v.food | 0) + '（点一下吃）';
-  const w = el('svWater'); if (w) w.title = '水分 · 净水 ×' + (v.water | 0) + '（点一下喝）';
-  const r = el('svRad'); if (r) r.title = '辐射 · 抗辐药 ×' + (v.radkit | 0) + '（点一下用）';
   const m = el('svMed');
-  if (m) {
-    m.style.transform = 'scaleX(' + (clamp(v.med | 0, 0, 3) / 3).toFixed(3) + ')';
-    m.title = '医疗包 ×' + (v.med | 0) + '（点一下回 40 血）';
-  }
+  if (m) m.style.transform = 'scaleX(' + (clamp(v.med | 0, 0, 3) / 3).toFixed(3) + ')';
+  const mn = el('svMedNum'); if (mn) mn.textContent = v.med | 0;
+  const fEl = el('svFood'); if (fEl) fEl.title = '饱食 ' + f + ' · 口粮 ×' + (v.food | 0) + '（点一下吃）';
+  const wEl = el('svWater'); if (wEl) wEl.title = '水分 ' + w + ' · 净水 ×' + (v.water | 0) + '（点一下喝）';
+  const rEl = el('svRad'); if (rEl) rEl.title = '辐射 ' + r + ' · 抗辐药 ×' + (v.radkit | 0) + '（点一下用）';
+  const mEl = el('svMed'); if (mEl) mEl.title = '医疗包 ×' + (v.med | 0) + '（点一下回 40 血）';
 }
 function update(dt) {
   G.t += dt;
