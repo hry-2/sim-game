@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="description" content="Neon Scrapline — 赛博朋克末日求生 · 无限夜俯视角生存射击，纯前端单文件。">
+<meta name="description" content="Neon Scrapline — 赛博朋克末日求生 · 无限波次俯视角生存射击，纯前端单文件。">
 <style>html,body{margin:0;background:#04060c;overflow:hidden;overscroll-behavior:none}
 img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Neon Scrapline</title>
@@ -987,7 +987,7 @@ img{max-width:100%}[hidden]{display:none!important}</style>
 
   <div class="screen show" id="title">
     <h1>NEON <em>SCRAPLINE</em></h1>
-    <p class="sub">下城区 · 末日求生 · 无限夜</p>
+    <p class="sub">下城区 · 末日求生 · 无限波次</p>
     <div class="keys kb">
       <div><b>WASD</b> 移动</div><div><b>枪</b> 全自动 · 只管走位</div>
       <div><b>空格</b> 相位冲刺</div><div><b>P</b> 暂停 · <b>M</b> 静音</div>
@@ -1089,7 +1089,7 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     <div class="head">工 作 台</div>
     <div class="hint" id="benchHint"></div>
     <div id="benchItems"></div>
-    <div class="sbtns"><button class="chip" id="benchClose">关 闭 · 入 夜</button>
+    <div class="sbtns"><button class="chip" id="benchClose">关 闭 · 继 续</button>
       <button class="chip" id="benchFinish">收 工 回 据 点</button></div>
   </div>
 
@@ -1102,7 +1102,8 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     <div class="srow"><button class="chip" id="shelfRoll">刷 新</button></div>
     <div class="shsec">服 务</div>
     <div id="shopItems"></div>
-    <div class="sbtns"><button class="chip" id="shopGo">下 一 波</button></div>
+    <div class="sbtns"><button class="chip" id="shopBench">工 作 台 · 做补给</button>
+      <button class="chip" id="shopGo">下 一 波</button></div>
   </div>
 
   <div id="routeBox">
@@ -1137,7 +1138,7 @@ img{max-width:100%}[hidden]{display:none!important}</style>
     <p class="sub" id="overSub">义体在第 1 波被拆解</p>
     <div class="stats">
       <div><span>得分</span><strong id="oScore">0</strong></div>
-      <div><span id="oWaveLbl">存活夜数</span><strong id="oWave">0</strong></div>
+      <div><span id="oWaveLbl">存活波次</span><strong id="oWave">0</strong></div>
       <div><span>拆解数</span><strong id="oKills">0</strong></div>
     </div>
     <p class="sub" id="overBuild"></p>
@@ -2762,6 +2763,10 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'Space') e.preventDefault();
   if (e.code === 'KeyP' && G.state === 'play') setPaused(!G.paused);
+  // 工作台：波间（商店/休息）按 T 打开，做吃喝药
+  if (e.code === 'KeyT' && G.state === 'play' && !G.paused
+    && (G.phase === 'shop' || G.phase === 'break')) { openBench(); return; }
+  if (e.code === 'Escape' && G.benchOpen) { closeBench(); return; }
   if (e.code === 'KeyM') { Sfx.musicOn = !Sfx.musicOn; if (Sfx.musicGain) Sfx.musicGain.gain.value = Sfx.musicOn ? .5 : 0; }
   if (e.code === 'KeyR' && G.state === 'over') start();
   if (G.phase === 'shop' && G.state === 'play') {          // 商店：1-4 货架，5-9 服务，R 刷新，空格进下一波
@@ -2957,7 +2962,7 @@ const G = {
   // 生存值（P1）。0~100，死了不跨局；P2 起按昼夜分别衰减。
   hunger: 100, thirst: 100, rad: 0,
   // 昼夜（P2）。wave 继续当难度曲线用的数字，语义 = 天数。
-  day: 1, nights: 0, dayPhase: 'dawn', dayT: 100, core: null,   // 100 = DAWN_DUR，常量在下面定义，这里不能提前引用
+  day: 1, nights: 0, dayPhase: 'wave', dayT: 0, core: null,   // 昼夜字段留着给旧存档读；新流程按 wave 走
   // 搜刮来的物资（P3）。只活这一趟，死了不带走。
   inv: { food: 0, water: 0, radkit: 0, med: 0, parts: 0 },
   benchOpen: false, endReason: null, storm: null, saveId: null,
@@ -3258,7 +3263,7 @@ function waveLeft() {
 function syncWave() {
   const bar = el('waveBar'), txt = el('waveLeft');
   if (!bar || !txt) return;
-  if (G.phase === 'night' && G.core) {                // 守夜：条是核心血量，数字是剩余耐久
+  if (G.core) {                                       // 核心全程在场：条是核心血量，数字是剩余耐久
     bar.style.setProperty('--w', (clamp(G.core.hp / G.core.max, 0, 1) * 100).toFixed(1) + '%');
     bar.classList.toggle('clear', G.core.hp > 0 && G.core.hp / G.core.max < .25);
     const lbl = el('waveLbl'); if (lbl) lbl.textContent = '核';
@@ -3300,20 +3305,13 @@ function armGiveup() {
    · 选路开着：用摆路之前那份。现在重存的话，续上之后会摇出另外两条路
    · 第 1 波还没打完：没有存档，退了这一局就不留 —— 所以这时候要按两下 */
 let quitArm = false;
-const quitAt = () => G.phase === 'shop' || G.phase === 'break'
-  || G.phase === 'dawn' || G.phase === 'dusk' || G.phase === 'night';
+const quitAt = () => G.phase === 'shop' || G.phase === 'break' || G.phase === 'route';
 function quitSaved() { const r = loadRun(); return r && r.seed === RUN_SEED ? r : null; }
 function quitHint() {
   const h = el('quitHint');
   if (!h) return;
-  if (G.dayPhase && (G.phase === 'dawn' || G.phase === 'dusk' || G.phase === 'night')) {
-    const p = G.phase === 'night' ? '夜晚' : G.phase === 'dusk' ? '黄昏' : '白天';
-    h.innerHTML = '<b>存档退出</b>：下次从第 ' + G.day + ' 天 · ' + p + ' 接着来'
-      + '<br><b>放弃这局</b>：现在结算（废钢和解锁照算），存档作废';
-    return;
-  }
   const r = quitSaved(), w = quitAt() ? G.wave : r ? r.G.wave : -1;   // 存档里的波次 = 打完的那一波
-  const where = w < 0 ? null : w >= LAST_WAVE ? '撤离战' : '第 ' + (w + 1) + ' 波';
+  const where = w < 0 ? null : '第 ' + (w + 1) + ' 波';
   h.innerHTML = (where
     ? '<b>存档退出</b>：下次从' + where + '开头接着打' + (G.phase === 'wave' && !quitAt() ? '，这一波打到一半的不算' : '')
     : '<b>存档退出</b>：第 1 波还没打完，还没有存档 —— 退出后这一局不留')
@@ -3603,8 +3601,8 @@ function spawn(type) {
   // 在视野外一圈生成，保证马上能打起来
   let x, y, tries = 0;
   // 守夜从核心四周来，别从玩家身边来 —— 否则玩家一枪就把还没走到核心的怪收了
-  const ax = G.phase === 'night' && G.core ? G.core.x : (P ? P.x : ARENA.w / 2);
-  const ay = G.phase === 'night' && G.core ? G.core.y : (P ? P.y : ARENA.h / 2);
+  const ax = G.core ? G.core.x : (P ? P.x : ARENA.w / 2);
+  const ay = G.core ? G.core.y : (P ? P.y : ARENA.h / 2);
   do {
     const a = rndw(0, TAU);
     x = clamp(ax + Math.cos(a) * (VW * .62 + rndw(16, 90)), 14, ARENA.w - 14);
@@ -3697,7 +3695,7 @@ const PROF_DEF = { scrap: 0, scrapTotal: 0, kills: 0, runs: 0, bestWave: 0, wins
   parts: {}, price: {}, fame: 60, fameMax: 60, mkt: null, sold: 0, earned: 0, orders: [], ordDone: 0, kit: {},
   ingot: 0, ingotTotal: 0, base: {}, mods: {}, modsOn: {}, pity: [],
   danger: 0, dangerMax: 0,
-  // 无限夜记录（P4）。bestDays 按档存，bestNights / bestHighNights 给解锁清单读。
+  // 危险档解锁门槛改按波数：bestWave 由 bankRun 更新
   bestDays: {}, bestNights: 0, bestHighNights: 0,
   bossKills: 0, tankKills: 0, unlocked: {}, bought: {}, wep: 'pulse', chassis: 'std', skin: 'std' };
 function loadProf() {
@@ -3783,7 +3781,7 @@ let WEEKLY = loadWeekly();
 const RUN_KEY = 'ns.run';                                  // 活跃存档（兼容旧代码）
 const SAVES_KEY = 'ns.saves.v1';                           // 全部存档槽，标题页列出来给玩家选
 const RUN_G = ['score', 'kills', 'wave', 'wepDmg', 'bossKills', 'coreKills', 'tankKills', 'eliteKills',
-  'seen', 'seenAff', 'rerolls', 'pityDone', 'scrap', 'scrapGot', 'bought', 'loot', 'stacks', 'escorts', 'reacts', 'route', 'items', 'shelf',
+  'seen', 'seenAff', 'rerolls', 'pityDone', 'scrap', 'scrapGot', 'bought', 'loot', 'stacks', 'escorts', 'reacts', 'route', 'routes', 'items', 'shelf',
   'drops', 'kit', 'hunger', 'thirst', 'rad',
   'day', 'nights', 'dayPhase', 'dayT', 'core', 'phase', 'inv', 'storm']; // 地上没捡的也存：换场地时会被扫进来，少了它续上之后升级发的牌就不一样了
 function saveValid(r) {
@@ -3890,8 +3888,8 @@ const MILES = [
   { id: 'w_spike', d: '卖出 120 件货',          n: '嬗变之刺进卡池', ok: p => (p.sold | 0) >= 120 },
   { id: 'w_lane',  d: '累计炼出 60 块精炼钢',   n: '熔金道进卡池',   ok: p => (p.ingotTotal | 0) >= 60 },
   { id: 'w_push',  d: '名声满过一次（100）',    n: '斥力环进卡池',   ok: p => (p.fameMax | 0) >= 100 },
-  { id: 'd_two',   d: '活过 5 夜（任意档）',   n: '危险等级：高危', ok: p => (p.bestNights | 0) >= 5 },
-  { id: 'd_all',   d: '在高危档活过 10 夜',     n: '危险等级：熔毁 / 归零', ok: p => (p.bestHighNights | 0) >= 10 },
+  { id: 'd_two',   d: '打到第 5 波',   n: '危险等级：高危', ok: p => (p.bestWave | 0) >= 5 },
+  { id: 'd_all',   d: '打到第 10 波',  n: '危险等级：熔毁 / 归零', ok: p => (p.bestWave | 0) >= 10 },
 ];
 const WEP_COST = 150;
 
@@ -4344,7 +4342,7 @@ function bankRun() {
   // 这样「全花光」不至于让这一局的元进度归零，而「一分不花」也确实攒得更多。
   // 连夜奖励：每多守一夜 +10%，封顶 +50%；核心失守本趟打七折（主动收工不打折）。
   const coreMul = G.endReason === 'core' ? .7 : 1;
-  const streakMul = Math.min(1.5, 1 + .1 * (G.nights | 0));
+  const streakMul = Math.min(1.5, 1 + .1 * G.wave);
   const scrap = Math.floor((G.wave * 12 + G.scrap) * coreMul * streakMul);
   PROF.runs++; PROF.kills += G.kills;
   PROF.bestWave = Math.max(PROF.bestWave, G.wave);
@@ -4723,17 +4721,21 @@ function grabBuff(id) {
    而不是把血条继续拉长。 */
 const LAST_WAVE = 30;                                  // 旧曲线仍按这个数收口，新流程不再打到它
 
-/* ================= 昼夜（P2）=================
-   30 波 / 撤离那套留在文件里不动（曲线、里程碑、验收脚本都还读它），
-   新的玩法循环走 dawn → dusk → night → dawn，无限重复。
-   白天搜刮、黄昏补给、夜晚守核心；没有终点。 */
-const DAWN_DUR = 100, DUSK_DUR = 12, NIGHT_DUR = 70;
-// 风暴：每 3 夜一次，三种轮转。挂在这一整天上，白天/夜晚各自读自己那一半效果。
+/* ================= 连续波次（无限）=================
+   清完一波自动来下一波，敌人越来越多，没有终点。
+   局只在【核心失守 / 玩家死亡 / 主动收工】时结束。
+   核心全程在场：敌人一路冲它，玩家在波间补给、守着它打。 */
+// 风暴：每 3 波一次，三种轮转，挂在当前这一波上
 const STORM = {
-  acid: { n: '酸 雨',   d: '夜里核心和义体持续被腐蚀' },
-  rad:  { n: '辐 射 昼', d: '白天辐射涨快三倍' },
-  iron: { n: '铁 潮',   d: '夜里精英翻倍' },
+  acid: { n: '酸 雨',   d: '核心和义体持续被腐蚀' },
+  rad:  { n: '辐 射',   d: '辐射涨快三倍' },
+  iron: { n: '铁 潮',   d: '精英翻倍' },
 };
+function makeCore(wave) {
+  const w = wave | 0, max = 300 + w * 60;
+  return { x: ARENA.w * .28, y: ARENA.h * .28, r: 20, hp: max, max };
+}
+function stormOf(wave) { return wave % 3 === 0 ? ['acid', 'rad', 'iron'][(wave / 3 - 1) % 3] : null; }
 
 /* ---- 撤离战 ----
    原来打完第 30 波直接结算 —— 半个多小时的一局，结尾就是一行字。
@@ -4887,7 +4889,7 @@ function eliteChance() {
   const cap = [0, .20, .30, .42][tier(G.wave)] * g.elite;
   const base = Math.min(rMul('elite') > 1 ? .8 : .62, Math.min(.62, cap) * rMul('elite'), (G.wave - 5) * .03 * g.elite * rMul('elite'));
   // 铁潮夜：精英翻倍。风暴挂在整天上，但只有夜里刷怪时才吃这个加成。
-  return G.phase === 'night' && G.storm === 'iron' ? Math.min(.8, base * 2) : base;
+  return G.storm === 'iron' ? Math.min(.8, base * 2) : base;
 }
 /* 精英词缀。
    之前精英只是 ×2.6 血 ×1.12 速 ×3 经验 —— 一圈金环底下，所有精英完全一样，
@@ -5017,10 +5019,12 @@ function sweepNote(got) {
 /* ================= 波次 ================= */
 function nextWave() {
   if (G.wave >= 1) saveRun();                          // 摇修饰之前存 —— 续上之后摇出来的还是同一个
-  if (G.wave >= LAST_WAVE) return startEvac();         // 打完第 30 波，货梯来了
-  if (needRoute()) return openRoute();                 // 打完 BOSS 先选路，选完再进下一波
   G.wave++;
   G.mod = rollMod(G.wave);
+  // 风暴每 3 波一轮；箱子每波刷新
+  G.storm = stormOf(G.wave);
+  for (const p of PROPS) if (p.k === 'cache') { p.opened = 0; p.prog = 0; }
+  if (G.storm) G.tipQ.push({ n: '风 暴 · ' + STORM[G.storm].n, d: STORM[G.storm].d });
   if (TIERS[tier(G.wave)] && tier(G.wave) !== tier(G.wave - 1)) {
     const T = TIERS[tier(G.wave)];
     banner(T.n, T.d);
@@ -5049,43 +5053,15 @@ function nextWave() {
   if (G.wave % 5 === 0) {
     const bt = bossOf(G.wave);
     spawn(bt);
-    const bm = G.mobs[G.mobs.length - 1];
-    if (G.wave === LAST_WAVE) { bm.final = 1; bm.hp *= 1.5; bm.max *= 1.5; }
-    banner(G.wave === LAST_WAVE ? '最 后 一 道 闸' : MOB[bt].nm + ' 接 入',
-      'WAVE ' + G.wave + ' · BOSS');
+    banner(MOB[bt].nm + ' 接 入', 'WAVE ' + G.wave + ' · BOSS');
   }
   else if (G.mod) banner(G.mod.n, G.mod.d);
-  else banner('WAVE ' + String(G.wave).padStart(2, '0'), ARENA.a.n + ' · ' + waveTitle());
+  else if (G.wave > 1) banner('WAVE ' + String(G.wave).padStart(2, '0'), ARENA.a.n + ' · ' + waveTitle());
+  // 第 1 波不弹横幅：banner() 把提示队列压 2.2 秒，开局那条「拾荒机兵」得马上出来
   Sfx.wave();
   syncHud();
 }
-/* ---- 昼夜状态机（P2）----
-   旧的 nextWave / startEvac / updateEvac 一行不删：曲线、里程碑和验收脚本还读它们。
-   这里只新增一条并行的流程，由 update() 的阶段分支走。 */
-function enterDawn(first) {
-  G.day = first ? 1 : G.day + 1;
-  G.wave = G.day - 1;                          // 曲线继续按这个数字走：第 1 天 = 旧的第 0 波，开局手感不变
-  G.phase = 'dawn'; G.dayPhase = 'dawn'; G.dayT = DAWN_DUR;
-  G.mod = null; G.overheat = 0;
-  // 每 3 夜一场风暴，三种轮转；不是风暴的日子清空，别把上一场带到新的一天
-  G.storm = G.day % 3 === 0 ? ['acid', 'rad', 'iron'][(G.day / 3 - 1) % 3] : null;
-  // 箱子每天刷新：今天搜过的，明天还能再搜
-  for (const p of PROPS) if (p.k === 'cache') { p.opened = 0; p.prog = 0; }
-  G.budget = Math.round((6 + G.day * 2) * DG().mass);
-  G.spawnT = 0;
-  G.mobs.length = 0; G.ebullets.length = 0;
-  G.core = null;
-  // 只在天亮回据点时扫一次地上的东西。原来每波打完自动收，现在白天得自己走过去搜 ——
-  // 收益让「今天搜了几个箱子」变成真决策。增益仍留在地上，别在休息时白白吃掉。
-  const note = sweepNote(sweepDrops(true));
-  if (note && !first) G.tipQ.push({ n: '天 亮 了 · 自 动 回 收', d: note });
-  if (!first && (G.day - 1) % 4 === 0) setArena(ARENA_I + 1, false);
-  // 第一天不弹横幅：banner() 会把提示队列压 2.2 秒，开局那条「拾荒机兵」就迟迟不出来
-  if (!first) banner('第 ' + G.day + ' 天 · 白 天', G.storm ? '风暴预警 · ' + STORM[G.storm].n : '搜刮物资 · 天黑前回据点');
-  if (G.storm) G.tipQ.push({ n: '风 暴 · ' + STORM[G.storm].n, d: STORM[G.storm].d });
-  syncHud();
-}
-/* ---- 工作台（P3）：黄昏打开，做吃喝药带进夜里 ---- */
+/* ---- 工作台：波间打开，做吃喝药带进下一波 ---- */
 const WORKBENCH = {
   water:  { n: '净 水',     cost: { scrap: 3 },        d: '喝下去回 40 水分',  f: () => { G.inv.water++; } },
   food:   { n: '口 粮',     cost: { scrap: 4, parts: 1 }, d: '吃下去回 30 饱食',  f: () => { G.inv.food++; } },
@@ -5106,7 +5082,7 @@ function benchMake(id) {
 function syncBench() {
   const box = el('benchItems'); if (!box) return;
   const hint = el('benchHint');
-  if (hint) hint.textContent = '手上 ' + G.scrap + ' 废钢 · ' + (G.inv.parts | 0) + ' 零件。趁天黑前做点能带进夜里用的东西。';
+  if (hint) hint.textContent = '手上 ' + G.scrap + ' 废钢 · ' + (G.inv.parts | 0) + ' 零件。趁波间做点能带进下一波的东西。';
   box.innerHTML = Object.keys(WORKBENCH).map(id => {
     const w = WORKBENCH[id], c = w.cost, ok = benchCan(id);
     return '<button class="bi' + (ok ? '' : ' lock') + '" data-bench="' + id + '">'
@@ -5123,32 +5099,11 @@ function endRun() {
   G.endReason = 'evac';
   gameOver(false);
 }
-function enterDusk() {
-  G.phase = 'dusk'; G.dayPhase = 'dusk'; G.dayT = DUSK_DUR;
-  G.budget = 0; G.mobs.length = 0; G.ebullets.length = 0;
-  banner('天 黑 了', '回据点补给 · 守住核心');
-  openBench();                                   // 工作台开着时黄昏不计时，读完再入夜
-  syncHud();
-}
-function enterNight() {
-  G.phase = 'night'; G.dayPhase = 'night'; G.dayT = NIGHT_DUR;
-  const max = 300 + G.day * 60;
-  // 核心放在一角，离玩家出生点约 330px（超过脉冲步枪 278px 的射程）——
-  // 跟玩家站在同一格的话，玩家站着不动就把整波怪全收了，核心永远不会挨打，守夜就不成立。
-  G.core = { x: ARENA.w * .28, y: ARENA.h * .28, r: 20, hp: max, max };
-  G.mod = rollMod(G.day);
-  G.budget = Math.round((16 + 11 * Math.pow(G.day, .9)) * DG().mass
-    * (G.mod ? (G.mod.budget || 1) : 1));
-  G.spawnT = 0; G.waveMax = 0; G.overheat = 0;
-  if (G.day % 5 === 0) spawn(bossOf(G.day));
-  banner('第 ' + G.day + ' 夜', G.mod ? (G.mod.n + ' · ' + G.mod.d) : '守住核心，撑到天亮');
-  syncHud();
-}
 function coreHit(dmg, quiet) {
   const c = G.core;
   if (!c || c.hp <= 0) return;
   c.hp = Math.max(0, c.hp - dmg);
-  if (!quiet) G.shake = Math.max(G.shake, 3);   // 持续腐蚀不走震屏，否则整夜都在抖
+  if (!quiet) G.shake = Math.max(G.shake, 3);   // 持续腐蚀不走震屏，否则一直抖
   if (c.hp <= 0) { G.deathBy = 'core'; G.endReason = 'core'; gameOver(); }
 }
 
@@ -5399,16 +5354,14 @@ function sniperStand(m, dx, dy, d) {
 function spawnRate(w) { return Math.min(42, 1.2 + w * 1.5); }
 function spawnGap(w) { return 1 / spawnRate(w); }
 function waveSpawn(dt) {
-  if (G.phase !== 'wave' && G.phase !== 'dawn' && G.phase !== 'night') return;
-  if (G.budget <= 0) return;
+  if (G.phase !== 'wave' || G.budget <= 0) return;
   G.spawnT -= dt;
   if (G.spawnT > 0) return;
   const w = G.wave;
   // 顶到上限就等着，注意这条路【不消耗随机数】—— 每波摇的次数必须只跟预算有关，
   // 否则手快手慢的人在同一个每日种子上会摇出不同的局。
-  // 守夜的上限按【天数】算，不按 wave —— wave 只是旧曲线的游标，第 1 天它是 0，
-  // 用它的 targetMass 只有 4 只，玩家站着不动就能全收，核心永远挨不到打。
-  const cap = G.phase === 'night' ? Math.min(80, Math.round(6 + 3 * G.day * DG().mass)) : targetMass(w);
+  // 无限波次没有终点，场上上限用 targetMass（随波数涨，封顶 84）
+  const cap = targetMass(w);
   if (G.mobs.length >= cap) { G.spawnT = .1; return; }
   if (G.mod && G.mod.bag) { spawn(pickw(G.mod.bag)); G.budget--; G.spawnT = spawnGap(w) * rndw(.7, 1.3); return; }
   const bag = ['grunt', 'grunt', 'grunt'];
@@ -6432,7 +6385,7 @@ function updateSurvival(dt) {
   G.hunger = Math.max(0, G.hunger - 0.35 * dt);
   G.thirst = Math.max(0, G.thirst - 0.5 * dt);
   // 昼夜各自的涨速；辐射昼再乘三
-  const radRate = (G.phase === 'night' ? 0.2 : 0.1) * (G.storm === 'rad' && G.phase === 'dawn' ? 3 : 1);
+  const radRate = 0.1 * (G.storm === 'rad' ? 3 : 1);
   G.rad = Math.min(100, G.rad + radRate * dt);
   const dps = (G.hunger <= 0 ? 2 : 0) + (G.thirst <= 0 ? 2 : 0) + (G.rad >= 100 ? 3 : 0);
   if (dps > 0 && P) {
@@ -6444,7 +6397,9 @@ function updateSurvival(dt) {
    桌面按住 E、触屏站着别动，1.2 秒搜完一个容器。搜的时候会出声，招两只怪过来。 */
 const CACHE_T = 1.2;
 function updateSearch(dt) {
-  if (!P || (G.phase !== 'dawn' && G.phase !== 'dusk')) return;
+  if (!P || G.paused) return;
+  // 搜刮在波内也能做（危险），波间休息更安全；身份上是「站着别动 1.2 秒」
+  if (G.phase !== 'wave' && G.phase !== 'break') return;
   const held = isTouch ? (Math.abs(P.vx) + Math.abs(P.vy) < 24) : !!keys.KeyE;
   let best = null, bd = 28;
   for (const p of PROPS) {
@@ -6641,29 +6596,12 @@ function update(dt) {
   G.cam.x += (tx - G.cam.x) * Math.min(1, dt * 8);
   G.cam.y += (ty - G.cam.y) * Math.min(1, dt * 8);
 
-  // 昼夜（P2）：白天搜刮 → 黄昏补给 → 夜晚守核心 → 天亮，天数 +1，无限
-  if (G.phase === 'dawn' || G.phase === 'night') {
-    G.dayT -= dt;
-    waveSpawn(dt);
-    // 酸雨夜：核心和义体持续被腐蚀。直接扣，不走无敌帧（跟生存值一个道理）
-    if (G.phase === 'night' && G.storm === 'acid' && G.core) {
-      coreHit(2.5 * dt, true);
-      if (P) { P.hp -= dt; if (P.hp <= 0) { P.hp = 0; gameOver(); } }
-    }
-    if (G.dayT <= 0) {
-      if (G.phase === 'dawn') enterDusk();
-      else { G.nights++; enterDawn(); }
-    }
-  } else if (G.phase === 'dusk') {
-    if (!G.benchOpen) {                          // 工作台开着就不催人，跟商店一个道理
-      G.dayT -= dt;
-      if (G.dayT <= 0) enterNight();
-    }
-  }
-  // 波次（旧流程，验收脚本和曲线还读它）
-  else if (G.phase === 'wave') {
+  // 连续波次：清完自动来下一波，没有终点
+  if (G.phase === 'wave') {
     G.waveT -= dt;
     waveSpawn(dt);
+    // 酸雨波：义体持续被腐蚀。直接扣，不走无敌帧（跟生存值一个道理）
+    if (G.storm === 'acid' && P) { P.hp -= 2 * dt; if (P.hp <= 0) { P.hp = 0; gameOver(); } }
     // 泄压阀：一波要清空才推进，所以只要出现「打不动」的僵局就会永远卡着。
     // 探针在第 8 波撞见三十只带盾的，正面只能打出 15%，人被困在盾墙里耗死。
     // 加时超过 12 秒还没清完，剩下的护盾全部过热失效 —— 僵局由玩家动手解开，
@@ -6679,8 +6617,8 @@ function update(dt) {
       const note = sweepNote(sweepDrops(true));
       if (note) G.tipQ.push({ n: '自 动 回 收', d: note });
       // 商店只在它真有东西给你的时候才拦 —— 买不起就别打断节奏。
-      // 第 30 波打完是撤离，不进商店。
-      if (G.wave < LAST_WAVE && shopWorth()) openShop();
+      // 无限波次：每波清完都有机会补给，做完点「下一波」继续。
+      if (shopWorth()) openShop();
       else { G.phase = 'break'; G.waveT = 3.2; }
     }
   } else if (G.phase === 'evac') {
@@ -6726,13 +6664,9 @@ function update(dt) {
     }
     // 时滞（临时增益）跟冷凝弹头（词条）乘在一起：一个是全场一段时间，一个是命中才有
     const sl = (m.slowT > 0 ? (1 - P.slow) : 1) * (G.buffs.slow > 0 ? .5 : 1);
-    // 夜晚：敌人默认冲核心，玩家凑近到比核心还近、且够近时才转而追玩家。
-    // 光用「离玩家 90px 内」会让站在核心上的人把整波怪全吸走，核心永远不掉血 —— 那就不叫守夜了。
+    // 敌人一律追玩家（连续波次：敌人就是冲你来的）
     const pdx = P.x - m.x, pdy = P.y - m.y, pd = len(pdx, pdy) || 1;
-    const cdx = G.core ? G.core.x - m.x : 0, cdy = G.core ? G.core.y - m.y : 0;
-    const cd = G.core ? (len(cdx, cdy) || 1) : 1e9;
-    const toCore = G.phase === 'night' && !!G.core && !(pd < 80 && pd < cd);
-    const dx = toCore ? cdx : pdx, dy = toCore ? cdy : pdy, d = toCore ? cd : pd;
+    const dx = pdx, dy = pdy, d = pd;
     m.ang = Math.atan2(dy, dx);
 
     if (m.type === 'grunt') {
@@ -6843,8 +6777,8 @@ function update(dt) {
         G.shake = 9; burstFx(m.x, m.y, 46, '#ffe066', 260);
         banner(d.p2n, d.nm + ' · 第二形态');
         Sfx.boom();
-        // 最后一道闸：母体核心半血时叫一台拆解臂进场
-        if (m.final) { spawn('boss2'); banner('拆 解 臂 进 场', '它带了帮手'); }
+        // 半血叫一台拆解臂进场 —— 无限波次里每个 BOSS 都换打法
+        spawn('boss2'); banner('拆 解 臂 进 场', '它带了帮手');
       }
       // BOSS 叫的增援受密度上限管，而且【加时之后完全停掉】——
       // 一直召唤的 BOSS 会让这一波永远清不完，那就不是难，是卡死。
@@ -6933,13 +6867,7 @@ function update(dt) {
     m.x = clamp(m.x + m.vx * dt, m.r, ARENA.w - m.r);
     m.y = clamp(m.y + m.vy * dt, m.r, ARENA.h - m.r);
 
-    // 接触伤害按【离玩家多近】算，不能用 d —— 夜晚 d 是离核心的距离，
-    // 否则怪一碰到核心玩家就隔空掉血。
-    if (pd < m.r + 7) hurtPlayer(m.dmg, m.type);
-    if (toCore) {
-      m.coreT = Math.max(0, (m.coreT || 0) - dt);
-      if (d < G.core.r + m.r && m.coreT <= 0) { coreHit(m.dmg * .6); m.coreT = .7; }
-    }
+    if (d < m.r + 7) hurtPlayer(m.dmg, m.type);
   }
 
   // 敌人之间分离
@@ -7138,9 +7066,6 @@ function update(dt) {
       }
     }
     if (b.life > 0 && len(b.x - P.x, b.y - P.y) < 7) { hurtPlayer(b.dmg, b.src); b.life = 0; }
-    if (b.life > 0 && G.phase === 'night' && G.core && len(b.x - G.core.x, b.y - G.core.y) < G.core.r) {
-      coreHit(b.dmg * .5); b.life = 0;
-    }
   }
   G.ebullets = G.ebullets.filter(b => b.life > 0);
 
@@ -7506,8 +7431,8 @@ function render() {
 
   drawGrid();
 
-  // 据点核心（P2）：只有夜晚在场。一根有血量的柱子，血环就是守夜进度。
-  if (G.phase === 'night' && G.core) {
+  // 据点核心：全程在场。一根有血量的柱子，血环就是当前耐久。
+  if (G.core) {
     const c = G.core, x = c.x - G.cam.x, y = c.y - G.cam.y;
     const hp = clamp(c.hp / c.max, 0, 1), col = hp < .25 ? '#ff3b5c' : '#45f0ff';
     orb(x, y, 26, 'rgba(69,240,255,' + (.1 + .2 * hp).toFixed(2) + ')', 1);
@@ -8156,10 +8081,7 @@ function syncHud() {
   el('scoreTxt').textContent = G.score;
   const st = el('scrapTxt');
   if (st) st.textContent = G.scrap;
-  el('waveTag').textContent = G.phase === 'night' ? 'NIGHT ' + String(Math.max(1, G.day)).padStart(2, '0')
-    : G.phase === 'dusk' ? 'DUSK ' + String(Math.max(1, G.day)).padStart(2, '0')
-      : G.phase === 'evac' ? 'EVAC'
-        : 'DAY ' + String(Math.max(1, G.day || G.wave)).padStart(2, '0');
+  el('waveTag').textContent = 'WAVE ' + String(Math.max(1, G.wave)).padStart(2, '0');
   syncWepSlots();
   const hf = el('hpFill');
   if (hf) hf.classList.toggle('low', P.hp / P.maxhp < .34);
@@ -8280,8 +8202,9 @@ function start(seedOverride, rs) {
   { const rb = el('routeBox'); if (rb) rb.classList.remove('show'); }
   Object.assign(G, {
     state: 'play', paused: false, t: 0, shake: 0, hitFlash: 0,
-    score: 0, kills: 0, wave: 0, waveT: 0, phase: 'dawn',
-    day: 1, nights: 0, dayPhase: 'dawn', dayT: DAWN_DUR, core: null,
+    score: 0, kills: 0, wave: 0, waveT: 0, phase: 'wave',
+    // 昼夜那套字段留着给旧存档读，新流程不再按它推进；core 全程在场
+    day: 1, nights: 0, dayPhase: 'wave', dayT: 0, core: null,
     spawnT: 0, budget: 0, combo: 0, comboT: 0,
     bullets: [], ebullets: [], mobs: [], parts: [], drops: [], offer: [], stacks: {},
     beams: [], arcs: [], slashes: [], mines: [], discs: [],
@@ -8291,7 +8214,7 @@ function start(seedOverride, rs) {
     pet: null, escorts: [], reacts: {}, route: null, routes: null, nums: [], items: {}, shelf: null, shelfRolls: 0,
     scrap: 0, scrapGot: 0, bought: 0, loot: {}, kit: {},
     hunger: 100, thirst: 100, rad: 0,
-    day: 1, nights: 0, dayPhase: 'dawn', dayT: DAWN_DUR, core: null,
+    day: 1, nights: 0, dayPhase: 'wave', dayT: 0, core: null,
     inv: { food: 0, water: 0, radkit: 0, med: 0, parts: 0 },
     benchOpen: false, endReason: null, storm: null,
     saveId: newSaveId()                                  // 每趟一个新槽，跟别的存档互不覆盖
@@ -8328,11 +8251,11 @@ function start(seedOverride, rs) {
     Object.assign(P, rs.P, { vx: 0, vy: 0, dashT: 0, inv: 1.2 });   // 刚续上给一秒多无敌，别一落地就挨打
     if (!P.wtier || P.wtier.length !== P.owned.length) P.wtier = P.owned.map(() => 1);   // 加品阶之前的存档
     RNG.fx.s = rs.rng[0]; RNG.wave.s = rs.rng[1]; RNG.card.s = rs.rng[2];
-    // phase / dayPhase / dayT / core 都从存档里回来了；night 的话核心得在
-    if (G.phase === 'night' && !G.core) enterNight();
-    banner('续 上 了', '第 ' + G.day + ' 天 · ' + (G.dayPhase === 'night' ? '夜晚' : G.dayPhase === 'dusk' ? '黄昏' : '白天'));
+    // wave / phase / core 都从存档里回来了；没有核心就补一根
+    if (!G.core) G.core = makeCore(G.wave);
+    banner('续 上 了', 'WAVE ' + String(G.wave).padStart(2, '0'));
   } else {
-    enterDawn(true);
+    nextWave();
   }
   G.cam.x = camAt(P.x - VW / 2, ARENA.w, VW);
   G.cam.y = camAt(P.y - VH / 2, ARENA.h, VH);
@@ -8378,7 +8301,6 @@ function pickDanger(i) {
 function gameOver(won) {
   clearRun();                                          // 死了、收工了、放弃了，都没有「继续」可言
   G.state = 'over';
-  const nightRun = G.phase === 'dawn' || G.phase === 'dusk' || G.phase === 'night';
   const reason = G.endReason || (won ? 'win' : G.deathBy === 'giveup' ? 'giveup' : 'dead');
   G.won = !!won || reason === 'evac';
   const title = reason === 'evac' ? '收 工 回 据 点' : reason === 'core' ? '核 心 失 守'
@@ -8386,41 +8308,29 @@ function gameOver(won) {
   el('overTitle').textContent = title;
   el('over').classList.toggle('won', G.won);
   el('oScore').textContent = G.score;
-  const wl = el('oWaveLbl'); if (wl) wl.textContent = nightRun ? '存活夜数' : '存活波次';
-  el('oWave').textContent = nightRun ? (G.nights | 0) : G.wave;
+  const wl = el('oWaveLbl'); if (wl) wl.textContent = '存活波次';
+  el('oWave').textContent = G.wave;
   el('oKills').textContent = G.kills;
   const by = G.deathBy === 'self' ? '自己的榴弹'
     : G.deathBy === 'giveup' ? null : (MOB[G.deathBy] || {}).nm;
-  const sub = nightRun
-    ? (reason === 'evac' ? '在第 ' + G.nights + ' 夜收工'
-      : reason === 'core' ? '活过第 ' + G.nights + ' 夜 · 第 ' + (G.nights + 1) + ' 夜核心被拆解'
-        : G.deathBy === 'giveup' ? '在第 ' + (G.nights + 1) + ' 夜主动收了工'
-          : '义体在第 ' + (G.nights + 1) + ' 夜被' + (by || '拆解队') + '拆解')
-    : (won ? '三十波打穿，货梯守住了'
+  const sub = reason === 'evac' ? '在第 ' + G.wave + ' 波收工'
+    : reason === 'core' ? '撑到第 ' + G.wave + ' 波 · 核心被拆解'
       : G.deathBy === 'giveup' ? '在第 ' + G.wave + ' 波主动断开了连接'
-        : '义体在第 ' + G.wave + ' 波被' + (by || '拆解队') + '拆解');
+        : '义体在第 ' + G.wave + ' 波被' + (by || '拆解队') + '拆解';
   el('overSub').textContent = sub
     + ' · ' + DANGER[dangerIdx()].n.replace(/ /g, '')
     + (G.unlockedDanger ? ' · 解锁了「' + G.unlockedDanger.replace(/ /g, '') + '」' : '');
   el('overBuild').textContent = '打法：' + runReport();
 
   // 比法一样，比的对象不一样：自由局比历史最好，每日局比今天自己
-  const cur = { wave: G.wave, nights: G.nights | 0, score: G.score, kills: G.kills, build: runReport(), won: !!won,
+  const cur = { wave: G.wave, score: G.score, kills: G.kills, build: runReport(), won: !!won,
     dg: dangerIdx(), at: Date.now() };
-  // 按【危险档 → 夜数/波次 → 分数】比。少了第一项的话，高危档打到第 20 波
+  // 按【危险档 → 波次 → 分数】比。少了第一项的话，高危档打到第 20 波
   // 会被标准档的 30 波比下去 —— 那危险等级就白做了。
-  const recVal = r => nightRun ? (r.nights | 0) : r.wave;
-  const unit = nightRun ? '夜' : '波';
+  const recVal = r => r.wave;
+  const unit = '波';
   const beats = (a, b) => !b || (a.dg | 0) > (b.dg | 0)
     || ((a.dg | 0) === (b.dg | 0) && (recVal(a) > recVal(b) || (recVal(a) === recVal(b) && a.score > b.score)));
-  // 存活夜数进档案，供解锁清单和标题页显示。死了也算 —— 不然会逼人苟。
-  if (nightRun) {
-    const dgi = dangerIdx(), n = G.nights | 0;
-    PROF.bestDays = PROF.bestDays || {};
-    if (n > (PROF.bestDays[dgi] | 0)) PROF.bestDays[dgi] = n;
-    if (n > (PROF.bestNights | 0)) PROF.bestNights = n;
-    if (dgi >= 1 && n > (PROF.bestHighNights | 0)) PROF.bestHighNights = n;
-  }
   if (MODE === 'weekly') {                               // 每周挑战：跟这周自己比，跟每日局一个路子
     const rec = Object.assign({ week: weekNum(), rule: weekRule().id }, cur);
     if (beats(cur, WEEKLY)) {
@@ -8466,10 +8376,11 @@ function gameOver(won) {
   // 捡了一路，到这儿只看到废钢，等于白捡。
   const loot = PART_IDS.filter(k => (G.loot && G.loot[k]) > 0)
     .map(k => PART[k].n.replace(/ /g, '') + '×' + G.loot[k]);
-  el('overGain').textContent = (nightRun ? '活过 ' + (G.nights | 0) + ' 夜 · ' : '')
-    + '+' + bank.scrap + ' 废钢'
-    + (nightRun ? '（连夜 +' + Math.round((Math.min(1.5, 1 + .1 * (G.nights | 0)) - 1) * 100)
-        + '%' + (reason === 'core' ? ' · 核心失守 −30%' : '') + '）' : '')
+  // 连波奖励：每多撑一波 +10%，封顶 +50%；核心失守本趟 ×0.7（主动收工 ×1.0）
+  const streakMul = Math.min(1.5, 1 + .1 * G.wave);
+  el('overGain').textContent = '+' + bank.scrap + ' 废钢'
+    + '（撑到 ' + G.wave + ' 波 · 连波 +' + Math.round((streakMul - 1) * 100)
+        + '%' + (reason === 'core' ? ' · 核心失守 −30%' : '') + '）'
     + (loot.length ? ' · 零件 ' + loot.join(' ') : '')
     + (bank.got.length ? ' · 解锁：' + bank.got.map(m => m.n).join('、') : '');
   syncProf();
@@ -8513,10 +8424,10 @@ function howToHTML() {
     + rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('') + '</dl>';
 
   return sec('这 是 个 什 么 游 戏',
-    '<p>俯视角打枪。断电后的下城区里，<b>白天搜刮、黄昏补给、夜晚守核心</b>，'
-    + '熬过一个又一个夜晚。没有终点——活过几夜就是你的成绩。</p>'
-    + '<p>饿、渴、辐射一直在掉，不吃不喝会死。搜到的口粮和净水能救急，'
-    + '回据点的工作台也能做补给。死了这一局结束，废钢和据点带得走。</p>'
+    '<p>俯视角打枪。断电后的下城区里，<b>一波接一波地打，敌人越来越多</b>。'
+    + '没有终点——撑到第几波就是你的成绩。</p>'
+    + '<p>饿、渴、辐射一直在掉，不吃不喝会死。场地上按 <b>E</b> 搜箱子能拿口粮和净水，'
+    + '波间的工作台（按 <b>T</b>）能把废钢和零件做成补给。死了这一局结束，废钢和据点带得走。</p>'
     + '<p>每一局都不一样：升级的时候给你三张牌随机挑，挑到什么就得用什么打法。</p>'
     + `<p>敌人 ${mobs} 种，一多半<b>不能对着莽</b>：铁闸要绕到侧后打、`
     + '爆囊不能贴上去、中继得先拆掉。第一次遇到都会给你一句怎么应对。</p>')
@@ -8540,13 +8451,12 @@ function howToHTML() {
 
   + sec('一 局 是 怎 么 走 的',
     '<ol class="hstep">'
-    + '<li><b>白天 100 秒</b>：按住 <b>E</b>（触屏站着别动）搜城区里的箱子，'
-    + '拿到口粮、净水、废钢和零件。搜的时候会招来怪</li>'
-    + '<li><b>黄昏 12 秒</b>：回据点，在工作台把废钢和零件做成补给；不想守了就<b>收工回据点</b></li>'
-    + '<li><b>夜晚 70 秒</b>：怪从四面冲向核心，站到核心旁边守住。核心被打空这一趟就结束</li>'
-    + `<li>每 5 夜来一只 BOSS，一共 ${bosses} 种轮着来。每只掉到一半血会换个打法</li>`
+    + '<li>每波把冲上来的敌人清完，清完自动来下一波，没有终点</li>'
+    + '<li>波内按住 <b>E</b>（触屏站着别动）搜箱子，拿口粮、净水、废钢和零件——搜的时候会招来怪</li>'
+    + '<li>波间进<b>回收站</b>买战斗东西，按 <b>T</b> 开<b>工作台</b>做吃喝药；不想打了就<b>收工回据点</b></li>'
+    + `<li>每 5 波来一只 BOSS，一共 ${bosses} 种轮着来。每只掉到一半血会换个打法</li>`
+    + '<li>每 3 波一场风暴：酸雨 / 辐射 / 铁潮，三选一轮转</li>'
     + '<li>攒够经验就升级，弹出三张牌，选一张</li>'
-    + '<li>撑到天亮，天数 +1，第二天接着搜刮和守夜</li>'
     + '</ol>')
 
   + sec('地 上 会 掉 什 么',
@@ -8635,7 +8545,7 @@ function howToHTML() {
     + '没有一样是直接加战斗力 —— 变强那条线归局内的升级牌管。</p>')
 
   + sec('难 度 和 每 日 局',
-    `<p><b>危险等级</b>四档。活过 5 夜解锁高危、高危活过 10 夜解锁熔毁与归零，越高的档敌人越硬、刷得越快，`
+    `<p><b>危险等级</b>四档。打到第 5 波解锁高危、第 10 波解锁熔毁与归零，越高的档敌人越硬、刷得越快，`
     + '分数也更高。每一档单独存一条记录，不会互相盖掉。</p>'
     + `<p><b>每日局</b>：种子取当天日期，<b>全世界今天打的是同一局</b>。`
     + '配置固定、所有牌全开、危险等级锁在标准档 —— 这样成绩才比得起来。</p>'
@@ -9417,7 +9327,7 @@ function syncBest() {
     const lines = DANGER.map((g, i) => {
       const r = bestOf(i);
       return r ? g.n.replace(/ /g, '') + ' 第 ' + r.wave + ' 波'
-        + (r.nights != null ? ' · 活过 ' + r.nights + ' 夜' : '') + ' · ' + r.score + ' 分' : null;
+        + ' · ' + r.score + ' 分' : null;
     }).filter(Boolean);
     t.textContent = (lines.length ? '最好：' + lines.join('　|　') : '')
       + (PROF.wins ? (lines.length ? '　|　' : '') + '已撤离 ' + PROF.wins + ' 次' : '');
@@ -9489,7 +9399,7 @@ function syncSaves() {
     const when = isNaN(d.getTime()) ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' '
       + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
     return '<div class="srow2"><button class="si" data-save="' + r.saveId + '">'
-      + '<span class="top"><b>第 ' + ((g.day | 0) || 1) + ' 天 · 活过 ' + (g.nights | 0) + ' 夜</b><small>' + when + '</small></span>'
+      + '<span class="top"><b>第 ' + ((g.wave | 0) || 1) + ' 波</b><small>' + when + '</small></span>'
       + '<small>' + mode + ' · ' + dn + ' · LV' + ((r.P && r.P.lv) | 0) + '</small></button>'
       + '<button class="del" data-del="' + r.saveId + '">删</button></div>';
   }).join('') : '<div class="phint">暂无存档</div>';
@@ -9647,6 +9557,7 @@ el('tabBag').onclick = () => showTab('bag');
 el('tabDex').onclick = () => showTab('dex');
 el('tabStat').onclick = () => showTab('stat');
 el('shopGo').onclick = closeShop;
+el('shopBench').onclick = () => openBench();           // 波间做补给，做完自动回到商店
 el('routeItems').onclick = e => {
   const b = e.target.closest && e.target.closest('[data-route]');
   if (b) pickRoute(+b.dataset.route);
@@ -9764,7 +9675,7 @@ window.NS = { G, get P() { return P; }, start, saveRun, loadRun, clearRun, syncC
   DANGER, dangerIdx, DG, dangerMax, pickDanger, dgRamp, dgMul, dgMulLate, get ARENA_I() { return ARENA_I; },
   hurtMob, hurtPlayer, blowUp, killMob, waveSpawn, isBoss, TIPS, BOSS_AT, bossOf, waveLeft, syncWave,
   AFFIX, AFFIX_IDS,
-  CACHE_T, useItem, lootCache, WORKBENCH, benchCan, benchMake, syncBench, openBench, closeBench, enterDawn, enterDusk, enterNight,
+  CACHE_T, useItem, lootCache, WORKBENCH, benchCan, benchMake, syncBench, openBench, closeBench, makeCore, stormOf,
   PROPS, keys, updateSearch, endRun, STORM, SAVES_KEY, loadSaves, putSaves, openSaves, syncSaves,
   fireBeam, fireMine, fireDisc, MINE_MAX, railBeam, throwDisc,
   HQ, HQ_IDS, hqLv, hqNext, buyHQ, refine, refineRate, REFINE_RATE,
